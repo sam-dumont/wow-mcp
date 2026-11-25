@@ -5,7 +5,7 @@ wow-stats is GPL-3.0-only (`LICENSE`). It ships these parts made by others.
 | Component | Used for | Licence | Where |
 |---|---|---|---|
 | [Polestar](https://github.com/fitzforge/polestar) by fitzforge and contributors | Route times (its route planner on its guides); gear advice (where gear comes from, and the class rules: who wears what, from `Gear/Weights.lua`, plus the class masks the client leaves open; none of its weights, and its item stats aren't read since 2026-11-24); class and profession trainers, what each trains and its cost (`Core/ClassTrainers.lua`, `QoL/ClassSpells.lua`, `QoL/Riding.lua`, `Polestar_Guides/Guides.lua`: Forever's trainer lists, from ForeverTDB, used as facts); each quest's usual entry level (`data/codex/levels.json`, and `recorded.json`: the 25th percentile of players' recorded entry levels); which dungeon a quest belongs to (its cited dungeon journal `data/codex/journal-quests.json`, its dungeon runs `data/dungeon-runs.json`, the dungeons' map ids in `Dungeons/Art.lua`) | GPL-3.0-only | `data/route-reference.json`, `data/dungeons/quests.json`, `data/gear-reference.json`, `data/class-reference.json`, `data/trainers-reference.json`, `data/forever-reference.json` (level floors), `wowstats/gear.py`; `docs/route-reference.md`, `docs/gear-reference.md` |
-| forever-db, Polestar's quest database (Polestar v0.4.2.2, built from its own sources: notice below) | Quests, NPCs and items behind the route times; every quest's and item's name, quest level and zone, so the page never shows a bare id; the gear rewards of every quest (`gear_quests`), where gear comes from when Polestar's sources don't say. Polestar keeps it in its repo's `forever-db/` folder (2026.11.1, client build 1.60.1.70532); we read it there at the Polestar tag | GPL-3.0, with CC BY 4.0 and MIT parts, notice below | `data/route-reference.json`, `data/forever-reference.json` (`quests`, `items`), `data/dungeons/wings.json` (quest objectives and item sources behind each quest's wing), `data/dungeons/quests.json` (each quest's zone: the dungeon it belongs to); `docs/forever-reference.md` |
+| forever-db, Polestar's quest database (Polestar v0.4.2.2, built from its own sources: notice below) | Quests, NPCs and items behind the route times; every quest's and item's name, quest level and zone, so the page never shows a bare id; the gear rewards of every quest (`gear_quests`), where gear comes from when Polestar's sources don't say. Polestar publishes it on its own releases (`data-v*`, ahead of the addon's); we read it at the release in `tools/forever-db-tag` (2026.11.2, client build 1.60.1.70888), its zip checked against the release's `SHA256SUMS`. The route times still read the copy Polestar's addon tag carries | GPL-3.0, with CC BY 4.0 and MIT parts, notice below | `data/route-reference.json`, `data/forever-reference.json` (`quests`, `items`), `data/dungeons/wings.json` (quest objectives and item sources behind each quest's wing), `data/dungeons/quests.json` (each quest's zone: the dungeon it belongs to); `docs/forever-reference.md` |
 | Forever client tables AreaTable, Map, GroupFinderActivity via wago.tools | Zone names, which areas are dungeons, a dungeon's level range | Game data © Blizzard Entertainment, used as facts | `data/forever-reference.json` (`areas`) |
 | Forever client tables Item, ItemModifiedAppearance, ItemAppearance via wago.tools, read at run time | Which icon an item has, including Forever's new items whose icon is only on their appearance | Game data © Blizzard Entertainment, used as facts | `wowstats/itemcard.py` (cache only, nothing committed) |
 | Item, spell and talent icons from wow.zamimg.com (Wowhead's image host), fetched at run time | The icons on the pages | Blizzard's art, served by Wowhead; not shipped, no licence of ours covers them | `wowstats/itemcard.py`, `wowstats/talents.py` (cache only) |
@@ -102,7 +102,7 @@ SOFTWARE.
 
 ## forever-db
 
-forever-db's `NOTICE.md`, as Polestar v0.4.2.2 ships it:
+forever-db's `NOTICE.md`, as Polestar v0.4.2.2 ships it (the 2026.11.2 release's is the same, byte for byte):
 
 The Polestar quest data for World of Warcraft: Forever. Every value in its tables is held by at
 least one of the independent sources below.
@@ -161,7 +161,7 @@ knows (its README).
 
 The notice above says Questie is moving to GPL-3.0. That hasn't happened: Questie#4447 was closed
 in October 2026 without a licence, and its last comments (February 2026) say every contributor
-would have to agree to one. wow-stats ships forever-db as Polestar v0.4.2.2 distributes it, QuestieDB
+would have to agree to one. wow-stats ships forever-db as Polestar distributes it, QuestieDB
 lineage included (the maintainer's call): Polestar puts the same data in front of a much
 larger audience, and can build without QuestieDB (`--no-questie`) should that be needed.
 

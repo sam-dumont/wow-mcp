@@ -5,13 +5,14 @@ toward the run it came from instead of the zone it was handed in
 (wowstats.dungeonquests, owner 2026-11-24).
 
 Every source is Forever's own or Polestar's word on Forever, never Classic
-data, in the Polestar checkout at tools/polestar-tag:
+data: forever-db at its pinned release (tools/forever-db-tag, the one
+data/forever-reference.json is exported from), the rest in the Polestar checkout at
+tools/polestar-tag:
 
 - `zone`: forever-db's zone for the quest is the dungeon's area (the place
   its work is done, wherever it is picked up), the instance's own area or
   the same-named one the client zones its quests in (Gnomeregan 133/721).
-  The areas and their instance map are data/forever-reference.json's,
-  exported from the same tag.
+  The areas and each instance's own area are data/forever-reference.json's.
 - `journal`: Polestar's cited table of dungeon quests no rule places
   (data/codex/journal-quests.json: a giver, ender and zone outside, the
   objective inside; each row cites Forever's quest data or players'
@@ -40,6 +41,7 @@ Stdlib only, the same bytes on every run:
 
     uv run python tools/dungeon_quests/export.py --polestar <checkout>
     uv run python tools/dungeon_quests/export.py --polestar <checkout> --check   # exit 1 when it differs
+    ... [--forever-db-cache DIR]   # the forever reference export's, so forever-db isn't fetched twice
 """
 
 from __future__ import annotations
@@ -81,7 +83,11 @@ def art_maps(ps: Path) -> dict[int, str]:
     return out
 
 
-def build(ps: Path) -> dict:
+def build(ps: Path, db: Path | None = None) -> dict:
+    """`db`: an unpacked forever-db (its `forever-db/` directory), by default
+    the one in the Polestar checkout; main() passes the release
+    data/forever-reference.json was exported from."""
+    db = db or ps / "forever-db"
     ref = json.loads((ROOT / "data" / "forever-reference.json").read_text(encoding="utf-8"))
     kill = json.loads((ROOT / "data" / "dungeons" / "kill-xp.json").read_text(encoding="utf-8"))["dungeons"]
     art = art_maps(ps)
@@ -96,11 +102,16 @@ def build(ps: Path) -> dict:
 
     # The instance areas and their same-named twins (forever.dungeon_area's rule).
     areas = ref["areas"]
-    inst_area = {int(a["map"]): int(k) for k, a in areas.items() if a.get("instance") == "dungeon" and a.get("map")}
-    by_name = {a["name"]: int(a["map"]) for a in areas.values() if a.get("instance") == "dungeon" and a.get("map")}
+    inst_area = {int(m): int(x["area"]) for m, x in (ref.get("maps") or {}).items()
+                 if x.get("area") and (areas.get(str(x["area"])) or {}).get("instance") == "dungeon"}
+    # A twin carries the name of the dungeon's own area (Razorfen Kraul 1717
+    # outside, 491 inside), never the name of any area on its map: the
+    # client's Deadmines map has an area named Westfall, City of Dalaran's
+    # one named Hillsbrad Foothills, and the zones' quests aren't theirs.
+    by_name = {areas[str(a)]["name"]: m for m, a in inst_area.items()}
     map_of_area = {}
     for k, a in areas.items():
-        m = by_name.get(a["name"])
+        m = int(a["map"]) if a.get("instance") == "dungeon" and a.get("map") else by_name.get(a["name"])
         if m is not None and m in dungeons:
             map_of_area[int(k)] = m
 
@@ -111,7 +122,7 @@ def build(ps: Path) -> dict:
         key_map.setdefault(slug(n), m)
         key_map.setdefault(slug(re.sub(r"^The ", "", n)), m)
 
-    fdb = ps / "forever-db" / "data"
+    fdb = db / "data"
     quests = {q["id"]: q for q in jsonl(fdb / "quest.jsonl")}
     found: dict[int, dict[int, set[str]]] = {}
 
@@ -183,7 +194,7 @@ def build(ps: Path) -> dict:
             d["none"] = why
         out_d[str(m)] = d
     order = ("zone", "boss", "journal", "route", "flag")
-    pkg = json.loads((ps / "forever-db" / "datapackage.json").read_text(encoding="utf-8"))
+    pkg = json.loads((db / "datapackage.json").read_text(encoding="utf-8"))
     return {
         "about": "Which dungeon (instance map) each quest belongs to, so its hand-in counts toward the run it came "
                  "from (wowstats.dungeonquests). quests: {quest id: [[map, [sources]]]}; sources: zone (forever-db "
@@ -204,8 +215,19 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--polestar", required=True, type=Path, help="a Polestar checkout at tools/polestar-tag")
     ap.add_argument("--check", action="store_true", help="exit 1 when data/dungeons/quests.json differs")
+    ap.add_argument("--forever-db-cache", type=Path,
+                    help="where tools/forever_reference/export.py unpacked forever-db (default: fetch it again)")
     a = ap.parse_args()
-    text = json.dumps(build(a.polestar), ensure_ascii=False, separators=(",", ":"), sort_keys=False) + "\n"
+    # forever-db at its pin, the forever reference's, not necessarily the copy
+    # in Polestar's checkout: the two files must agree on the quests.
+    sys.path.insert(0, str(ROOT / "tools" / "forever_reference"))
+    import tempfile
+
+    import upstream
+
+    db = upstream.forever_db(upstream.pinned()["forever_db"],
+                             a.forever_db_cache or Path(tempfile.mkdtemp(prefix="forever-db-")), a.polestar)
+    text = json.dumps(build(a.polestar, db), ensure_ascii=False, separators=(",", ":"), sort_keys=False) + "\n"
     if a.check:
         if OUT.read_text(encoding="utf-8") != text:
             print(f"{OUT.relative_to(ROOT)} is not the export: rerun tools/dungeon_quests/export.py", file=sys.stderr)

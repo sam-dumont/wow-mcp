@@ -145,12 +145,25 @@ def faction(faction_id) -> dict | None:
 _by_map: dict[int, int] | None = None
 
 
+def instance_areas(kind: str | None = None) -> dict[str, dict]:
+    """Each dungeon's or raid's own area (one per instance map), by area id;
+    `kind` "dungeon" or "raid" keeps those. Name lookups go through these:
+    every room of an instance is an area too, and some carry a world zone's
+    name (the Emerald Dream map's Feralas)."""
+    d = data() or {}
+    areas = d.get("areas") or {}
+    own = {str(m["area"]) for m in (d.get("maps") or {}).values() if m.get("area")}
+    return {k: a for k, a in areas.items() if a.get("instance") and (kind is None or a["instance"] == kind)
+            and (not own or k in own)}
+
+
 def area_of_map(map_id) -> int | None:
     """The AreaTable id of an instance by its Map id (ForeverDB names
     instances by Map id; the areas carry `map`). None when unknown."""
     global _by_map
     if _by_map is None:
-        by: dict[int, int] = {}
+        # The map's own area (the export's `maps`), else its first instance area.
+        by: dict[int, int] = {int(m): int(x["area"]) for m, x in (data().get("maps") or {}).items() if x.get("area")}
         for k, a in sorted((data().get("areas") or {}).items(), key=lambda kv: (not kv[1].get("instance"), int(kv[0]))):
             if a.get("map") is not None:
                 by.setdefault(int(a["map"]), int(k))
@@ -174,8 +187,15 @@ def area_id(name: str | None) -> int | None:
     if not name:
         return None
     if _by_name is None:
+        # An instance's own area first (Razorfen Kraul: the dungeon, not its
+        # entrance), then a plain area (Stranglethorn Vale the zone, not an
+        # event's instanced copy), lowest id first: the zone before a sub-area.
+        areas = data().get("areas") or {}
+        own = {int(x["area"]) for x in (data().get("maps") or {}).values()
+               if x.get("area") and (areas.get(str(x["area"])) or {}).get("instance")}
         by: dict[str, int] = {}
-        for k, a in sorted((data().get("areas") or {}).items(), key=lambda kv: not kv[1].get("instance")):
+        for k, a in sorted((data().get("areas") or {}).items(),
+                           key=lambda kv: (int(kv[0]) not in own, bool(kv[1].get("instance")), int(kv[0]))):
             by.setdefault(a.get("name"), int(k))
         _by_name = by
     return _by_name.get(name) or (_by_name.get(name.split(":", 1)[0].strip()) if ":" in name else None)

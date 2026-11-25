@@ -364,9 +364,17 @@ def test_a_dungeon_without_loot_data_lists_the_notes_drops(priest, monkeypatch):
     known: dict[str, int] = {}
     for k, v in [*((forever.data() or {}).get("items") or {}).items(), *polestar.items()]:
         known.setdefault(str(v).lower(), int(k))
+    # forever-db 2026.11.2 names every one of the dungeon's drops: all but
+    # one left out, so both paths (known by name, the notes' word alone) run.
+    notes = {d["name"].lower() for d in kbloot.drops("The Drowned City")}
+    known = {n: i for n, i in known.items() if n not in notes or n == "briny sash"}
     monkeypatch.setattr(kbloot, "_ids", lambda: known)
 
-    b = by_name(V.build(copy.deepcopy(priest)))["The Drowned City"]
+    # forever-db 2026.11.2 has the Drowned City's loot: taken out, so the
+    # dungeon stands for one no item data covers yet.
+    inp = copy.deepcopy(priest)
+    inp["dungeon_loot"] = {k: v for k, v in (inp.get("dungeon_loot") or {}).items() if k != "16550"}
+    b = by_name(V.build(inp))["The Drowned City"]
     assert b["drops"] == [] and b["state"] == "soon"
     kbd = {d["name"]: d for d in b["kb_drops"]}
     assert len(kbd) == 23 and {d["confidence"] for d in kbd.values()} == {"low"}

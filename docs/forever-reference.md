@@ -45,40 +45,53 @@ game's question mark (`inv_misc_questionmark`), never an empty frame.
 
 | Part | From | Licence |
 | --- | --- | --- |
-| `quests` (title, level, minimum level, zone), `parts` (chain order), `pre` (the quests one needs done first, breadcrumbs left out), `items` (names) | forever-db in [Polestar](https://github.com/fitzforge/polestar) at `POLESTAR_TAG` (`forever-db/data/quest.jsonl`, `quest_prereq.jsonl`, `item.jsonl`) | GPL-3.0, with CC BY 4.0 and MIT parts (`THIRD_PARTY.md`) |
+| `quests` (title, level, minimum level, zone), `parts` (chain order), `pre` (the quests one needs done first, breadcrumbs left out), `items` (names) | forever-db, [Polestar](https://github.com/fitzforge/polestar)'s quest database, at its own release in `tools/forever-db-tag` (`data-v*`: the zip, checked against the release's `SHA256SUMS`; `forever-db/data/quest.jsonl`, `quest_prereq.jsonl`, `item.jsonl`), not the copy Polestar's addon release bundles | GPL-3.0, with CC BY 4.0 and MIT parts (`THIRD_PARTY.md`) |
 | `rewards`: gear exactly one quest gives (an item or choice reward of one quest in forever-db or the gear data, no creature or object that drops it, no craft or drop in the gear data, green or better; the gear data covers the new quests forever-db has no reward rows for, City of Dalaran's among them), so holding it means that quest was handed in (`wowstats/quests.py`) | forever-db's `quest_reward.jsonl` and `item_source.jsonl`, Polestar's gear data (`data/gear-reference.json`) | GPL-3.0, with the MIT parts of the gear data (`THIRD_PARTY.md`) |
 | `gear_quests`: every quest with a gear reward, as `[side, race mask, class mask, [rewards], [choices]]`: where gear comes from when Polestar's sources don't say (`wowstats/gear.py` `with_game_items`) | forever-db's `quest.jsonl` and `quest_reward.jsonl` | GPL-3.0, with CC BY 4.0 and MIT parts (`THIRD_PARTY.md`) |
-| `areas`: zone names, dungeon or raid (with its instance Map id), its bosses, level range | Forever's client tables AreaTable, Map, DungeonEncounter and GroupFinderActivity on wago.tools, at the client build in `data/kb/watch.json` (`client_build.known`); level caps from Polestar's `data/codex/levels.json` (`max`), the same rule its Codex uses | Game data © Blizzard Entertainment, used as facts |
+| `areas`: every area's name; for a dungeon's or a raid's (its map an instance the Group Finder lists) its instance Map id, bosses and level range. `maps`: every map's name and type, and an instance's own area | Forever's client tables AreaTable, Map, DungeonEncounter and GroupFinderActivity on wago.tools, read whole, at the client build in `data/kb/watch.json` (`client_build.known`); level caps from Polestar's `data/codex/levels.json` (`max`), the same rule its Codex uses | Game data © Blizzard Entertainment, used as facts |
 | `ui_maps`: each world map's name by its UiMap id, where ForeverDB.net places a quest's giver | Forever's client table UiMap, same build | Game data © Blizzard Entertainment, used as facts |
-| `factions`: every reputation's name and side (Alliance, Horde, or none for a neutral one like Ratchet): a reputation's quartermaster sells to its side (`wowstats/gear.py` `side_of_gate`) | Forever's client table Faction on wago.tools, at forever-db's `clientBuild`: the side of the faction it sits under (Alliance or Alliance Forces, Horde or Horde Forces) | Game data © Blizzard Entertainment, used as facts |
+| `factions`: every reputation's name and side (Alliance, Horde, or none for a neutral one like Ratchet): a reputation's quartermaster sells to its side (`wowstats/gear.py` `side_of_gate`) | Forever's client table Faction on wago.tools, same build: the side of the faction it sits under (Alliance or Alliance Forces, Horde or Horde Forces) | Game data © Blizzard Entertainment, used as facts |
 
 ## New zones and dungeons
 
-Forever adds zones and dungeons faster than forever-db is published:
-forever-db 2026.11.1 was made from client 1.60.1.70532, which has no
-Drowned City at all (its Map 2970 came later), and its quests stop before
-Saving Sunnyglade or The Saltseer Captain. So the client tables are read at
-the newest build the knowledge base knows (the refresh job's client-build
-lane moves it and reruns this export), and the file keeps every zone the
-world map shows and every instance the Group Finder lists, whether a quest
+Forever adds zones and dungeons faster than Polestar's addon releases
+carry them: Polestar v0.4.2.2 bundles forever-db 2026.11.1, made from
+client 1.60.1.70532, which has no Drowned City at all (its Map 2970 came
+later), and its quests stop before Saving Sunnyglade or The Saltseer
+Captain. forever-db's own release 2026.11.2 has both. So forever-db comes
+from its own releases, and the client tables are read whole at the newest
+build the knowledge base knows: every area and every map, whether a quest
 names it yet or not.
 
 A quest's zone, everywhere the server shows one (`forever.quest_zone`):
 forever-db's zone; else its one dungeon from `data/dungeons/quests.json`
 (`forever.quest_dungeon`: forever-db's zone, a boss it kills, Polestar's
 journal or its dungeon runs); else the map ForeverDB.net puts its giver on
-(`ui_maps`). The export stops when forever-db zones a quest in an area the
-client doesn't name, and `tests/test_forever.py` fails when a quest,
-giver or dungeon in the bundled data has no zone name.
+(`ui_maps`). The export stops when forever-db zones a quest, or the gear
+data a drop, in an area the client doesn't name, and
+`tests/test_forever.py` fails when a quest, giver or dungeon in the bundled
+data has no zone name.
 
-Beyond those, only areas a quest or a drop names are kept. The level range is the Group
-Finder's normal-difficulty row for the dungeon's map; an instance whose area
-sits on its continent's map (Blackrock Spire) is found through `Map.AreaTableID`.
+An instance's own area (`maps` `area`, `forever.area_of_map`) is the one
+carrying the map's name: `Map.AreaTableID` (Blackrock Spire's sits on its
+continent's map), else a top area of the map (Sunken Temple 1417, the zone
+forever-db's quests use). The dungeon list (`wowstats.plan.dungeonview`)
+takes one dungeon per instance map, its own area. The level range is the
+Group Finder's normal-difficulty row for the dungeon's map; an instanced map
+the Group Finder doesn't list (an event's copy of Deadwind Pass) is in
+`maps` with its type, its areas plain names.
 
 ## Remaking it
 
-    uv run python tools/forever_reference/export.py --polestar <polestar checkout>
+    uv run python tools/forever_reference/export.py --polestar <polestar checkout>            # at the pins
+    uv run python tools/forever_reference/export.py --polestar <polestar checkout> --latest   # forever-db's newest release first
 
-Stdlib only, the same bytes on every run. `.github/workflows/route-reference.yml`
-reruns it on each change, on a new `tools/polestar-tag` and on a new client build in `data/kb/watch.json`, and fails when the
-committed file differs.
+Both versions are pins, recorded in the file's `source`: forever-db's
+release in `tools/forever-db-tag` (`--latest` moves it to the newest
+`data-v*` release, then exports) and the client build in
+`data/kb/watch.json` (`client_build.known`, moved daily by the refresh job's
+client-build kind, which reruns this export, the dungeon quests and the
+route reference). Stdlib only, the same bytes for the same pins.
+`.github/workflows/route-reference.yml` reruns it on each change, on a new
+`tools/polestar-tag`, `tools/forever-db-tag` or client build, and fails when
+the committed file differs.

@@ -452,6 +452,14 @@ def unknown_drops(monkeypatch):
     monkeypatch.setattr(kbloot, "_ids", lambda: known)
 
 
+def no_loot(priest: dict) -> dict:
+    """The inputs without the Drowned City's loot data: forever-db 2026.11.2
+    has its drops, and these tests are about a dungeon no loot data covers."""
+    inp = copy.deepcopy(priest)
+    inp["dungeon_loot"] = {k: v for k, v in (inp.get("dungeon_loot") or {}).items() if k != "16550"}
+    return inp
+
+
 def priest_facts(shipper, tmp_path) -> itemfacts.Facts:
     st = itemfacts.Store(tmp_path / "priest")
     st.put_items(list(facts_of(shipper).values()), itemfacts.has_reference)
@@ -461,7 +469,7 @@ def priest_facts(shipper, tmp_path) -> itemfacts.Facts:
 
 def test_the_loot_view_shows_the_facts(priest, shipper, tmp_path, unknown_drops):
     with itemfacts.using(priest_facts(shipper, tmp_path)):
-        b = {x["name"]: x for x in V.build(copy.deepcopy(priest))["dungeons"]}["The Drowned City"]
+        b = {x["name"]: x for x in V.build(no_loot(priest))["dungeons"]}["The Drowned City"]
     kbd = {d["name"]: d for d in b["kb_drops"]}
     crown, robe, axe = kbd["Serpentbane Crown"], kbd["Robe of the Drowned"], kbd["Bloodslash Axe"]
     assert crown["item_id"] == CROWN and crown["item_level"] == 42 and crown["slot_name"] == "Head"
@@ -482,7 +490,7 @@ def test_the_loot_view_shows_the_facts(priest, shipper, tmp_path, unknown_drops)
 
 
 def test_without_facts_the_notes_alone(priest, unknown_drops):
-    b = {x["name"]: x for x in V.build(copy.deepcopy(priest))["dungeons"]}["The Drowned City"]
+    b = {x["name"]: x for x in V.build(no_loot(priest))["dungeons"]}["The Drowned City"]
     kbd = {d["name"]: d for d in b["kb_drops"]}
     assert kbd["Serpentbane Crown"]["item_id"] is None and "stats" not in kbd["Serpentbane Crown"]
 

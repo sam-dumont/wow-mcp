@@ -1,26 +1,28 @@
 """Writes data/forever-reference.json: Forever's quest names and its
 instances, so the server names every quest and dungeon it shows.
 
-Two sources, both facts about the game:
+Two upstreams, both facts about the game, each at the version recorded in
+the file's `source` (tools/forever_reference/upstream.py, pins below):
 
-- forever-db (Polestar's quest database, GPL-3.0, in the Polestar checkout at
-  tools/polestar-tag): each quest's title, level, minimum level and zone, its part
-  in a chain of quests with the same title (from the prerequisites), the
-  quests it needs done first (breadcrumbs left out), each item's name
-  (Forever's ItemSparse holds only the items Forever changed), and the
-  gear only one quest gives (wowstats.quests: holding it means the quest
-  was handed in).
-- Forever's client tables on wago.tools, at the client build the knowledge
-  base was last checked against (data/kb/watch.json `client_build.known`,
-  moved by the refresh job's client-build lane, which reruns this export):
-  AreaTable (zone names), Map (which areas are dungeons or raids), UiMap
-  (the map ids ForeverDB.net places quest givers on), DungeonEncounter (each
-  instance's bosses), Faction (each
-  reputation's side: a faction
-  under Alliance or Alliance Forces is the Alliance's, under Horde or Horde
-  Forces the Horde's, the rest neutral) and GroupFinderActivity (a dungeon's level
-  range, as the game's Group Finder shows it, the rule Polestar's Codex
-  uses), with the Codex's named exceptions (data/codex/levels.json, `max`).
+- forever-db, Polestar's open quest database (GPL-3.0), at its own newest
+  release (`data-v*` on GitHub, a zip checked against its SHA256SUMS), not
+  the copy inside Polestar's addon release: forever-db is published ahead
+  of the addon (2026.11.2 had The Drowned City's and Riverglades' quests
+  while Polestar v0.4.2.2 still shipped 2026.11.1). Each quest's title,
+  level, minimum level and zone, its part in a chain of quests with the
+  same title (from the prerequisites), the quests it needs done first
+  (breadcrumbs left out), each item's name (Forever's ItemSparse holds only
+  the items Forever changed), and the gear only one quest gives
+  (wowstats.quests: holding it means the quest was handed in).
+- Forever's client tables on wago.tools at the newest client build, read
+  whole: AreaTable (every area's name), Map (every map: which are dungeons
+  or raids, each instance's own area), UiMap (the map ids ForeverDB.net
+  places quest givers on), DungeonEncounter (each instance's bosses),
+  Faction (each reputation's side: a faction under Alliance or Alliance
+  Forces is the Alliance's, under Horde or Horde Forces the Horde's, the
+  rest neutral) and GroupFinderActivity (a dungeon's level range, as the
+  game's Group Finder shows it, the rule Polestar's Codex uses), with the
+  Codex's named exceptions (data/codex/levels.json, `max`).
 - Polestar's floor for each dungeon (its Codex rule, journal.rs levels_of):
   the range's bottom or players' recorded 25th percentile entry level
   (data/codex/recorded.json, 5 people with a boss kill or more), whichever
@@ -28,9 +30,20 @@ Two sources, both facts about the game:
   a dungeon "For your level" from its floor to its top; wowstats.plan.vsguide
   sets the advice against that list.
 
-Stdlib only, the same file byte for byte on every run:
+Both at their pins, recorded in the file's `source`: forever-db at
+tools/forever-db-tag, the client build at data/kb/watch.json
+`client_build.known` (the watch's client-build kind moves it daily and
+reruns this export). Stdlib only, the same file byte for byte for the same
+pins:
 
-    uv run python tools/forever_reference/export.py --polestar /tmp/polestar
+    uv run python tools/forever_reference/export.py --polestar <checkout>            # at the pins
+    uv run python tools/forever_reference/export.py --polestar <checkout> --latest   # forever-db's newest first
+
+`--latest` moves the forever-db pin to its newest release, then exports.
+The Polestar checkout (tools/polestar-tag) gives only the Codex's level
+exceptions and floors, and its forever-db when it is the pinned release (no
+download then). `--forever-db-cache` keeps the unpacked forever-db for the
+exports that read it next (tools/dungeon_quests/export.py).
 """
 
 from __future__ import annotations
@@ -41,13 +54,19 @@ import io
 import json
 import re
 import sys
+import tempfile
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import upstream  # noqa: E402
+
 WAGO = "https://wago.tools/db2/{table}/csv?build={build}"
 OUT = Path(__file__).resolve().parents[2] / "data" / "forever-reference.json"
-WATCH = OUT.parent / "kb" / "watch.json"
 INSTANCE = {"1": "dungeon", "2": "raid"}
+# Map.InstanceType, for the maps table.
+MAP_TYPE = {"0": "world", "1": "dungeon", "2": "raid", "3": "battleground", "4": "arena", "5": "scenario"}
 # The client's Faction roots of each side: Alliance and Alliance Forces (the
 # battleground reputations), Horde and Horde Forces.
 SIDE_ROOTS = {"469": "Alliance", "891": "Alliance", "67": "Horde", "892": "Horde"}
@@ -61,6 +80,13 @@ def table(name: str, build: str) -> list[dict]:
     if not rows:
         raise SystemExit(f"wago.tools has no {name} rows for {build}")
     return rows
+
+
+def same_name(a: str | None, b: str | None) -> bool:
+    """Deadmines and The Deadmines alike."""
+    def n(x):
+        return re.sub(r"^the ", "", (x or "").lower().strip())
+    return bool(a and b) and n(a) == n(b)
 
 
 def i(v) -> int:
@@ -218,24 +244,27 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--polestar", required=True, type=Path)
     ap.add_argument("--out", type=Path, default=OUT)
+    ap.add_argument("--latest", action="store_true",
+                    help="forever-db's newest release, written to tools/forever-db-tag first")
+    ap.add_argument("--forever-db-cache", type=Path, help="where to keep the unpacked forever-db (default: a temp dir)")
     a = ap.parse_args(argv)
-    db = a.polestar / "forever-db"
+    if a.latest:
+        upstream.pin_forever_db(upstream.latest_forever_db())
+    v = upstream.pinned()
+    cache = a.forever_db_cache or Path(tempfile.mkdtemp(prefix="forever-db-"))
+    db = upstream.forever_db(v["forever_db"], cache, a.polestar)
     index = json.loads((db / "index.json").read_text())
-    # The client tables at the newest build we know, not forever-db's: Forever
-    # adds zones and dungeons faster than forever-db is published, and
-    # forever-db 2026.11.1 (client 1.60.1.70532) predates The Drowned City
-    # (Map 2970), so its area had no name and its quests no zone.
-    build = json.loads(WATCH.read_text(encoding="utf-8"))["client_build"]["known"]
+    # The client tables at the newest build, not forever-db's: Forever adds
+    # zones and dungeons faster than forever-db is published, and forever-db
+    # 2026.11.1 (client 1.60.1.70532) predates The Drowned City (Map 2970).
+    build = v["client_build"]
 
     quests: dict[str, list] = {}
-    used_areas: set[int] = set()
     for line in (db / "data" / "quest.jsonl").read_text(encoding="utf-8").splitlines():
         q = json.loads(line)
         if not q.get("title"):
             continue
         zone = q.get("zone_area") or 0
-        if zone > 0:
-            used_areas.add(zone)
         quests[str(q["id"])] = [q["title"], q.get("level") or 0, q.get("min_level") or 0, zone if zone > 0 else 0]
 
     parts = chain_parts(db, {k: v[0] for k, v in quests.items()})
@@ -261,10 +290,6 @@ def main(argv: list[str]) -> int:
     # The gear data's drop zones, so a drop says when it is a dungeon's.
     gear = json.loads((OUT.parent / "gear-reference.json").read_text())
     rewards = only_rewards(db, gear)
-    for srcs in (gear.get("sources") or {}).values():
-        for s in srcs:
-            if s.get("kind") == "drop" and s.get("zone"):
-                used_areas.add(int(s["zone"]))
 
     areas = table("AreaTable", build)
     maps = {r["ID"]: r for r in table("Map", build)}
@@ -290,78 +315,78 @@ def main(argv: list[str]) -> int:
         r = min(rows, key=lambda r: (i(r["MinLevel"]), i(r["ID"])))
         return [i(r["MinLevel"]), max(i(r["MinLevel"]), i(r["MaxLevelSuggestion"]))]
 
-    # Every zone of the world map and every dungeon's and raid's own area,
-    # named by a quest yet or not: a zone Forever adds (Riverglades) or a
-    # dungeon (The Drowned City) resolves the day a source names it. A zone
-    # is a continent's top area that the world map (UiMap, zone type) shows;
-    # the table's leftovers (UNUSED, GM Island) stay out. An instance's own
-    # area is Map.AreaTableID, else the area on its map that carries the
-    # map's name (Ruins of Lordaeron), for an instance the Group Finder
-    # lists (a level range): the event maps (an instanced Deadwind Pass)
-    # stay out, so a zone's name never resolves to one of them.
+    # Every area and every map, named by a quest yet or not: a zone Forever
+    # adds (Riverglades) or a dungeon (The Drowned City) resolves the day a
+    # source names it. An area is a dungeon's or a raid's when its map is an
+    # instance the Group Finder lists (a level range); the other instanced
+    # maps (an event's copy of Stranglethorn Vale, Deadwind Pass) are in
+    # `maps` with their type, their areas plain names. An instance's own
+    # area (maps' `area`, forever.area_of_map) is the one that carries the
+    # map's name: Map.AreaTableID (Blackrock Spire's 1583, on the continent),
+    # else a top area of the map (Sunken Temple 1417, the zone forever-db's
+    # quests use, not Map.AreaTableID's 1477, The Temple of Atal'Hakkar);
+    # else Map.AreaTableID (The Stockade, Stormwind Stockade's). None else:
+    # Nightmare Grove's lowest area is named Azshara, which isn't a raid.
     ui = table("UiMap", build)
-    zone_names = {r["Name_lang"] for r in ui if r["Type"] == "3"}
-    # An instance a quest or a drop already names keeps that area (Sunken
-    # Temple is 1417, not its Map's 1477, The Temple of Atal'Hakkar).
-    named = {r["ContinentID"] for r in areas if i(r["ID"]) in used_areas}
-    named |= {by_area[r["ID"]]["ID"] for r in areas if i(r["ID"]) in used_areas and r["ID"] in by_area}
-    own_area = {}
-    for mid, m in maps.items():
-        if (not INSTANCE.get(m["InstanceType"]) or mid in named
-                or not levels(mid, INSTANCE[m["InstanceType"]])):
-            continue
-        if i(m["AreaTableID"]):
-            own_area[m["AreaTableID"]] = mid
-            continue
-        same = sorted((r for r in areas if r["ContinentID"] == mid and r["ParentAreaID"] == "0"
-                       and r["AreaName_lang"] == m["MapName_lang"]), key=lambda r: i(r["ID"]))
-        if same:
-            own_area[same[0]["ID"]] = mid
+    by_id = {r["ID"]: r for r in areas}
+    on_map: dict[str, list[dict]] = {}
     for r in areas:
-        if r["ID"] in own_area or (r["ParentAreaID"] == "0" and r["ContinentID"] in ("0", "1")
-                                   and r["AreaName_lang"] in zone_names):
-            used_areas.add(i(r["ID"]))
+        on_map.setdefault(r["ContinentID"], []).append(r)
+    out_maps: dict[str, dict] = {}
+    for mid, m in maps.items():
+        kind = INSTANCE.get(m["InstanceType"])
+        top = sorted((r for r in on_map.get(mid, []) if r["ParentAreaID"] == "0" and r["AreaName_lang"]),
+                     key=lambda r: i(r["ID"]))
+        at = m["AreaTableID"] if i(m["AreaTableID"]) else None
+        same = lambda r: same_name(r.get("AreaName_lang"), m["MapName_lang"])  # noqa: E731
+        own = ((at if same(by_id.get(at) or {}) else None)
+               or next((r["ID"] for r in top if same(r)), None)
+               or at)
+        mo = {"name": m["MapName_lang"], "type": MAP_TYPE.get(m["InstanceType"], m["InstanceType"])}
+        if kind and own:
+            mo["area"] = i(own)
+        out_maps[mid] = mo
 
     out_areas: dict[str, dict] = {}
     for r in areas:
         aid = i(r["ID"])
-        m = maps.get(own_area.get(r["ID"]) or r["ContinentID"]) or {}
+        name = r.get("AreaName_lang") or ""
+        if not name:
+            continue
+        m = maps.get(r["ContinentID"]) or {}
         if not INSTANCE.get(m.get("InstanceType", "")):
             # An instance whose area sits on the continent's map (Blackrock
             # Spire): the instance map names it as its own area.
             m = by_area.get(r["ID"]) or m
         kind = INSTANCE.get(m.get("InstanceType", ""))
         map_id = m.get("ID", r["ContinentID"])
-        # Only the areas a quest or a drop names: the server shows nothing else.
-        if aid not in used_areas:
-            continue
-        name = r.get("AreaName_lang") or ""
-        if not name:
-            continue
+        lv = levels(map_id, kind) if kind else None
         a_out: dict = {"name": name}
-        if kind:
+        if kind and lv:
             a_out["instance"] = kind
             # The instance's Map id: Polestar's entrances and keys are keyed on it
             # (route-reference.json `places.entrances`).
             a_out["map"] = i(map_id)
-            lv = levels(map_id, kind)
             o = overrides.get(slug(m.get("MapName_lang") or name)) or {}
-            if lv and o.get("max"):
+            if o.get("max"):
                 lv = [lv[0], min(lv[1], int(o["max"]))]
             if bosses.get(str(map_id)):
                 a_out["bosses"] = sorted(bosses[str(map_id)])
-            if lv:
-                a_out["levels"] = lv
-                if kind == "dungeon":
-                    a_out["floor"] = floor_of(lv, recorded.get(str(map_id)), o)
+            a_out["levels"] = lv
+            if kind == "dungeon":
+                a_out["floor"] = floor_of(lv, recorded.get(str(map_id)), o)
         out_areas[str(aid)] = a_out
     unnamed = sorted({str(v[3]) for v in quests.values() if v[3]} - set(out_areas), key=int)
     if unnamed:
         raise SystemExit(f"forever-db zones quests in areas client {build} doesn't name: {', '.join(unnamed)}")
 
-    # uiMap id -> zone name: where ForeverDB.net places a quest's giver, for
-    # a quest forever-db doesn't have yet (wowstats.forever.ui_map).
+    # uiMap id -> its name: where ForeverDB.net places a quest's giver, for a
+    # quest forever-db doesn't have yet (wowstats.forever.ui_map).
     ui_maps = {r["ID"]: r["Name_lang"] for r in ui if r.get("Name_lang")}
+    missing = sorted({str(s["zone"]) for ss in (gear.get("sources") or {}).values() for s in ss
+                      if s.get("kind") == "drop" and s.get("zone")} - set(out_areas), key=int)
+    if missing:
+        raise SystemExit(f"the gear data's drop zones client {build} doesn't name: {', '.join(missing)}")
 
     doc = {
         "schema": 1,
@@ -388,8 +413,10 @@ def main(argv: list[str]) -> int:
         # quest id -> [side, race mask, class mask, [item rewards], [choice rewards]] (reward_quests)
         "gear_quests": gear_quests,
         # area id -> {name, instance: dungeon|raid, map: instance Map id, bosses: [encounter names],
-        # levels: [min, max], floor (dungeons): where Polestar's "For your level" starts}
+        # levels: [min, max], floor (dungeons): where Polestar's "For your level" starts}: every area
         "areas": dict(sorted(out_areas.items(), key=lambda kv: int(kv[0]))),
+        # map id -> {name, type: world|dungeon|raid|battleground|arena|scenario, area: an instance's own area}
+        "maps": dict(sorted(out_maps.items(), key=lambda kv: int(kv[0]))),
         # faction id -> {name, side: Alliance|Horde (none: neutral)} (faction_sides)
         "factions": factions,
         # uiMap id -> its name (ForeverDB.net's quest givers' maps)
@@ -399,8 +426,8 @@ def main(argv: list[str]) -> int:
                      encoding="utf-8")
     print(f"{a.out}: {len(quests)} quests ({len(parts)} in chains), {len(items)} items "
           f"({len(rewards)} only from one quest), {len(out_areas)} areas "
-          f"({sum(1 for x in out_areas.values() if 'instance' in x)} in instances), {len(factions)} factions, "
-          f"build {build}")
+          f"({sum(1 for x in out_areas.values() if 'instance' in x)} in instances), {len(out_maps)} maps, "
+          f"{len(factions)} factions, forever-db {index.get('version')}, build {build}")
     return 0
 
 

@@ -91,9 +91,11 @@ def _dq(inp: dict, aid: str, area: dict) -> dict:
 
 
 def areas() -> dict[str, dict]:
-    """The game's dungeons (data/forever-reference.json): area ID -> name, levels."""
-    return {aid: a for aid, a in ((forever.data() or {}).get("areas") or {}).items()
-            if a.get("instance") == "dungeon" and len(a.get("levels") or []) == 2}
+    """The game's dungeons (data/forever-reference.json): area ID -> name,
+    levels. One per instance map, its own area (the export's `maps`): the
+    areas list every room of a dungeon too (City of Dalaran has two areas
+    of that name)."""
+    return {aid: a for aid, a in forever.instance_areas("dungeon").items() if len(a.get("levels") or []) == 2}
 
 
 def kb_areas(have: dict[str, dict] | None = None) -> dict[str, dict]:
