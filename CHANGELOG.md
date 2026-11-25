@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- CI: the required `test` check now waits for `logsql`, the queries against a real VictoriaLogs. It wasn't required on its own, so #240 and #241 merged with it red.
+
 ## 0.11.0 (2026-11-24)
 
 What 0.11.0 brings over 0.10.0, in short. Every change follows.
