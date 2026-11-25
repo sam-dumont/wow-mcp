@@ -839,12 +839,20 @@ export function buildTrips({ ps, travel, params, frames, outDir }) {
 	// the client zones its quests in: Gnomeregan 721/133, Razorfen Kraul
 	// 491/1717, Uldaman 1337/1517, Zul'Farrak 1176/978; wowstats/forever.py
 	// dungeon_area), name, min }
+	// The instance's own area is the map's (fr.maps[map].area): the areas list
+	// every room of a dungeon too (Dire Maul's "The Maul UNUSED"). Its twins
+	// carry the own area's name, any area on the dungeon's map is the
+	// dungeon's, and a world zone's name on that map (the Deadmines map's
+	// Westfall) is not a twin.
 	const byName = new Map();
 	for (const [aid, a] of Object.entries(fr.areas || {})) (byName.get(a.name) || byName.set(a.name, []).get(a.name)).push(Number(aid));
 	const areaOf = new Map();
-	for (const [aid, a] of Object.entries(fr.areas || {})) {
-		if (a.instance === 'dungeon' && a.map && Array.isArray(a.levels)) {
-			areaOf.set(Number(a.map), { area: Number(aid), areas: new Set(byName.get(a.name)), name: a.name, min: a.levels[0] });
+	for (const [mid, m] of Object.entries(fr.maps || {})) {
+		const a = m.area ? fr.areas[String(m.area)] : null;
+		if (a && a.instance === 'dungeon' && Array.isArray(a.levels)) {
+			const areas = new Set(byName.get(a.name));
+			for (const [aid, b] of Object.entries(fr.areas)) if (b.instance === 'dungeon' && b.map === Number(mid)) areas.add(Number(aid));
+			areaOf.set(Number(mid), { area: m.area, areas, name: a.name, min: a.levels[0] });
 		}
 	}
 	const codex = (f) => JSON.parse(fs.readFileSync(path.join(ps, 'data', 'codex', f), 'utf8'));

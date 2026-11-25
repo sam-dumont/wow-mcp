@@ -138,8 +138,13 @@ def test_base_items_take_the_era_clients_name(tmp_path, monkeypatch):
     """A base item Forever's tables don't name gets the Classic Era
     client's name; Forever's own name always wins; Era unreachable, the
     item stays unnamed and nothing fails (the page then calls it by slot)."""
-    from wowstats import upstream
+    from wowstats import forever, upstream
 
+    # forever-db names it since 2026.11.2: left out, so it stands for an
+    # item no Forever source names.
+    ref = forever.data()
+    monkeypatch.setattr(forever, "data", lambda: {**ref, "items": {k: v for k, v in (ref.get("items") or {}).items()
+                                                                  if k != "211500"}})
     monkeypatch.setattr(upstream, "fetch", Wago())
     cat = itemcard.Catalog("https://wago.test", "wowf", tmp_path / "a")
     assert cat.card(211500)["n"] == "Resilient Cloth Headband" and cat.card(211500)["s"] == "Head"

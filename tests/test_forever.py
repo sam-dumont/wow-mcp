@@ -150,17 +150,42 @@ def test_every_zone_our_data_names_has_a_name():
     assert not no_area, f"dungeons with no area: {no_area}"
 
 
+def test_the_reference_is_at_its_pins():
+    """forever-db at its own release pin and the client tables at the build
+    the watch knows, not Polestar's bundled copy: the file says which, and
+    they are the pins (a rerun at the pins gives the same bytes:
+    route-reference.yml). Every area and every instance map is there,
+    named by a quest yet or not."""
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "tools" / "forever_reference" / "upstream.py"
+    spec = importlib.util.spec_from_file_location("forever_upstream", path)
+    up = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(up)
+    ref = forever.data()
+    src = ref["source"]
+    assert up.pinned() == {"forever_db": src["forever_db"]["version"], "client_build": src["client_tables"]["build"]}
+    assert len(ref["areas"]) > 1000
+    # Instance maps by their own area: Riverglades' neighbours and the
+    # dungeons no quest names (Blackmaw Hold, Map 2974), Deadmines by its
+    # own area, not the Westfall area the client also puts on its map.
+    assert forever.area_of_map(2974) == 16554 and forever.area_of_map(36) == 1581
+    assert ref["maps"]["2970"] == {"name": "The Drowned City", "type": "dungeon", "area": 16550}
+
+
 def test_a_quest_forever_db_lacks_is_zoned_where_its_giver_stands():
     """Saving Sunnyglade (94877) and The Saltseer Captain (95791) came after
-    forever-db 2026.11.1, the gear page grouped them under "an unknown
-    zone": ForeverDB.net places their givers (Riverglades; Booty Bay, in
-    Stranglethorn Vale). Once forever-db has them, its zone (or The
-    Saltseer Captain's dungeon, by its boss) comes first."""
+    forever-db 2026.11.1 (Polestar v0.4.2.2's copy), and the gear page
+    grouped them under "an unknown zone". forever-db 2026.11.2 zones the
+    first in Riverglades and gives the second no zone: its boss puts it in
+    The Drowned City, not Booty Bay where ForeverDB.net places its giver."""
     r = gear.reference()
     assert r.available, r.why
     qs = r.data["quests"]
     assert qs["94877"]["zone_name"] == "Riverglades"
-    assert qs["95791"]["zone_name"] in ("Stranglethorn Vale", "The Drowned City")
+    assert forever.quest(95791)["zone"] is None
+    assert qs["95791"]["zone_name"] == forever.quest_zone(95791, 1434) == "The Drowned City"
 
 
 def test_a_quest_forever_db_zones_nowhere_takes_its_dungeon():
@@ -175,35 +200,16 @@ def test_a_quest_forever_db_zones_nowhere_takes_its_dungeon():
     assert forever.quest_zone(9999999) is None
 
 
-def test_a_quest_that_kills_a_dungeon_boss_is_the_dungeons(tmp_path):
+def test_a_quest_that_kills_a_dungeon_boss_is_the_dungeons():
     """tools/dungeon_quests/export.py `boss`: The Saltseer Captain (95791,
-    handed in at Booty Bay, no zone) kills Captain Dreadrise (260042), one
-    of The Drowned City's encounters in the client's DungeonEncounter.
-    forever-db 2026.11.1 doesn't have the quest yet: its rows here are
-    2026.11.2's, on a minimal Polestar checkout."""
-    import importlib.util
+    handed in at Booty Bay, no zone) kills Captain Dreadrise (260042), and
+    The Only Good Brinescale... (95776) kills Var'Taka (258924): encounters
+    of The Drowned City in the client's DungeonEncounter, so both quests
+    are the dungeon's."""
     import json
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    assert "Captain Dreadrise" in forever.area(16550)["bosses"]
-    spec = importlib.util.spec_from_file_location("dq_export", root / "tools" / "dungeon_quests" / "export.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    known = json.loads((root / "data" / "dungeons" / "quests.json").read_text())["dungeons"]
-    ps = tmp_path
-    fdb, codex, art = ps / "forever-db" / "data", ps / "data" / "codex", ps / "addon" / "Polestar" / "Dungeons"
-    for d in (fdb, codex, art):
-        d.mkdir(parents=True)
-    (art / "Art.lua").write_text("".join(f"  [{m}] = {{}}, -- {d['name']}\n" for m, d in known.items()))
-    (fdb / "quest.jsonl").write_text(json.dumps({"id": 95791, "title": "The Saltseer Captain"}) + "\n")
-    (fdb / "npc.jsonl").write_text(json.dumps({"id": 260042, "name": "Captain Dreadrise"}) + "\n")
-    (fdb / "quest_objective.jsonl").write_text(json.dumps({"kind": "kill", "quest": 95791, "target": 260042}) + "\n")
-    (ps / "forever-db" / "datapackage.json").write_text("{}")
-    (codex / "entrances.json").write_text('{"entrances": []}')
-    (codex / "journal-quests.json").write_text('{"quests": []}')
-    (ps / "data" / "dungeon-runs.json").write_text('{"runs": [], "notInRoute": []}')
-    mod.NONE.update({d["name"]: "none in this test" for d in known.values()})
-    got = mod.build(ps)
-    assert got["quests"] == {"95791": [[2970, ["boss"]]]}
-    assert got["dungeons"]["2970"] == {"name": "The Drowned City", "quests": 1, "area": 16550}
+    assert {"Captain Dreadrise", "Var'Taka"} <= set(forever.area(16550)["bosses"])
+    got = json.loads((root / "data" / "dungeons" / "quests.json").read_text())["quests"]
+    assert got["95791"] == [[2970, ["boss"]]] and got["95776"] == [[2970, ["boss"]]]

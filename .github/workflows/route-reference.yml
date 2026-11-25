@@ -19,6 +19,7 @@ on:
       - tools/forever_reference/**
       - tools/dungeon_quests/**
       - tools/polestar-tag
+      - tools/forever-db-tag
       - data/kb/watch.json
       - data/route-reference.json
       - data/gear-reference.json
@@ -32,6 +33,7 @@ on:
       - tools/forever_reference/**
       - tools/dungeon_quests/**
       - tools/polestar-tag
+      - tools/forever-db-tag
       - data/kb/watch.json
       - data/route-reference.json
       - data/gear-reference.json
@@ -69,11 +71,12 @@ jobs:
         run: |
           node tools/route_reference/export.mjs --polestar "$RUNNER_TEMP/polestar" --lua lua5.4
           node tools/gear_reference/export.mjs --polestar "$RUNNER_TEMP/polestar" --lua lua5.4
-          # Stdlib Python; reads forever-db from the checkout and Forever's
-          # client tables from wago.tools at data/kb/watch.json's known build.
-          python3 tools/forever_reference/export.py --polestar "$RUNNER_TEMP/polestar"
-          # Reads forever-reference.json, so after it.
-          python3 tools/dungeon_quests/export.py --polestar "$RUNNER_TEMP/polestar"
+          # Stdlib Python, at the pins: forever-db's release at tools/forever-db-tag
+          # (GitHub, SHA256SUMS-checked) and Forever's client tables (wago.tools)
+          # at data/kb/watch.json's build.
+          python3 tools/forever_reference/export.py --polestar "$RUNNER_TEMP/polestar" --forever-db-cache "$RUNNER_TEMP/fdb"
+          # Reads forever-reference.json and the same forever-db, so after it.
+          python3 tools/dungeon_quests/export.py --polestar "$RUNNER_TEMP/polestar" --forever-db-cache "$RUNNER_TEMP/fdb"
       - name: The committed files are the export
         run: |
           bad=0

@@ -3,7 +3,7 @@
 # upstream version that moved becomes a commit on HEAD, with no model:
 # addon releases (their contracts checked), a Polestar release (checked, the
 # tag moved, the exports rerun, the test data regenerated), a client build
-# (the class reference rerun), ForeverDB.net's data (downloaded, checked,
+# (the class and forever references rerun), ForeverDB.net's data (downloaded, checked,
 # both exports rerun). tools/kb/bump.py has the checks and their
 # reasons; a refused kind gets its reason in $WHY and no commit.
 #
@@ -84,8 +84,8 @@ if [ "$ok" = 1 ]; then
   }
   if node tools/route_reference/export.mjs --polestar "$ps" --lua "$lua" \
     && node tools/gear_reference/export.mjs --polestar "$ps" --lua "$lua" \
-    && uvp tools/forever_reference/export.py --polestar "$ps" \
-    && uvp tools/dungeon_quests/export.py --polestar "$ps" \
+    && uvp tools/forever_reference/export.py --polestar "$ps" --forever-db-cache "$tmp/forever-db" \
+    && uvp tools/dungeon_quests/export.py --polestar "$ps" --forever-db-cache "$tmp/forever-db" \
     && uvp tools/kb/export.py --polestar "$ps" \
     && uvp tools/class_reference/export.py --polestar "$ps" \
     && uvp tools/trainers/export.py --polestar "$ps"; then
@@ -101,16 +101,17 @@ if [ "$ok" = 1 ]; then
   fi
 fi
 
-# The build is accepted before the forever reference reruns: that export reads
-# its client tables (zones, dungeons, bosses) at watch.json's known build, so
-# a zone or dungeon the build adds gets its name in the same commit.
+# The client build: the forever reference reads the client tables at the
+# build watch.json knows, so after the accept; the dungeon quests and the
+# route trips read its areas.
 if has client-build; then
   if uvp tools/class_reference/export.py --polestar "$ps" --handoff "$tmp/kb-handoff-client.json" \
     && uvp tools/kb/watch.py --accept client-build --handoff "$tmp/kb-handoff-client.json" \
-    && uvp tools/forever_reference/export.py --polestar "$ps" \
-    && uvp tools/dungeon_quests/export.py --polestar "$ps" \
+    && uvp tools/forever_reference/export.py --polestar "$ps" --forever-db-cache "$tmp/forever-db" \
+    && uvp tools/dungeon_quests/export.py --polestar "$ps" --forever-db-cache "$tmp/forever-db" \
+    && node tools/route_reference/export.mjs --polestar "$ps" --lua "$lua" \
     && uvp tools/kb/bump.py regen --as client-build --why "$WHY"; then
-    git add -A && git commit -qm "Client build: the class reference and the forever reference rerun"
+    git add -A && git commit -qm "Client build: the class and forever references rerun"
   else
     git reset -q --hard HEAD && git clean -qfd
     # bump.py regen wrote its own reason; this one only when it didn't.

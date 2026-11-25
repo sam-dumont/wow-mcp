@@ -124,7 +124,7 @@ trip" says how many quests were turned in outside, and the MCP's
 `dungeons` gives each run's trip with them.
 
 Which dungeon a quest belongs to is `data/dungeons/quests.json`, from
-Forever's own data only, at Polestar's tag:
+Forever's own data only: forever-db at its release in `tools/forever-db-tag`, the rest at Polestar's tag:
 
 | Source | What it says |
 |---|---|
@@ -157,6 +157,6 @@ the commands); `data/dungeons/wings.json`, which wing each creature, object
 and quest belongs to, by `tools/dungeon_wings/export.py` from the same
 cMaNGOS dump and Polestar's forever-db; `data/dungeons/quests.json`, which
 dungeon each quest belongs to, by `tools/dungeon_quests/export.py` from a
-Polestar checkout (rerun by the route-reference workflow and the knowledge
-base's refresh at each Polestar tag). The MCP answer carries each estimate's sources and commit
+Polestar checkout and forever-db's pinned release (rerun by the route-reference workflow and the knowledge
+base's refresh at each Polestar tag and client build). The MCP answer carries each estimate's sources and commit
 (`gain.kill_xp.provenance`) and the data's date (`as_of`).

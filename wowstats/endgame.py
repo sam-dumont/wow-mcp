@@ -130,8 +130,10 @@ def place_quests(place: str) -> set[int]:
 def raid_places() -> set[str]:
     """Every raid the data knows: forever-db's areas and ForeverDB.net's instances."""
     if "raids" not in _cache:
-        names = {a["name"] for a in (forever.data().get("areas") or {}).values()
-                 if a.get("instance") == "raid" and a.get("name")}
+        # Each raid map's own area: the areas list every room of a raid too,
+        # and the client's Emerald Dream and Naxxramas maps carry areas named
+        # after world zones (Feralas, Eastern Plaguelands), which aren't raids.
+        names = {a["name"] for a in forever.instance_areas("raid").values() if a.get("name")}
         from wowstats import gear
 
         fdb = gear.sources_data() or {}
