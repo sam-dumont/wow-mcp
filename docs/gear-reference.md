@@ -198,6 +198,15 @@ Two filters run before the effort (`gear._source`):
   per character next to the mode; MCP `gear` `pvp`), and always in the PvP mode, where each
   such source carries `by_playing` and is easy. Every answer that ranks gear reads the same
   toggle: the gear page, `gear` and its options, next moves, the planner, the analysis.
+- **The other side's reputation gear** (`gear.side_of_gate`): a reputation's side comes from
+  the client's Faction table (`factions` in `data/forever-reference.json`), and its
+  quartermaster sells to that side only, whatever side ForeverDB gives the vendor. ForeverDB
+  had Theramore's Bryanna Embreeze and the Ratchet and Booty Bay quartermasters as the
+  Horde's: 43 Theramore items never reached an Alliance character, 46 went to the Horde, and
+  the 10 neutral towns' items went to the Horde only. A reputation only
+  Classic's data names (label `k`) doesn't decide: Classic names one side's faction for gear
+  both quartermasters sell (Rune of Duty, Warsong Outriders, seen at Silverwing's
+  quartermaster).
 
 ### How hard it is to get
 

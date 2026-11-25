@@ -75,6 +75,11 @@ no upgrade. Tick it and they come back, everywhere: this page, next moves, the p
 AI. In the PvP weights they always count, and they're **easy** (you get them by playing PvP,
 which is the point of that mode).
 
+Reputation gear is your side's only. Theramore's seals (Volunteer's Lucky Seal, Enriched
+Seal) are Alliance gear from Darkspear Islands, so they show up for an Alliance character with
+**PvP rewards** ticked and never for the Horde, who get the Darkspear Raiders' versions.
+Ratchet and Booty Bay are neutral: their gear is for everyone, PvP or not.
+
 Endgame Forever hasn't opened is never proposed, and "nobody said it's closed" isn't open. A
 raid, a world boss, the Dungeon Set 2 quests (Lord Valthalak's chain, the Heroism and Virtuous
 pieces) and world events like the Gurubashi Arena's chest count only once a source says

@@ -5,6 +5,7 @@
 ### Fixed
 
 - The KB refresh job left its own PRs and issues stale: a watch PR that went CONFLICTING after its run gave up waited for a person (#249), and issues whose PR had merged stayed open a day or more (#212, #171), because only the next run of the same mode ever looked again. Every run now starts with `tools/kb/reconcile.py`, whatever its mode: open bot PRs are rebased, the watch PR is made again on main with the kinds its branch carries, and every `kb-watch` issue whose condition holds on main is closed with the reason.
+- Volunteer's Lucky Seal and Enriched Seal never showed up in the gear advice for an Alliance character, even with **PvP rewards** ticked: ForeverDB gives their quartermaster (Bryanna Embreeze, Theramore Expeditionary Force) the Horde's side. A reputation's side now comes from the client's Faction table and its quartermaster sells to that side only. With PvP rewards on, 43 Theramore items reach the Alliance and 54 Alliance items (Theramore, League of Arathor) leave the Horde's advice; 12 Horde items (Defilers, Darkspear Raiders) leave the Alliance's. Ratchet's and Booty Bay's 10 items, neutral, now reach the Alliance too, PvP or not. Battleground reputation gear stays a PvP reward: off unless you tick the toggle or pick the PvP weights.
 
 ### Changed
 
