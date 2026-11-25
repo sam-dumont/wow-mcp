@@ -10,6 +10,44 @@
   "coming_up": [
    "raids-open-2026-12"
   ],
+  "dungeons": [
+   "Blackmaw Grove",
+   "Blackmaw Hold",
+   "Blackmaw Stillwater",
+   "Blackrock Depths",
+   "Blackrock Spire",
+   "Blackrock Spire: Lower",
+   "Blackrock Spire: Upper",
+   "Bonesnout's Thicket",
+   "Botanical Grounds",
+   "Crystalline Highlands",
+   "Defiled Peak",
+   "Demon Fall Barrow",
+   "Demon Fall Canyon",
+   "Dire Maul",
+   "Dire Maul: East",
+   "Dire Maul: North",
+   "Dire Maul: West",
+   "Excavation Site - Bael Modan",
+   "Festering Grotto",
+   "Karazhan Crypts",
+   "Lost Tar Pits",
+   "Pillar of Assimilation",
+   "Ruby Spring",
+   "Scholomance",
+   "Shaper's Plateau",
+   "Stratholme",
+   "Stratholme: Live",
+   "Stratholme: Undead",
+   "Sunken Temple",
+   "The Highlands Causeway",
+   "The Maul UNUSED",
+   "The Shaper's Terrace",
+   "The Temple of Atal'Hakkar",
+   "The Verdant Plains",
+   "Walk of Communion",
+   "Watcher's Overlook"
+  ],
   "effects": [
    "raids-open-2026-12|1"
   ],
@@ -41,6 +79,20 @@
    "spec Shadow"
   ],
   "coming_up": [],
+  "dungeons": [
+   "Alcaz Prison",
+   "Krol'dok Stronghold",
+   "Maraudon: Inner",
+   "Maraudon: Orange",
+   "Maraudon: Purple",
+   "Razorfen Downs",
+   "Scarlet Monastery: Armory",
+   "Scarlet Monastery: Cathedral",
+   "Sunken Temple",
+   "The Temple of Atal'Hakkar",
+   "Uldaman",
+   "Zul'Farrak"
+  ],
   "effects": [],
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
@@ -71,6 +123,20 @@
    "spec Shadow"
   ],
   "coming_up": [],
+  "dungeons": [
+   "Alcaz Prison",
+   "Krol'dok Stronghold",
+   "Maraudon: Inner",
+   "Maraudon: Orange",
+   "Maraudon: Purple",
+   "Razorfen Downs",
+   "Scarlet Monastery: Armory",
+   "Scarlet Monastery: Cathedral",
+   "Sunken Temple",
+   "The Temple of Atal'Hakkar",
+   "Uldaman",
+   "Zul'Farrak"
+  ],
   "effects": [],
   "moves": [
    "dungeon|Maraudon: Orange",
@@ -96,6 +162,20 @@
    "spec Shadow"
   ],
   "coming_up": [],
+  "dungeons": [
+   "Alcaz Prison",
+   "Krol'dok Stronghold",
+   "Maraudon: Inner",
+   "Maraudon: Orange",
+   "Maraudon: Purple",
+   "Razorfen Downs",
+   "Scarlet Monastery: Armory",
+   "Scarlet Monastery: Cathedral",
+   "Sunken Temple",
+   "The Temple of Atal'Hakkar",
+   "Uldaman",
+   "Zul'Farrak"
+  ],
   "effects": [],
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
@@ -123,6 +203,15 @@
    "spec Frost"
   ],
   "coming_up": [],
+  "dungeons": [
+   "King's Alley",
+   "Lordaeron Graveyard",
+   "Lordamere Overlook",
+   "Market Street",
+   "Ruins of Lordaeron",
+   "The Hall of Thanes",
+   "Wailing Caverns"
+  ],
   "effects": [],
   "moves": [
    "upgrade|286754",
