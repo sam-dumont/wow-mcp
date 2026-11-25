@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.11.2 (2026-11-25)
+
 What 0.11.2 changes over 0.11.1, in short. One kept analysis finding with a percent on a column of no declared unit took down every answer of its character: the overview, the dungeons, the plan and the shared analysis all failed on each rebuild. 0.11.1 promised such a finding fades at the nightly recheck; it now does, and the rest of the character's findings read as before.
 
 ### Fixed
