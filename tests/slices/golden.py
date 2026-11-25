@@ -8,6 +8,16 @@ behaviour gate (tools/kb/gates.py behaviour_gate), unless the same change
 updates the snapshot. New keys don't fail: they are listed, and `--write`
 takes them in.
 
+Some of what goes away is a recommendation moving with the data, which is
+normal (`moved`): an upgrade (an item to get), and a dungeon pick that
+swapped to another dungeon while the one it left is still in the
+character's dungeon list (the `dungeons` part, every dungeon the dungeons
+tool ranks for it). The refresh's `bump.py golden` takes those into the
+snapshot on its own. A dungeon gone from that list is a dungeon gone from
+the data: it still refuses. ForeverDB.net's 2026-11-25 data moved the bare
+golden character's pick from Maraudon: Orange to Uldaman and the refresh
+refused it (owner, 2026-11-25: treat it like a moved upgrade).
+
     uv run python -m tests.slices.golden --check     # what went away (exit 1), what is new
     uv run python -m tests.slices.golden --write     # take the current behaviour as the snapshot
 
@@ -27,6 +37,11 @@ import tempfile
 from pathlib import Path
 
 PATH = Path(__file__).with_name("golden.json")
+
+# A gone key that names one item to get: what ForeverDB's data moves.
+UPGRADE_KEY = re.compile(r"^[\w-]+: (?:moves: upgrade\|\d+|next_moves: #up-\d+)$")
+# A gone dungeon pick: `character: moves: dungeon|<name>`.
+DUNGEON_PICK = re.compile(r"^([\w-]+): moves: dungeon\|(.+)$")
 
 
 def _plain(s) -> str:
@@ -62,6 +77,10 @@ def keys(s) -> dict[str, list[str]]:
         "coming_up": [str(e.get("key")) for e in plan.get("coming_up") or []],
         "class_meta": [f"spec {x.get('spec') or 'class'}" for x in ((meta.get("meta") or {}).get("standing") or [])]
                       + (["build"] if (meta.get("meta") or {}).get("build") else []),
+        # Every dungeon the character can be offered (names only, never a rank
+        # or a gain): a pick may swap inside it, a name may not leave it.
+        "dungeons": [str(d.get("name")) for d in s.mcp("dungeons", options=True).get("dungeons") or []
+                     if d.get("name")],
     }
     return {k: sorted(set(v)) for k, v in out.items()}
 
@@ -100,12 +119,26 @@ def diff(old: dict, new: dict) -> tuple[list[str], list[str]]:
     return gone, added
 
 
+def moved(gone: list[str], new: dict) -> list[str]:
+    """The `gone` lines that are a recommendation moving with the data: an
+    upgrade, or a dungeon pick whose dungeon is still in that character's
+    `dungeons` list in `new` (the current keys). Everything else in `gone`
+    is behaviour lost."""
+    out = []
+    for g in gone:
+        m = DUNGEON_PICK.match(g)
+        if UPGRADE_KEY.match(g) or (m and m.group(2) in ((new.get(m.group(1)) or {}).get("dungeons") or ())):
+            out.append(g)
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--check", action="store_true", help="list what went away (exit 1) and what is new")
     g.add_argument("--write", action="store_true", help="store the current behaviour as the snapshot")
-    ap.add_argument("--json", help="with --check: write {gone, added} here")
+    ap.add_argument("--json", help="with --check: write {gone, added, moved} here (moved: the gone lines that "
+                                   "are recommendations moving with the data)")
     a = ap.parse_args(argv)
     now = current()
     if a.write:
@@ -114,9 +147,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     gone, added = diff(stored(), now)
     if a.json:
-        Path(a.json).write_text(json.dumps({"gone": gone, "added": added}, indent=1) + "\n", encoding="utf-8")
+        Path(a.json).write_text(json.dumps({"gone": gone, "added": added, "moved": moved(gone, now)}, indent=1) + "\n", encoding="utf-8")
+    mv = set(moved(gone, now))
     for line in gone:
-        print(f"gone: {line}")
+        print(f"{'moved' if line in mv else 'gone'}: {line}")
     for line in added:
         print(f"new: {line}")
     return 1 if gone else 0
