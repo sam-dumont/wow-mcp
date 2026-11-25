@@ -37,6 +37,14 @@
   the gates check it like any KB file. The KB rules `content.raids_not_open` and
   `content.events_not_open` are gone.
 
+- The Forever Leveling BiS export says what the addon does with it. Imported for a level-36
+  Shadow priest, its Best in slot showed five "of Shadow Wrath" BoE greens, an epic BoE staff
+  and a 1.3% dungeon drop. The string was right (every key one the addon reads, "+X%" lines at
+  its per-1% scale, now tested against its import vocabulary); the addon ranks on score alone,
+  scores each random-suffix green with its best suffix, and has no field in its string for
+  drop chance or effort. The notes under the buttons, the MCP `gear` export and the gear docs
+  now say so, and how to get closer to this page's picks (untick BoE in its filters).
+
 ### Added
 
 - **BiS, and your pick**, per slot (owner request): the gear page's By slot view and the item

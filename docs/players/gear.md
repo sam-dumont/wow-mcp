@@ -124,9 +124,15 @@ right of the window, then **Import**, paste, check the spec and weapon setup, an
 **Import**. The addon picks the new profile ("ForeverDB Leveling", "ForeverDB PvP" or
 "ForeverDB PvE") for that spec and setup.
 
-It's weights only: the addon keeps its own item list, and adds what it knows on top (item
-effects, random suffixes, racial weapon bonuses, set bonuses at 60), so a few items can rank
-differently there. Take the Forever Leveling BiS string when you can: it is exact. The Pawn
+It's weights only. The addon already sticks to your level, faction, race and professions, but
+it ranks on score alone: drop chances and effort mean nothing to it, and it scores each
+random-suffix green with its best suffix, the one roll you'd have to find or buy. So its "Best in
+slot" can be a 1% drop, an epic off the Auction House and a row of "of Shadow Wrath" greens
+where this page picks quest rewards and crafts. The string can't change that (its format carries
+weights, nothing else). For picks closer to this page, untick **BoE** under **Sources** in the
+addon's Settings, Filters. It also keeps its own item list, which can lag the game's hotfixes,
+and adds what it knows on top (item effects, racial weapon bonuses, set bonuses at 60), so a few
+items still rank differently there. Take the Forever Leveling BiS string when you can: it is exact. The Pawn
 scale has no ranged-only hit (hunters' "+% hit with ranged weapons" items score lower), and the
 addon rescales a Pawn scale on import (same order, other numbers). Your AI gets the same text
 from `gear` with `export: flb` or `export: pawn`. Data from
