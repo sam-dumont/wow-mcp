@@ -150,6 +150,8 @@ VIEWS = {
     "sem_ah_prices": ("SELECT p.*, p.ruleset || ' ' || p.faction AS house, DENSE_RANK() OVER (PARTITION BY "
                       "p.item_key ORDER BY p.scan_day DESC) AS day_rank, {who} FROM ah_prices p"),
     "sem_ah_upgrades": "SELECT a.*, {who} FROM ah_upgrades a",
+    # What the bags and the bank hold now, one row per item.
+    "sem_inventory": "SELECT i.*, {who} FROM inventory i",
     # The worn items on the newest sheet, as the gear advice scores them.
     # weak_rank 1 is the item an upgrade replaces: the slot's only one, or
     # the weaker of two rings or trinkets (wowstats.gear.bis_badge's rule).

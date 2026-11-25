@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- Item counts for the bags and the bank. The shipper sends `bags_n` and `bank_n` next to the ID lists on `wow-bags`: each item with its count, stacks summed. Servers before this keep reading the ID lists. Your first run after the update sends one new bags event, even if nothing moved.
+- MCP tool `inventory`: "how many Linen Cloth do I have", "what's in my bank". Per item the count in the bags, in the bank and the total, and when each was read. The bank is Syndicator's copy from the last time you opened it, so past 3 days the answer says how old it is. With an older shipper you get the item IDs and a line on how to get counts.
+- Analysis table `inventory` (prep 17) and the semantic model of the same name (`held_count`, `held_in_bank`): what the character holds now, one row per item. No `per_item` view on top: the table already is one row per item.
+
 ### Fixed
 
 - Auction house scans priced nothing for a character whose records name the realm the client's way: Forever's client says `CAMWOW EU5 Realm 3 PvE`, Auctionator keys its scans `PvE`, and the gear advice, the analysis' `ah_prices` and the shared scans all compared the two as text. `prices` listed the scans while `gear` said "Scan the auction house" and `ah_prices` stayed empty. A realm name and an Auctionator key now match on the ruleset (`ahsource.ruleset_key`), so a scan from 2 days ago shows as one, and a friend who never scans gets the shared scans of their ruleset and side again.

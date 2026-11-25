@@ -98,7 +98,10 @@ from wowstats.stores import (
 # pickup step: pickup_s and travel_to_s; no hand-in after the run:
 # travel_back_s and handin_s; a hand-in after the trip's end: handin_s), so
 # a trip logged at the door no longer says it walked there in 0 s.
-PREP_VERSION = 16
+# 17: inventory, what the bags and the bank hold with counts (the newest
+# wow-bags event per container, wowstats.gear.newest_bags): "how many X do
+# I have" read nothing but item IDs (2026-11-25).
+PREP_VERSION = 17
 
 # A step that is the trip somewhere ("Fly to ...", "Hearth to ..."): the
 # route position starts past it when the character already stands there.
@@ -578,6 +581,16 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
     "item_values": ("What a vendor pays for the items the records name (loot, rewards, crafts): the game "
                     "client's sell price only, never auction prices.", {
         "item_id": "item id", "vendor_copper": "a vendor's price for one, copper"}),
+    "inventory": ("What the character holds in its bags and bank now (Syndicator, the shipper's newest wow-bags "
+                  "per container): one row per item. The bank is as of the last time the character opened it "
+                  "(bank_at). Counts come from shippers after 0.11.2; an older one sends the item IDs only, and "
+                  "the counts are NULL (unknown, never 0).", {
+        "item_id": "item id", "name": "item name (forever-db)",
+        "bags": "how many in the bags (0: not there), NULL when the bags' counts are unknown",
+        "bank": "how many in the bank (0: not there), NULL when the bank was never seen or its counts are unknown",
+        "total": "bags + bank over the containers seen, NULL when one seen has no counts",
+        "bags_at": "when the bags were read, unix seconds",
+        "bank_at": "when the bank was read, unix seconds (NULL: never seen)"}),
     "ah_prices": ("The Auctionator scans of the auction houses that sell to the character (its ruleset; its "
                   "side's house and the neutral one): one row per item, house and scan day, over the price "
                   "window (PRICE_DAYS, 90 by default). On an install with several people, anyone's scans of those "
@@ -1026,6 +1039,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     if rows:  # forever-db's chains, for a character the stores know
         _attunements(db, _who(rows, rec).get("faction"))
     _item_values(db, cards if cards is not None else _held_cards())
+    _inventory(db, rows)
     _upgrades(db, (advice or {}).get("upgrades_all") or [])
     _gear_fit(db, advice)
     _ah(db, prices or [], _who(rows, rec).get("faction") if rows else None, _ruleset(rows), now)
@@ -1133,6 +1147,8 @@ def _schema(db: sqlite3.Connection) -> None:
     CREATE TABLE attunement_steps (attunement TEXT, faction TEXT, step INTEGER, quest_id INTEGER, quest_name TEXT,
         quest_level INTEGER, min_level INTEGER, needs TEXT, done INTEGER, done_source TEXT);
     CREATE TABLE item_values (item_id INTEGER PRIMARY KEY, vendor_copper INTEGER);
+    CREATE TABLE inventory (item_id INTEGER PRIMARY KEY, name TEXT, bags INTEGER, bank INTEGER, total INTEGER,
+        bags_at REAL, bank_at REAL);
     CREATE TABLE ah_prices (item_id INTEGER, item_key TEXT, item_name TEXT, ruleset TEXT, faction TEXT,
         scan_day TEXT, t REAL, scan_age_days INTEGER, price_copper INTEGER, price_high_copper INTEGER,
         listed INTEGER);
@@ -2045,6 +2061,19 @@ def _item_values(db, cards) -> None:
         if sell and sell > 0:
             out.append((iid, sell))
     db.executemany("INSERT INTO item_values VALUES (?,?)", out)
+
+
+def _inventory(db, rows) -> None:
+    """What the bags and the bank hold now: the newest wow-bags event per
+    container (gear.newest_bags, the read the MCP's inventory and the gear
+    advice use), one row per item with its counts (gear.held_items)."""
+    held = gear.newest_bags(rows)
+    if not held:
+        return
+    at = {k: parse_t(v).timestamp() if (v := (held.get("at") or {}).get(k)) else None for k in ("bags", "bank")}
+    db.executemany("INSERT INTO inventory VALUES (?,?,?,?,?,?,?)",
+                   [(r["item_id"], r["name"], r["bags"], r["bank"], r["total"], at["bags"], at["bank"])
+                    for r in gear.held_items(held)])
 
 
 def _ruleset(rows) -> str | None:

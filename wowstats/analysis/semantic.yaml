@@ -1394,6 +1394,30 @@ ah_upgrades:
       metadata: {kind: simple, aggregation: count_distinct, time_meaning: snapshot_observation, evidence_basis: observed, unit: items,
                  caveats: "0 with a scan older than yesterday: scan again to see what is for sale."}
 
+# What the bags and the bank hold now. No per_item view on top: the table is
+# already one row per item, and the other models with an item_id (loot,
+# auction, upgrades, sheets) are history or advice, so a view joining them on
+# the item would put today's count next to numbers from other times.
+inventory:
+  table: sem_inventory
+  description: "What the character holds in its bags and bank now (Syndicator): one row per item with its count in each. The bank is as of the last time the character opened it."
+  dimensions:
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
+    item: {expr: _.name, description: "Item name."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    held_count:
+      expr: _.total.sum()
+      description: "Items held, bags and bank together."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: items,
+                 caveats: "Group by item_id for one item. The bank as of bank_at (play_sql on inventory). NULL when the shipper sends item IDs only (before the counts: it updates itself). A bank never opened adds nothing. The bags alone: the inventory table's bags column."}
+    held_in_bank:
+      expr: _.bank.sum()
+      description: "Items held in the bank."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: items,
+                 caveats: "As of the last time the character opened it (inventory.bank_at). NULL without counts or when the bank was never opened."}
+
 sheets:
   table: sem_gear_sheets
   description: "Every character sheet the shipper sent (Syndicator, feed wow-gear): one row per item worn on a sheet, so the gear over time, level by level."

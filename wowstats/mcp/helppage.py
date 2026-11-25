@@ -201,7 +201,7 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("Guide steps", "time per step, skipped steps", ("guide_steps",)),
     ("Deaths", "where, at what level, what killed you", ("deaths",)),
     ("Dungeons", "your runs, and which ones are worth it now", ("dungeons",)),
-    ("Gear", "what you wear and every way to an upgrade", ("gear",)),
+    ("Gear", "what you wear, what your bags and bank hold, and every way to an upgrade", ("gear", "inventory")),
     ("Talents", "how your talents changed, day by day", ("talent_changes",)),
     ("Gold", "your auction prices, and the next riding tier", ("prices", "mount_goal")),
     ("Plans", "session plans at your pace, and how they went",

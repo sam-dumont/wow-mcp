@@ -335,20 +335,27 @@ the shipper can't match to one character of the account is skipped, never
 guessed. The server reads the string with the addon's talent table
 (`data/wowsims-talents.json`) into the character page's talent history.
 
-**`wow-bags`** (what the character holds): one event each time the set of
-item IDs in its bags or its bank changes, from the account's `Syndicator.lua`
+**`wow-bags`** (what the character holds): one event each time the item
+IDs or their counts in its bags or its bank change, from the account's `Syndicator.lua`
 (`SYNDICATOR_DATA.Characters[...].bags` and `.bank`, Lua arrays of
 containers of slots; the bank as it was the last time the character opened
-it). `bank` is left out when Syndicator holds no bank (never opened, or its
-cache lost): unknown, and readers keep the last bank they saw. `bags` and `bank` are sorted lists of item
-IDs: no counts, no links, nothing else from the slots. A character whose
+it). `bags` and `bank` are sorted lists of item IDs. `bags_n` and `bank_n`
+(shippers after 0.11.2) are the same items with their counts, `[item_id,
+count]` pairs sorted by item ID: each slot's `itemCount` summed over stacks
+and containers, a slot without a count counted as one. No links, nothing
+else from the slots. `bank` and `bank_n` are left out when Syndicator holds
+no bank (never opened, or its cache lost): unknown, and readers keep the last
+bank they saw. An event with the ID lists and no `*_n` comes from an older
+shipper: its counts are unknown, never 0, and readers take each list's counts
+from the event that list came from only. A character whose
 bags Syndicator hasn't scanned yet sends nothing; one that holds nothing
 sends empty lists, so an older list doesn't stay the newest. `_time` is
 `Syndicator.lua`'s modification time. The newest one is what the character
 has: the gear advice lists a held upgrade with its bag or bank as its only
 source ("equip it"), and so do the Overview, the plans and the MCP; the
-Dungeons panel marks a drop obtained (worn, in the bags or in the bank). No
-view shows the lists themselves. Both tiers' allow lists stay as they were:
+Dungeons panel marks a drop obtained (worn, in the bags or in the bank). The
+MCP's `inventory` and the analysis' `inventory` table list the items with
+their counts. No page shows the lists themselves. Both tiers' allow lists stay as they were:
 `/zogzog/` already has the advice's `sources[].kind` and the panel's
 `where`; the public site has no advice.
 
