@@ -1658,6 +1658,7 @@ function compareEl(u, a, alts, onPick) {
       h('span', { class: 'pill' + (f.now ? ' now' : ''), text: f.now ? 'Now' : f.text, title: f.title }),
       creditEl(a.source, a.mode && a.mode.label),
       h('button', { type: 'button', class: 'cmpclose', 'aria-label': 'Close the comparison', text: '×' })),
+    pairEl(u, a),
     h('div', { class: 'cmpsides' }, side('You wear', wornNames, 'Nothing in this slot.'), side('Best replacement', cand, '')),
     fitEl(u.fit),
     u.fit && u.fit.alternative ? h('p', { class: 'fitalt' }, 'Built for your spec instead: ',
@@ -1841,7 +1842,8 @@ function renderAdvice(a) {
   // unsourced; owner 2026-11-24), and gear only a reputation or a PvP rank
   // gives out of reach, and long shots (item_effort): listed apart, with its source or "where: unknown", never
   // an upgrade to go and get.
-  const unknown = a.slots.filter((sl) => sl.bis_unknown);
+  // By slot says it on each slot (bySlot's BiS rows): only the other view lists them.
+  const unknown = view === 'slot' ? [] : a.slots.filter((sl) => sl.bis_unknown);
   fill(box, head, a.ah && a.ah.notice ? h('p', { class: 'ahnote', text: a.ah.notice }) : null, body,
     none.length ? h('p', { class: 'sub nothing', text: `Nothing better for: ${[...new Set(none)].join(', ')}.` }) : null,
     unknown.length ? h('details', { class: 'upmore bisunknown' },
@@ -1996,7 +1998,45 @@ function groupRows(g, a) {
       h('ul', { class: 'cands' }, rest.map(row))) : null];
 }
 
-// "By slot": one line a slot, the best for it.
+// BiS and the realistic pick (owner, 2026-11-25: "this is what is the BiS,
+// here is the realistic pick"): wowstats/gear.py puts on each slot its BiS
+// (the most points at your level, whatever it takes) and the pick against
+// it (pair_why: the same item, or how far behind and why it wins). Weapons
+// sit on the main hand, as one setup.
+const pairSlot = (a, u) => a.slots.find((sl) => sl.slot === (slotKey(u) === 'Weapons' ? 16 : u.slot)) || null;
+// The BiS in a few words: the item, how hard it is, where it comes from,
+// and on the auction house its price against your gold and one action.
+function bisEl(b, a) {
+  const s = primarySource(b);
+  const cost = b.cost ? h('span', { class: 'bcost' }, b.cost.says, ' ', h('b', { text: b.cost.action })) : null;
+  const partner = b.with && b.with.item_id ? h('span', { class: 'sub', text: `with ${b.with.name || 'item ' + b.with.item_id} (${(b.with.slot_name || '').toLowerCase()})` }) : null;
+  return [itemChip(b), partner, effortEl(b),
+    s && s.kind !== 'ah' ? sourceEl(s, a.level) : null,
+    cost];
+}
+// The pair under a pick (u): the BiS when it's another item, with the
+// pick's reasons; one line "BiS, and within reach" when it's the same.
+function pairEl(u, a, tag) {
+  const sl = pairSlot(a, u);
+  const b = sl && sl.bis;
+  if (!b || b.worn) return null;
+  const p = sl.pick;
+  // Weapons are a setup: the pick may lead with either hand.
+  const ids = [u.item_id, u.with && u.with.item_id].filter(Boolean);
+  const mine = p && ids.includes(p.item_id);
+  if (b.item_id === u.item_id) {
+    return h(tag || 'div', { class: 'pair same' }, h('span', { class: 'pairlabel', text: mine ? p.says.replace(/\.$/, '') : 'BiS' }),
+      b.cost ? h('span', { class: 'bcost' }, b.cost.says, ' ', h('b', { text: b.cost.action })) : null);
+  }
+  return h(tag || 'div', { class: 'pair' }, h('span', { class: 'pairlabel', text: 'BiS' }), ...bisEl(b, a),
+    mine ? h('span', { class: 'pairwhy', text: `Your pick is ${p.says}` }) : null);
+}
+// A slot with a BiS out of reach and nothing better to get now.
+function bisOnly(a, shown) {
+  return a.slots.filter((sl) => sl.bis && !sl.bis.worn && !sl.pick && !shown.has(slotKey(sl)));
+}
+
+// "By slot": one line a slot, your pick for it, and its BiS under it.
 function bySlot(a, picks) {
   const rows = [];
   const fixed = ['Head', 'Neck', 'Shoulder', 'Back', 'Chest', 'Wrist', 'Hands', 'Waist', 'Legs', 'Feet', 'Finger', 'Trinket', 'Weapons', 'Ranged'];
@@ -2016,18 +2056,30 @@ function bySlot(a, picks) {
       h('td', { class: 'gain' }, upText(u)),
       h('td', {}, feasEl(u, a.level)),
       h('td', { class: 'srccell' }, s ? sourceEl(s, a.level, ahOf(u)) : '', effortEl(u)));
+    const pair = pairEl(u, a, 'td');
+    const after = pair ? h('tr', { class: 'pairrow', 'data-slot': k }, h('th', { 'aria-hidden': 'true' }), pair) : null;
+    if (pair) pair.setAttribute('colspan', '5');
     tr.querySelector('.best .itm').addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       const row = h('tr', { class: 'cmprow' }, h('td', { colspan: 6 }));
       document.querySelectorAll('.cmprow').forEach((x) => x.remove());
-      tr.after(row);
+      (after || tr).after(row);
       openCompare(u, row.firstChild.appendChild(h('span')), a);
     }, true);
     rows.push(tr);
+    if (after) rows.push(after);
+  }
+  // Slots where you wear the best you can get, and the BiS is out of reach.
+  for (const sl of bisOnly(a, new Set(order))) {
+    const worn = sl.current ? [sl.current] : [];
+    rows.push(h('tr', { class: 'pairrow only', 'data-slot': slotKey(sl) }, h('th', { text: slotKey(sl) }),
+      h('td', {}, worn.length ? worn.map((i) => itemChip(i, { label: false })) : h('span', { class: 'sub', text: 'empty' })),
+      h('td', { class: 'pair', colspan: 4 }, h('span', { class: 'pairlabel', text: 'BiS' }), ...bisEl(sl.bis, a),
+        h('span', { class: 'pairwhy', text: 'Your pick: keep what you wear, nothing better is in reach.' }))));
   }
   return h('div', { class: 'tablewrap' }, h('table', { class: 'byslot' },
-    h('thead', {}, h('tr', {}, ['Slot', 'Worn', 'Best', 'Gain', 'Opens', 'Source'].map((t) => h('th', { text: t })))),
+    h('thead', {}, h('tr', {}, ['Slot', 'Worn', 'Your pick', 'Gain', 'Opens', 'Source'].map((t) => h('th', { text: t })))),
     h('tbody', {}, rows)));
 }
 

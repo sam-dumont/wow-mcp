@@ -1194,6 +1194,11 @@ def source_effort(s: dict) -> int:
         # A PvP vendor's gear outside the PvP weights: the honor and the rank
         # it asks aren't in the data, like a rank nothing recorded.
         return LONG_SHOT
+    if k == "ah" and s.get("affordable") is False:
+        # A listing the character can't pay for yet (owner, 2026-11-25:
+        # Staff of Jordan at 84g with 16g 72s in the bags): saving the gold
+        # first is some effort, never "easy". Gold not known: easy.
+        return SOME
     if k in ("bags", "bank", "ah", "quest", "vendor") or s.get("by_playing"):
         # by_playing: a PvP reward while the gear is scored for PvP (owner,
         # 2026-11-25: "for pvp specific gear at 60 it'll automatically come
@@ -1240,6 +1245,13 @@ def item_effort(srcs: list[dict]) -> int:
     effort, not a vendor's."""
     gated = any(x["kind"] in ("reputation", "pvp") for x in srcs)
     return min((source_effort(x) for x in srcs if not (gated and x["kind"] == "vendor")), default=LONG_SHOT)
+
+
+def _listing(sale: dict, money: int | None) -> dict:
+    """An auction house source as the effort reads it: whether the
+    character's gold covers it (None: the gold isn't known)."""
+    return {"kind": "ah", **sale,
+            "affordable": None if money is None else (sale.get("price_copper") or 0) <= money}
 
 
 def by_effort(srcs: list[dict]) -> list[dict]:
@@ -1680,6 +1692,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     holding = held_where(held)
     who.bags = {i for i, where in holding.items() if where == "bags"}
     sale = (market or {}).get("items") or {}
+    money = (market or {}).get("money_copper")
     for item_id, where in holding.items():
         info = item_for(ref, item_id, w)
         if not info:  # not gear, or gear the advice doesn't score
@@ -1710,7 +1723,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             # "easy" buy for a character who never queued).
             here_srcs = [x for x in here_srcs if x["kind"] != "vendor"]
         if item_id in sale and buyable(base, level):
-            here_srcs.append({"kind": "ah", **sale[item_id]})
+            here_srcs.append(_listing(sale[item_id], money))
         if not here_srcs:
             continue
         here_srcs = by_effort(here_srcs)
@@ -1736,8 +1749,9 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             continue
         usable, _, min_level = usability(ref, info, cls, level)
         if usable and min_level <= level + SOON_LEVELS:
-            cands.append({"id": item_id, "info": info, "at": min_level, "sources": [{"kind": "ah", **s}],
-                          "effort": EASY, "here": False})
+            srcs = by_effort([_listing(s, money)])
+            cands.append({"id": item_id, "info": info, "at": min_level, "sources": srcs,
+                          "effort": item_effort(srcs), "here": False})
 
     gear_score = sum(worn.score(sl) for sl in EQUIPPED_SLOTS)
     from wowstats import gearfit
@@ -1868,6 +1882,87 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     hands_unknown = _unknown_hands(ref, unknown_hands, setups, level)
     weapon_rows = {"now": setups.row("now", out), "soon": setups.row("soon", out)}
 
+    # Per slot, the pair the page leads with (owner, 2026-11-25: "this is
+    # what is the BiS, here is the realistic pick"): the item that scores
+    # most at this level whatever it takes (a long shot, gear nobody says
+    # where to get, an auction listing out of the gold), and the ranking's
+    # pick with what makes it win.
+    def bis_item(c: dict, r: dict) -> dict:
+        row = out(c, r)
+        row["effort"] = EFFORT[c.get("effort", LONG_SHOT)]  # the unknown bucket's are long shots
+        return row
+
+    def top_of(slot: int, exclude: set) -> tuple | None:
+        # Gear nobody says where to get stays out: no action to give, and
+        # unknown is not open (endgame content, owner 2026-11-25).
+        rows = [t for b in ("now", "unknown") for t in (per_slot.get(slot) or {}).get(b) or ()
+                if t[2]["id"] not in exclude and t[2]["sources"]]
+        return max(rows, key=lambda t: (t[3]["new"], t[2]["info"].get("ilvl") or 0, t[1]), default=None)
+
+    def worn_bis(slot: int) -> dict:
+        return {**_item_out(ref, worn.ids[slot], worn.infos.get(slot), worn_names.get(slot)),
+                "slot": slot, "slot_name": SLOT_NAMES.get(slot), "score": _r(worn.score(slot), 2), "worn": True}
+
+    bis_rows: dict[int, dict | None] = {}
+    for slot in EQUIPPED_SLOTS:
+        if slot in PAIRED or slot in (MAIN, OFF):
+            continue
+        t = top_of(slot, set())
+        if slot in worn.ids and (t is None or t[3]["new"] <= worn.score(slot) + EPS):
+            bis_rows[slot] = worn_bis(slot)
+        else:
+            bis_rows[slot] = bis_item(t[2], t[3]) if t else None
+    for a, b in PAIRS:
+        # The best two different items, as _pair: a worn one among them is
+        # its slot's BiS; the others go weakest slot first, as the picks.
+        on = {worn.ids[x] for x in (a, b) if x in worn.ids}
+        first = None
+        got: dict[int, dict | None] = {}
+        entries = [(worn.score(x), 1, x) for x in (a, b) if x in worn.ids]
+        t1 = max([x for x in (top_of(a, on), top_of(b, on)) if x], key=lambda t: t[3]["new"], default=None)
+        if t1:
+            first = t1[2]["id"]
+            t2 = max([x for x in (top_of(a, on | {first}), top_of(b, on | {first})) if x],
+                     key=lambda t: t[3]["new"], default=None)
+            entries += [(t[3]["new"], 0, t) for t in (t1, t2) if t]
+        top2 = sorted(entries, key=lambda e: -e[0])[:2]
+        for e in top2:
+            if e[1] == 1:
+                got[e[2]] = worn_bis(e[2])
+        free = [e[2] for e in top2 if e[1] == 0]
+        rest = sorted([x for x in (a, b) if x not in got], key=lambda x: worn.score(x) if x in worn.ids else -1)
+        for slot, t in zip(rest, free, strict=False):
+            r = next((o for o in options(t[2]["info"], t[2]["id"], worn, w, dual, every_slot=True)
+                      if o["slot"] == slot), t[3])
+            got[slot] = bis_item(t[2], r)
+        # Where the picks put the same two items the other way round, follow them.
+        pa, pb = (picks.get((x, "now")) for x in (a, b))
+        ida, idb = ((p[2]["id"] if p and p[3]["delta"] > 0 else None) for p in (pa, pb))
+        ga, gb = ((got.get(x) or {}).get("item_id") for x in (a, b))
+        if (ida and ida == gb and ga != ida) or (idb and idb == ga and gb != idb):
+            got[a], got[b] = got.get(b), got.get(a)
+            for x in (a, b):
+                if got.get(x) and not got[x].get("worn"):
+                    got[x] = {**got[x], "slot": x}
+        for x in (a, b):
+            bis_rows[x] = got.get(x)
+    raw_weapons = setups.row("now", out, raw=True)
+    raw_total = (raw_weapons or {}).get("setup_score") or setups.current
+    if hands_unknown and hands_unknown["sources"] and hands_unknown["score"] > raw_total + EPS:
+        bis_rows[MAIN] = {**hands_unknown, "slot": MAIN, "slot_name": SLOT_NAMES[MAIN],
+                          "setup_score": hands_unknown["score"]}
+    elif raw_weapons is not None:
+        bis_rows[MAIN] = raw_weapons
+    elif worn.ids.get(MAIN) or worn.ids.get(OFF):
+        hand = MAIN if worn.ids.get(MAIN) else OFF
+        bis_rows[MAIN] = {**worn_bis(hand), "setup_score": _r(setups.current, 2)}
+    else:
+        bis_rows[MAIN] = None
+    bis_rows[OFF] = None
+    for row in bis_rows.values():
+        if row and not row.get("worn"):
+            row["cost"] = ah_cost(row.get("sources"), market)
+
     def part_out(p: dict | None) -> dict | None:
         if p is None:
             return None
@@ -1903,7 +1998,15 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             # The next one counts when it beats both what is worn and the best now.
             nxt = soon if soon and soon[3]["delta"] > 0 and (not now or soon[3]["new"] > now[3]["new"]) else None
             nxt = out(nxt[2], nxt[3]) if nxt else None
+        bis = bis_rows.get(slot)
+        pick_row = (weapon_rows["now"] if slot == MAIN else None) if slot in (MAIN, OFF) else best
+        if pick_row is not None and not pick_row.get("cost"):
+            pick_row["cost"] = ah_cost(pick_row.get("sources"), market)
         slots_out.append({
+            # The slot's BiS (the most points at this level, whatever it
+            # takes) and the pick against it (pair_why); weapons on the main
+            # hand, as one setup.
+            "bis": bis, "pick": pair_why(bis, pick_row, level) if bis else None,
             # The slot's BiS when it is gear nobody says where to get: shown
             # with "where": "unknown", never as an upgrade (unsourced).
             "bis_unknown": (hands_unknown if slot == MAIN
@@ -2027,6 +2130,98 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         "upgrades_total": len(capped),
         "data": ref.meta(),
     }
+
+
+# --- BiS and the pick -----------------------------------------------------------
+
+
+def _setup_score(u: dict) -> float:
+    """What a pair row scores in its slot: a weapon row its whole setup."""
+    return u.get("setup_score") if u.get("setup_score") is not None else (u.get("score") or 0.0)
+
+
+def _same_item(u: dict | None, v: dict | None) -> bool:
+    if not u or not v or u.get("item_id") != v.get("item_id"):
+        return False
+    return ((u.get("with") or {}).get("item_id") or 0) == ((v.get("with") or {}).get("item_id") or 0)
+
+
+def odds(u: dict) -> dict | None:
+    """The easiest drop of an item: its chance and the runs it takes."""
+    s = (u.get("sources") or [None])[0]  # easiest first (by_effort)
+    return {"chance_pct": s.get("chance_pct"), "runs": s["expected_runs"]} if s and s.get("expected_runs") else None
+
+
+def ah_cost(srcs: list[dict] | None, market: dict | None) -> dict | None:
+    """An auction house listing against the character's gold and the next
+    gold goal (the riding training, ahsource.mount_left): the facts and one
+    action, the same words on the page and in the MCP. None without a listing."""
+    ah = next((x for x in srcs or [] if x.get("kind") == "ah" and x.get("price_copper")), None)
+    if ah is None:
+        return None
+    price = ah["price_copper"]
+    money = (market or {}).get("money_copper")
+    goal = (market or {}).get("mount") or None
+    short = None if money is None else max(0, price - money)
+    says = f"{ahsource.price_text(price)} on the auction house"
+    if money is not None:
+        says += f": you have {ahsource.price_text(money)}"
+    if goal and goal.get("need_copper"):
+        says += f"; riding at {goal['level']} needs {ahsource.price_text(goal['need_copper'])}"
+    if not short:
+        action = "Buy it at the auction house."
+    else:
+        action = f"Save {ahsource.price_text(short)} more, then buy it at the auction house."
+    return {"price_copper": price, "money_copper": money, "short_copper": short,
+            "goal": {"what": "riding", "level": goal["level"], "need_copper": goal["need_copper"],
+                     "left_copper": goal.get("left_copper")} if goal and goal.get("need_copper") else None,
+            "says": says + ".", "action": action}
+
+
+def effort_detail(u: dict) -> str:
+    """An item's effort with what makes it so: the runs of a drop, the gold
+    of a listing, an unknown source."""
+    e = u.get("effort") or ""
+    o = odds(u)
+    if o and e in ("hard", "long shot"):
+        return f"{'a ' if e == 'long shot' else ''}{e} (about {o['runs']:,} runs)"
+    cost = u.get("cost")
+    if cost and cost.get("short_copper"):
+        price, short = ahsource.price_text(cost["price_copper"]), ahsource.price_text(cost["short_copper"])
+        return f"{e} ({price}, {short} more than you have)"
+    return f"{'a ' if e == 'long shot' else ''}{e}"
+
+
+def pair_why(bis: dict | None, pick: dict | None, level: int) -> dict | None:
+    """The slot's pick against its BiS (owner, 2026-11-25): the same item
+    ("BiS, and within reach" when nothing blocks it), or the pick, how far
+    behind BiS it scores and the facts that make it win: an easier source,
+    BiS's odds or price, who BiS is built for. None when nothing beats what
+    is worn (the BiS row then says what it would take)."""
+    if not bis or bis.get("worn") or pick is None:
+        return None
+    blocked = bool((bis.get("cost") or {}).get("short_copper")) or bis.get("effort") in ("hard", "long shot")
+    if _same_item(bis, pick):
+        return {"item_id": pick["item_id"], "name": pick.get("name"), "same": True, "behind_bis_pct": 0,
+                "within_reach": not blocked,
+                "reasons": [], "says": "BiS, and within reach." if not blocked else "BiS, and your pick."}
+    behind = behind_pct(_setup_score(bis), _setup_score(pick))
+    reasons = []
+    pe, be = pick.get("effort"), bis.get("effort")
+    if be and pe and EFFORT.index(pe) < EFFORT.index(be):
+        reasons.append(f"{pe} where BiS is {effort_detail(bis)}")
+    elif (bis.get("cost") or {}).get("short_copper"):
+        reasons.append(f"BiS costs {ahsource.price_text(bis['cost']['short_copper'])} more than you have")
+    bf, pf = bis.get("fit") or {}, pick.get("fit") or {}
+    if bf.get("for_you") in ("spec", "class") and pf.get("for_you") in ("yes", "any"):
+        reasons.append(f"BiS is built for {bf.get('built_for') or 'another role'}")
+    elif bf.get("tip") and not pf.get("tip") and (bf.get("factor") or 1) < (pf.get("factor") or 1):
+        reasons.append("others usually roll first on BiS")
+    if not reasons and level >= ENDGAME_LEVEL:
+        reasons.append("the score decides at level 60")
+    says = f"{behind}% behind BiS" + (f": {'; '.join(reasons)}." if reasons else ".")
+    return {"item_id": pick["item_id"], "name": pick.get("name"), "same": False, "behind_bis_pct": behind,
+            "within_reach": True, "reasons": reasons, "says": says[0].upper() + says[1:]}
 
 
 # --- standing against BiS ------------------------------------------------------
@@ -2541,26 +2736,32 @@ class WeaponSetups:
             out.append(self.kept[role])
         return out
 
-    def _best(self, role: str, max_at: int, exclude: int | None = None) -> dict | None:
+    def _best(self, role: str, max_at: int, exclude: int | None = None, raw: bool = False) -> dict | None:
         pool = self._pool(role, max_at, exclude)
-        # The score less its effort's penalty (effort_penalty); ForeverDB's
-        # order on a tie: the higher item level, then the lower ID.
-        return max(pool, key=lambda p: (p["adj"], p["c"] is None, (p["c"] or {}).get("info", {}).get("ilvl") or 0,
+        # The score less its effort's penalty (effort_penalty), or the score
+        # alone for the BiS (raw); ForeverDB's order on a tie: the higher
+        # item level, then the lower ID.
+        by = "score" if raw else "adj"
+        return max(pool, key=lambda p: (p[by], p["c"] is None, (p["c"] or {}).get("info", {}).get("ilvl") or 0,
                                         -(_pid(p) or 0)), default=None)
 
-    def best_setup(self, max_at: int) -> dict | None:
+    def best_setup(self, max_at: int, raw: bool = False) -> dict | None:
         """The best whole setup with parts available by level max_at,
         ForeverDB's way: the best two-hander against the best main hand and
         the best other off hand (an off-hand weapon at half its damage), a tie to the
         two-hander; a dual-wielder or a shield tank takes the pair whenever
         it has both hands, a two-hand spec the two-hander whenever it has one."""
-        two = self._best("two", max_at)
+        two = self._best("two", max_at, raw=raw)
         two = {"total": two["score"], "adj": two["adj"], "main": two, "off": None} if two else None
         # The best main hand, then the best off hand that isn't that item.
-        m = self._best("main", max_at)
-        o = self._best("off", max_at, exclude=_pid(m)) if m else None
+        m = self._best("main", max_at, raw=raw)
+        o = self._best("off", max_at, exclude=_pid(m), raw=raw) if m else None
         pair = {"total": m["score"] + (o["score"] if o else 0), "adj": m["adj"] + (o["adj"] if o else 0),
                 "main": m, "off": o} if m else None
+        if raw:
+            for x in (two, pair):
+                if x:
+                    x["adj"] = x["total"]
         if two is None or pair is None:
             return two or pair
         if self.style == "2h":
@@ -2602,11 +2803,12 @@ class WeaponSetups:
                 "pct": delta / self.current * 100 if self.current > 0 else None,
                 "empty": self.current == 0, "score": part["score"], "equipped": False, "setup_score": total}
 
-    def row(self, bucket: str, out) -> dict | None:
+    def row(self, bucket: str, out, raw: bool = False) -> dict | None:
         """The equipment panel's weapon line for `bucket` (now / soon): the
         part to get, on the main hand row (with its partner) or, when only
-        the off hand changes, on the off-hand row."""
-        best = self.best_setup(self.level if bucket == "now" else self.level + SOON_LEVELS)
+        the off hand changes, on the off-hand row. raw: the setup that
+        scores most whatever it takes to get (the slot's BiS)."""
+        best = self.best_setup(self.level if bucket == "now" else self.level + SOON_LEVELS, raw)
         if not best or best["total"] <= self.current + 1e-9:
             return None
         m, o = best["main"], best["off"]
