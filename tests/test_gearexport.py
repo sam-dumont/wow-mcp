@@ -218,3 +218,77 @@ def test_owner_strings():
 def test_bad_setup_refused():
     with pytest.raises(gx.ExportError):
         gx.flb_string("PRIEST", "shadow", "lvl", "nope")
+
+
+# The addon's import vocabulary, as names (facts about its text format, read
+# from the addon 2026-11-25, nothing of its code): an FLB1 key it doesn't know
+# is dropped without a word, so a misspelt key would just lose its weight.
+# Its weight keys: the Stat weights window's (spell power by school, "+X%"
+# lines per 1%, weapon DPS and speed) and the rating keys its own defaults use.
+ADDON_KEYS = {
+    "str", "agi", "sta", "int", "spi", "atkpwr", "rgdatkpwr", "feratkpwr", "splpwr", "spldmg", "splheal",
+    "arcsplpwr", "firsplpwr", "frosplpwr", "holsplpwr", "natsplpwr", "shasplpwr", "splpen", "defrtng", "block",
+    "armor", "armorbonus", "manargn", "healthrgn", "dps", "ohDps", "rangedDps", "speed", "ohSpeed", "rangedSpeed",
+    "critPct", "hitPct", "rhitPct", "expPct", "dodgePct", "parryPct", "blockPct",
+    "hitrtng", "critstrkrtng", "hastertng", "dodgertng", "parryrtng", "blockrtng"}
+# Its specs per class (anything else refuses the whole string) and weapon setups.
+ADDON_SPECS = {
+    "WARRIOR": {"arms", "fury", "protection"}, "PALADIN": {"holy", "protection", "retribution"},
+    "HUNTER": {"beastmastery", "marksmanship", "survival", "survivalmelee"},
+    "ROGUE": {"assassination", "combat", "subtlety"}, "PRIEST": {"discipline", "holy", "shadow"},
+    "SHAMAN": {"elemental", "enhancement", "restoration"}, "MAGE": {"arcane", "fire", "frost"},
+    "WARLOCK": {"affliction", "demonology", "destruction"}, "DRUID": {"balance", "feral", "bear", "restoration"}}
+ADDON_SETUPS = {"twohand", "dualwield", "shield", "held", "onehand"}
+# The Pawn names its Pawn import reads (anything else is listed as skipped).
+ADDON_PAWN = {
+    "Class", "Spec", "Strength", "Agility", "Stamina", "Intellect", "Spirit", "Ap", "Rap", "FeralAp", "SpellDamage",
+    "Healing", "FireSpellDamage", "FrostSpellDamage", "ArcaneSpellDamage", "ShadowSpellDamage",
+    "NatureSpellDamage", "HolySpellDamage", "Mp5", "Hp5", "DefenseRating", "SpellPenetration", "BlockValue",
+    "DodgeRating", "ParryRating", "BlockRating", "Armor", "BonusArmor", "HitRating", "SpellHitRating", "CritRating",
+    "SpellCritRating", "HasteRating", "SpellHasteRating", "ExpertiseRating", "Dps", "MeleeDps", "MainHandDps",
+    "OffHandDps", "OneHandDps", "TwoHandDps", "RangedDps", "Speed", "MeleeSpeed", "MainHandSpeed", "OffHandSpeed",
+    "OneHandSpeed", "TwoHandSpeed", "RangedSpeed", "SpeedBaseline", "SpellPower"}
+# The weight per 1% of each "+X%" key, as ours per point of rating times the
+# rating a percent (gear.PCT_RATING; expertise 10 a percent).
+PCT_KEYS = {"critPct": ("critRating", 14), "hitPct": ("hitRating", 10), "rhitPct": ("hitRating", 10),
+            "expPct": ("expertise", 10), "dodgePct": ("dodgeRating", 12), "parryPct": ("parryRating", 15),
+            "blockPct": ("blockRating", 5)}
+
+
+def every_export():
+    for cls, specs in gear.weights_data()["specs"].items():
+        for spec in specs:
+            for mode in gear.MODES:
+                yield cls, spec, mode, gx.export(cls, spec, mode)
+
+
+def test_every_flb_key_is_one_the_addon_reads():
+    for cls, spec, mode, e in every_export():
+        parts = e["flb"].split(";")
+        assert parts[1] in ADDON_SPECS and parts[2] in ADDON_SPECS[parts[1]], e["flb"]
+        assert parts[3] in ADDON_SETUPS, e["flb"]
+        for pair in parts[4].split(":", 1)[1].split(","):
+            k, v = pair.split("=")
+            # (the addon reads a key as letters only, a value as one token)
+            assert re.fullmatch(r"[A-Za-z]+", k) and k in ADDON_KEYS, (cls, spec, mode, k)
+            assert re.fullmatch(r"-?\d+(\.\d+)?", v), (cls, spec, mode, pair)
+
+
+def test_every_pawn_name_is_one_the_addon_reads():
+    for cls, spec, mode, e in every_export():
+        body = re.fullmatch(r'\( Pawn: v1: "[^"]*": (.*) \)', e["pawn"]).group(1)
+        names = {x.split("=")[0] for x in body.split(", ")}
+        assert names <= ADDON_PAWN, (cls, spec, mode, names - ADDON_PAWN)
+
+
+def test_percent_lines_are_per_one_percent():
+    """The addon weighs a "+1% crit" line with critPct: ours per point of
+    rating times the rating a percent, every spec and mode."""
+    for cls, spec, mode, e in every_export():
+        w = gear.weights_data()["specs"][cls][spec][mode]
+        flb = parse_flb(e["flb"])
+        for key, (ours_key, per) in PCT_KEYS.items():
+            if key == "rhitPct" and cls != "HUNTER":
+                assert key not in flb
+                continue
+            assert flb.get(key, 0) == pytest.approx(round((w.get(ours_key) or 0) * per, 3)), (cls, spec, mode, key)

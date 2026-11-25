@@ -136,9 +136,24 @@ MAPPING: dict[str, Map] = {
 RANGED_HIT = Map((("rhitPct", 10),), (), "ranged-only hit, per 1%",
                  note="Pawn has no ranged-only hit: items with \"+% hit with ranged weapons\" score lower there. "
                       "The Forever Leveling BiS string keeps it.")
-# What both strings leave to the addon (said under the buttons).
-ADDON_OWN = ("Weights only: the addon keeps its own item list, and adds what it knows on top (item effects, random "
-             "suffixes, racial weapon bonuses, set bonuses at 60), so a few items can rank differently.")
+# What both strings leave to the addon (said under the buttons). The string
+# only carries weights: its format has no field for level, faction, drop
+# chance or effort (FLB1;CLASS;spec;setup;options;brackets;name, the one
+# option being the icon). The addon already keeps to the character's level,
+# faction, race and professions; it ranks every item it lets through on
+# score alone, a random-suffix one with its best suffix, which this page
+# doesn't (wowstats.gear: obtainability first while levelling, a
+# random-suffix item at its likely suffix). The owner's Shadow priest, 2026-11-25:
+# five "of Shadow Wrath" BoE greens and an epic BoE staff as its BiS.
+ADDON_OWN = (
+    "The addon ranks on score alone. Drop chances and effort mean nothing to it, so a 1% drop or a lucky "
+    "Auction House find can be its pick where this page picks a quest reward.",
+    "It scores each random-suffix green (\"of the Owl\") with its best suffix: the one roll of many you'd "
+    "have to find or buy.",
+    "For picks closer to this page: /bis, Settings, Filters, untick BoE under Sources.",
+    "It keeps its own item list and adds what it knows on top (item effects, set bonuses at 60). Its list "
+    "can lag the game's hotfixes, so a few items rank differently.",
+)
 PAWN_SCALE = ("The addon rescales a Pawn scale to its own spec scale on import: the order stays the same, the "
               "numbers change.")
 
@@ -247,7 +262,7 @@ def export(cls: str, spec: str, mode: str, fmt: str | None = None, setup: str | 
            "name": profile_name(mode), "credit": dict(CREDIT),
            "how": "In the game: /bis, Stat weights (top right of the window), Import, paste, check the spec and "
                   "weapon setup, Import.",
-           "notes": [ADDON_OWN]}
+           "notes": list(ADDON_OWN)}
     if fmt in (None, "flb"):
         out["flb"] = flb_string(cls, spec, mode, setup)
     if fmt in (None, "pawn"):
