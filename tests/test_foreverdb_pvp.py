@@ -88,7 +88,9 @@ def test_standings_take_the_newest_foreverdb_rank():
 
 
 def who(rank):
-    return gear.Who(cls="PRIEST", level=33, side=2, race_id=8, professions={}, done=set(), zone=None, pvp_rank=rank)
+    # PvP rewards counted (the toggle on): off, a rank source is no source at all.
+    return gear.Who(cls="PRIEST", level=33, side=2, race_id=8, professions={}, done=set(), zone=None, pvp_rank=rank,
+                    pvp=True)
 
 
 def test_rank_gear_held_is_some_effort_else_says_what_is_missing():
@@ -101,3 +103,5 @@ def test_rank_gear_held_is_some_effort_else_says_what_is_missing():
         s = gear._source(ref, {"kind": "pvp", "rank": 3}, who(rank), {})
         assert gear.source_effort(s) == effort
         assert gear.source_text(s) == words
+    assert gear._source(ref, {"kind": "pvp", "rank": 3}, gear.Who(cls="PRIEST", level=33, side=2, race_id=8,
+                                                                  professions={}, done=set(), zone=None), {}) is None

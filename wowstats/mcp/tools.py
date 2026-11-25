@@ -1113,6 +1113,18 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         mode = gearmode.saved(ctx.environ(), char)
         if mode == gearmod.DEFAULT_MODE:
             mode_from = "the default"
+    # PvP rewards (a rank's or a battleground reputation's gear): asked, else
+    # the player's toggle on the gear page (wowstats.gearmode), off when none.
+    if args.get("pvp") is not None and str(args["pvp"]).strip().lower() not in ("true", "false", "1", "0", "yes",
+                                                                                 "no"):
+        raise ToolError("pvp is true or false")
+    if args.get("pvp") is not None:
+        pvp, pvp_from = truthy(args["pvp"]), "asked"
+    else:
+        from wowstats import gearmode
+
+        pvp = gearmode.pvp(ctx.environ(), char)
+        pvp_from = "the player's toggle on the gear page" if pvp else "the default (off)"
     if args.get("export") is not None and str(args["export"]).strip().lower() not in ("pawn", "flb"):
         raise ToolError("export is pawn or flb")
     if args.get("setup") is not None and args["setup"] not in ("twohand", "dualwield", "shield", "held"):
@@ -1123,13 +1135,13 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         # planner, in the same mode as gear without options.
         from .plantools import t_gear_options
 
-        out = t_gear_options(ctx, {**args, "mode": mode, "mode_from": mode_from})
+        out = t_gear_options(ctx, {**args, "mode": mode, "mode_from": mode_from, "pvp": pvp, "pvp_from": pvp_from})
         # What is on sale, from the same answer as gear without options:
         # "which upgrade is on sale" asked with options found none (MCP eval
         # ah_upgrade, 2026-11-24: buy_now and auction_house were missing).
         try:
             plain = t_gear(ctx, {**{k: v for k, v in args.items() if k not in ("options", "export", "setup")},
-                                 "mode": mode, "limit": 1})
+                                 "mode": mode, "pvp": pvp, "limit": 1})
         except ToolError:
             plain = {}
         return {**out, "buy_now": plain.get("buy_now"), "auction_house": plain.get("auction_house")}
@@ -1192,7 +1204,7 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                            zone=zone_now(s, r),
                            done=set(done),
                            spec=(args.get("spec") or None), limit=(lim := limit_arg(args, 10, 40)),
-                           mode=mode,
+                           mode=mode, pvp=pvp,
                            # The player's WEIGHTS, like the page, gear_options and the analysis: without
                            # it this tool scored the add-on's spec (Shadow) while every other answer
                            # scored the configured one (Holy) (seeded evaluation, wrong_spec_gear).
@@ -1246,6 +1258,9 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                                       "where": [_src_text(s) for s in p.get("sources") or []] or None}
                                      for p in x["parts"]]} for x in a.get("weapon_setups") or []],
         "mode": a["mode"]["label"], "mode_from": mode_from,
+        # Whether PvP rewards were sources, and why: always in the PvP mode.
+        "pvp_rewards": {"counted": a["pvp_rewards"]["on"],
+                        "from": "the PvP mode" if a["pvp_rewards"]["forced"] else pvp_from},
         "weights_from": {k: (a.get("scoring") or {}).get(k) for k in ("label", "note", "source")},
         # The weights are ForeverDB.net's: credit it with the link whenever a score is shown.
         "source": a["source"],
@@ -1369,7 +1384,8 @@ def _views(ctx: Ctx):
     # score the same spec as the page's (review-3).
     settings = views.settings_from_env(ctx.environ(), "full")
     key = (s.vl_url, s.vl_archive_url, s.logs_filter, s.hot_days, s.account_id, bnet,
-           tuple(sorted(settings.weights.items())), settings.default_char, settings.price_days, settings.ah_shared)
+           tuple(sorted(settings.weights.items())), settings.default_char, settings.price_days, settings.ah_shared,
+           tuple(sorted(settings.state.items())))
     if key not in _VIEWS:
         st = stores.Store(s.vl_url, s.vl_archive_url, "", s.logs_filter, s.hot_days, profile_vm_url=bnet,
                           account_id=s.account_id)
@@ -1555,6 +1571,10 @@ TOOLS: tuple[Tool, ...] = (
                  "mode": {"type": "string", "enum": ["lvl", "pvp", "pve"],
                           "description": "The weights: lvl (Leveling), pvp or pve (raids and dungeons at 60). "
                                          "Default: the mode picked on the gear page, else Leveling."},
+                 "pvp": {"type": "boolean",
+                         "description": "Count PvP rewards (honor rank and battleground reputation gear) as "
+                                        "sources. Default: the toggle on the gear page, else off. Always on with "
+                                        "mode pvp, where that gear is easy (it comes from playing PvP)."},
                  "limit": {**lim(10, 40), "description": "How many upgrades (with options: slots, 8 by default, "
                                                          "20 at most)."},
                  "export": {"type": "string", "enum": ["pawn", "flb"],

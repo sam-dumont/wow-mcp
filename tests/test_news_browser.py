@@ -36,7 +36,7 @@ def live():
     mp.setenv("WOW_ITEMS", "off")
     gear = {**json.loads(gzip.decompress((DATA / "gear-priest.json.gz").read_bytes())), "char": CHAR}
 
-    def scored(self, name, spec, mode=None):
+    def scored(self, name, spec, mode=None, pvp=None):
         # The real answer: a spec the page picked comes back as the page's.
         if not spec:
             return gear

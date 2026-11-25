@@ -101,7 +101,7 @@ def prices(store, days: int = 30, shared: str = "") -> dict[int, dict]:
 
 
 def gather(env: dict, char: str | None = None, now: float | None = None, store=None, battlenet=None,
-           gear_inputs=None, mode: str | None = None) -> dict:
+           gear_inputs=None, mode: str | None = None, pvp: bool | None = None) -> dict:
     """Read the stores and the KB; return extract()'s inputs. `battlenet`:
     the item ids Battle.net says the character wears now, read live by the
     caller (this store never reads vm-wow): they add the quests their
@@ -110,7 +110,9 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
     `gear_inputs`: the doll's (wowstats.views.Views.gear_inputs), when the
     caller has them: the advice and the dungeons' loot are scored from
     exactly what the doll is, so each slot has one BiS share everywhere
-    (owner, 2026-11-21). Without them, the stored events alone."""
+    (owner, 2026-11-21). Without them, the stored events alone. `pvp`:
+    whether PvP rewards count (None: the character's saved toggle,
+    wowstats.gearmode)."""
     from wowstats import analysis
     from wowstats.analysis import kb, prep
     from wowstats.mcp import route
@@ -127,7 +129,13 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
     from wowstats import gear
 
     loot: dict = {}
+    if pvp is None:
+        from wowstats import gearmode
+
+        pvp = gearmode.pvp(env, char)
     gi = gear_inputs if gear_inputs and gear_inputs.get("available") else None
+    if gi is not None:
+        gi = {**gi, "pvp": pvp}
     with contextlib.suppress(gear.GearError):
         if gi is not None:
             from wowstats.views import gear_args
@@ -136,7 +144,8 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
             loot = gear.instance_loot(gear.reference(), gi["sheet"], level=gi["level"], weights=gi["weights"],
                                       bis=advice.get("bis_by_slot"), mode=mode)
         else:
-            advice = gear.advise_rows(rows, analysis.weights_for(env, char), battlenet=battlenet, mode=mode)
+            advice = gear.advise_rows(rows, analysis.weights_for(env, char), battlenet=battlenet, mode=mode,
+                                      pvp=pvp)
             loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char),
                                            (advice or {}).get("bis_by_slot"), mode=mode)
     try:

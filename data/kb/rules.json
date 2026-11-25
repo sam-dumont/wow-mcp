@@ -501,6 +501,116 @@
       "scope": "classic_fallback",
       "last_verified": "2026-11-19",
       "note": "Used only to carry a dungeon run's measured kill XP from the level it was run at to the character's level now (wowstats.plan.dungeongain); the bonus and the split cancel out in that ratio."
+    },
+    "content.raids_not_open": {
+      "statement": "No raid is open in Forever yet: Onyxia's Lair, the Barrow Deeps and Hyjal Summit unlock on 9 Dec 2026; Molten Core, Blackwing Lair, Zul'Gurub, Ahn'Qiraj and Naxxramas aren't announced. Their loot and the rewards of quests done there (forever-db's quest zone) are never proposed until then.",
+      "value": {
+        "instances": {
+          "249": {
+            "what": "Onyxia's Lair (raid)",
+            "opens": "2026-12-09"
+          }
+        },
+        "objects": {
+          "Four Horsemen Chest": {
+            "what": "Naxxramas (raid, not announced)",
+            "opens": null
+          }
+        },
+        "quest_zones": {
+          "Molten Core": {
+            "what": "Molten Core (raid, not announced)",
+            "opens": null
+          },
+          "Blackwing Lair": {
+            "what": "Blackwing Lair (raid, not announced)",
+            "opens": null
+          },
+          "Zul'Gurub": {
+            "what": "Zul'Gurub (raid, not announced)",
+            "opens": null
+          },
+          "Ruins of Ahn'Qiraj": {
+            "what": "Ruins of Ahn'Qiraj (raid, not announced)",
+            "opens": null
+          },
+          "Ahn'Qiraj": {
+            "what": "Ahn'Qiraj (raid, not announced)",
+            "opens": null
+          },
+          "Naxxramas": {
+            "what": "Naxxramas (raid, not announced)",
+            "opens": null
+          },
+          "Onyxia's Lair": {
+            "what": "Onyxia's Lair (raid)",
+            "opens": "2026-12-09"
+          }
+        }
+      },
+      "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+      "sources": [
+        "https://worldofwarcraft.blizzard.com/news/24303009",
+        "https://www.warcrafttavern.com/forever/news/world-of-warcraft-forever-is-now-live/"
+      ],
+      "source_type": "official",
+      "date": "2026-10-20",
+      "confidence": "high",
+      "scope": "forever",
+      "last_verified": "2026-11-25"
+    },
+    "content.events_not_open": {
+      "statement": "The Gurubashi Arena's chest event isn't open in Forever: ForeverDB.net has the Arena Treasure Chest from Classic's data only, never seen in Forever, and the owner reports it closed (2026-11-24). A source seen in Forever reopens it.",
+      "value": {
+        "objects": {
+          "Arena Treasure Chest": {
+            "what": "the Gurubashi Arena event",
+            "opens": null
+          }
+        }
+      },
+      "source_url": "https://foreverdb.net",
+      "source_type": "datamined",
+      "date": "2026-11-24",
+      "confidence": "medium",
+      "scope": "forever",
+      "last_verified": "2026-11-25"
+    },
+    "pvp_rewards.sources": {
+      "statement": "What gear is a PvP reward: the battleground reputations' quartermasters (AV, AB, WSG, Darkspear Islands, both sides) and the PvP vendors of Stormwind's Champions' Hall, Orgrimmar's Hall of Legends and Dalaran's Underbelly. Ids are ForeverDB.net's.",
+      "value": {
+        "reputations": {
+          "729": "Frostwolf Clan",
+          "730": "Stormpike Guard",
+          "510": "The Defilers",
+          "509": "The League of Arathor",
+          "889": "Warsong Outriders",
+          "890": "Silverwing Sentinels",
+          "2798": "Darkspear Raiders",
+          "2799": "Theramore Expeditionary Force"
+        },
+        "vendors": {
+          "12777": "Captain Dirgehammer",
+          "12805": "Officer Areyn",
+          "12792": "Lady Palanseer",
+          "12793": "Brave Stonehide",
+          "14581": "Sergeant Thunderhorn",
+          "12799": "Sergeant Ba'sha",
+          "32333": "Dalaran Underbelly",
+          "32334": "Nixi Fireclaw"
+        }
+      },
+      "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+      "sources": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+        "https://www.method.gg/wow-forever/the-fastest-way-to-get-legacy-points-in-wow-forever",
+        "https://www.warcrafttavern.com/forever/guides/pvp-vendors/"
+      ],
+      "source_type": "official",
+      "date": "2026-11-14",
+      "confidence": "high",
+      "scope": "forever",
+      "last_verified": "2026-11-25"
     }
   }
 }

@@ -128,6 +128,18 @@ EFFORT_PENALTY = (0.0, 0.05, 0.15, 0.15)
 # effort ranking holds "only during end game at lvl 60 where marginal gains
 # are the norm", read as: everywhere but there). classguide.MAX_LEVEL.
 ENDGAME_LEVEL = 60
+# Content Forever hasn't opened (owner, 2026-11-25: "it proposes arena
+# rewards for me even though it's not opened yet"): the knowledge base's
+# rules name each place and the day it opens (data/kb/rules.json). A source
+# there is never a way to an item until that day; an item with no other
+# source is no candidate at all, not a "where: unknown". A source players
+# saw in Forever (ForeverDB's "s") is open whatever a rule says.
+CLOSED_RULES = ("content.raids_not_open", "content.events_not_open")
+# What gear is a PvP reward besides a PvP rank's (data/kb/rules.json): the
+# battleground reputations' and the PvP vendors' (the Premier rank weapons
+# come from Sergeant Thunderhorn with no rank in ForeverDB's data: an "easy"
+# free axe for a level 60 who never queued).
+PVP_RULE = "pvp_rewards.sources"
 # A drop's chance in percent: at least the first for easy, the second for
 # some effort, the third for hard; under it a long shot.
 DROP_EASY, DROP_SOME, DROP_HARD = 25.0, 8.0, 1.0
@@ -324,6 +336,7 @@ def foreverdb_sources(items: dict, quests: dict, gear_quests: dict, data: dict |
                 aid = forever.area_of_map(x.get("instance"))
                 raw.append({**base, "kind": "drop", "npc": x.get("npc"), "npc_name": x.get("boss"),
                             "pct": x.get("pct"), "kills": x.get("kills"), "zone": aid,
+                            "instance_map": x.get("instance"),
                             "zone_name": (forever.area(aid) or {}).get("name") or inst.get("name"),
                             "raid": bool(x.get("raid"))})
             elif k in ("creature", "rare"):
@@ -964,6 +977,12 @@ class Who:
     # The PvP rank held (0-14): ForeverDB's armory snapshot, else 0 when
     # Altoholic's lifetime honorable kills are 0; None when unknown.
     pvp_rank: int | None = None
+    # PvP rewards (is_pvp) count as sources: the player's toggle, default
+    # off (owner, 2026-11-25: "PvP should be toggable too when leveling"),
+    # always on in the PvP mode, where they are easy (pvp_mode).
+    pvp: bool = False
+    pvp_mode: bool = False
+    today: str = ""  # YYYY-MM-DD, for closed_content
 
 
 def _wing_area(area: dict, npc_id) -> dict | None:
@@ -982,10 +1001,20 @@ def _wing_area(area: dict, npc_id) -> dict | None:
 def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None = None) -> dict | None:
     """One source of an item in the answer's shape, or None when this
     character can't take it (the other side's quest, another race's or
-    class's, a quest already handed in). A craft counts when the character
+    class's, a quest already handed in), from content Forever hasn't opened
+    (closed_content), or a PvP reward while PvP rewards don't count. A craft counts when the character
     makes it at its rank, or when the item has a level to wear it at (gear
     others make and sell); a craft with no level (Engineering's goggles)
     asks for the profession to wear it, which the item table doesn't say."""
+    # A quest's zone as forever-db gives it: where it is done (a raid's
+    # tier quest is handed in outside, its zone is the raid's).
+    qz = (forever.quest(s["quest"]) or {}).get("zone") if s["kind"] == "quest" else None
+    if closed_content(s, who.today or _today(), qz):
+        return None
+    pvp = is_pvp(s)
+    if pvp and not (who.pvp or who.pvp_mode):
+        return None
+    tag = {"pvp": True, **({"by_playing": True} if who.pvp_mode else {})} if pvp else {}
     if s["kind"] == "quest":
         q = (ref.data.get("quests") or {}).get(str(s["quest"]))
         if not q:
@@ -1051,15 +1080,16 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
     if s["kind"] == "vendor":
         return {"kind": "vendor", "npc_id": s.get("npc"), "name": s.get("npc_name"), "zone": s.get("zone_name"),
                 "map": s.get("map"), "x": s.get("x"), "y": s.get("y"), "price_copper": s.get("price") or None,
-                **_basis(s)}
+                **_basis(s), **tag}
     if s["kind"] == "reputation":
         return {"kind": "reputation", "faction_id": s.get("faction"), "name": s.get("faction_name"),
-                "standing": s.get("standing"), **rep_check(who, s.get("faction"), s.get("standing")), **_basis(s)}
+                "standing": s.get("standing"), **rep_check(who, s.get("faction"), s.get("standing")), **_basis(s),
+                **tag}
     if s["kind"] == "pvp":
         rank = s.get("rank")
         have = who.pvp_rank
         return {"kind": "pvp", "rank": rank, "your_rank": have,
-                "met": None if have is None or rank is None else have >= rank, **_basis(s)}
+                "met": None if have is None or rank is None else have >= rank, **_basis(s), **tag}
     if s["kind"] == "container":
         return {"kind": "container", "name": s.get("name"), "container_item_id": s.get("item"),
                 "object": bool(s.get("object")), "chance_pct": s.get("pct") or None, **_basis(s)}
@@ -1089,6 +1119,58 @@ def runs_for(pct) -> int | None:
     return max(1, round(100 / pct)) if pct else None
 
 
+_RULE_VALUES: dict[str, dict] = {}
+
+
+def _rule_value(name: str) -> dict:
+    """A knowledge-base rule's value, read once per process (every source of
+    every item asks)."""
+    if name not in _RULE_VALUES:
+        from wowstats.analysis import kb
+
+        _RULE_VALUES[name] = ((kb.static_rule(name) or {}).get("value")) or {}
+    return _RULE_VALUES[name]
+
+
+def closed_content(s: dict, today: str, quest_zone=None) -> str | None:
+    """What closed content a raw source belongs to (CLOSED_RULES), None
+    when it is open: an object (a chest), an instance, or a quest whose zone
+    (`quest_zone`, forever-db's zone name for it) a rule names, until the rule's
+    `opens` day (YYYY-MM-DD, `today` the same form). A source labelled "s"
+    (seen in Forever) is open whatever the rules say."""
+    if s.get("label") == "s":
+        return None
+    for name in CLOSED_RULES:
+        v = _rule_value(name)
+        hit = None
+        if s.get("kind") == "container" and s.get("object"):
+            hit = (v.get("objects") or {}).get(s.get("name") or "")
+        elif s.get("kind") == "drop" and s.get("instance_map") is not None:
+            hit = (v.get("instances") or {}).get(str(s["instance_map"]))
+        elif s.get("kind") == "quest" and quest_zone is not None:
+            hit = (v.get("quest_zones") or {}).get(str(quest_zone))
+        if hit and not (hit.get("opens") and today >= hit["opens"]):
+            return hit.get("what") or name
+    return None
+
+
+def is_pvp(s: dict) -> bool:
+    """A raw source that is a PvP reward: a PvP rank's, a battleground
+    reputation's or a PvP vendor's (PVP_RULE)."""
+    k, v = s.get("kind"), _rule_value(PVP_RULE)
+    if k == "pvp":
+        return True
+    if k == "reputation":
+        return str(s.get("faction")) in (v.get("reputations") or {})
+    return k == "vendor" and str(s.get("npc")) in (v.get("vendors") or {})
+
+
+def _today() -> str:
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).date().isoformat()
+
+
 def _drop_effort(pct, label, harder: bool = False) -> int:
     if pct is None:
         # No rate anyone measured: seen dropping in Forever is hard; only in
@@ -1108,7 +1190,14 @@ def source_effort(s: dict) -> int:
     Forever over Classic's); a reputation or a PvP rank by what the
     character holds."""
     k = s.get("kind")
-    if k in ("bags", "bank", "ah", "quest", "vendor"):
+    if k == "vendor" and s.get("pvp") and not s.get("by_playing"):
+        # A PvP vendor's gear outside the PvP weights: the honor and the rank
+        # it asks aren't in the data, like a rank nothing recorded.
+        return LONG_SHOT
+    if k in ("bags", "bank", "ah", "quest", "vendor") or s.get("by_playing"):
+        # by_playing: a PvP reward while the gear is scored for PvP (owner,
+        # 2026-11-25: "for pvp specific gear at 60 it'll automatically come
+        # from PvP so it's easy").
         return EASY
     if k == "craft":
         return EASY if s.get("can_make") else SOME
@@ -1440,7 +1529,7 @@ class _Ctx:
 
 
 def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: str | None,
-             weights: str | None, mode: str | None = None) -> _Ctx:
+             weights: str | None, mode: str | None = None, pvp: bool = False) -> _Ctx:
     """What advise() and instance_loot() score with: the class, the spec's
     weights in the mode, what is worn."""
     if not ref.available:
@@ -1466,7 +1555,8 @@ def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: s
               professions={str(p.get("name") or "").lower(): p.get("rank") for p in sheet.get("professions") or []
                            if p.get("name") and isinstance(p.get("rank"), (int, float))},
               done=set(done or ()), zone=zone, recipes=recipe_lists(sheet.get("recipes")),
-              reps=sheet.get("reps"), pvp_rank=sheet.get("pvp_rank"))
+              reps=sheet.get("reps"), pvp_rank=sheet.get("pvp_rank"), pvp=bool(pvp), pvp_mode=mode == "pvp",
+              today=_today())
 
     items = [i for i in sheet.get("items") or [] if isinstance(i, dict)]
     worn = worn_from(ref, items, w, sheet.get("worn_stats"))
@@ -1561,7 +1651,8 @@ def unsourced(ref: Reference) -> list[tuple[int, dict]]:
 
 def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, done: set | None = None,
            spec: str | None = None, limit: int = 25, weights: str | None = None, every: bool = False,
-           held: dict | None = None, market: dict | None = None, mode: str | None = None) -> dict:
+           held: dict | None = None, market: dict | None = None, mode: str | None = None,
+           pvp: bool = False) -> dict:
     """The gear advice for one character.
 
     sheet: the newest wow-gear event (items, class, race, faction, spec,
@@ -1574,8 +1665,10 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     wowstats.ahsource.market(): an item on sale now gets an "ah" source (one
     with no other source the character can use becomes a candidate too),
     with its price against his gold; the answer gets `ah`. mode: the
-    weights' mode, Leveling (the default), PvP or PvE (mode_key)."""
-    cx = _context(ref, sheet, level, zone, done, spec, weights, mode)
+    weights' mode, Leveling (the default), PvP or PvE (mode_key). pvp: PvP
+    rewards (a rank's or a battleground reputation's gear) count as sources;
+    off by default, always on in the PvP mode (Who.pvp)."""
+    cx = _context(ref, sheet, level, zone, done, spec, weights, mode, pvp)
     cls, level, key, how, w, scoring = cx.cls, cx.level, cx.key, cx.how, cx.w, cx.scoring
     dual, min_upgrade, who, worn = cx.dual, MIN_UPGRADE, cx.who, cx.worn
     worn_names = cx.worn_names
@@ -1610,6 +1703,12 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             # reputation (ForeverDB gives the faction no side; Darkspear
             # Raiders' seals offered to an Alliance character, 2026-11-24).
             here_srcs = [x for x in here_srcs if x["kind"] != "reputation"]
+        if not (who.pvp or who.pvp_mode) and any(is_pvp(s) for s in srcs):
+            # PvP rewards don't count: the gate's quartermaster goes with
+            # its gate (a vendor next to a rank or a battleground reputation
+            # sells to those who hold it; Talisman of Arathor, 72s, was an
+            # "easy" buy for a character who never queued).
+            here_srcs = [x for x in here_srcs if x["kind"] != "vendor"]
         if item_id in sale and buyable(base, level):
             here_srcs.append({"kind": "ah", **sale[item_id]})
         if not here_srcs:
@@ -1910,6 +2009,9 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         # Leveling, PvP or PvE (owner, 2026-11-23), and whose weights they are:
         # every score shown credits ForeverDB.net.
         "mode": modes_out(cx.mode), "scoring": scoring, "source": dict(CREDIT),
+        # Whether PvP rewards count (the gear page's toggle, the MCP's `pvp`):
+        # `forced` in the PvP mode, where they always do.
+        "pvp_rewards": {"on": who.pvp or who.pvp_mode, "forced": who.pvp_mode},
         "min_upgrade_pct": min_upgrade, "soon_levels": SOON_LEVELS,
         # Each setup's best on its own, wearable now: what a BiS list per
         # setup shows next to the one best setup the upgrades rank.
@@ -2650,7 +2752,8 @@ def spec_why(ref: Reference, cls: str, key: str, label: str, how: str, sheet: di
     return f"Scored for {label} because {why}."
 
 
-def advise_rows(rows: list[dict], weights: str | None = None, battlenet=None, mode: str | None = None) -> dict | None:
+def advise_rows(rows: list[dict], weights: str | None = None, battlenet=None, mode: str | None = None,
+                pvp: bool = False) -> dict | None:
     """advise() from one character's stored events as the analysis' prep
     reads them (wowstats.analysis.prep.query): the newest sheet, the level
     and zone of the newest record, the quests seen handed in, the newest
@@ -2663,7 +2766,7 @@ def advise_rows(rows: list[dict], weights: str | None = None, battlenet=None, mo
         return None
     sh, level, zone, done = got
     return advise(reference(), sh, level=level, zone=zone, done=done, weights=weights, every=True,
-                  held=newest_bags(rows), mode=mode)
+                  held=newest_bags(rows), mode=mode, pvp=pvp)
 
 
 # --- what each dungeon holds for one character -------------------------------

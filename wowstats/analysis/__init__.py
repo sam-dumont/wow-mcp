@@ -440,10 +440,11 @@ def weights_for(env: dict, char: str) -> str | None:
 def advice_for(rows: list[dict], char: str, env: dict) -> dict | None:
     """The gear advice with every upgrade, for prep's upgrade_candidates and
     the worn items' fit (None without a sheet)."""
-    from wowstats import gear
+    from wowstats import gear, gearmode
 
     try:
-        return gear.advise_rows(rows, weights_for(env, char))
+        # The PvP rewards toggle the page and the MCP keep (wowstats.gearmode).
+        return gear.advise_rows(rows, weights_for(env, char), pvp=gearmode.pvp(env, char))
     except gear.GearError as e:
         log(f"no gear advice for the prep: {e}")
         return None

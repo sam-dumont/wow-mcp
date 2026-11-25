@@ -46,6 +46,18 @@ caster's wand count for more), **PvP** or **PvE** (raids and dungeons at 60). Th
 Your pick is kept on the server for that character, so your AI's `gear` answers use it too.
 Next moves and the plan always score on Leveling.
 
+**PvP rewards**, next to it, says whether honor rank gear and battleground reputation gear
+(Talisman of Arathor, the Silverwing Sentinels' rings...) count as a way to an item. Off by
+default: if you never queue, a 72s trinket you can only buy after a few Arathi Basin games is
+no upgrade. Tick it and they come back, everywhere: this page, next moves, the plan and your
+AI. In the PvP weights they always count, and they're **easy** (you get them by playing PvP,
+which is the point of that mode).
+
+Content Forever hasn't opened is never proposed: the Gurubashi Arena's chest (Arena Master and
+the Arena bracers), and raid loot and raid quest rewards until the raid opens (Onyxia's
+Lair on 9 Dec 2026; Zul'Gurub, Ahn'Qiraj, Naxxramas and the rest whenever Blizzard says). A
+dungeon drop nobody logged in Forever yet still counts: not seen isn't closed.
+
 Every upgrade says how hard it is to get, from its easiest source, next to where it comes from
 (your AI sees the same `effort`):
 
@@ -55,6 +67,8 @@ Every upgrade says how hard it is to get, from its easiest source, next to where
 | **some effort** | a drop of 8-25%, a craft still to learn or skill up for, a reputation up to Honored you don't hold yet, a PvP rank you hold |
 | **hard** | a drop of 1-8%, a drop seen in Forever with no rate, a world drop, a raid drop, a reputation above Honored you don't hold |
 | **long shot** | a drop under 1%, a rate known only from Classic, a PvP rank you don't hold (or that nothing recorded) |
+
+In the PvP weights, rank and battleground reputation gear is easy.
 
 A rate known only from Classic counts one step harder; an auction house listing makes any item
 easy, with its price. While you level, a harder item wins a slot only when it scores 5.3% more

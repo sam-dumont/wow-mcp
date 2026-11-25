@@ -15,17 +15,17 @@
   ],
   "moves": [
    "dungeon|Blackrock Spire",
+   "dungeon|Dire Maul: West",
    "riding|Riding at level # if not trained yet",
-   "upgrade|21329",
-   "upgrade|21332",
-   "upgrade|272598"
+   "upgrade|21995",
+   "upgrade|21999"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#up-1",
    "#up-17",
-   "#up-7"
+   "#up-8"
   ],
   "prep": [
    "raids-open-2026-12|prep 1",
@@ -49,8 +49,8 @@
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
    "upgrade|10771",
+   "upgrade|1713",
    "upgrade|1980",
-   "upgrade|21118",
    "upgrade|2549"
   ],
   "next_moves": [
@@ -103,8 +103,8 @@
    "dungeon|Razorfen Downs",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
+   "upgrade|1713",
    "upgrade|1980",
-   "upgrade|21118",
    "upgrade|2549"
   ],
   "next_moves": [
