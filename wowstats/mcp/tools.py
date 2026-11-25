@@ -1079,6 +1079,33 @@ def _gear_item(u: dict | None, up: dict | None = None) -> dict | None:
     return out
 
 
+def _bis_out(b: dict | None) -> dict | None:
+    """A slot's BiS as the gear answer shows it (gear.advise's `bis`): the
+    item that scores most at this level whatever it takes, with how hard it
+    is, its odds and, on the auction house, its price against the gold."""
+    if not b:
+        return None
+    if b.get("worn"):
+        return {"item": b.get("name"), "item_id": b["item_id"], "worn": True}
+    out = {**_gear_item(b), "effort": b.get("effort"), "odds": gearmod.odds(b)}
+    if b.get("setup_score") is not None:
+        out["setup_score"] = b["setup_score"]
+    if b.get("cost"):
+        c = b["cost"]
+        out["cost"] = {"says": c["says"], "action": c["action"], "price": ahsource.price_text(c["price_copper"]),
+                       "short": ahsource.price_text(c["short_copper"]) if c.get("short_copper") else None}
+    return out
+
+
+def _pick_out(p: dict | None) -> dict | None:
+    """The slot's pick against its BiS (gear.pair_why)."""
+    if not p:
+        return None
+    return {"item": p.get("name"), "item_id": p["item_id"], "same_as_bis": p["same"],
+            "within_reach": p["within_reach"], "behind_bis_pct": p["behind_bis_pct"], "why": p["reasons"],
+            "says": p["says"]}
+
+
 def _gear_export(a: dict, char: str, fmt: str, setup: str | None, mode_from: str) -> dict:
     """gear with `export`: the scored spec and mode's weights as one string
     for Forever Leveling BiS (wowstats.gearexport), and where to paste it."""
@@ -1249,7 +1276,9 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                    # How the worn item fits the scored spec: a Shadow circlet on a Holy priest
                    # says so here, not only in the analysis brief.
                    "worn_fit": worn_fit(x) if x["current"] else None,
-                   "best_now": _gear_item(x["best"], up), "next_within_3_levels": _gear_item(x["next"], up)}
+                   "best_now": _gear_item(x["best"], up), "next_within_3_levels": _gear_item(x["next"], up),
+                   # The pair the page leads with: BiS whatever it takes, and the pick with why it wins.
+                   "bis": _bis_out(x.get("bis")), "pick": _pick_out(x.get("pick"))}
                   for x in a["slots"]],
         "next_upgrades": [_gear_item(u, up) for u in ups],
         "weapon_setups": [{"setup": x["setup"], "score": x["score"], "worn_now": x["worn"],
@@ -1299,6 +1328,11 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                "already in the bags or the bank has that as its only `where` (equip it; the bank: take it out "
                "first), as of the shipper's last wow-bags. A random-suffix item is scored on its likely suffix "
                "(the median of fixed items of its slot and level), a worn one on Battle.net's stats when known. "
+               "bis on each slot: the item that scores most at this level whatever it takes (effort, odds as "
+               "expected runs, cost: its auction house price against the gold and the riding goal, with one "
+               "action); worn true when the character wears it. pick: the slot's best_now against it, same_as_bis "
+               "or how far behind BiS it scores and why it wins (why: facts, say them as given). Lead with the "
+               "pair: 'BiS is X; your pick is Y because ...'. "
                "auction_house on an upgrade: "
                "it was listed in the player's own newest Auctionator scan, today or yesterday (auctions last 24 h "
                "at most), at that price; cheap means at most the gold the character nets in one level. buy_now: the "
