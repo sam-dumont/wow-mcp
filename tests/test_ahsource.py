@@ -234,3 +234,17 @@ def test_price_list_one_point_a_day_across_faction_houses():
     it = build_prices(rows)["items"][0]
     assert it["series"] == [{"day": "2026-11-17", "lo": 40.0, "hi": 80.0, "available": 9.0}]
     assert it["price"] == 40 and it["scans"] == 1
+
+
+def test_the_client_realm_name_and_auctionators_ruleset_are_one_house():
+    """Forever's client calls the realm "<cluster> Realm <n> <ruleset>"; Auctionator keys the
+    scans by the ruleset alone. A character's records carry the first, its scans the second:
+    the house is the same (2026-11-25: every scan was dropped, the gear said to scan the AH)."""
+    assert ahsource.ruleset_key("CAMWOW EU5 Realm 3 PvE") == "PvE"
+    assert ahsource.ruleset_key("PvE") == "PvE"
+    assert ahsource.same_ruleset("CAMWOW EU5 Realm 3 PvE", "PvE")
+    assert not ahsource.same_ruleset("CAMWOW EU5 Realm 3 PvE", "PvP")
+    items = [*scans((0, 300), ruleset="PvE", faction="Alliance"), price(1, 0, 500, ruleset="PvE", faction="Alliance")]
+    got = ahsource.on_sale(items, "Alliance", NOW, ruleset="CAMWOW EU5 Realm 3 PvE")
+    assert got["scan"]["ruleset"] == "PvE" and 1 in got["items"]
+    assert ahsource.on_sale(items, "Alliance", NOW, ruleset="CAMWOW EU5 Realm 3 PvP")["scan"] is None

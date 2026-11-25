@@ -60,6 +60,7 @@ import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from wowstats import ahsource
 from wowstats.stores import lq
 
 # A tenant no person ever gets: the registry counts friends up from 1
@@ -175,7 +176,9 @@ def homes(own) -> set[tuple[str, str]]:
     for r in realms:
         s = side(r.get("faction")) or side_of.get(r.get("char"), (None,))[0]
         if r.get("realm") and s:
-            out.add((r["realm"], s))
+            # The ruleset as Auctionator spells it: a character record's
+            # realm is the client's long name (wowstats.ahsource.ruleset_key).
+            out.add((ahsource.ruleset_key(r["realm"]), s))
     return out
 
 

@@ -2069,7 +2069,7 @@ def _ah(db, prices: list[dict], faction: str | None, ruleset: str | None, now: d
     ok = {None, "", "Neutral", faction} if faction else None
     mine = [r for r in prices if r.get("scan_day") and r.get("lo") not in (None, "", "NaN")
             and (ok is None or (r.get("faction") or None) in ok)
-            and (not ruleset or (r.get("ruleset") or "") in ("", ruleset))]
+            and (not ruleset or not r.get("ruleset") or ahsource.same_ruleset(r["ruleset"], ruleset))]
     out = []
     for r in mine:
         key = str(r.get("item_key") or "")
