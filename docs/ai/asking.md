@@ -75,8 +75,10 @@ assistant treats them as data, never as orders.
 
 The assistant writes the answers; the server checks the numbers. A finding it keeps is checked
 against its saved query: the server ran that query on your data itself and got the same
-numbers. You can read the query (ask "show me the query"): a query that counts the wrong thing
-still passes, so the check is on the numbers, not on the reading. Anything else is the
+numbers. What that checks: the numbers in the text are the query's result, written by the
+server, and a percent is written from the unit its column declares. What it doesn't: whether
+the query measures the right thing. A query that counts the wrong thing still passes, so read
+it (ask "show me the query") before you trust a surprising one. Anything else is the
 assistant's own reading.
 
 <details>
@@ -96,7 +98,11 @@ Three tools do it:
   measured number. Any other number has to be declared with its kind (a level or a top 3 the
   query filters on, a patch, a game rule from the knowledge base). "You died 3 times." next to a
   query that counts 5 is refused, and so is a query that doesn't read your play at all
-  (`SELECT 3` gives 3 whatever you did).
+  (`SELECT 3` gives 3 whatever you did). A percent placeholder (`{share:pct}`) needs a column
+  whose unit is declared: a percent is written as it is (1.5 is 1.5%), a share from 0 to 1 is
+  multiplied once (0.015 is 1.5%), and a column with no declared unit is refused rather than
+  guessed from its size. Until 0.11.0 the renderer guessed, and an upgrade worth 1.5% of the
+  gear read "150%".
 
 Kept findings are re-run every night once you've played since the last check, for everyone
 on the server (friends included), without a model. The text is filled in again from that

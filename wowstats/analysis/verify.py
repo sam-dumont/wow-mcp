@@ -64,7 +64,36 @@ MAX_CELL_ROWS = 20
 KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
 
 
-def fmt(v, spec: str | None) -> str:
+# What `{col:pct}` does with a value, by the unit its column declares. A
+# percent is already x100 (the semantic layer's `unit: percent`, a prep
+# `*_pct` column: 1.5 is 1.5%); a share or a ratio is 0..1 (0.015 is 1.5%).
+# There is no third case: a value whose unit isn't declared is refused,
+# never guessed from its size. The size rule this replaces ("up to 1.5 is a
+# share") rendered upgrade_gain_share_pct 1.5 as "150%" (external review of
+# 0.11.0, Lorekeeper's Ring).
+PERCENT_UNITS = {"percent"}
+SHARE_UNITS = {"share", "ratio", "xp/xp"}
+
+
+class UnitError(ValueError):
+    """A placeholder's format needs a unit its column doesn't declare."""
+
+
+def pct(p: float) -> str:
+    """A percent (already x100) as text: 150%, 62%, 1.5%, 0.04%."""
+    if p == 0:
+        return "0%"
+    if abs(p) >= 10:
+        return f"{p:.0f}%"
+    if abs(p) >= 0.1:
+        return f"{p:.1f}".rstrip("0").rstrip(".") + "%"
+    return f"{p:.2g}%"
+
+
+def fmt(v, spec: str | None, unit: str | None = None) -> str:
+    """One placeholder's text. `unit` is its column's declared unit
+    (column_units): `pct` needs one of PERCENT_UNITS or SHARE_UNITS and
+    raises UnitError without it."""
     spec = spec[1:] if spec and spec.startswith(".") else spec
     if v is None:
         return "n/a"
@@ -81,7 +110,11 @@ def fmt(v, spec: str | None) -> str:
 
         return gold(f)
     if spec == "pct":
-        return f"{f * 100:.0f}%" if abs(f) <= 1.5 else f"{f:.0f}%"
+        if unit in PERCENT_UNITS:
+            return pct(f)
+        if unit in SHARE_UNITS:
+            return pct(f * 100)
+        raise UnitError(f"{{:pct}} on a value in {unit or 'no declared unit'}: a percent or a share (0 to 1) only")
     if spec == "int":
         return f"{int(round(f)):,}".replace(",", " ")
     if spec and re.fullmatch(r"\d+f", spec):
@@ -116,10 +149,17 @@ def cell_rows(*texts) -> int:
                       for c in [CELL.fullmatch(m.group(1))] if c])
 
 
-def render(text: str, row: dict, rows: list[dict] | None = None) -> str:
+def render(text: str, row: dict, rows: list[dict] | None = None, units: dict | None = None) -> str:
+    """`text` with its placeholders filled from the result. `units` is
+    {column: unit} (column_units); a `pct` placeholder whose column has no
+    percent or share unit there raises UnitError."""
+    units = units or {}
+
     def one(m):
-        v = value(m.group(1), row, rows)
-        return fmt(None if v is _GONE else v, m.group(2))
+        ref = m.group(1)
+        v = value(ref, row, rows)
+        col = CELL.fullmatch(ref).group(2) if CELL.fullmatch(ref) else ref
+        return fmt(None if v is _GONE else v, m.group(2), units.get(col))
 
     return PLACEHOLDER.sub(one, text or "")
 
@@ -359,7 +399,7 @@ def _words(text: str) -> int:
     return len(re.findall(r"[^\W\d_]{2,}", PLACEHOLDER.sub("x", text or "")))
 
 
-def action_of(f: dict, key: str, row: dict, rows: list[dict] | None = None
+def action_of(f: dict, key: str, row: dict, rows: list[dict] | None = None, units: dict | None = None
               ) -> tuple[dict | None, dict | None, str]:
     """(rendered action, its templates, "") or (None, None, "") for an
     observation, or (None, None, why) when the action is there but not
@@ -379,7 +419,7 @@ def action_of(f: dict, key: str, row: dict, rows: list[dict] | None = None
                             "place, a skill), or send action null to keep it as an observation")
     if _words(tpl["next_step"]) < 3:
         return None, None, f"{key}: action.next_step is missing: the first thing to do, where"
-    return {p: render(t, row, rows) for p, t in tpl.items()}, tpl, ""
+    return {p: render(t, row, rows, units) for p, t in tpl.items()}, tpl, ""
 
 
 def literal_numbers(text: str) -> list[str]:
@@ -494,6 +534,25 @@ def column_units(metric_query, sql: str) -> dict[str, str | None]:
     return lineage.units(sql)
 
 
+def placeholder_units(parts: dict[str, str], units: dict[str, str | None]) -> dict[str, str]:
+    """{column: unit} for the columns the placeholders in `parts` read, the
+    ones whose unit is known."""
+    cols = {CELL.fullmatch(m.group(1)).group(2) if CELL.fullmatch(m.group(1)) else m.group(1)
+            for t in parts.values() for m in PLACEHOLDER.finditer(t or "")}
+    return {c: units[c] for c in sorted(cols) if units.get(c)}
+
+
+def finding_units(stored: dict) -> dict[str, str | None]:
+    """A kept finding's column units, worked out again from its query (the
+    semantic layer may have moved since); the ones it was kept with fill a
+    column the query no longer tells, so a finding kept before units were
+    stored renders the same way as a new one."""
+    params = stored.get("sql_params") if isinstance(stored.get("sql_params"), dict) else None
+    now = column_units(stored.get("metric_query") if params is not None else None, str(stored.get("sql") or ""))
+    kept = stored.get("units") if isinstance(stored.get("units"), dict) else {}
+    return {**kept, **{c: u for c, u in now.items() if u}}
+
+
 def units_why(parts: dict[str, str], units: dict[str, str | None]) -> str:
     """Why a placeholder's format doesn't fit its column's unit, or the unit
     can't be told ("" when every one fits)."""
@@ -565,7 +624,13 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
         gone = missing(prose[part], row, rows)
         if gone:
             return None, f"{key}: {part} names columns the query doesn't return: {', '.join(gone)}"
-    action, action_tpl, why = action_of(f, key, row, rows)
+    # The units come before any rendering: render refuses a pct whose
+    # column declares no percent or share.
+    units = column_units(f.get("metric_query") if params is not None else None, sql_text)
+    why = units_why(prose, units)
+    if why:
+        return None, f"{key}: {why}"
+    action, action_tpl, why = action_of(f, key, row, rows, units)
     if why:
         return None, why
     cites = [str(c) for c in f.get("kb") or [] if isinstance(c, str)]
@@ -574,9 +639,6 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
     refused = refused_numbers(prose, constants, sql_text, params, cites, row, rows)
     if refused:
         return None, f"{key}: {next(iter(refused.values()))}"
-    why = units_why(prose, column_units(f.get("metric_query") if params is not None else None, sql_text))
-    if why:
-        return None, f"{key}: {why}"
     for part, text in prose.items():
         if gendered(text):
             return None, (f"{key}: {part} says he or she: write \"the character\", the name or \"you\" "
@@ -604,8 +666,8 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
 
     n_rows = cell_rows(*prose.values())
     out = {
-        "key": key, "title": render(prose["title"] or key, row, rows)[:120],
-        "text": render(prose["claim"], row, rows)[:1200],
+        "key": key, "title": render(prose["title"] or key, row, rows, units)[:120],
+        "text": render(prose["claim"], row, rows, units)[:1200],
         "title_template": (prose["title"] or key)[:200], "claim_template": prose["claim"][:1500],
         # A metric query's SQL is the compiler's, kept whole so the recheck runs it as judged.
         "sql": sql_text if params else sql_text[:6000], "sql_params": params,
@@ -617,6 +679,9 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
         "row": _rounded(row), "action": action, "action_template": action_tpl, "observation": action is None,
         # The numbers the prose names without measuring them, with their kind.
         "constants": used, "contract": CONTRACT,
+        # The declared unit of each column a placeholder formats, so every
+        # later rendering (recheck, the page's lines) reads the same one.
+        "units": placeholder_units(prose, units),
     }
     if n_rows > 1:
         out["rows"] = [_rounded(r) for r in rows[:n_rows]]
@@ -742,10 +807,16 @@ def recheck(stored: dict, ro: ReadOnly) -> tuple[dict | None, str]:
     upd["row"] = _rounded(row)
     if n_rows > 1:
         upd["rows"] = [_rounded(r) for r in rows[:n_rows]]
-    upd["title"] = render(stored["title_template"], row, rows)[:120]
-    upd["text"] = render(stored["claim_template"], row, rows)[:1200]
-    if tpl:
-        upd["action"] = {p: render(t, row, rows) for p, t in tpl.items()}
+    units = finding_units(stored)
+    try:
+        upd["title"] = render(stored["title_template"], row, rows, units)[:120]
+        upd["text"] = render(stored["claim_template"], row, rows, units)[:1200]
+        if tpl:
+            upd["action"] = {p: render(t, row, rows, units) for p, t in tpl.items()}
+    except UnitError:
+        return None, ("a percent placeholder's column declares no unit: "
+                      + (units_why(tpls, units) or "percent or share only"))
+    upd["units"] = placeholder_units(tpls, units)
     upd["effect"] = abs(float(row.get(stored.get("effect_col") or "", 0) or 0)) \
         if isinstance(row.get(stored.get("effect_col") or ""), (int, float)) else stored.get("effect", 0.0)
     upd["sample"] = abs(float(row.get(stored.get("sample_col") or "", 0) or 0)) or 1.0 \
