@@ -34,7 +34,7 @@ MAX_CACHED = 64
 
 
 def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_inputs=None,
-           mode: str | None = None) -> dict:
+           mode: str | None = None, pvp: bool | None = None) -> dict:
     """facts.gather, kept two minutes: the MCP commands of one conversation
     read the same inputs. One gather per character at a time: the full
     view's page asks for the plan's status and the Dungeons panel at once,
@@ -58,8 +58,14 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
     # `mode`: the weights' mode the gear is scored in (gear.mode_key; None:
     # Leveling), in the key like the spec (gear options with mode pve once
     # answered with the Leveling picks, MCP eval pve_shoulder, 2026-11-24).
+    # `pvp`: whether PvP rewards count (wowstats.gearmode; None: the
+    # character's saved toggle), in the key like the mode.
+    from wowstats import gearmode
+
+    if pvp is None:
+        pvp = gearmode.pvp(env, char or env.get("DEFAULT_CHAR") or "")
     key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower(), bn, gear_inputs is not None,
-           scoring, mode)
+           scoring, mode, pvp)
     with _LOCK:
         lock = _KEY_LOCKS[hash(key) % len(_KEY_LOCKS)]
     # The events' write generation (wowstats.eventstore): inputs gathered
@@ -73,7 +79,7 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
                 return hit[1]
         inp, seen = eventcache.computed(lambda: facts.gather(
             env, char, store=store, battlenet=bn, gear_inputs=gear_inputs() if gear_inputs is not None else None,
-            mode=mode))
+            mode=mode, pvp=pvp))
         with _LOCK:
             now = time.time()
             # Expired entries go as soon as anything is kept: a plan's inputs

@@ -23,6 +23,7 @@ from wowstats import (
     coverage,
     eventcache,
     forever,
+    gearmode,
     insights,
     journal,
     profcaps,
@@ -71,6 +72,10 @@ class Settings:
     price_days: int = 90
     weights: dict = field(default_factory=dict)  # WEIGHTS: character -> spec the gear is scored for
     ah_shared: str = ""  # AH_SHARED_STORE: the install's shared auction scans (wowstats.ahshared)
+    # Where the person's per-character choices are kept (ANALYSIS_STATE_DIR,
+    # WOW_STATE_DIR: wowstats.gearmode), for the PvP rewards toggle every
+    # gear answer reads (gear_inputs).
+    state: dict = field(default_factory=dict)
     extra: dict = field(default_factory=dict)
 
 
@@ -103,7 +108,8 @@ def settings_from_env(env: dict, view: str = "full") -> Settings:
     return Settings(view=view, default_char=env.get("DEFAULT_CHAR", ""),
                     price_days=int(env.get("PRICE_DAYS", str(ahshared.PRICE_DAYS))),
                     weights=parse_weights(env.get("WEIGHTS", "")),
-                    ah_shared=ahshared.location(env))
+                    ah_shared=ahshared.location(env),
+                    state={k: env[k] for k in ("ANALYSIS_STATE_DIR", "WOW_STATE_DIR") if env.get(k)})
 
 
 def norm_char(c: str) -> str:
@@ -524,14 +530,17 @@ class Views:
         return self._minute(self._done, char, lambda: quests.history(lambda q: self.vl(f"{st} {q}"),
                                                                      f'feed:="wow-recorder" {cf}', cf))
 
-    def gear(self, char: str, spec: str | None = None, mode: str | None = None) -> dict:
+    def gear(self, char: str, spec: str | None = None, mode: str | None = None, pvp: bool | None = None) -> dict:
         """Gear advice (wowstats.gear): per slot what is worn, the best item
         at this level and the next one coming, and the upgrades in order.
         spec: the page's choice, else Polestar's setting or the player's pick.
-        mode: the weights' mode (Leveling, PvP, PvE), Leveling by default."""
+        mode: the weights' mode (Leveling, PvP, PvE), Leveling by default.
+        pvp: whether PvP rewards count, else the character's saved toggle."""
         gi = self.gear_inputs(char)
         if not gi["available"]:
             return gi
+        if pvp is not None:
+            gi = {**gi, "pvp": pvp}
         try:
             advice = gearmod.advise(gearmod.reference(), gi["sheet"], spec=spec, mode=mode, **gear_args(gi))
         except gearmod.GearError as e:
@@ -601,7 +610,9 @@ class Views:
         return {"available": True, "base": base, "at": row.get("_time"), "worn_from": worn_from, "sheet": sheet,
                 "level": header.get("level"), "zone": header.get("zone"), "done": done,
                 "weights": self.settings.weights.get(char), "held": gearmod.newest_bags(res["held"]),
-                "market": market}
+                "market": market,
+                # The PvP rewards toggle (wowstats.gearmode): off unless saved.
+                "pvp": gearmode.pvp(self.settings.state, char)}
 
     def meta(self, char: str, data: dict | None = None, advice: dict | None = None, cite: bool = False) -> dict:
         """The class's meta for this character and how close it is to it
@@ -1046,7 +1057,7 @@ def build_levels(rows: list[dict]) -> list[dict]:
 
 def gear_args(gi: dict) -> dict:
     """advise()'s keyword arguments from Views.gear_inputs (the sheet apart)."""
-    return {k: gi[k] for k in ("level", "zone", "done", "weights", "held", "market")}
+    return {k: gi[k] for k in ("level", "zone", "done", "weights", "held", "market")} | {"pvp": bool(gi.get("pvp"))}
 
 
 def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = None,

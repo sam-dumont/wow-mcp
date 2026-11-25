@@ -517,7 +517,8 @@ class App:
         advice can't be read (a store down): the card shows without badges."""
         try:
             mode = gearmod.DEFAULT_MODE
-            advice = self.cached(f"gear:{name}::{mode}", lambda: self.views.gear(name, None, mode))
+            pvp = gearmode.pvp(self.env, name)
+            advice = self.cached(f"gear:{name}::{mode}:{pvp}", lambda: self.views.gear(name, None, mode))
         except SourceError:
             return []
         return redact.worn_standing(advice)
@@ -624,12 +625,14 @@ class App:
 
         return self.cached(f"dungeons:{name}", build)
 
-    def gear(self, name: str, spec: str | None, mode: str | None = None) -> dict:
+    def gear(self, name: str, spec: str | None, mode: str | None = None, pvp: bool | None = None) -> dict:
         """The gear advice in `mode`, else in the mode saved for the
         character (wowstats.gearmode: Leveling when none is)."""
         self._full_only()
         mode = gearmod.mode_key(mode) if mode else gearmode.saved(self.env, name)
-        return self.cached(f"gear:{name}:{spec or ''}:{mode}", lambda: self.views.gear(name, spec, mode))
+        # The PvP rewards toggle in the key: a pick never serves the other's answer.
+        pvp = gearmode.pvp(self.env, name) if pvp is None else pvp
+        return self.cached(f"gear:{name}:{spec or ''}:{mode}:{pvp}", lambda: self.views.gear(name, spec, mode, pvp))
 
     def save_gear_mode(self, name: str, mode: str) -> str:
         """The gear page's picker: keep the character's mode on the server
@@ -638,6 +641,20 @@ class App:
         self._full_only()
         kept = gearmode.save(self.env, name, mode)
         self.prebuilt.changed(f"meta:{name}")
+        return kept
+
+    def save_gear_pvp(self, name: str, on: bool) -> bool:
+        """The gear page's PvP rewards toggle (wowstats.gearmode). Every
+        answer that ranks gear reads it (the Overview's moves, the
+        Dungeons panel, the plan, the meta), so the character's answers are
+        all worked out again."""
+        self._full_only()
+        kept = gearmode.save_pvp(self.env, name, on)
+        with self._guard:
+            for k in [k for k in self._cache if k.endswith(f":{name}") or f":{name}:" in k]:
+                self._cache.pop(k, None)
+        for prefix in ("overview:", "dungeons:", "plan:", "meta:", "gear:"):
+            self.prebuilt.changed(f"{prefix}{name}")
         return kept
 
     def meta(self, name: str) -> dict:
@@ -1165,6 +1182,17 @@ def make_handler(root: App, tenancy=None):
                     name, mode = str(body.get("name") or ""), str(body.get("mode") or "").strip().lower()
                     if not CHAR_RE.match(name):
                         return self.json(400, {"error": "bad character name"})
+                    if "pvp" in body:
+                        # The PvP rewards toggle: {"name", "pvp": true|false}.
+                        if not isinstance(body["pvp"], bool):
+                            return self.json(400, {"error": "pvp: true or false"})
+                        if not app.known(name):
+                            return self.json(404, {"error": f"no events for {name}"})
+                        try:
+                            on = app.save_gear_pvp(name, body["pvp"])
+                        except gearmode.ModeError as e:
+                            return self.json(409, {"error": str(e)})
+                        return self.json(200, {"ok": True, "pvp": on})
                     if mode not in gearmod.MODE_NAMES:
                         return self.json(400, {"error": "bad mode: lvl, pvp or pve"})
                     if not app.known(name):
@@ -1234,6 +1262,9 @@ def make_handler(root: App, tenancy=None):
                     name = qs.get("name", [""])[0]
                     spec = qs.get("spec", [""])[0].strip().lower() or None
                     mode = qs.get("mode", [""])[0].strip().lower() or None
+                    # The PvP rewards toggle when the install couldn't keep it
+                    # (no state folder): 1 or 0; else the saved one.
+                    pvp = {"1": True, "0": False}.get(qs.get("pvp", [""])[0].strip())
                     if not CHAR_RE.match(name):
                         return self.json(400, {"error": "bad character name"})
                     if spec is not None and not SPEC_RE.match(spec):
@@ -1242,7 +1273,7 @@ def make_handler(root: App, tenancy=None):
                         return self.json(400, {"error": "bad mode: lvl, pvp or pve"})
                     if not app.known(name):
                         return self.json(404, {"error": f"no events for {name}"})
-                    return self.json(200, app.gear(name, spec, mode))
+                    return self.json(200, app.gear(name, spec, mode, pvp))
                 if path in ("/api/overview", "/api/timeline", "/api/snapshot", "/api/people", "/api/loot",
                             "/api/dungeons", "/api/meta", "/api/talents"):
                     name = qs.get("name", [""])[0]

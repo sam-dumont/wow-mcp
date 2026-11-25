@@ -22,6 +22,18 @@
   quest's XP paid in no time. Your pace compares only the legs a trip saw, the panel's "XP a trip"
   rate fills a trip's unseen legs from the rules' replay of it, and `again_*` on the panel's trip
   are the shared estimate's. Findings show "to revalidate" once (`PREP_VERSION` 16).
+- Gear advice no longer proposes content Forever hasn't opened. The Gurubashi Arena's chest
+  (Arena Master was a level-36 trinket pick), raid loot and raid quest rewards (Ahn'Qiraj's
+  Conqueror's Crown was a level-60 pick) before the raid opens are out,
+  from two new KB rules (`content.events_not_open`, `content.raids_not_open`, Onyxia's
+  Lair from 9 Dec 2026). Dungeon drops nobody logged yet still count.
+
+### Added
+
+- **PvP rewards** toggle on the gear page, off by default: honor rank and battleground
+  reputation gear only count as sources when it's on. Kept per character; the MCP's `gear`
+  takes `pvp`. Next moves, the plan and the analysis follow it.
+- In the PvP weights, PvP gear is easy: it comes from playing PvP.
 
 ### Changed
 

@@ -173,6 +173,36 @@ def test_the_mode_picked_on_the_page_is_kept_for_the_mcp(served):
     assert served.page("gear")["mode"]["key"] == "lvl" and served.mcp("gear")["mode_from"] == "the default"
 
 
+def test_the_pvp_toggle_reaches_the_page_and_the_mcp(served):
+    """The gear page's PvP rewards toggle (wowstats.gearmode), off by
+    default: kept on the server, read by the page and the MCP's `gear`, which
+    `pvp` overrides for one call; the PvP mode counts them whatever it says."""
+    import urllib.request
+
+    def toggle(on) -> dict:
+        req = urllib.request.Request(served.base + "/api/gear-mode", method="POST",
+                                     data=json.dumps({"name": served.char, "pvp": on}).encode(),
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return json.loads(r.read())
+
+    if not served.page("gear").get("available"):
+        pytest.skip(f"{served.name}: no gear advice")
+    assert served.page("gear")["pvp_rewards"] == {"on": False, "forced": False}
+    assert served.mcp("gear")["pvp_rewards"] == {"counted": False, "from": "the default (off)"}
+    try:
+        assert toggle(True) == {"ok": True, "pvp": True}
+        assert served.page("gear")["pvp_rewards"]["on"] is True
+        served.calls.clear()
+        assert served.mcp("gear")["pvp_rewards"] == {"counted": True, "from": "the player's toggle on the gear page"}
+        assert served.mcp("gear", pvp=False)["pvp_rewards"] == {"counted": False, "from": "asked"}
+    finally:
+        toggle(False)
+        served.calls.clear()
+    assert served.mcp("gear", mode="pvp")["pvp_rewards"] == {"counted": True, "from": "the PvP mode"}
+    assert served.page("gear")["pvp_rewards"]["on"] is False
+
+
 # ---------------------------------------------------------------- coverage and missing
 
 

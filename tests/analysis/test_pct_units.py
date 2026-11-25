@@ -59,6 +59,11 @@ def lorekeeper(env, monkeypatch):  # noqa: F811
         real(db, [{**u, "gain_share_pct": 1.5} if u.get("name") == "Lorekeeper's Ring" else u for u in ups])
 
     monkeypatch.setattr(prep, "_upgrades", patched)
+    # The ring is Silverwing Sentinels' (Warsong Gulch): a PvP reward, an
+    # upgrade only with the PvP rewards toggle on (wowstats.gearmode).
+    from wowstats import gearmode
+
+    monkeypatch.setattr(gearmode, "pvp", lambda env, char: True)
     return env
 
 

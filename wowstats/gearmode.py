@@ -10,6 +10,13 @@ One file per person, STATE/gear-modes.json, STATE being ANALYSIS_STATE_DIR
 (each person's own folder on a multi-user install, wowstats.tenancy) or
 WOW_STATE_DIR. Without either nothing is kept: every answer is Leveling and
 the page's pick lasts until it is reloaded.
+
+The same file keeps the PvP rewards toggle (owner, 2026-11-25: "PvP should
+be toggable too when leveling"): whether a PvP rank's or a battleground
+reputation's gear counts as a source (wowstats.gear Who.pvp). Off unless the
+page or the MCP turned it on; the PvP mode counts them whatever it says.
+Unlike the mode, it reaches every answer that ranks gear: the page, the
+MCP's gear and gear_options, next_moves, the planner, the analysis.
 """
 
 from __future__ import annotations
@@ -42,15 +49,40 @@ def _name(char: str) -> str:
     return str(char or "").strip().replace(" ", "-")
 
 
-def _load(env: dict) -> dict[str, str]:
+def _doc(env: dict) -> dict:
     p = path(env)
     if p is None:
         return {}
     with contextlib.suppress(OSError, ValueError):
         s = json.loads(p.read_text(encoding="utf-8"))
-        if isinstance(s, dict) and s.get("schema") == SCHEMA and isinstance(s.get("chars"), dict):
-            return {str(k): gear.mode_key(v) for k, v in s["chars"].items()}
+        if isinstance(s, dict) and s.get("schema") == SCHEMA:
+            return s
     return {}
+
+
+def _load(env: dict) -> dict[str, str]:
+    s = _doc(env)
+    if isinstance(s.get("chars"), dict):
+        return {str(k): gear.mode_key(v) for k, v in s["chars"].items()}
+    return {}
+
+
+def _load_pvp(env: dict) -> set[str]:
+    s = _doc(env)
+    return {str(k) for k in s.get("pvp") or [] if isinstance(k, str)} if isinstance(s.get("pvp"), list) else set()
+
+
+def _write(p: Path, chars: dict[str, str], pvp: set[str]) -> None:
+    if len(chars) > MAX_CHARS or len(pvp) > MAX_CHARS:
+        raise ModeError("too many characters")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    doc = {"schema": SCHEMA, "chars": dict(sorted(chars.items()))}
+    if pvp:
+        doc["pvp"] = sorted(pvp)
+    fd, tmp = tempfile.mkstemp(dir=p.parent, prefix=".gear-modes-")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(doc, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, p)
 
 
 def saved(env: dict, char: str) -> str:
@@ -73,11 +105,30 @@ def save(env: dict, char: str, mode) -> str:
             chars.pop(name, None)
         else:
             chars[name] = key
-        if len(chars) > MAX_CHARS:
-            raise ModeError("too many characters")
-        p.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=p.parent, prefix=".gear-modes-")
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump({"schema": SCHEMA, "chars": dict(sorted(chars.items()))}, f, ensure_ascii=False, indent=1)
-        os.replace(tmp, p)
+        _write(p, chars, _load_pvp(env))
     return key
+
+
+def pvp(env: dict, char: str) -> bool:
+    """Whether PvP rewards count for the character: the page's or the MCP's
+    toggle, off when nothing is saved."""
+    return _name(char) in _load_pvp(env)
+
+
+def save_pvp(env: dict, char: str, on) -> bool:
+    """Keep the character's PvP rewards toggle; off (the default) clears it.
+    -> what was kept. ModeError when there is no state folder to keep it in."""
+    p = path(env)
+    if p is None:
+        raise ModeError("this install keeps no settings (no ANALYSIS_STATE_DIR or WOW_STATE_DIR)")
+    if not isinstance(on, bool):
+        raise ModeError("pvp: true or false")
+    name = _name(char)
+    with _LOCK:
+        kept = _load_pvp(env)
+        if on:
+            kept.add(name)
+        else:
+            kept.discard(name)
+        _write(p, _load(env), kept)
+    return on

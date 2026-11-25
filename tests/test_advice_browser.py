@@ -47,7 +47,7 @@ def site(tmp_path_factory):
     mp.setattr(itemcard, "shared", lambda: Catalog())
     mp.setenv("WOW_ITEMS", "off")
     gear = answer("gear-priest.json.gz")
-    mp.setattr(ui.App, "gear", lambda self, name, spec, mode=None: gear)
+    mp.setattr(ui.App, "gear", lambda self, name, spec, mode=None, pvp=None: gear)
     env = {"VL_URL": "http://vl.invalid", "MODEL3D": "off", "PUBLISH_DIR": str(tmp / "site"),
            "ZOGZOG_KEY_FILE": str(tmp / "zogzog.key"), "MODEL3D_CACHE_DIR": str(tmp / "cache")}
     out = io.StringIO()

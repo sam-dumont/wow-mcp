@@ -272,6 +272,9 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 .adv-head .sub { flex: 1 1 100%; margin: 0; }
 .specpick { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
 .specpicks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.pvppick { cursor: pointer; }
+.pvppick input { accent-color: var(--gold); width: 16px; height: 16px; margin: 0; }
+.pvppick:has(input:disabled) { cursor: default; opacity: .8; }
 .wcredit { font-size: 13px; color: var(--muted); }
 .wcredit a { color: inherit; }
 .specpick select, .order button {

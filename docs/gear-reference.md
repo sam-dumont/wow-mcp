@@ -144,6 +144,30 @@ With no rank saved, 0 lifetime honorable kills in Altoholic still means no
 rank; otherwise "your PvP rank isn't recorded yet". A rank not held or not known is a long shot
 (below).
 
+### What never counts
+
+Two filters run before the effort (`gear._source`):
+
+- **Content Forever hasn't opened** (`gear.closed_content`, owner 2026-11-25: the arena chest
+  was the owner's trinket pick at 36). The KB's rules name each place and the day it opens:
+  `content.raids_not_open` (Onyxia's Lair, ForeverDB instance 249, until 2026-12-09;
+  Naxxramas' Four Horsemen Chest; the rewards of quests done in Molten Core, Blackwing
+  Lair, Zul'Gurub, Ahn'Qiraj or Naxxramas, by forever-db's quest zone, so a tier quest
+  handed in at Light's Hope still counts as Naxxramas) and `content.events_not_open` (the Gurubashi Arena's Arena Treasure Chest). A source there is dropped; an item left with nothing is no
+  candidate, not a "where: unknown". A source labelled "seen in Forever" is open whatever a
+  rule says, and a dungeon drop only Classic's data knows (`k`) stays: not seen yet isn't
+  closed. On 2026-11-25 this removes 255 items outright: 250 raid pieces (Ahn'Qiraj 82,
+  Naxxramas 81, Zul'Gurub 72, Onyxia's Lair 9, Ruins of Ahn'Qiraj 4, Blackwing Lair 2) and
+  the arena's 5. Others lose a raid source and keep another.
+- **PvP rewards, unless counted** (`gear.is_pvp`, KB rule `pvp_rewards.sources`): a PvP rank
+  source, a reputation of the eight battleground factions and the quartermaster next to it,
+  or a PvP vendor (Champions' Hall, Hall of Legends, Dalaran's Underbelly: ForeverDB lists
+  the Premier rank weapons there with no rank, so a PvP vendor counts as a long shot outside
+  the PvP mode). Counted when the player ticks **PvP rewards** (`wowstats/gearmode.py`, kept
+  per character next to the mode; MCP `gear` `pvp`), and always in the PvP mode, where each
+  such source carries `by_playing` and is easy. Every answer that ranks gear reads the same
+  toggle: the gear page, `gear` and its options, next moves, the planner, the analysis.
+
 ### How hard it is to get
 
 Owner, 2026-11-24: "Convenience and easiness before a quarter of a point."
@@ -156,6 +180,8 @@ ForeverDB's own buckets as a start):
 | some effort | a drop of 8-25%, a craft still to learn or skill up, a reputation up to Honored not held yet, a PvP rank held |
 | hard | a drop of 1-8%, a drop seen in Forever with no rate, a world drop, a raid drop, a reputation above Honored not held |
 | long shot | a drop under 1%, a drop known only from Classic's data with no rate, a PvP rank not held or not recorded |
+
+In the PvP mode a PvP reward (rank or battleground reputation) is easy whatever is held.
 
 A drop known only from Classic's data (never seen in Forever) counts one
 class harder than its rate says. Every drop says what its rate means at the

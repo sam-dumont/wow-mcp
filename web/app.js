@@ -1265,6 +1265,24 @@ async function saveMode(c, v) {
     release();
   }
 }
+// The PvP rewards toggle, kept like the mode (wowstats/gearmode.py): off
+// unless picked; every answer that ranks gear follows it.
+const unsavedPvp = new Map();
+async function savePvp(c, on) {
+  const release = hold();
+  try {
+    const r = await fetch('/api/gear-mode', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ name: c, pvp: on }),
+    });
+    if (r.ok) unsavedPvp.delete(c); else unsavedPvp.set(c, on);
+  } catch (e) {
+    unsavedPvp.set(c, on);
+  } finally {
+    release();
+  }
+}
 
 
 // ------------------------------------------------------------ gear advice: shared pieces
@@ -1773,6 +1791,19 @@ function renderAdvice(a) {
     await saveMode(c, msel.value);
     loadAdvice(c);
   });
+  // PvP rewards (honor rank and battleground reputation gear): counted or
+  // not; always counted in the PvP weights, so the box is ticked and locked there.
+  const pr = a.pvp_rewards || { on: false, forced: false };
+  const pbox = h('input', { type: 'checkbox', id: 'gearpvp', checked: !!pr.on, disabled: !!pr.forced });
+  pbox.addEventListener('change', async () => {
+    const c = state.char;
+    await savePvp(c, pbox.checked);
+    loadAdvice(c);
+  });
+  const pvpPick = STATIC ? null : h('label', {
+    class: 'specpick pvppick',
+    title: pr.forced ? 'PvP weights: PvP rewards always count, and they are easy' : 'Honor rank and battleground reputation gear',
+  }, pbox, h('span', { text: 'PvP rewards' }));
   const view = state.adviceView || 'where';
   const toggle = h('div', { class: 'order', role: 'group', 'aria-label': 'Show upgrades' },
     [['where', 'By where you get it'], ['slot', 'By slot']].map(([k, t]) => {
@@ -1789,6 +1820,7 @@ function renderAdvice(a) {
       h('label', { class: 'specpick' }, h('span', { text: 'Scored for' }), sel),
       STATIC ? h('span', { class: 'specpick', text: `${md.label} weights` })
         : h('label', { class: 'specpick' }, h('span', { text: 'Weights' }), msel),
+      pvpPick,
       creditEl(a.source)),
     h('p', { class: 'sub', text: guess || 'Click an item to compare it with what you wear.' }));
   const smalls = allUps(a).filter((u) => small(u, a));
@@ -2009,8 +2041,9 @@ function compactList(a, list) {
 async function loadAdvice(name) {
   const spec = savedSpec(name);
   const mode = unsavedMode.get(name) || '';
+  const pvp = unsavedPvp.has(name) ? (unsavedPvp.get(name) ? '1' : '0') : '';
   try {
-    const a = await getJSON(api('gear', STATIC ? { name } : { name, spec, mode }));
+    const a = await getJSON(api('gear', STATIC ? { name } : { name, spec, mode, pvp }));
     if (name === state.char) renderAdvice(a);
   } catch (e) {
     const box = $('#advice');

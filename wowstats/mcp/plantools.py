@@ -41,8 +41,10 @@ def _inputs(ctx: T.Ctx, args: dict) -> dict:
     # The weights' mode (gear's `mode`); Leveling is the cache's plain entry.
     mode = gearmod.mode_key(args.get("mode"))
     mode = None if mode == gearmod.DEFAULT_MODE else mode
+    # PvP rewards: gear's `pvp` when asked, else the saved toggle (plan.inputs).
+    pvp = T.truthy(args["pvp"]) if args.get("pvp") is not None else None
     return plan.inputs(_env(ctx), char, store=ctx.store, battlenet=T.bnet_worn(ctx, char),
-                       gear_inputs=lambda: T._views(ctx).gear_inputs(char), mode=mode)
+                       gear_inputs=lambda: T._views(ctx).gear_inputs(char), mode=mode, pvp=pvp)
 
 
 def _no_data(char: str, why: str) -> dict:
@@ -176,6 +178,8 @@ def t_gear_options(ctx: T.Ctx, args: dict) -> dict:
     slots = E.gear_options(inp, p, dl, m, zone=zone)
     return {"char": inp["who"]["char"], "level": inp["level"], "zone": zone, "spec": inp.get("gear_spec"),
             "mode": gearmod.modes_out(mode), "mode_from": mode_from,
+            "pvp_rewards": {"counted": bool(args.get("pvp")) or mode == "pvp",
+                            "from": "the PvP mode" if mode == "pvp" else args.get("pvp_from") or "the default (off)"},
             "slots": slots[:T.limit_arg(args, 8, 20)],
             "kinds": sorted({o["kind"] for s in slots for o in s["options"]}),
             "note": "Gains are gear points from ForeverDB.net's stat weights (credit `score_source`) for this "
