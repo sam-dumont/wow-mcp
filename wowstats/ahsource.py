@@ -145,6 +145,28 @@ def on_sale(items: list[dict], faction: str | None, now: float | None = None, ru
     return {"scan": scan, "items": newest}
 
 
+def latest(items: list[dict], faction: str | None, now: float | None = None,
+           ruleset: str | None = None) -> dict[int, dict]:
+    """Every item's newest price in the house on_sale would pick, at any
+    age in the rows given: what a craft's materials cost (wowstats.crafting),
+    where a listing gone since is still the best estimate. Each says its
+    day, so the answer can say how old it is. {} with no scan."""
+    now = now or time.time()
+    house = (on_sale(items, faction, now, ruleset=ruleset).get("scan") or {})
+    if not house:
+        return {}
+    key = (house.get("ruleset") or "", house.get("faction") or "")
+    out: dict[int, dict] = {}
+    for r in items:
+        k, day, lo = str(r.get("item_key") or ""), r.get("scan_day") or "", r.get("lo")
+        if (r.get("ruleset") or "", r.get("faction") or "") != key or not _ID.match(k) or lo in (None, ""):
+            continue
+        iid, cur = int(k), out.get(int(k))
+        if cur is None or day > cur["seen_day"] or (day == cur["seen_day"] and num(lo) < cur["price_copper"]):
+            out[iid] = {"price_copper": int(num(lo)), "seen_day": day, "days_ago": _age_days(r.get("t"), now)}
+    return out
+
+
 def gold_per_level(snaps: list[dict], now: float | None = None) -> int | None:
     """What the character nets in a level: gold at the newest logout
     snapshot less gold at the oldest of the last GOLD_DAYS, over the levels
@@ -211,7 +233,11 @@ def market(res: dict, *, faction: str | None, money: int | None,
     recent = [r for r in res.get("items") or [] if (a := _age_days(r.get("t"), now)) is not None and a < WINDOW_DAYS]
     homes = sorted((r for r in res.get("money") or [] if r.get("realm")), key=lambda r: parse_t(r.get("_time")))
     sale = on_sale(recent, faction, now, ruleset=homes[-1]["realm"] if homes else None)
-    return {**sale, "money_copper": money, "gold_per_level_copper": gold_per_level(res.get("money") or [], now),
+    # Prices at any age for the crafts' materials (owner, 2026-11-25: "if we
+    # have AH prices"): the scans of the same house, newest per item.
+    every = latest(res.get("items") or [], faction, now, ruleset=homes[-1]["realm"] if homes else None)
+    return {**sale, "latest": every, "money_copper": money,
+            "gold_per_level_copper": gold_per_level(res.get("money") or [], now),
             "mount": mount_left(money, res.get("skills") or [], res.get("riding_book"), res.get("riding_learn"))}
 
 

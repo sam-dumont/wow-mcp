@@ -1371,8 +1371,11 @@ function ahEl(sr) {
 }
 
 // What making a craft takes, as wowstats/gear.py craft_status says it: the
-// skill, then the recipe (known, a pattern in the bags, or not learnt).
+// plan's line when the server priced it (wowstats/crafting.py: the recipe,
+// the skill-up, the mats, the gold, the auction house the other way), else
+// the skill, then the recipe (known, a pattern in the bags, or not learnt).
 function craftStatus(sr) {
+  if (sr.plan && sr.plan.line) return sr.plan.line;
   if (sr.your_rank === null || sr.your_rank === undefined) return 'a crafter makes it';
   if (sr.can_make) return 'you know it: check the materials';
   const steps = [];
@@ -1456,6 +1459,10 @@ function sourceEl(sr, level, ah) {
   }
   if (sr.kind === 'craft') {
     const own = craftStatus(sr);
+    if (sr.plan && sr.plan.line) {
+      // The plan says the auction house price itself (craft or buy).
+      return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, `${sr.profession} ${sr.skill}`), `: ${own}`, basisEl(sr));
+    }
     return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, `${sr.profession} ${sr.skill}`), ` (${own})`,
       ah ? h('span', {}, ', or ', h('b', { class: 'ahprice', text: priceText(ah.price_copper) }), ' on the Auction House') : '', basisEl(sr));
   }
