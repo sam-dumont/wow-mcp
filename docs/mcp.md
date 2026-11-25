@@ -179,6 +179,7 @@ much does it cost to level Tailoring" went to web searches and wrote raw
 | `wow-plan-session` | what to do next, a plan for N hours, how the last session went | `next_step`, `plan_session` + `check_plan`, `next_moves`, `sanity_check`, `how_did_my_plan_go` |
 | `wow-gear` | upgrades, BiS, stat weights, buy or farm an item | `gear` (`options`, `export`), `prices`, `inventory`, `mount_goal` |
 | `wow-dungeons` | is a dungeon worth it, one more run, loop it for gold | `dungeons` (`options`), `gear` (`options`) |
+| `wow-professions` | what a profession costs to level, what to craft next, craft or buy | `professions`, then `inventory`, `prices`, `gear` (`options`) |
 | `wow-gold` | prices, buy or sell, gold per hour, the mount | `prices`, `inventory`, `mount_goal`, `dungeons`, `market` |
 | `wow-analyse-play` | analyse my play, or a question no typed tool answers | the typed tools first, then `list_metrics`, `query_metric`, `play_sql` on the `per_*` views, the analysis run and `propose_finding` |
 

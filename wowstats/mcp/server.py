@@ -72,7 +72,7 @@ log = logging.getLogger("wowstats.mcp")
 NAME = "wow-stats"
 INSTRUCTIONS = ("Leveling stats for a WoW Forever (Classic-era) character recorded from the game client and the "
                 "Polestar addon. Start with character_summary; use the coach prompt to plan the next session. "
-                "For a how-to question (plan a session, gear, dungeons, gold, analyse the play), load the "
+                "For a how-to question (plan a session, gear, professions, dungeons, gold, analyse the play), load the "
                 "server's matching wow-* skill first when your client offers skills. "
                 "Everything you show the player says what to do: what, where, what blocks it, the next step; "
                 "a fact with nothing to do about it is an observation, said apart. Refer to the character by name, "

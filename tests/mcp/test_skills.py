@@ -28,7 +28,9 @@ MAX_BYTES = 3_000
 MAX_DESCRIPTION = 400
 # Answer fields the skills name, besides tools, arguments, views and metrics.
 FIELDS = {"line", "source", "wowhead", "untrusted", "untrusted_reference_data", "in_current_zone", "trip",
-          "party", "next", "note", "constants", "pve", "pvp", "flb", "pawn", "level"}
+          "party", "next", "note", "constants", "pve", "pvp", "flb", "pawn", "level",
+          # professions
+          "gold", "unpriced", "route", "why_incomplete", "mats", "trainer_ranks", "crafted_gear", "unlock"}
 
 
 def frontmatter(path) -> dict:
@@ -51,7 +53,7 @@ def known_names() -> set[str]:
 
 
 def test_there_are_skills_and_each_is_valid():
-    assert len(SKILLS) >= 5
+    assert len(SKILLS) >= 6
     for p in SKILLS:
         fm = frontmatter(p)
         assert fm["name"] == p.name and re.fullmatch(r"wow-[a-z0-9-]+", p.name)
