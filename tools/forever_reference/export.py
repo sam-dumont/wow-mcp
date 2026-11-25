@@ -534,8 +534,9 @@ def main(argv: list[str]) -> int:
         # uiMap id -> its name (ForeverDB.net's quest givers' maps)
         "ui_maps": dict(sorted(ui_maps.items(), key=lambda kv: int(kv[0]))),
     }
-    a.out.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":"), sort_keys=False) + "\n",
-                     encoding="utf-8")
+    # indent 1 (one key per line, like data/dungeons/wings.json): git merges disjoint changes, where the
+    # one-line file conflicted on every PR that touched it (2026-11-25).
+    a.out.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"{a.out}: {len(quests)} quests ({len(parts)} in chains), {len(items)} items "
           f"({len(rewards)} only from one quest), {len(out_areas)} areas "
           f"({sum(1 for x in out_areas.values() if 'instance' in x)} in instances), {len(out_maps)} maps, "

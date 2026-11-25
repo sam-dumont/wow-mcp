@@ -227,7 +227,9 @@ def main() -> int:
 
     db = upstream.forever_db(upstream.pinned()["forever_db"],
                              a.forever_db_cache or Path(tempfile.mkdtemp(prefix="forever-db-")), a.polestar)
-    text = json.dumps(build(a.polestar, db), ensure_ascii=False, separators=(",", ":"), sort_keys=False) + "\n"
+    # indent 1 (one key per line, like data/dungeons/wings.json): git merges disjoint changes, where the
+    # one-line file conflicted on every PR that touched it (2026-11-25).
+    text = json.dumps(build(a.polestar, db), ensure_ascii=False, indent=1) + "\n"
     if a.check:
         if OUT.read_text(encoding="utf-8") != text:
             print(f"{OUT.relative_to(ROOT)} is not the export: rerun tools/dungeon_quests/export.py", file=sys.stderr)
