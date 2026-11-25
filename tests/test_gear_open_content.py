@@ -1,10 +1,11 @@
 """What the gear advice may propose (wowstats.gear): never content Forever
 hasn't opened (owner, 2026-11-25: "it proposes arena rewards for me even
-though it's not opened yet"), PvP rewards only when the player counts them
+though it's not opened yet"; endgame is shut unless a sourced entry opens it), PvP rewards only when the player counts them
 (default off), and PvP gear easy in the PvP weights.
 
-Run on the shipped data (gear-reference, ForeverDB's sources, the KB's
-rules) with a level-36 Alliance shadow priest dressed like the owner's."""
+Run on the shipped data (gear-reference, ForeverDB's sources, the meta's
+endgame section data/kb/endgame.json) with an Alliance shadow priest dressed
+like the owner's level-36 one."""
 
 from __future__ import annotations
 
@@ -12,6 +13,8 @@ import pytest
 
 from wowstats import gear, gearmode
 
+TODAY, OPENING = "2026-11-25", "2026-12-09"  # Onyxia, Barrow Deeps and Hyjal Summit open on the 9th
+ARENA_MASTER = 18706
 ARENA = {18706: "Arena Master", 18709: "Arena Wristguards", 18710: "Arena Bracers", 18711: "Arena Bands",
          18712: "Arena Vambraces"}
 TALISMAN = 21119  # Talisman of Arathor: The League of Arathor's quartermaster, Neutral
@@ -47,7 +50,7 @@ def advice(ref, level=36, **kw) -> dict:
 def test_arena_rewards_are_never_proposed(ref):
     """The Gurubashi Arena's chest is in ForeverDB's sources from Classic's
     data only: a 100% chest read "some effort", and Arena Master was the
-    owner's trinket pick at 36. The KB's content.events_not_open closes it."""
+    owner's trinket pick at 36. The endgame section keeps the event shut."""
     for level in (36, 50, 60):
         for kw in ({}, {"pvp": True}, {"mode": "pvp"}, {"mode": "pve"}):
             a = advice(ref, level, **kw)
@@ -56,33 +59,103 @@ def test_arena_rewards_are_never_proposed(ref):
             assert not unknown & set(ARENA)  # not a "where: unknown" either: we know where, and it's shut
 
 
-def test_closed_content_by_rule_and_date(ref):
-    chest = next(s for s in ref.data["sources"]["18706"] if s["kind"] == "container")
-    assert gear.closed_content(chest, "2026-11-25") == "the Gurubashi Arena event"
-    # Seen in Forever wins over any rule: the event reopens by itself.
-    assert gear.closed_content({**chest, "label": "s"}, "2026-11-25") is None
-    ony = {"kind": "drop", "instance_map": 249, "label": "k"}
-    assert gear.closed_content(ony, "2026-12-08") == "Onyxia's Lair (raid)"
-    assert gear.closed_content(ony, "2026-12-09") is None  # the KB's unlock day
-    # A dungeon drop only Classic's data knows (labelled k) stays: not seen
-    # yet isn't closed (Overlord Ramtusk in Razorfen Kraul).
-    assert gear.closed_content({"kind": "drop", "instance_map": 47, "label": "k"}, "2026-11-25") is None
-
-
-def test_only_closed_content_goes(ref):
-    """The rules remove 255 items outright on 2026-11-25, all raid gear
-    and raid quest rewards (Ahn'Qiraj, Naxxramas, Zul'Gurub, Onyxia's Lair,
-    Blackwing Lair) plus the arena's 5; every other item keeps a way."""
+def zone(s):
     from wowstats import forever
 
-    def zone(s):
-        return (forever.quest(s["quest"]) or {}).get("zone") if s["kind"] == "quest" else None
+    return (forever.quest(s["quest"]) or {}).get("zone") if s["kind"] == "quest" else None
 
-    gone = [sid for sid, ss in ref.data["sources"].items()
-            if all(gear.closed_content(s, "2026-11-25", zone(s)) for s in ss)]
-    # Conqueror's Crown (Ahn'Qiraj) and Cryptstalker Headpiece (Naxxramas): quests handed in outside.
-    assert {int(x) for x in gone} >= set(ARENA) | {21329, 22438}
-    assert len(gone) <= 300, len(gone)
+
+def shut(ref, iid: int, today: str = TODAY) -> list:
+    return [gear.closed_content(s, today, zone(s)) for s in ref.data["sources"][str(iid)]]
+
+
+HEROISM = 21999  # Helm of Heroism: Saving the Best for Last (9006/9013), the end of Lord Valthalak's chain
+SPAULDERS = 22001  # Spaulders of Heroism: Anthion's Parting Words, the same chain's middle
+MC = 21520  # Ravencrest's Legacy: Treasure of the Timeless One, after a Molten Core quest
+KAZZAK = 17111  # Blazefury Medallion: Lord Kazzak, a world boss
+ONY_HEAD = 7496  # Celebrating Good Times: after Victory for the Alliance (Onyxia's head)
+RAMTUSK = {"kind": "drop", "instance_map": 47, "zone": 491, "zone_name": "Razorfen Kraul", "label": "k"}
+STRAT = 8283  # Arcane Armor: a level-56 drop in Stratholme only Classic's data knows (k)
+
+
+def test_endgame_is_shut_unless_the_section_opens_it(ref):
+    """Owner, 2026-11-25: "it should be explicit for end game, not 'we don't
+    know so we count as opened'"."""
+    assert shut(ref, ARENA_MASTER) == ["Gurubashi Arena chest event (event, not open)"]
+    for iid in (HEROISM, SPAULDERS):  # every class's version, both sides
+        assert all(r and r.startswith("Dungeon Set 2") for r in shut(ref, iid)), iid
+    assert all(r and r.startswith("Molten Core") for r in shut(ref, MC))
+    assert shut(ref, KAZZAK) == ["World bosses (world-boss, not open)"]
+    # A source players saw in Forever counts whatever the section says.
+    chest = ref.data["sources"][str(ARENA_MASTER)][0]
+    assert gear.closed_content({**chest, "label": "s"}, TODAY) is None
+
+
+def test_an_announced_day_reopens_by_itself(ref):
+    ony = {"kind": "drop", "instance_map": 249, "zone": 2159, "zone_name": "Onyxia's Lair", "npc": 10184,
+           "label": "k"}
+    assert gear.closed_content(ony, "2026-12-08") == "Onyxia's Lair (raid, opens 2026-12-09)"
+    assert gear.closed_content(ony, OPENING) is None
+    q = {"kind": "quest", "quest": ONY_HEAD, "label": "k"}
+    assert gear.closed_content(q, TODAY, zone(q)) and gear.closed_content(q, OPENING, zone(q)) is None
+    # Forever's new raids: no loot in our data yet, so a drop shaped like one.
+    for raid in ("Barrow Deeps", "Hyjal Summit"):
+        drop = {"kind": "drop", "zone_name": raid, "npc": 1, "label": "k"}
+        assert gear.closed_content(drop, TODAY) == f"{raid} (raid, opens 2026-12-09)"
+        assert gear.closed_content(drop, OPENING) is None
+    # A raid nobody announced stays shut after the 9th.
+    assert all(shut(ref, MC, OPENING)) and all(shut(ref, HEROISM, OPENING))
+
+
+def test_a_raid_no_entry_names_is_shut_by_structure(ref, monkeypatch):
+    """Endgame comes from the data, not the list: drop the section and every
+    raid drop, raid quest and world boss is still shut; dungeons aren't."""
+    from wowstats import endgame
+
+    monkeypatch.setattr(endgame, "section", lambda: {})
+    ony = {"kind": "drop", "instance_map": 249, "zone": 2159, "zone_name": "Onyxia's Lair", "label": "k"}
+    assert "not in the endgame section" in gear.closed_content(ony, OPENING)
+    assert all(shut(ref, MC)) and all(shut(ref, KAZZAK))
+    assert gear.closed_content(RAMTUSK, TODAY) is None
+
+
+def test_levelling_and_level_60_dungeons_still_count(ref):
+    # A level-30 dungeon drop only Classic's data knows (Overlord Ramtusk, k).
+    assert gear.closed_content(RAMTUSK, TODAY) is None
+    # Level-60 five-mans are open (Forever launched with every Classic
+    # dungeon): their Classic-only drops count, Lord Valthalak's summons don't.
+    assert not any(shut(ref, STRAT))
+    valthalak = {"kind": "drop", "instance_map": 229, "zone": 1583, "zone_name": "Blackrock Spire", "npc": 16042,
+                 "label": "k"}
+    assert gear.closed_content(valthalak, TODAY).startswith("Dungeon Set 2")
+    drakkisath = {**valthalak, "npc": 10363}
+    assert gear.closed_content(drakkisath, TODAY) is None
+    # Ivus is a level-63 boss summoned in Alterac Valley, a live battleground: no world boss.
+    ivus = next(s for s in ref.data["sources"]["19109"] if s.get("npc") == 13419)
+    assert gear.closed_content(ivus, TODAY) is None
+
+
+def test_only_endgame_goes(ref):
+    """On 2026-11-25 the section shuts 438 items outright (every source
+    shut): raid gear and raid quest rewards, the Dungeon Set 2 chain, world
+    bosses, the arena, the Ahn'Qiraj war effort; 54 of them come back with
+    Onyxia on 9 Dec. Nothing under level 45 goes but the arena's chest."""
+    def gone(day):
+        return {int(sid) for sid, ss in ref.data["sources"].items()
+                if ss and all(gear.closed_content(s, day, zone(s)) for s in ss)}
+
+    now, later = gone(TODAY), gone(OPENING)
+    assert now >= set(ARENA) | {HEROISM, SPAULDERS, MC, KAZZAK, 21329, 22438}
+    assert later < now and HEROISM in later
+    assert 380 <= len(now) <= 480, len(now)
+    low = {i for i in now if ((ref.item(i) or {}).get("req") or 60) < 45} - set(ARENA)
+    assert not low, sorted(low)
+
+
+def test_a_level_60_sees_no_closed_endgame(ref):
+    a = advice(ref, 60, mode="pve")
+    got = ids(a)
+    assert not got & ({HEROISM, SPAULDERS, MC, KAZZAK} | set(ARENA))
 
 
 def test_pvp_toggle_changes_the_candidates(ref):

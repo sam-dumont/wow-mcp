@@ -15,6 +15,7 @@ logged, and the page says "Unknown quest (631)".
 from __future__ import annotations
 
 import json
+import re
 import sys
 import threading
 from pathlib import Path
@@ -163,6 +164,34 @@ def npc_name(npc_id) -> str | None:
             _npcs = {int(d["id"][4:]): d["title"] for d in docs
                      if d.get("kind") == "npc" and d.get("title") and d.get("id", "")[4:].isdigit()}
     return _npcs.get(nid)
+
+
+_ranks: dict[int, tuple[str, str]] | None = None
+_RANK = re.compile(r"\bLevel ([\d?-]+), ([a-z ]+)\.")
+
+
+def npc_rank(npc_id) -> tuple[str, str] | None:
+    """(level, rank) of a creature as forever-db gives it ("63", "boss";
+    "58-60", "elite"), from the same game data as npc_name; None when unknown.
+    wowstats.endgame tells world bosses by it."""
+    global _ranks
+    try:
+        nid = int(npc_id)
+    except (TypeError, ValueError):
+        return None
+    with _lock:
+        if _ranks is None:
+            from wowstats.analysis.kb import packaged
+
+            docs, _ = packaged()
+            out = {}
+            for d in docs:
+                if d.get("kind") == "npc" and d.get("id", "")[4:].isdigit():
+                    m = _RANK.search(d.get("body") or "")
+                    if m:
+                        out[int(d["id"][4:])] = (m.group(1), m.group(2))
+            _ranks = out
+    return _ranks.get(nid)
 
 
 def log_unknown(what: str, ids) -> None:

@@ -48,7 +48,7 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wowstats import ahsource, forever, quests, stores
+from wowstats import ahsource, endgame, forever, quests, stores
 
 _HERE = Path(__file__).resolve()
 # An installed wheel carries it as wowstats/data/; a checkout has it at the root.
@@ -129,12 +129,12 @@ EFFORT_PENALTY = (0.0, 0.05, 0.15, 0.15)
 # are the norm", read as: everywhere but there). classguide.MAX_LEVEL.
 ENDGAME_LEVEL = 60
 # Content Forever hasn't opened (owner, 2026-11-25: "it proposes arena
-# rewards for me even though it's not opened yet"): the knowledge base's
-# rules name each place and the day it opens (data/kb/rules.json). A source
-# there is never a way to an item until that day; an item with no other
-# source is no candidate at all, not a "where: unknown". A source players
-# saw in Forever (ForeverDB's "s") is open whatever a rule says.
-CLOSED_RULES = ("content.raids_not_open", "content.events_not_open")
+# rewards for me even though it's not opened yet", then "it should be
+# explicit for end game, not 'we don't know so we count as opened'"):
+# endgame is shut unless the meta's endgame section opens it
+# (wowstats.endgame, data/kb/endgame.json). A shut source is never a way to
+# an item; an item with no other source is no candidate at all, not a
+# "where: unknown". A source players saw in Forever (ForeverDB's "s") counts.
 # What gear is a PvP reward besides a PvP rank's (data/kb/rules.json): the
 # battleground reputations' and the PvP vendors' (the Premier rank weapons
 # come from Sergeant Thunderhorn with no rank in ForeverDB's data: an "easy"
@@ -1133,25 +1133,11 @@ def _rule_value(name: str) -> dict:
 
 
 def closed_content(s: dict, today: str, quest_zone=None) -> str | None:
-    """What closed content a raw source belongs to (CLOSED_RULES), None
-    when it is open: an object (a chest), an instance, or a quest whose zone
-    (`quest_zone`, forever-db's zone name for it) a rule names, until the rule's
-    `opens` day (YYYY-MM-DD, `today` the same form). A source labelled "s"
-    (seen in Forever) is open whatever the rules say."""
-    if s.get("label") == "s":
-        return None
-    for name in CLOSED_RULES:
-        v = _rule_value(name)
-        hit = None
-        if s.get("kind") == "container" and s.get("object"):
-            hit = (v.get("objects") or {}).get(s.get("name") or "")
-        elif s.get("kind") == "drop" and s.get("instance_map") is not None:
-            hit = (v.get("instances") or {}).get(str(s["instance_map"]))
-        elif s.get("kind") == "quest" and quest_zone is not None:
-            hit = (v.get("quest_zones") or {}).get(str(quest_zone))
-        if hit and not (hit.get("opens") and today >= hit["opens"]):
-            return hit.get("what") or name
-    return None
+    """What shut content a raw source belongs to, None when it counts
+    (wowstats.endgame.closed: endgame is shut unless the meta's endgame
+    section opens it, or ForeverDB.net saw the source in Forever).
+    `quest_zone` is forever-db's zone name for a quest, `today` YYYY-MM-DD."""
+    return endgame.closed(s, today, quest_zone)
 
 
 def is_pvp(s: dict) -> bool:

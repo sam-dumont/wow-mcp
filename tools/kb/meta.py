@@ -39,6 +39,13 @@ is data/kb/research/meta-<date>.json, folded into the KB's lanes by
 tools/kb/lifecycle.py in the same run; `known` moves only past what the model
 read, so items a spent budget left unread come back next week.
 
+The same call keeps the meta's endgame section (data/kb/endgame.json,
+wowstats.endgame): what endgame content Forever has opened, what is announced
+with its day. The model says which entry an item opens, announces or delays;
+code keeps a day only when the item states it, and lifecycle.py folds the
+changes in. The gear advice counts endgame content only when that section
+opens it, so a week's news reopens a raid with no code change.
+
 Same model, effort, cost cap (KB_REFRESH_MAX_USD) and credentials as the
 refresh pass (tools/kb/refresh.py). No new item: no model call, nothing spent.
 """
@@ -61,7 +68,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import refresh  # noqa: E402, I001 (both tools/kb, beside this file)
 import web  # noqa: E402
-from wowstats import classmeta  # noqa: E402
+from wowstats import classmeta, endgame  # noqa: E402
 from wowstats.analysis import kbschema, verbatim  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -130,7 +137,17 @@ what it changes for players; `key`: the key of the same event in <upcoming_event
 ""; `level_min`/`level_max` of who can take part; `prep`: what players should get ready, each naming the known \
 statement (`statement`, an id from <known_statements>) that says so, its `kind`, its side (`faction`, "" for \
 both) and `quest_id` when that statement names the quest to start with (else 0). Never write a prep step no known \
-statement supports. Not an announcement: `event.name` is "" and the rest empty."""
+statement supports. Not an announcement: `event.name` is "" and the rest empty. \
+
+Also keep the endgame section, `endgame`: what endgame content Forever has opened. <endgame_section> lists its \
+entries (key, name, kind, status, opens). Add one entry per item that says an endgame thing (a raid, a level-60 \
+dungeon, the Dungeon Set 2 / Lord Valthalak chain, world bosses, a world event such as the Gurubashi Arena or the \
+Ahn'Qiraj war effort) is open now, opens on a day, is announced with no day, or is delayed or closed again. `key`: \
+the entry's key when it is one of them, else "" and `name` the content's own name (a new raid or dungeon). \
+`kind`: raid, dungeon, chain, world-boss or event. `status`: "open" (the item says it is open now), "announced" \
+(coming, with or without a day) or "not-open" (delayed, pulled, still closed). `opens` as YYYY-MM-DD ONLY when the \
+item states that exact day, else "". `text`: one line in your own words with the day when there is one. Content \
+that stays shut needs no entry: anything the section doesn't open is closed already."""
 
 CATEGORIES = ("opening", "phase", "event", "patch", "hotfix", "class", "meta", "known-issue", "pvp", "economy",
               "announcement")
@@ -207,8 +224,25 @@ SCHEMA = {
             },
         },
     },
-    "required": ["statements", "digest"],
+    "required": ["statements", "digest", "endgame"],
     "additionalProperties": False,
+}
+SCHEMA["properties"]["endgame"] = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "item": {"type": "integer"},
+            "key": {"type": "string"},
+            "name": {"type": "string"},
+            "kind": {"type": "string", "enum": list(endgame.KINDS)},
+            "status": {"type": "string", "enum": list(endgame.STATUSES)},
+            "opens": {"type": "string"},
+            "text": {"type": "string"},
+        },
+        "required": ["item", "key", "name", "kind", "status", "opens", "text"],
+        "additionalProperties": False,
+    },
 }
 
 
@@ -443,17 +477,21 @@ def safe(text: str) -> str:
     return text.replace("</item", "</ item").replace("<item", "< item")
 
 
-def prompt(batch: list[dict], known: list[dict], upcoming: list[dict] | None = None) -> str:
+def prompt(batch: list[dict], known: list[dict], upcoming: list[dict] | None = None,
+           section: dict | None = None) -> str:
     body = "\n".join(
         f'<item n="{n}" source="{it["source"]}" url="{it["url"]}" date="{it["date"]}"'
         + (f' class="{it["class"]}"' if it.get("class") else "")
         + (f' author="{it["author"]}"' if it.get("author") else "")
         + f'>\n{safe(it["title"])}\n\n{safe(it["text"])}\n</item>' for n, it in enumerate(batch, 1))
     ev = [{k: e.get(k) for k in ("key", "name", "starts", "window")} for e in upcoming or []]
+    eg = [{"key": k, **{f: e.get(f) for f in ("name", "kind", "status", "opens")}}
+          for k, e in (section if section is not None else endgame.section()).items()]
     return (f"<known_statements>\n{json.dumps(known, ensure_ascii=False)}\n</known_statements>\n\n"
             f"<upcoming_events>\n{json.dumps(ev, ensure_ascii=False)}\n</upcoming_events>\n\n"
-            f"<items>\n{body}\n</items>\n\nPropose the statements these items add, and the week's digest "
-            "entries, as the schema says.")
+            f"<endgame_section>\n{json.dumps(eg, ensure_ascii=False)}\n</endgame_section>\n\n"
+            f"<items>\n{body}\n</items>\n\nPropose the statements these items add, the week's digest "
+            "entries and the endgame section's changes, as the schema says.")
 
 
 def copies(text: str, source: str, run: int = VERBATIM) -> str:
@@ -632,6 +670,64 @@ def to_digest(props: list[dict], batch: list[dict], allow: dict, day: str, known
     return kept, refused
 
 
+def to_endgame(props: list[dict], batch: list[dict], allow: dict, day: str,
+               section: dict | None = None) -> tuple[list[dict], list[dict]]:
+    """The model's endgame section changes as sourced records, provenance set
+    by code: (records, refused). An `opens` day the item doesn't state is
+    dropped (the entry says "announced, no date"); a key the section doesn't
+    hold is a new entry only for a raid, a dungeon or an event, named by the
+    item. tools/kb/lifecycle.py folds them into data/kb/endgame.json."""
+    known = section if section is not None else endgame.section()
+    kept, refused = [], []
+    for p in props:
+        n = p.get("item")
+        if not isinstance(n, int) or not 1 <= n <= len(batch):
+            refused.append({"text": str(p.get("text") or "")[:200], "why": f"endgame names item {n!r}"})
+            continue
+        it = batch[n - 1]
+        text = " ".join(str(p.get("text") or "").split())[:280]
+        name = " ".join(str(p.get("name") or "").split())[:80]
+        key = str(p.get("key") or "").strip()
+        kind, status = p.get("kind"), p.get("status")
+        if key not in known:
+            key = endgame.key_of(name) if name and name.lower() in (it["title"] + " " + it["text"]).lower() else ""
+            if not key or kind not in ("raid", "dungeon", "event"):
+                refused.append({"text": f"{name or p.get('key')}: {text[:160]}",
+                                "why": "endgame entry names no known key and no new raid, dungeon or event the "
+                                       "item names"})
+                continue
+            if key in known:  # the model gave the name of a known entry, not its key
+                kind = known[key].get("kind")
+        else:
+            kind, name = known[key].get("kind"), known[key].get("name")
+        if status not in endgame.STATUSES or not text:
+            refused.append({"text": text[:200], "why": "endgame entry without a status or text"})
+            continue
+        why = copies(text, it["text"])
+        if why:
+            refused.append({"text": text[:200], "why": f"endgame entry copies its source: {why}"})
+            continue
+        opens = str(p.get("opens") or "").strip()
+        if opens and not (kbschema.DAY.match(opens) and date_in_text(opens, it["title"] + " " + it["text"])):
+            refused.append({"text": f"{name}: opens {opens}", "why": "a day the item doesn't state: kept as "
+                                                                      "announced, no date"})
+            opens = ""
+        if status == "open":
+            opens = ""
+        dom = allow.get(kbschema.domain(it["url"]))
+        conf = kbschema.cap(it["max_confidence"], dom["max_confidence"]) if dom else it["max_confidence"]
+        rec = {"id": f"meta-{day}:endgame-{len(kept) + len(refused) + 1}", "key": key, "name": name, "kind": kind,
+               "status": status, "opens": opens or None, "statement": text,
+               "source_url": it["url"], "source_type": it["source_type"], "date": it["date"], "confidence": conf,
+               "scope": "forever", "last_verified": day}
+        errs = kbschema.check(rec, allow)
+        if errs:
+            refused.append({"text": text[:200], "why": "; ".join(errs)})
+            continue
+        kept.append(rec)
+    return kept, refused
+
+
 _known_text: dict[str, str] = {}
 
 
@@ -652,12 +748,13 @@ def run(items: list[dict], client, cap: float, day: str | None = None) -> dict:
 
     upcoming = news.events()
     meter = refresh.Meter(cap)
-    statements, contradictions, refused, read, skipped, digest = [], [], [], [], [], []
+    section = endgame.section()
+    statements, contradictions, refused, read, skipped, digest, ends = [], [], [], [], [], [], []
     counter = {"n": 0}
     for batch in batches(items):
         text = " ".join(it["title"] + " " + it["text"] for it in batch)
         try:
-            got = refresh.call(client, meter, SYSTEM, SCHEMA, prompt(batch, relevant(known, text), upcoming),
+            got = refresh.call(client, meter, SYSTEM, SCHEMA, prompt(batch, relevant(known, text), upcoming, section),
                                ", ".join(it["url"] for it in batch)[:300], whole=True)
         except refresh.OverBudget as e:
             skipped.append(f"{len(items) - len(read)} items left unread: {e}")
@@ -672,6 +769,9 @@ def run(items: list[dict], client, cap: float, day: str | None = None) -> dict:
             web.remember(it["url"], it["title"] + "\n" + it["text"])
         k, c, r = to_records(got.get("statements") or [], batch, allow, day, known_src, counter)
         d, r2 = to_digest(got.get("digest") or [], batch, allow, day, set(known_src), upcoming, counter)
+        e, r5 = to_endgame(got.get("endgame") or [], batch, allow, day, section)
+        ends += e
+        refused += r5
         # A copy gets one rewrite in the model's own words; a second copy is dropped.
         copies_ = [x for x in r + r2 if x.get("copy")]
         texts = refresh.reword(client, meter, copies_, [x["source"] for x in copies_])
@@ -692,7 +792,10 @@ def run(items: list[dict], client, cap: float, day: str | None = None) -> dict:
            # The week's news, one line per item (wowstats.news): what is
            # coming and the prep gaps derive from it; every week's file stays.
            "digest": {"week": day, "from": min([i["date"] for i in read if i.get("date")] or [day]),
-                      "items": digest}}
+                      "items": digest},
+           # The meta's endgame section's changes this week: folded into
+           # data/kb/endgame.json (wowstats.endgame), which the gear reads.
+           "endgame": ends}
     return {"doc": doc, "spent_usd": round(meter.spent, 4), "read": read, "skipped": skipped,
             "refused": len(refused), "meter": meter}
 
@@ -719,7 +822,8 @@ def summary(out: dict, notes: list[str], cap: float) -> str:
     rows = "\n".join(f"- [{title(it['title'])}]({it['url']}) ({it['source']}, {it['date']})" for it in out["read"])
     return (f"Proposed by `tools/kb/meta.py` (weekly meta pass, ${out['spent_usd']:.2f} of a ${cap:.0f} cap) from "
             f"what people wrote about Forever this week: {len(doc['statements'])} statements, "
-            f"{len(doc['digest']['items'])} news digest lines, "
+            f"{len(doc['digest']['items'])} news digest lines, {len(doc['endgame'])} endgame section changes "
+            "(what Forever has opened: the gear advice reads them, check each), "
             f"{len(doc['contradictions'])} contradictions with existing ones, {out['refused']} refused (listed as "
             "open questions in the file).\n\nEvery statement cites its item and is summarised, never copied; check "
             "each against its source before merging. Statements with a `class` are about that class. "
@@ -766,10 +870,11 @@ def main(argv: list[str] | None = None) -> int:
     refresh.step_summary(out["meter"], "News, blue posts and guides, model pass (tools/kb/meta.py)")
     doc = out["doc"]
     print(json.dumps({"statements": len(doc["statements"]), "digest": len(doc["digest"]["items"]),
+                      "endgame": len(doc["endgame"]),
                       "contradictions": len(doc["contradictions"]),
                       "refused": out["refused"], "read": len(out["read"]), "spent_usd": out["spent_usd"],
                       "skipped": out["skipped"]}))
-    if doc["statements"] or doc["digest"]["items"]:
+    if doc["statements"] or doc["digest"]["items"] or doc["endgame"]:
         path = Path(a.out) / f"{doc['lane']}.json"
         path.write_text(json.dumps(doc, indent=1, ) + "\n", encoding="utf-8")
         print(f"wrote {path}")

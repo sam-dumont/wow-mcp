@@ -175,6 +175,18 @@ def check_file(doc: dict, allow: dict, strict_type: bool = True) -> list[str]:
     for name, r in ((doc.get("rules") or {}) if isinstance(doc, dict) else {}).items():
         errs = check(r, allow, strict_type) if isinstance(r, dict) else ["not an object"]
         out += [f"rule {name}: {e}" for e in errs]
+    ends = doc.get("entries") if isinstance(doc, dict) else None
+    for key, r in (ends.items() if isinstance(ends, dict) else []):
+        # data/kb/endgame.json, the meta's endgame section (wowstats.endgame)
+        errs = check(r, allow) if isinstance(r, dict) else ["not an object"]
+        if isinstance(r, dict):
+            if r.get("status") not in ("open", "announced", "not-open"):
+                errs.append(f"status {r.get('status')!r} is not open, announced or not-open")
+            if r.get("opens") is not None and not DAY.match(str(r["opens"])):
+                errs.append(f"opens {r['opens']!r} is not YYYY-MM-DD")
+            if not (r.get("statement") or "").strip():
+                errs.append("no statement")
+        out += [f"endgame {key}: {e}" for e in errs]
     shape = class_guide_shape if isinstance(doc, dict) and doc.get("lane") == "classes" else None
     for key in ("statements", "contradictions"):
         for i, r in enumerate(doc.get(key) or []):

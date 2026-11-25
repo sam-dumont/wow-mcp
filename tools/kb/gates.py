@@ -8,7 +8,7 @@ gates").
 Compares the working tree with `--base` (a git ref: the main the job
 started from) and checks:
 
-- schema: every research file, rules.json and news.json against
+- schema: every research file, rules.json, news.json and endgame.json against
   wowstats.analysis.kbschema;
 - licence: every text that is new (no record of the base has it) is checked
   against the text the model pass read for its source (KB_SOURCES, written
@@ -100,7 +100,8 @@ def base_files(base: str) -> dict[str, dict]:
     out = {}
     for rel in r.stdout.split():
         if rel.endswith(".json") and (rel.startswith("data/kb/research/") or rel in ("data/kb/rules.json",
-                                                                                   "data/kb/news.json")):
+                                                                                   "data/kb/news.json",
+                                                                                   "data/kb/endgame.json")):
             text = git_show(base, rel)
             if text is not None:
                 out[rel[len("data/kb/"):]] = json.loads(text)
@@ -110,7 +111,7 @@ def base_files(base: str) -> dict[str, dict]:
 def head_files(kb_dir: Path = KB) -> dict[str, dict]:
     out = {f"research/{p.name}": json.loads(p.read_text(encoding="utf-8"))
            for p in sorted((kb_dir / "research").glob("*.json"))}
-    for name in ("rules.json", "news.json"):
+    for name in ("rules.json", "news.json", "endgame.json"):
         if (kb_dir / name).exists():
             out[name] = json.loads((kb_dir / name).read_text(encoding="utf-8"))
     return out
@@ -130,6 +131,12 @@ def records(files: dict[str, dict]):
         for r in (paths.values() if isinstance(paths, dict) else paths or []):
             if isinstance(r, dict):
                 yield name, "paths", r
+        # The meta's endgame section: data/kb/endgame.json's entries, a pass's `endgame` changes.
+        ends = doc.get("entries")
+        for r in [*(ends.values() if isinstance(ends, dict) else []),
+                  *(doc.get("endgame") if isinstance(doc.get("endgame"), list) else [])]:
+            if isinstance(r, dict):
+                yield name, "endgame", r
         weeks = [doc.get("digest")] + list(doc.get("digests") or [])
         for w in weeks:
             for it in (w or {}).get("items") or [] if isinstance(w, dict) else []:
@@ -138,7 +145,7 @@ def records(files: dict[str, dict]):
 
 
 def text_of(r: dict) -> str:
-    return " ".join(str(r.get(k) or "") for k in ("title", "text", "note")).strip()
+    return " ".join(str(r.get(k) or "") for k in ("title", "text", "note", "statement")).strip()
 
 
 def schema_gate(files: dict[str, dict], allow: dict) -> list[str]:
@@ -258,6 +265,8 @@ def schema_of(doc: dict, key: str, r: dict, allow: dict, strict_type: bool = Tru
         mini = {"builds": [r]}
     elif key == "digest":
         mini = {"digest": {"items": [r]}}
+    elif key == "endgame":
+        mini = {"entries": {str(r.get("key") or r.get("id") or "?"): r}}
     else:  # a class's path: wowstats.classguide.check_path, in the suite
         return []
     return kbschema.check_file(mini, allow, strict_type)

@@ -1,9 +1,10 @@
 {
- "about": "Size caps in bytes (tools/kb/lifecycle.py, tests/test_kb_budget.py): each file and the whole of data/kb, from the sizes on 2026-11-20 plus 10%. news.json has room for its 8 weeks of digests, digest-history.json for its 52 lines, sweep.json (written by the monthly sweep) for the 805 URLs cited today. A file not listed gets `default`. Over: consolidate (merge, shorten, supersede, expire); raise a cap only for a new lane or real new coverage, and say why. 2026-11-23 (owner): dungeons.json and watch.json raised for the Forever dungeons coverage (PR #189) and the one-time baselines of 70 guides; classes, class-meta, game-rules and sources raised to current size plus 10% ahead of those guides' first weekly review. Total unchanged (1.9 MB used of 2.26 MB). 2026-11-25: rules.json raised for the gear advice's new content gates (content.raids_not_open, content.events_not_open, battleground.reputations).",
+ "about": "Size caps in bytes (tools/kb/lifecycle.py, tests/test_kb_budget.py): each file and the whole of data/kb, from the sizes on 2026-11-20 plus 10%. news.json has room for its 8 weeks of digests, digest-history.json for its 52 lines, sweep.json (written by the monthly sweep) for the 805 URLs cited today. A file not listed gets `default`. Over: consolidate (merge, shorten, supersede, expire); raise a cap only for a new lane or real new coverage, and say why. 2026-11-23 (owner): dungeons.json and watch.json raised for the Forever dungeons coverage (PR #189) and the one-time baselines of 70 guides; classes, class-meta, game-rules and sources raised to current size plus 10% ahead of those guides' first weekly review. Total unchanged (1.9 MB used of 2.26 MB). 2026-11-25: rules.json raised for the gear advice's new content gates (content.raids_not_open, content.events_not_open, battleground.reputations); the two content rules then moved to endgame.json, the meta's endgame section (about 14 KB seeded, room for the phases to come).",
  "total": 2262016,
  "default": 65536,
  "files": {
   "digest-history.json": 16384,
+  "endgame.json": 32768,
   "news.json": 132096,
   "professions.md": 2048,
   "research/class-meta.json": 318464,

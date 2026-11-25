@@ -13,7 +13,8 @@ PR. In order:
    statement to class-meta, as a `shift` when it names no aspect); one with
    `supersedes` takes the place of the statement it replaces; a
    contradiction goes to the lane of the statement it contradicts; the
-   week's digest to data/kb/news.json; refused proposals only to the PR
+   week's digest to data/kb/news.json; its endgame section changes to
+   data/kb/endgame.json (fold_endgame); refused proposals only to the PR
    body. One current file per lane: git keeps the history, never a dated
    copy in data/.
 2. supersede: a statement another names in `supersedes`, or whose
@@ -144,7 +145,8 @@ def load(kb_dir: Path = KB) -> dict:
     return {"lanes": lanes, "dated": dated,
             "news": _read(kb_dir / "news.json") or {"about": NEWS_ABOUT, "digests": []},
             "history": _read(kb_dir / "digest-history.json") or {"about": HISTORY_ABOUT, "weeks": []},
-            "community": _read(kb_dir / "community.json")}
+            "community": _read(kb_dir / "community.json"),
+            "endgame": _read(kb_dir / "endgame.json")}
 
 
 NEWS_ABOUT = ("The weekly pass's news digests (tools/kb/meta.py, read by wowstats.news), newest first: the "
@@ -211,6 +213,8 @@ def write(tree: dict, kb_dir: Path = KB) -> list[str]:
         put(kb_dir / "digest-history.json", tree["history"])
     if tree.get("community") is not None:
         put(kb_dir / "community.json", tree["community"])
+    if tree.get("endgame") is not None:
+        put(kb_dir / "endgame.json", tree["endgame"])
     return out
 
 
@@ -295,7 +299,43 @@ def fold(tree: dict, day: str, report: dict) -> None:
             weeks = [w for w in tree["news"].get("digests") or [] if w.get("week") != d.get("week")]
             tree["news"]["digests"] = sorted(weeks + [{k: d[k] for k in ("week", "from", "items") if k in d}],
                                              key=lambda w: str(w.get("week")), reverse=True)
+        fold_endgame(tree, doc.get("endgame") or [], day, report)
         report["folded"].append(name)
+
+
+ENDGAME_FIELDS = ("id", "status", "opens", "statement", "source_url", "source_type", "date", "confidence", "scope",
+                  "last_verified")
+
+
+def fold_endgame(tree: dict, changes: list[dict], day: str, report: dict) -> None:
+    """The meta pass's endgame section changes into data/kb/endgame.json
+    (wowstats.endgame): an entry takes a change whose source is as new as
+    its own or newer; a new raid, dungeon or event gets an entry matched by
+    its name (`places`). `match` is never the model's to change."""
+    if not changes:
+        return
+    doc = tree.get("endgame")
+    if doc is None:
+        doc = tree["endgame"] = {"schema": 1, "about": "", "last_verified": day, "entries": {}}
+    entries = doc.setdefault("entries", {})
+    for c in changes:
+        key = c.get("key")
+        if not key:
+            continue
+        e = entries.get(key)
+        if e is None:
+            entries[key] = {"name": c.get("name") or key, "kind": c.get("kind"),
+                            **{f: c.get(f) for f in ENDGAME_FIELDS}, "match": {"places": [c.get("name") or key]}}
+            report["endgame"].append(f"{key}: new, {c.get('status')}")
+            continue
+        if str(c.get("date") or "") < str(e.get("date") or ""):
+            continue  # an older item than the one the entry stands on
+        before = (e.get("status"), e.get("opens"))
+        e.update({f: c.get(f) for f in ENDGAME_FIELDS})
+        if before != (e.get("status"), e.get("opens")):
+            report["endgame"].append(f"{key}: {before[0]} -> {e.get('status')}"
+                                     + (f" (opens {e['opens']})" if e.get("opens") else ""))
+    doc["last_verified"] = day
 
 
 # ------------------------------------------------------------------ 2-5. supersede, expire, merge, dangling
@@ -601,8 +641,8 @@ def budget_body(over: list[str]) -> str | None:
 
 
 def new_report() -> dict:
-    return {k: [] for k in ("folded", "superseded", "expired", "merged", "resolved_contradictions", "compacted",
-                            "retired", "reverified", "unchanged", "unverified", "refused")}
+    return {k: [] for k in ("folded", "endgame", "superseded", "expired", "merged", "resolved_contradictions",
+                            "compacted", "retired", "reverified", "unchanged", "unverified", "refused")}
 
 
 def run(tree: dict, today: date, fetch=None, client=None, meter=None, memo: dict | None = None) -> dict:
@@ -630,7 +670,9 @@ def summary(report: dict, before: dict[str, int], after: dict[str, int], over: l
              f"{sum(after.values()):,} bytes."]
     if rows:
         parts.append("| File | Before | After |\n|---|---:|---:|\n" + "\n".join(rows))
-    for key, what in (("folded", "Folded into their lanes"), ("superseded", "Superseded"),
+    for key, what in (("folded", "Folded into their lanes"),
+                      ("endgame", "Endgame section changes (data/kb/endgame.json: the gear advice counts what it "
+                                  "opens)"), ("superseded", "Superseded"),
                       ("expired", "Expired"), ("merged", "Merged (same claim, citations joined)"),
                       ("resolved_contradictions", "Contradictions with nothing left to contradict"),
                       ("compacted", "Weeks compacted into digest-history.json"),
