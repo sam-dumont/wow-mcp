@@ -281,6 +281,13 @@ UPGRADE = {**ADVICE_ITEM, **_keys("level", "slot", "slot_name", "gain", "gain_pc
            "bis": _keys("from_pct", "to_pct"),
            "gates": [_keys("kind", "profession", "need", "have")], "fit": FIT}
 UPGRADE_PAIR = {**UPGRADE, "with": {**UPGRADE, "kind": None}}
+# A slot's BiS and the pick against it (wowstats.gear pair_why, ah_cost):
+# the item, how hard it is, and on the auction house its price against his
+# gold and the riding goal (gold stays in the full content).
+COST = {**_keys("price_copper", "money_copper", "short_copper", "says", "action"),
+        "goal": _keys("what", "level", "need_copper", "left_copper")}
+BIS = {**UPGRADE_PAIR, **_keys("worn", "setup"), "cost": COST}
+PICK = {**_keys("item_id", "name", "same", "within_reach", "behind_bis_pct", "says"), "reasons": [None]}
 SPEC = {**_keys("key", "label", "source", "why", "role"), "choices": [_keys("key", "label")]}
 GEAR_SHEET = {**_keys("at", "item_level", "guild", "spec", "class", "race", "faction", "sex", "armory_item_level",
                       "armory_item_level_source", "items_from", "items_note"),
@@ -374,8 +381,8 @@ ZOGZOG: dict[str, dict] = {
         "export": {**_keys("class", "spec", "mode", "setup", "setup_label", "name", "how", "flb", "pawn"),
                    "credit": _keys("name", "url", "text"), "notes": [None], "pawn_notes": [None]},
         "slots": [{**_keys("slot", "slot_name"), "standing": _keys("rank", "pct", "label"),
-                   "current": ADVICE_ITEM, "best": UPGRADE_PAIR,
-                   "next": UPGRADE_PAIR}],
+                   "current": ADVICE_ITEM, "best": {**UPGRADE_PAIR, "cost": COST},
+                   "next": UPGRADE_PAIR, "bis": BIS, "pick": PICK}],
         "upgrades": [UPGRADE_PAIR],
         "ah": AH,
     },

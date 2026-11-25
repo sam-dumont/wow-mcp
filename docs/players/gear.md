@@ -34,8 +34,30 @@ Every item has the same badge and says what it does to its slot: "70% → 91% on
   profession, the auction house. Each group says what the trip holds: "31% chance one of your 3
   upgrades drops" for a dungeon, "2 upgrades you can take now" for quests or crafts, "2
   upgrades for 4g 10s in all" at the auction house.
-- **By slot** shows the best item per slot: **Now** (you can wear it), **Level 35** (not yet),
-  **cheap** (on the auction house for at most what you earn in a level).
+- **By slot** shows your pick per slot: **Now** (you can wear it), **Level 35** (not yet),
+  **cheap** (on the auction house for at most what you earn in a level). Under it, the slot's
+  **BiS**: see below.
+
+## BiS, and your pick
+
+Each slot has two answers. The **BiS** is the item that scores most at your level, whatever it
+takes: a 0.03% drop, an 84g auction, a rank you don't hold. **Your pick** is what the list
+actually sends you after: while you level, an easy item beats a slightly better hard one.
+
+When they're the same item you see it once: **BiS, and within reach** (or **BiS, and your
+pick** when it's a long shot or costs more gold than you have). When they differ, the BiS line
+says what it takes and the pick says why it wins, with the numbers: "Your pick is 14% behind
+BiS: easy where BiS is a long shot (about 3,333 runs)."
+
+A BiS on the auction house shows its price against your gold and your next riding training,
+plus the one thing to do: "84g on the auction house: you have 16g 72s; riding at 40 needs 100g.
+Save 67g 28s more, then buy it at the auction house." An auction you can't pay for yet counts
+as **some effort**, not easy, so a cheaper easy item can still be your pick.
+
+At 60 the score decides, so the pick is usually the BiS, odds and all. Gear nobody says where to
+get is never the BiS (there's nothing to tell you to do), and neither is content Forever hasn't
+opened. Your AI's `gear` answers carry the same `bis` and `pick` for each slot. The Overview
+names the BiS next to an upgrade when the upgrade is the pick and the BiS is something else.
 
 **Scored for**, at the top, picks the spec ("Automatic" follows your talents): pick another to
 see the upgrades for a respec.
@@ -70,15 +92,15 @@ Every upgrade says how hard it is to get, from its easiest source, next to where
 
 | | From |
 |---|---|
-| **easy** | your bags or bank, an auction house listing, a quest, a vendor, a craft you can make, a reputation you hold, a drop of 25% or more |
-| **some effort** | a drop of 8-25%, a craft still to learn or skill up for, a reputation up to Honored you don't hold yet, a PvP rank you hold |
+| **easy** | your bags or bank, an auction house listing you have the gold for, a quest, a vendor, a craft you can make, a reputation you hold, a drop of 25% or more |
+| **some effort** | an auction house listing that costs more than your gold, a drop of 8-25%, a craft still to learn or skill up for, a reputation up to Honored you don't hold yet, a PvP rank you hold |
 | **hard** | a drop of 1-8%, a drop seen in Forever with no rate, a world drop, a raid drop, a reputation above Honored you don't hold |
 | **long shot** | a drop under 1%, a rate known only from Classic, a PvP rank you don't hold (or that nothing recorded) |
 
 In the PvP weights, rank and battleground reputation gear is easy.
 
 A rate known only from Classic counts one step harder; an auction house listing makes any item
-easy, with its price. While you level, a harder item wins a slot only when it scores 5.3% more
+easy, with its price, as long as you have the gold. While you level, a harder item wins a slot only when it scores 5.3% more
 (some effort) or 17.6% more (hard), and the % lines measure against what you can get. At 60
 the score alone decides.
 
@@ -88,8 +110,9 @@ go"), PvP rank gear too ("rank 3 needed, you're rank 1"); a rank nothing recorde
 a long shot. While you level, a 0.03% drop never becomes the pick, however good it is. At 60,
 where every point counts, it can, with its odds next to it.
 
-**Best possible, out of plain reach** lists, apart, the slots whose best item is a long shot
-or has no known source: with its odds, never as an upgrade to chase while you level.
+In **By where you get it**, **Best possible, out of plain reach** lists, apart, the slots whose
+best item is a long shot or has no known source: with its odds, never as an upgrade to chase
+while you level. By slot says it on each slot instead.
 
 ## The same weights in the game
 

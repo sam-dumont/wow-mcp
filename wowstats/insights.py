@@ -631,6 +631,21 @@ def _pick_text(u: dict, s: dict) -> str:
     return f"Pick up {u['name']} ({gain}): {_where(s)}."
 
 
+def _bis_text(advice: dict | None, u: dict) -> str:
+    """When the move names the slot's pick and the slot's BiS is another
+    item (wowstats.gear pair_why): the BiS too, with what it takes."""
+    if u.get("bis_pct") is None:
+        return ""
+    slot = gearmod.MAIN if u.get("slot") in (gearmod.MAIN, gearmod.OFF) else u.get("slot")
+    sl = next((x for x in (advice or {}).get("slots") or [] if x.get("slot") == slot), None) or {}
+    b, p = sl.get("bis") or {}, sl.get("pick") or {}
+    if not b or b.get("worn") or p.get("same") or p.get("item_id") != u.get("item_id"):
+        return ""
+    cost = b.get("cost") or {}
+    how = cost.get("says", "").rstrip(".") if cost.get("short_copper") else gearmod.effort_detail(b)
+    return f" BiS: {b.get('name')}, {how}."
+
+
 def _where(s: dict) -> str:
     if s.get("kind") in HELD_WHERE:
         return HELD_WHERE[s["kind"]]
@@ -970,7 +985,8 @@ def next_moves(level: int | None, advice: dict | None, header: dict, track: dict
     best: dict = {}
     for u, s in sorted(reach, key=lambda us: us[1].get("kind") not in HELD_WHERE):
         best.setdefault(u.get("slot"), (u, s))
-    moves = [_upgrade_claim(u, s, _pick_text(u, s), "gear advice (ForeverDB.net's weights)", level)
+    moves = [_upgrade_claim(u, s, _pick_text(u, s) + _bis_text(advice, u), "gear advice (ForeverDB.net's weights)",
+                            level)
              for u, s in list(best.values())[:3]]
     moves += dungeon_claims(level, reach)
     moves += profession_claims(level, gear_profs, skills, header)

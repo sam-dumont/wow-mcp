@@ -39,6 +39,14 @@
 
 ### Added
 
+- **BiS, and your pick**, per slot (owner request): the gear page's By slot view and the item
+  comparison show the slot's BiS (the most points at your level, whatever it takes) under the
+  pick, with why the pick wins in numbers ("14% behind BiS: easy where BiS is a long shot (about
+  3,333 runs)"), or once as "BiS, and within reach" when it's the same item. A BiS on the auction
+  house says its price against your gold and the next riding training, with one action ("Save
+  67g 28s more, then buy it at the auction house."). The MCP's `gear` carries `bis` and `pick`
+  per slot; the Overview names the BiS beside an upgrade that is the pick when they differ. Gear
+  with no known source is never the BiS.
 - **PvP rewards** toggle on the gear page, off by default: honor rank and battleground
   reputation gear only count as sources when it's on. Kept per character; the MCP's `gear`
   takes `pvp`. Next moves, the plan and the analysis follow it.
@@ -46,6 +54,8 @@
 
 ### Changed
 
+- An auction house listing that costs more than the character's gold is **some effort**, no
+  longer easy: Staff of Jordan at 84g with 16g 72s in the bags read as an easy pick.
 - CI: the required `test` check now waits for `logsql`, the queries against a real VictoriaLogs. It wasn't required on its own, so #240 and #241 merged with it red.
 
 ## 0.11.0 (2026-11-24)
