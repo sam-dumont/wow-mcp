@@ -329,13 +329,22 @@ def _dungeon_item(out: dict, inst: str, levels, u: dict, s: dict) -> None:
         d["quests"].append({**row, "quest": s.get("name"), "quest_id": s.get("quest_id")})
 
 
+def seen_mean(trips: list[dict], k: str) -> float | None:
+    """A trip leg's mean over the trips that saw it (dungeon_trips: None
+    for a leg the records didn't see, never 0), None when none did."""
+    seen = [t[k] for t in trips or [] if t.get(k) is not None]
+    return sum(seen) / len(seen) if seen else None
+
+
 def trip_stats(trips: list[dict]) -> dict:
-    """His dungeon trips, phase by phase (means), with how many back each."""
+    """His dungeon trips, phase by phase (means over the trips that saw
+    each phase, None when none did), with how many back each."""
     keys = ("pickup_s", "travel_to_s", "inside_s", "travel_back_s", "handin_s", "online_s")
     n = len(trips)
     if not n:
         return {"n": 0}
-    out = {k: sum(t.get(k) or 0 for t in trips) / n for k in keys}
+    out = {k: seen_mean(trips, k) for k in keys}
+    out["online_s"] = out["online_s"] or 0
     inside = sum(t.get("inside_s") or 0 for t in trips)
     xp_in = sum(t.get("xp_inside") or 0 for t in trips)
     whole = sum((t.get("xp_inside") or 0) + (t.get("xp_quests") or 0) for t in trips)
@@ -422,18 +431,11 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
             xp_trip = g["xp"] if g["xp"] is not None else g["xp_quests"]
             entry["trip"] = {"time_s": g["run_s"], "xp": xp_trip, "xp_per_hour": per_hour(xp_trip, g["run_s"]),
                              "kills_unknown": g["kills_unknown"],
-                             "from": (f"your {g['own_runs']} run(s) there" if g["basis"] == "runs" else
-                                      ("the kill estimate's time inside" if g["basis"] == "kill_model" else
-                                       "the knowledge base's clear time") + (
-                                          ", plus the pickups, travel and hand-ins Polestar's rules plan from "
-                                           "where you are" + _at_pace(g["trip"].get("pace"))
-                                           if (g["trip"]["pickup_s"]["label"] in ("route", "your pace")
-                                               or g["trip"]["travel_s"]["label"] in ("route", "your pace")) else
-                                           f", plus the travel and quest time of your {ts['n']} dungeon trips"
-                                           if ts["n"] and g["time"] == "trip" else "")),
+                             "from": _trip_from(g, ts),
                              "n": g["own_runs"] or ts["n"],
-                             "phases_s": {kk: round(ts[kk]) for kk in ("pickup_s", "travel_to_s", "inside_s",
-                                                                       "travel_back_s", "handin_s")}
+                             "phases_s": {kk: round(ts[kk]) if ts[kk] is not None else None
+                                          for kk in ("pickup_s", "travel_to_s", "inside_s", "travel_back_s",
+                                                     "handin_s")}
                              if ts["n"] else {}}
         else:
             entry["trip"] = None
@@ -453,6 +455,22 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
     for i, e in enumerate(out, 1):
         e["rank"] = i
     return out
+
+
+def _trip_from(g: dict, ts: dict) -> str:
+    """Where one more run's time comes from, in words: his runs there or
+    the time inside's estimate, then where the legs outside come from."""
+    head = (f"your {g['own_runs']} run(s) there" if g["basis"] == "runs" else
+            "the kill estimate's time inside" if g["basis"] == "kill_model" else "the knowledge base's clear time")
+    t = g["trip"]
+    labels = {(t.get(k) or {}).get("label") for k in ("pickup_s", "travel_s", "handin_s")}
+    if labels & {"route", "your pace"}:
+        what = ("the legs your runs didn't see from Polestar's rules, from where you are" if g["basis"] == "runs"
+                else "the pickups, travel and hand-ins Polestar's rules plan from where you are")
+        return f"{head}, plus {what}{_at_pace(t.get('pace'))}"
+    if g["basis"] != "runs" and ts["n"] and g["time"] == "trip":
+        return f"{head}, plus the travel and quest time of your {ts['n']} dungeon trips"
+    return head
 
 
 def _at_pace(p: dict | None) -> str:
@@ -480,15 +498,19 @@ def redo(inp: dict, mine: list[dict], entry: dict, quest_xph: float, mount: dict
     drop, the loot's value, and looping it from the door."""
     n = len(mine)
     mean = lambda k: sum(t.get(k) or 0 for t in mine) / n  # noqa: E731
-    inside, to, back = mean("inside_s"), mean("travel_to_s"), mean("travel_back_s")
-    extra = mean("pickup_s") + mean("handin_s") if quests_open else 0
-    run_s = to + inside + back + extra
+    inside = mean("inside_s")
+    # Each leg over the runs that saw it; one none saw leaves the trip's
+    # time unknown, never a walk in 0 s.
+    legs = [seen_mean(mine, k) for k in ("travel_to_s", "travel_back_s",
+                                         *(("pickup_s", "handin_s") if quests_open else ()))]
+    run_s: float | None = inside + sum(legs) if None not in legs else None
     xp_in: float | None = mean("xp_inside")
-    xph_run = per_hour(xp_in, run_s)
+    xph_run = per_hour(xp_in, run_s) if run_s else None
     if gain is not None:
         # The shared estimate's (wowstats.plan.dungeongain): the kills at
-        # his level now, the trip with the quests it still has.
-        run_s = gain["run_s"] or run_s
+        # his level now, the trip with the quests it still has, its unseen
+        # legs from the rules.
+        run_s = gain["run_s"]
         xp_in = gain["xp_kills"]
         xph_run = gain["xp_per_hour"] if not gain["kills_unknown"] else None
     lvls = sorted({t.get("level_start") for t in mine})
@@ -505,7 +527,7 @@ def redo(inp: dict, mine: list[dict], entry: dict, quest_xph: float, mount: dict
         else None
     loop_s = max(inside, 3600 / cap) if inside and cap else inside
     hours_loop = loop_s / 3600 if loop_s else None
-    out = {"runs": n, "levels": lvls, "time_s": round(run_s), "inside_s": round(inside),
+    out = {"runs": n, "levels": lvls, "time_s": round(run_s) if run_s else None, "inside_s": round(inside),
            "xp_inside": round(xp_in) if xp_in is not None else None, "xp_per_hour_run": xph_run,
            "loot_items_per_run": round(items_n, 1), "vendor_copper_per_run": round(vendor),
            "boe_seen": [{"name": b.get("name"), "quality": b.get("quality"), "ah_copper": b.get("ah_copper")}
@@ -529,7 +551,7 @@ def redo(inp: dict, mine: list[dict], entry: dict, quest_xph: float, mount: dict
     best = max(entry["top_items"], key=lambda g: g["gain"] * (g["chance"] or 0), default=None)
     if best and best.get("chance"):
         out["best_item"] = {**best, "expected_runs": round(100 / best["chance"], 1),
-                            "expected_time_s": round(100 / best["chance"] * run_s)}
+                            "expected_time_s": round(100 / best["chance"] * run_s) if run_s else None}
     xph = out["xp_per_hour_run"] or 0
     loop_gold = (out.get("loop") or {}).get("gold_copper_per_hour") or 0
     gold_rate = ((mount.get("gold_rate") or {}).get("copper_per_hour")) or 0

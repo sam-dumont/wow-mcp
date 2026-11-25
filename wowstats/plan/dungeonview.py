@@ -40,6 +40,7 @@ Other players never appear: the runs carry no party.
 
 from __future__ import annotations
 
+import math
 import re
 import urllib.parse
 
@@ -456,32 +457,51 @@ def _who_url(w: dict) -> str | None:
     return wowhead_url(w["kind"], w["id"]) if w.get("kind") in ("npc", "object", "item") else None
 
 
-def trip_value(mine: list[dict], every: dict, quests: list[dict]) -> dict:
+def trip_value(mine: list[dict], every: dict, quests: list[dict], gain: dict | None = None,
+               pace_now: dict | None = None) -> dict:
     """A trip's numbers: his own runs of this dungeon when he has some (n
     says how many), else his trips elsewhere for the time only. XP per run
-    is measured or absent; the quests' XP is the game's own (forever-db)."""
+    is measured or absent; the quests' XP is the game's own (forever-db).
+    `gain`: the shared estimate of one more run (wowstats.plan.dungeongain),
+    which `again_*` say; `pace_now`: his pace (pace), which a leg a past
+    trip didn't see is filled at, from the rules' replay of that trip."""
     left = [q for q in quests if q["state"] != "done" and not waits_on_other_wings(q)]
     quest_xp_left = sum(q["xp_now"] or 0 for q in left)
     if mine:
         n = len(mine)
         mean = lambda k: sum(t.get(k) or 0 for t in mine) / n  # noqa: E731
+        seen = lambda *ks: sum(x for x in (E.seen_mean(mine, k) for k in ks) if x is not None)  # noqa: E731
         loot = [t.get("loot") or {} for t in mine]
         ah = [x.get("ah_copper") for x in loot if x.get("ah_copper")]
         vendor = sum(x.get("vendor_copper") or 0 for x in loot) / n
         online = mean("online_s")
         xp_run = mean("xp_inside") + mean("xp_quests")
-        # Another run: the kills again and only the quests still to do, the
-        # walk there and back, the pickups and hand-ins only for those.
-        again_s = mean("travel_to_s") + mean("inside_s") + mean("travel_back_s") + (
-            mean("pickup_s") + mean("handin_s") if left else 0)
-        again_xp = mean("xp_inside") + quest_xp_left
+        # The XP an hour of his trips there: a leg a trip didn't see (logged
+        # at the door; a hand-in made hours later, its XP in xp_quests) takes
+        # the rules' leg for that trip at his pace, so its quests' XP comes
+        # with time to earn it. A trip the rules couldn't replay: unknown.
+        f = (pace_now or {}).get("factor") or 1.0
+        filled, from_rules = 0.0, 0
+        for t in mine:
+            plan = t.get("route_legs") or {}
+            for k in LEGS:
+                if t.get(k) is not None:
+                    filled += t[k]
+                elif plan.get(k) is not None:
+                    filled, from_rules = filled + plan[k] * f, from_rules + 1
+                else:
+                    filled = math.nan
+            filled += t.get("inside_s") or 0
+        hours = filled / n / 3600 if filled == filled else None
+        g = gain or {}
         return {"measured": True, "n": n, "inside_s": round(mean("inside_s")),
-                "travel_s": round(mean("travel_to_s") + mean("travel_back_s")),
-                "quests_s": round(mean("pickup_s") + mean("handin_s")), "total_s": round(online),
+                "travel_s": round(seen("travel_to_s", "travel_back_s")),
+                "quests_s": round(seen("pickup_s", "handin_s")), "total_s": round(online),
                 "xp_kills": round(mean("xp_inside")), "xp_quests": round(mean("xp_quests")),
-                "xp_per_run": round(xp_run), "xp_per_hour": round(xp_run / online * 3600) if online else None,
-                "again_s": round(again_s), "again_xp": round(again_xp),
-                "again_xp_per_hour": round(again_xp / again_s * 3600) if again_s else None,
+                "xp_per_run": round(xp_run), "xp_per_hour": round(xp_run / hours) if hours else None,
+                "legs_from_rules": from_rules,
+                # One more run: the shared estimate's (the same number as the line).
+                "again_s": g.get("run_s"), "again_xp": g.get("xp"), "again_xp_per_hour": g.get("xp_per_hour"),
                 "vendor_copper": round(vendor), "ah_copper": round(sum(ah) / len(ah)) if ah else None,
                 "quest_money_copper": round(mean("quest_money_copper")),
                 "boe": [{"item_id": b.get("item_id"), "name": b.get("name"), "quality": b.get("quality"),
@@ -558,6 +578,7 @@ def route_trip(inp: dict, name: str, quests: list[dict], skip=()) -> dict | None
 # trip quicker than the rules' straight run is the rules' miss, not a pace
 # to plan on, and past 4x one trip's long break would set every estimate.
 PACE_RANGE = (1.0, 4.0)
+LEGS = ("pickup_s", "travel_to_s", "travel_back_s", "handin_s")
 
 
 def pace(trips: list[dict]) -> dict:
@@ -565,14 +586,22 @@ def pace(trips: list[dict]) -> dict:
     trips' measured legs over what the rules planned for them (`route_s`),
     summed over the trips (time-weighted: a 1-minute rerun planned at 58 s
     and walked in 11 can't set it the way a median of ratios would), in
-    PACE_RANGE. A trip counts when the rules could replay it and it had legs
-    outside (a trip logged at the door alone measured none). No such trip:
-    1, the straight run, labelled so."""
+    PACE_RANGE. Leg by leg: a leg the trip saw against the same leg
+    planned; a leg it didn't see (None: logged at the door, a hand-in made
+    hours later) is in neither sum. Without the planned legs one by one
+    (`route_legs`), `route_s` stands for all four, so only a trip that saw
+    all four counts. A trip counts when the rules could replay it and it
+    walked some time outside. No such trip: 1, the straight run, labelled so."""
     measured = planned = 0.0
     n = 0
     for t in trips or []:
-        plan = t.get("route_s")
-        legs = sum(t.get(k) or 0 for k in ("pickup_s", "travel_to_s", "travel_back_s", "handin_s"))
+        seen = [k for k in LEGS if t.get(k) is not None]
+        per = t.get("route_legs")
+        if per:
+            plan = sum(per.get(k) or 0 for k in seen)
+        else:
+            plan = t.get("route_s") if len(seen) == len(LEGS) else None
+        legs = sum(t[k] for k in seen)
         if plan and legs > 0:
             measured, planned, n = measured + legs, planned + plan, n + 1
     if not n:
@@ -684,8 +713,8 @@ def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_
     for c in chances:
         p_one *= 1 - min(100.0, c["chance"]) / 100.0
     p_one = 1 - p_one if any(c["chance"] for c in chances) else 0.0
-    trip = trip_value(mine, every, quests)
     gain = gain_of(inp, area["name"], mine, quests, quest_xph, drops)
+    trip = trip_value(mine, every, quests, gain, pace(inp.get("trips") or []))
     state = "run" if mine else "now" if lo <= level else "soon"
     gs = inp.get("gear_score") or 0
     share = exp_gain / gs * 100 if gs > 0 else None

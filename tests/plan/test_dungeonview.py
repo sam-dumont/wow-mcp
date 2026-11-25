@@ -103,8 +103,10 @@ def test_trip_value_is_measured_or_says_not(priest):
     trip = next(t for t in priest["trips"] if "Stockade" in t["dungeon"])
     assert stock["measured"] and stock["n"] == 1
     assert stock["inside_s"] == round(trip["inside_s"]) and stock["xp_kills"] == trip["xp_inside"]
-    # Another run: the kills and the quests still to do, never the ones done.
-    assert stock["again_xp"] == trip["xp_inside"] + stock["quest_xp_left"]
+    # Another run: the shared estimate's, the same number as the line.
+    g = v["The Stockade"]["gain"]
+    assert (stock["again_s"], stock["again_xp"], stock["again_xp_per_hour"]) == (g["run_s"], g["xp"],
+                                                                               g["xp_per_hour"])
     for b in v.values():
         if b["state"] != "run":
             assert "xp_per_run" not in b["trip"]  # Forever's XP isn't Classic's: only his own measure

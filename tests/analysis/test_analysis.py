@@ -668,6 +668,61 @@ def test_a_dungeon_trip_spans_the_lookup_guides():
     assert t["xp_inside"] == 3188  # Polestar's run XP: no quest was handed in inside
 
 
+def _stockade_rows():
+    raw = gzip.decompress((Path(__file__).parent / "stockade_trip.jsonl.gz").read_bytes()).decode()
+    return [json.loads(x) for x in raw.splitlines()]
+
+
+def _legs(rows):
+    db = prep.build(rows, "Testpriest-Fixture")
+    return dict(zip(("pickup_s", "travel_to_s", "inside_s", "travel_back_s", "handin_s", "online_s", "xp_quests"),
+                    db.execute("SELECT pickup_s, travel_to_s, inside_s, travel_back_s, handin_s, online_s, xp_quests "
+                               "FROM dungeon_trips").fetchone(), strict=True))
+
+
+def test_a_leg_the_records_didnt_see_is_null_never_zero():
+    """An outside review, the third time: a trip logged at the door had
+    pickup, travel and hand-in 0 s, and the planner read those zeros as his
+    time. Each leg is NULL unless the records saw it."""
+    full = _legs(_stockade_rows())
+    assert None not in full.values() and full["inside_s"] == 1376
+    # No pickup step: the pickups and the walk there weren't seen; the walk
+    # back and the hand-ins were.
+    rows = [r for r in _stockade_rows() if not str(r.get("guide") or "").startswith("lookup/pickup/")]
+    got = _legs(rows)
+    assert got["pickup_s"] is None and got["travel_to_s"] is None
+    assert got["travel_back_s"] == full["travel_back_s"] and got["handin_s"] == full["handin_s"]
+    # Logged at the door: no guide step, no hand-in after the run. Only the
+    # time inside was seen.
+    rows = [r for r in _stockade_rows() if r.get("kind") not in ("step", "turnin")]
+    got = _legs(rows)
+    assert (got["pickup_s"], got["travel_to_s"], got["travel_back_s"], got["handin_s"]) == (None,) * 4
+    assert got["inside_s"] == 1376 and got["online_s"] == 1376
+    # The planner's trip facts get the same: through the semantic layer, a
+    # leg not seen stays None (a sum over one NULL is NULL, not 0).
+    from wowstats.plan import facts
+
+    t = facts.trips(facts.ask_on(prep.build(rows, "Testpriest-Fixture")))[0]
+    assert (t["pickup_s"], t["travel_to_s"], t["travel_back_s"], t["handin_s"]) == (None,) * 4
+    assert t["inside_s"] == 1376
+
+
+def test_a_hand_in_after_the_trip_leaves_the_hand_ins_unseen():
+    """One of the trip's dungeon quests handed in three hours later (City of
+    Dalaran's at the grate): its XP counts toward the trip, its time was
+    never seen, so the hand-in leg is NULL even though other hand-ins were
+    seen. The walk back to the first one was."""
+    full = _legs(_stockade_rows())
+    rows = _stockade_rows()
+    for r in rows:
+        if r.get("kind") == "turnin" and r.get("quest_id") == "378":
+            r["_time"] = "2026-10-14T20:45:59.200Z"
+    got = _legs(rows)
+    assert got["xp_quests"] == full["xp_quests"]  # 378's XP still counts toward the trip
+    assert got["handin_s"] is None and got["travel_back_s"] == full["travel_back_s"]
+    assert got["pickup_s"] == full["pickup_s"]
+
+
 def test_a_quest_handed_in_inside_is_quest_xp_not_run_xp():
     """The same trip with one of its quests handed in to an NPC inside the
     instance (as Blackfathom Deeps' In Search of Thaelrid is): Polestar's run

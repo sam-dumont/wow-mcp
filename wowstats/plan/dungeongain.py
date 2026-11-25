@@ -9,26 +9,27 @@ because they call it with the same inputs (wowstats.plan.dungeonview).
 
 Where the numbers come from, each part labelled (`trip`):
 
-1. his own runs of that dungeon, "measured": the trip's time (travel there
-   and back, inside, and the pickups and hand-ins while quests are left)
-   and the kill XP inside, carried from the level he ran it at to his level
-   now with the KB's kill formula (xp.kill_formula) over the creatures he
-   killed there. Forever's dungeon bonus and the group split multiply every
-   kill alike, so they cancel in that ratio. A run at another level without
-   the creatures' levels can't be carried: its kill XP stays unknown;
-2. otherwise:
-   - the pickups, the travel and the hand-ins from Polestar's pick-up and
-     hand-in rules on his own quests, from where he was last seen
-     (wowstats.plan.tripcost), times his own pace on his past trips
-     (dungeonview.pace, "your pace"; the straight run, "route", before his
-     first trip); without route data for the dungeon,
-     the means of his other trips ("measured", the old flat mean);
-   - the time inside and the kill XP from the kill estimate
-     (wowstats.plan.dungeonxp: kills x the seconds a kill took in the
-     reference runs, "estimate"), else the KB's clear time for the time
-     (dungeon.<name> clear_min, "estimate");
+1. inside: his own runs of that dungeon, "measured": the time inside and
+   the kill XP, carried from the level he ran it at to his level now with
+   the KB's kill formula (xp.kill_formula) over the creatures he killed
+   there. Forever's dungeon bonus and the group split multiply every kill
+   alike, so they cancel in that ratio. A run at another level without the
+   creatures' levels can't be carried: its kill XP stays unknown. No run:
+   the kill estimate (wowstats.plan.dungeonxp: kills x the seconds a kill
+   took in the reference runs, "estimate"), else the KB's clear time for
+   the time (dungeon.<name> clear_min, "estimate");
+2. outside, leg by leg (pickups, the walk there, the walk back, hand-ins;
+   the pickups and hand-ins only while quests are left): the mean over his
+   runs there that saw that leg ("measured"); else Polestar's pick-up and
+   hand-in rules on his own quests, from where he was last seen
+   (wowstats.plan.tripcost), times his own pace (dungeonview.pace, "your
+   pace"; the straight run, "route", before his first trip); else the mean
+   over his other trips that saw it ("measured"). A leg the records didn't
+   see is None in the trip facts (dungeon_trips), never 0: a run logged at
+   the door didn't walk there in no time. A leg nothing can time leaves the
+   trip's time unknown (`trip.unknown_legs`), and so its XP an hour;
 3. the quests' XP: those the trip takes and hands in (forever-db's XP, the
-   KB's hand-in share at his level).
+   KB's hand-in share at his level), only alongside the legs that earn it.
 
 The kill estimate counts in the run's XP, its pace and the verdict, labelled
 (owner, 2026-11-23: it replaced the rule that an estimate never ranks a
@@ -43,7 +44,7 @@ import re
 
 from wowstats.rates import per_hour
 
-from .estimate import fdur
+from .estimate import fdur, seen_mean
 
 SHOWN = 3  # quests the move lists before "N more" (the page's rule)
 
@@ -142,6 +143,22 @@ def _mean(rows: list[dict], k: str) -> float:
     return sum(r.get(k) or 0 for r in rows) / len(rows) if rows else 0.0
 
 
+def _leg(k: str, runs: list[dict], route: dict | None, others: list[dict],
+         pace: dict | None) -> tuple[float, str] | None:
+    """One leg outside the instance, labelled: the mean over his runs there
+    that saw it ("measured"), else the rules' leg from where he stands times
+    his pace ("your pace", or "route" before his first trip), else the mean
+    over his other trips that saw it ("measured"), else None."""
+    mine = seen_mean(runs, k)
+    if mine is not None:
+        return mine, "measured"
+    if route and route.get(k) is not None:
+        f = (pace or {}).get("factor") or 1.0
+        return float(route[k]) * f, "your pace" if (pace or {}).get("trips") else "route"
+    theirs = seen_mean(others, k)
+    return (theirs, "measured") if theirs is not None else None
+
+
 def about_xp(n: float) -> str:
     """XP as the move says it: ~18k, ~5.4k, ~820."""
     n = round(n)
@@ -204,10 +221,6 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     if runs:
         basis = "runs"
         parts["inside_s"] = (_mean(runs, "inside_s"), "measured")
-        parts["travel_s"] = (_mean(runs, "travel_to_s") + _mean(runs, "travel_back_s"), "measured")
-        if left:
-            parts["pickup_s"] = (_mean(runs, "pickup_s"), "measured")
-            parts["handin_s"] = (_mean(runs, "handin_s"), "measured")
         scaled = [kills_now(t, level, rule) for t in runs]
         known = [x for x in scaled if x is not None]
         xp_k = sum(known) / len(known) if known else None
@@ -225,25 +238,36 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
         basis = basis or ("rules" if clear else None)
         if clear:
             parts["inside_s"] = (clear, "estimate")
-        if route:
-            # The rules time a straight run; his own trips say how much longer
-            # his take (dungeonview.pace). The time inside keeps its own logic.
-            f = (pace or {}).get("factor") or 1.0
-            lbl = "your pace" if (pace or {}).get("trips") else "route"
-            parts["pickup_s"] = (route["pickup_s"] * f, lbl)
-            parts["travel_s"] = ((route["travel_to_s"] + route["travel_back_s"]) * f, lbl)
-            parts["handin_s"] = (route["handin_s"] * f, lbl)
-        elif others:
-            parts["travel_s"] = (_mean(others, "travel_to_s") + _mean(others, "travel_back_s"), "measured")
-            if left:
-                parts["pickup_s"] = (_mean(others, "pickup_s"), "measured")
-                parts["handin_s"] = (_mean(others, "handin_s"), "measured")
         xp_k = float(kills["xp"]) if kills and kills.get("label") == "estimate" and kills.get("xp") is not None \
             else None
         k_label = "estimate"
+    # The legs outside, one by one (an outside review, the third time this
+    # came back): his runs there where they saw the leg, else the rules'
+    # leg from where he stands at his pace, else his other trips that saw
+    # it. A leg no trip saw is None, never 0: a run logged at the door
+    # didn't walk there in no time, and a quest's XP needs its hand-in's.
+    # The pickups and hand-ins count while quests are left. With the route
+    # (his quest state now: a quest in his log needs no pickup, a done one
+    # neither pickup, hand-in nor XP), a leg it has no stop for costs
+    # nothing, whatever an old trip measured: all in the log, no pickups.
+    if route:
+        need = ["travel_to_s", *(("pickup_s",) if route.get("pickup") else ()),
+                *(("travel_back_s", "handin_s") if route.get("handin") else ())]
+    else:
+        need = ["travel_to_s", "travel_back_s", *(("pickup_s", "handin_s") if left else ())]
+    legs = {k: _leg(k, runs, route, others, pace) for k in need}
+    missing = [k for k, v in legs.items() if v is None]
+    for k in ("pickup_s", "handin_s"):
+        if k in legs and legs[k] is not None:
+            parts[k] = legs[k]
+    to, back = legs["travel_to_s"], legs.get("travel_back_s", (0.0, None))
+    parts["travel_s"] = (to[0] + back[0], _worst(to[1], back[1])) if to and back else None
+    parts = {k: v for k, v in parts.items() if v is not None}
     inside = parts.get("inside_s")
-    run_s = sum(v for v, _ in parts.values()) if inside else None
-    time = ("trip" if len(parts) > 1 else "clear") if inside else None
+    # The whole trip or nothing: with a leg unknown the trip's time is
+    # unknown, and so its XP an hour and the verdict.
+    run_s = sum(v for v, _ in parts.values()) if inside and not missing else None
+    time = "trip" if run_s else None
     xp = xp_q + xp_k if xp_k is not None else None
     shown = xp if xp is not None else xp_q
     xph = per_hour(shown, run_s) if run_s and shown else None
@@ -283,7 +307,10 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
                  "vs_questing": {"value": vs, "label": _worst(xp_label, t_label) if vs is not None else None},
                  "from": route.get("from") if route else None,
                  "pace": ({k: v for k, v in (pace or {"factor": 1.0, "trips": 0, "label": "straight run"}).items()
-                           if k in ("factor", "trips", "label")} if route and not runs else None),
+                           if k in ("factor", "trips", "label")}
+                          if any(v and v[1] in ("route", "your pace") for v in legs.values()) else None),
+                 # The legs no trip saw and no rule could plan: the trip's time waits on them.
+                 "unknown_legs": missing,
                  "stops": {"pickup": len(route["pickup"]), "handin": len(route["handin"])} if route else None})
     out["trip"] = trip
     out["kill_xp"] = run_kills(name, level, runs, xp_k, rule) if runs else kills

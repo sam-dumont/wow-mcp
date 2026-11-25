@@ -109,9 +109,10 @@ def test_without_runs_the_kill_estimates_time_and_his_own_travel():
     assert g["run_s"] == inside + 600 + 300 + 900 + 600
     assert g["kill_xp"]["inside_s"] == inside
     # Gnomeregan: ~1h15 inside by its kills, where the guide said ~40 min.
-    g = est(level=34, xp_max=54500, name="Gnomeregan", quests=qs, questing_xph=15107)
-    assert g["basis"] == "kill_model" and g["run_s"] == D.estimate("Gnomeregan", 34, RULE)["inside_s"]
-    assert g["run_s"] > G.clear_s("Gnomeregan") or G.clear_s("Gnomeregan") is None
+    g = est(level=34, xp_max=54500, name="Gnomeregan", quests=qs, questing_xph=15107, others=[other])
+    gi = D.estimate("Gnomeregan", 34, RULE)["inside_s"]
+    assert g["basis"] == "kill_model" and g["trip"]["inside_s"]["value"] == gi
+    assert gi > G.clear_s("Gnomeregan") or G.clear_s("Gnomeregan") is None
 
 
 def test_without_runs_or_a_kill_estimate_the_kb_clear_time():
@@ -120,7 +121,10 @@ def test_without_runs_or_a_kill_estimate_the_kb_clear_time():
     assert clear == 56 * 60  # the recorded median, ahead of a guide's range
     assert G.clear_s("Excavation Site: Wetlands") and D.estimate("Excavation Site: Wetlands", 30, RULE)["xp"] is None
     g = est(level=30, name="Excavation Site: Wetlands")
-    assert g["basis"] == "rules" and g["run_s"] == G.clear_s("Excavation Site: Wetlands")
+    assert g["basis"] == "rules" and g["trip"]["inside_s"]["value"] == G.clear_s("Excavation Site: Wetlands")
+    # Nothing times the walk there (no route, no trip that saw it): no trip
+    # time rather than a walk in 0 s.
+    assert g["run_s"] is None and g["trip"]["unknown_legs"] == ["travel_to_s", "travel_back_s"]
     other = trip(30, 3000, dungeon="Blackfathom Deeps")
     g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, others=[other], questing_xph=15107,
             clear=clear)
@@ -128,11 +132,17 @@ def test_without_runs_or_a_kill_estimate_the_kb_clear_time():
     assert g["run_s"] == clear + 600 + 300 + 900 + 600
     assert g["xp_quests"] == 28200
     # No kill estimate (a dungeon the model has no data for): the quests alone, no verdict.
-    g = est(level=30, xp_max=54500, name="Excavation Site: Wetlands", quests=qs, questing_xph=15107)
+    g = est(level=30, xp_max=54500, name="Excavation Site: Wetlands", quests=qs, questing_xph=15107, others=[other])
     assert g["kills_unknown"] and g["xp"] is None and g["vs_questing"] is None and g["level_pct"] == 52
-    assert g["time"] == "clear" and g["xp_per_hour"] == per_hour(28200, G.clear_s("Excavation Site: Wetlands"))
+    assert g["time"] == "trip" and g["run_s"] == G.clear_s("Excavation Site: Wetlands") + 600 + 300 + 900 + 600
+    assert g["xp_per_hour"] == per_hour(28200, g["run_s"])
     assert g["summary"] == f"~{G.about_s(g['run_s'])} + quests worth ~28k XP (52% of a level)"
     assert g["lead"] == f"~{G.about_s(g['run_s'])} + quests worth ~28k XP"
+    # The quests without anything to time their pickups and hand-ins: their
+    # XP, no time and no rate (28,200 XP over the clear time alone was the bug).
+    g = est(level=30, xp_max=54500, name="Excavation Site: Wetlands", quests=qs, questing_xph=15107)
+    assert g["run_s"] is None and g["xp_per_hour"] is None and g["xp_quests"] == 28200
+    assert g["summary"] == "Its quests pay ~28k XP (52% of a level), what 1h50 of your questing pays"
 
 
 def per_hour(x, s):
@@ -263,9 +273,10 @@ def test_the_line_says_the_trip_and_its_parts():
 def test_a_kill_estimate_ranks_a_dungeon():
     # Owner, 2026-11-23: the kill estimate counts in the verdict. A dungeon
     # whose estimated kills beat questing comes out faster.
-    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=1000)
+    walk = {**ROUTE, "pickup_s": 0, "handin_s": 0, "quests": [], "pickup": [], "handin": [], "xp_quests": 0}
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=1000, route=walk)
     assert g["xp_kills"] and G.verdict(g["vs_questing"]) == "faster"
-    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=10 ** 7)
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=10 ** 7, route=walk)
     assert G.verdict(g["vs_questing"]) == "slower"
 
 
@@ -342,11 +353,99 @@ def test_his_pace_scales_the_routes_legs_and_not_the_time_inside():
     assert one["trip"]["pickup_s"] == {"value": 1500, "label": "route"}
 
 
-def test_his_own_runs_there_are_his_pace_already():
-    own = trip(32, 3000, dungeon="City of Dalaran")
+# ---------------------------------------------------------------- legs seen or not
+#
+# An outside review, the third time it came back: a run logged at the door
+# (1,922 s inside, nothing seen outside) made every leg outside 0 s, and the
+# estimate took those zeros over the route's while it added the route's
+# quest XP. Expected values below are worked by hand, never the estimator's.
+
+DOOR = {"dungeon": "City of Dalaran", "level_start": 32, "xp_inside": 5258, "inside_s": 1922,
+        "pickup_s": None, "travel_to_s": None, "travel_back_s": None, "handin_s": None}
+
+
+def route_of(pickup, to, back, handin, xp=9682):
+    return {"pickup_s": pickup, "travel_to_s": to, "travel_back_s": back, "handin_s": handin, "quests": [1],
+            "prereqs": [], "pickup": ["gn1"], "handin": ["tn1"], "from": "you", "xp_quests": xp}
+
+
+def test_a_run_seen_inside_only_takes_every_leg_outside_from_the_route():
+    # The reviewer's case: the observation held, only the route's time
+    # outside changes. 0, 35 and 120 minutes outside: the total grows by
+    # exactly those, 1,922 s + 0 / 2,100 / 7,200 s. The bug gave 1,922 s
+    # (32m02s) all three times.
+    totals = {}
+    for minutes, legs in ((0, (0, 0, 0, 0)), (35, (600, 300, 300, 900)), (120, (2400, 1200, 1200, 2400))):
+        g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, runs=[DOOR],
+                quests=[quest(1, 9682)], route=route_of(*legs))
+        totals[minutes] = g["run_s"]
+        assert g["xp_quests"] == 9682 and g["xp_kills"] == 5258 and g["xp"] == 14940
+        assert g["trip"]["inside_s"] == {"value": 1922, "label": "measured"}
+        assert g["trip"]["pickup_s"]["label"] == "route" and g["trip"]["handin_s"]["label"] == "route"
+        assert g["trip"]["unknown_legs"] == []
+    assert totals == {0: 1922, 35: 4022, 120: 9122}
+    # 14,940 XP over 9,122 s: 5,896 XP an hour, not 14,940 over 1,922 s (27,983).
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, runs=[DOOR],
+            quests=[quest(1, 9682)], route=route_of(2400, 1200, 1200, 2400))
+    assert g["xp_per_hour"] == 5896
+
+
+def test_quest_xp_comes_with_the_time_to_earn_it():
+    # Seen inside only and nothing to time the pickups and hand-ins (no
+    # route, no other trip that saw them): the quests' XP is said, the trip's
+    # time and its XP an hour are unknown. Never 14,940 XP over 1,922 s.
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, runs=[DOOR],
+            quests=[quest(1, 9682)])
+    assert g["xp_quests"] == 9682 and g["run_s"] is None and g["xp_per_hour"] is None
+    assert g["vs_questing"] is None
+    assert g["trip"]["unknown_legs"] == ["travel_to_s", "travel_back_s", "pickup_s", "handin_s"]
+    # Another trip that saw its legs fills them: 1,922 + 600 + 300 + 900 + 600 = 4,322 s.
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, runs=[DOOR],
+            quests=[quest(1, 9682)], others=[trip(30, 3000, dungeon="Blackfathom Deeps")])
+    assert g["run_s"] == 4322 and g["trip"]["pickup_s"] == {"value": 900, "label": "measured"}
+
+
+def test_a_fully_seen_run_is_his_time_whatever_the_route_says():
+    own = trip(32, 3000, dungeon="City of Dalaran")  # 900 + 600 + 2,400 + 300 + 600 seen
     g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, route=ROUTE, runs=[own],
             quests=[quest(1, 5000)], pace={"factor": 2.0, "trips": 3, "label": "your pace"})
-    assert g["trip"]["pickup_s"] == {"value": 900, "label": "measured"} and g["trip"]["pace"] is None
+    assert g["run_s"] == 4800
+    assert {k: g["trip"][k] for k in ("pickup_s", "travel_s", "handin_s")} == {
+        "pickup_s": {"value": 900, "label": "measured"}, "travel_s": {"value": 900, "label": "measured"},
+        "handin_s": {"value": 600, "label": "measured"}}
+    assert g["trip"]["pace"] is None  # nothing came from the route
+
+
+def test_a_partly_seen_run_mixes_his_legs_and_the_routes():
+    # Pickup and the walk there seen (900 s, 600 s), the walk back and the
+    # hand-ins not: those from the route (120 s, 1,200 s) at his pace 2x.
+    # 900 + 600 + 2,400 + (120 + 1,200) x 2 = 6,540 s.
+    own = trip(32, 3000, dungeon="City of Dalaran", travel_back_s=None, handin_s=None)
+    p = {"factor": 2.0, "trips": 3, "label": "your pace"}
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, route=ROUTE, runs=[own],
+            quests=[quest(1, 5000)], pace=p)
+    assert g["run_s"] == 6540
+    assert g["trip"]["pickup_s"] == {"value": 900, "label": "measured"}
+    assert g["trip"]["handin_s"] == {"value": 2400, "label": "your pace"}
+    assert g["trip"]["travel_s"] == {"value": 840, "label": "your pace"}  # 600 seen + 120 x 2
+    assert g["trip"]["pace"] == p
+    # Two runs, one saw the pickups (900 s) and one didn't: the mean is
+    # 900 s over the run that saw it, not 450 s.
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, route=ROUTE,
+            runs=[own, {**own, "pickup_s": None, "travel_to_s": None}], quests=[quest(1, 5000)], pace=p)
+    assert g["trip"]["pickup_s"] == {"value": 900, "label": "measured"}
+
+
+def test_the_pace_compares_only_the_legs_a_trip_saw():
+    # A trip that saw its pickups (2,000 s, planned 1,000) and walk there
+    # (1,000 s, planned 500) but not its hand-ins (planned 3,000): 3,000 s
+    # over 1,500 s, 2x. Summing the planned hand-ins too read 3,000 over
+    # 4,500: 0.67x, clamped to the straight run.
+    t = {**legs(None, 2000, 1000, 0), "travel_back_s": None, "handin_s": None,
+         "route_legs": {"pickup_s": 1000, "travel_to_s": 500, "travel_back_s": 0, "handin_s": 3000}}
+    assert V.pace([t]) == {"factor": 2.0, "trips": 1, "label": "your pace", "raw": 2.0}
+    # Without the planned legs one by one, only a trip that saw all four counts.
+    assert V.pace([{**t, "route_legs": None, "route_s": 4500}])["trips"] == 0
 
 
 def test_each_fixture_trip_is_replayed_at_its_start(priest):
@@ -359,3 +458,61 @@ def test_each_fixture_trip_is_replayed_at_its_start(priest):
     g = V.gain_named(priest, "Gnomeregan", 12000)
     assert g["trip"]["pace"] == {"factor": 1.0, "trips": 2, "label": "your pace"}
     assert g["trip"]["pickup_s"]["label"] == "your pace"
+
+
+# ---------------------------------------------------------------- his quest state on the route
+#
+# Owner, 2026-11-25: a leg the runs didn't see comes from Polestar's route,
+# on his quests now: one in the log needs no pickup (no walk to its giver),
+# a done one costs neither pickup nor hand-in and pays no XP. A world on one
+# line, walked at 1 yard a second with no detour, so every second is a yard:
+# start at 0, giver and ender of A at 100, of B (in the log) at 200, of C
+# (done) at 300, the entrance at 1,000. Talking to an NPC: 6 s.
+
+def line_world():
+    from wowstats.mcp import route
+
+    rules = {**copy.deepcopy(route.reference().trips["rules"]), "run_speed": 1, "walk_detour": 1,
+             "detour": {"0": 1.0}, "talk_s": 6}
+
+    def npc(y, key):
+        return [0, 0.0, float(y), 3, key]
+
+    q = {1: {"level": 30, "min": 25, "xp": 1000, "g": [npc(100, "nA")], "e": [npc(100, "nA")]},
+         2: {"level": 30, "min": 25, "xp": 2000, "g": [npc(200, "nB")], "e": [npc(200, "nB")]},
+         3: {"level": 30, "min": 25, "xp": 4000, "g": [npc(300, "nC")], "e": [npc(300, "nC")]}}
+    return {"rules": rules, "frames": {}, "graph": {"taxi": [], "legs": [], "transports": []},
+            "dungeons": {"9001": {"key": "line-keep", "name": "Line Keep", "min": 25, "entrance": [0, 0.0, 1000.0],
+                                  "page": [1, 2, 3], "tours": {}}},
+            "quests": {str(k): v for k, v in q.items()}}
+
+
+def test_the_route_costs_only_what_his_quest_state_leaves(monkeypatch):
+    from wowstats.plan import tripcost as tc
+
+    w = line_world()
+    t = tc.trip(w, 9001, side="Alliance", level=30, done={3}, log={2}, at=(0, 0.0, 0.0))
+    # Pickups: walk 0 -> 100 and talk to A's giver: 106 s (B is carried, C done).
+    # There: 100 -> 1,000: 900 s. Back: 1,000 -> 200 (B's ender, the nearer
+    # first): 800 s. Hand-ins: 6 at B, 200 -> 100: 100, 6 at A: 112 s.
+    assert (t["pickup_s"], t["travel_to_s"], t["travel_back_s"], t["handin_s"]) == (106, 900, 800, 112)
+    assert sorted(t["quests"]) == [1, 2]  # C is done: off the trip
+    # The XP: A and B (1,000 + 2,000), never C's 4,000.
+    monkeypatch.setattr(V, "trip_at", lambda *a, **k: t)
+    rows = [quest(1, 1000), quest(2, 2000, state="open"), quest(3, 4000, state="done")]
+    r = V.route_trip({"level": 30}, "Line Keep", rows)
+    assert r["xp_quests"] == 3000
+    # A run there seen inside only (1,922 s): every leg outside from this
+    # route. 1,922 + 106 + 900 + 800 + 112 = 3,840 s for 3,000 quest XP + its kills.
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, runs=[DOOR], quests=rows, route=r)
+    assert g["run_s"] == 3840 and g["xp_quests"] == 3000
+    assert [q["quest_id"] for q in g["quests"]] == [1, 2]
+    # Everything in the log: no pickup at all, whatever an old trip measured.
+    t2 = tc.trip(w, 9001, side="Alliance", level=30, done={3}, log={1, 2}, at=(0, 0.0, 0.0))
+    assert (t2["pickup_s"], t2["travel_to_s"]) == (0, 1000)
+    seen = {**DOOR, "pickup_s": 1500, "travel_to_s": 300}
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, runs=[seen], quests=rows,
+            route={**t2, "xp_quests": 3000})
+    assert g["trip"]["pickup_s"] == {"value": None, "label": None}
+    # 1,922 inside + 300 there (seen) + 800 back + 112 hand-ins (the route's).
+    assert g["run_s"] == 1922 + 300 + 800 + 112

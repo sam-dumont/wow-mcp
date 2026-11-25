@@ -52,9 +52,26 @@ ones (Dalaran's two runs). The run's line in the panel and the Overview uses
 that time too, where a guide's clear time often reads short (Gnomeregan: the
 guide's 40 min against ~1h15 here, and about an hour on a real run).
 
-**Once you've run a dungeon, your own runs replace all of this** (label
-`measured`): your kill XP inside, minus the quests you handed in there,
-carried to your current level, and your own time.
+**Once you've run a dungeon, your own runs replace the time and the kills
+inside** (label `measured`): your kill XP inside, minus the quests you handed
+in there, carried to your current level, and your own time in there.
+
+Outside the instance it goes leg by leg: the pickups, the walk there, the
+walk back and the hand-ins. Each one comes from your runs there that saw it,
+else from Polestar's rules at your pace, else from your other trips that saw
+it. The rules run on your quests as they are now: one already in your log
+needs no pickup (and no walk to its giver), a done one costs neither pickup
+nor hand-in and pays no XP. A leg the route has no stop for costs nothing,
+whatever an old trip measured: with every quest in your log, no pickups. A leg the records didn't see is unknown, never 0 s: log in at the door,
+and that trip saw the 32 minutes inside and nothing of the walk there. Until
+2026-11-25 that read as a walk in no time, so a City of Dalaran run seen
+inside only came out at 32m02s whether the quests around it took 0, 35 or
+120 minutes, with the quests' XP on top. Now it's 32m02s, 1h07 or 2h32. A
+leg nothing can time (no route data, no trip that saw it) leaves the trip's
+time unknown, and its "×" with it, rather than a quest's XP paid in no time.
+The hand-ins count as seen only when all of a trip's quests were handed in
+inside the trip: one handed in three hours later at the grate pays its XP
+to the trip, but its walk was never on the clock.
 
 The estimate counts in the run's XP, its "× your questing" and the ranking of
 dungeons, labelled `estimate` in `gain.trip` (until 2026-11-23 it stayed out of them,
@@ -99,7 +116,8 @@ toward the run it came from:
 
 The trip's end follows such a hand-in while each comes within 2 hours of
 the last and before the next run, the same chain as the hand-in guide
-steps; a later one adds its XP, not its time. The zone it was handed in
+steps; a later one adds its XP, not its time, and that trip's hand-ins
+count as not seen, so the estimate takes them from the rules. The zone it was handed in
 keeps none of it: `zone_quest_xp` in the analysis is the zone's own quest
 XP, `dungeon_quest_xp` what went to the runs. The Dungeons panel's "XP a
 trip" says how many quests were turned in outside, and the MCP's

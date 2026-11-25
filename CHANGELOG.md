@@ -7,6 +7,21 @@
 - A kept analysis finding said "Lorekeeper's Ring adds 150% to the worn gear score." for an upgrade worth 1.5% of the gear. `{col:pct}` now writes each value by the unit its column declares: a percent as it is (1.5 is 1.5%), a share or a ratio times 100 (0.015 is 1.5%). The old renderer guessed from the size (anything up to 1.5 was a share), so the unit checks the judge got in 0.8.0 never reached the text. A column with no declared unit is refused, when the finding is proposed, at the nightly recheck (it fades) and in the nudges that cite it. Kept findings keep the units they were judged with (`units`). Found by an external review.
 - The published quick start and "Try it at home" said `...@sha256:<digest from the release notes>` after 0.11.0's release. The site build read the release without a token and fell back to that placeholder when GitHub refused. A published build now reads the image line of its own version's release with the workflow's token, or fails. The push run of a release commit is no longer published before its release exists (release.yml publishes the site once it does), and every deploy reads the live quick start back and fails unless it hands out the release's `@sha256` digest (`tools/check_live_quickstart.py`). The README's Quick start links to the published page: GitHub shows that Markdown with the image value unfilled. Found by an external review.
 - The docs no longer say the analysis "doesn't keep wrong numbers": they say what the judge checks (the numbers are the query's, written by the server, a percent by its unit) and what it doesn't (whether the query measures the right thing).
+- A dungeon's forecast no longer counts a leg you weren't seen walking as 0 s. A run logged at
+  the door saw its time inside and nothing else, and the estimate took those zeros over the
+  route's pickups, travel and hand-ins while still adding the route's quest XP: City of Dalaran
+  seen inside only gave 32m02s whether the quests around it took 0, 35 or 120 minutes (an outside
+  review, the third time this came back). Each leg (pickups, walk there, walk back, hand-ins) is
+  now seen or not on every trip: `dungeon_trips` has NULL for a leg it didn't see (no pickup step;
+  no hand-in after the run; a quest of the trip handed in after its end), the semantic layer and the
+  planner's trip facts keep it, and the estimate takes each leg from your runs that saw it, else Polestar's rules at your pace,
+  else your other trips that saw it. The rules run on your quests now: a quest in your log needs no
+  pickup, a done one no pickup, hand-in or XP, and a leg the route has no stop for costs nothing
+  even when an old trip measured one. The same run now reads 32m02s, 1h07 or 2h32. A leg nothing
+  can time leaves the trip's time and its "×" unknown (`gain.trip.unknown_legs`) instead of a
+  quest's XP paid in no time. Your pace compares only the legs a trip saw, the panel's "XP a trip"
+  rate fills a trip's unseen legs from the rules' replay of it, and `again_*` on the panel's trip
+  are the shared estimate's. Findings show "to revalidate" once (`PREP_VERSION` 16).
 
 ### Changed
 

@@ -94,7 +94,11 @@ from wowstats.stores import (
 # forgets the zone at a logout. zone_time cuts the time in the air and the
 # flicker out of zone time, records.zone_visit marks the arrivals
 # (zone_visits). flight_nodes.known_now keeps each continent's newest list.
-PREP_VERSION = 15
+# 16: dungeon_trips' legs are NULL when the records didn't see them (no
+# pickup step: pickup_s and travel_to_s; no hand-in after the run:
+# travel_back_s and handin_s; a hand-in after the trip's end: handin_s), so
+# a trip logged at the door no longer says it walked there in 0 s.
+PREP_VERSION = 16
 
 # A step that is the trip somewhere ("Fly to ...", "Hearth to ..."): the
 # route position starts past it when the character already stands there.
@@ -340,10 +344,15 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "dungeon_id": "instance id", "level_start": "level at the trip's start", "start_t": "start, unix s",
         "end_t": "end, unix s", "start_local": "start, local time", "end_local": "end, local time",
         "bracket": "guides (lookup guide steps) or instance (enter and leave only)",
-        "pickup_s": "online time from the start to the last accept of one of the trip's quests",
-        "travel_to_s": "from there to entering the instance", "inside_s": "online time inside the instance",
-        "travel_back_s": "from leaving to the first hand-in of one of the trip's quests",
-        "handin_s": "from there to the end", "online_s": "online time start to end",
+        "pickup_s": "online time from the start to the last accept of one of the trip's quests; NULL when "
+                    "no pickup step opened the trip (not seen, never 0)",
+        "travel_to_s": "from there to entering the instance; NULL when pickup_s is",
+        "inside_s": "online time inside the instance",
+        "travel_back_s": "from leaving to the first hand-in of one of the trip's quests; NULL when no hand-in "
+                         "followed the run inside the trip",
+        "handin_s": "from there to the end; NULL when travel_back_s is, or when one of the trip's quests was "
+                    "handed in after the trip's end (its XP counts, its time wasn't seen)",
+        "online_s": "online time start to end: the seen legs only",
         "afk_s": "timeline time with afk=1 inside the trip",
         "xp_kills_inside": "sum of kill records' xp_reward inside the instance",
         "xp_inside": "XP gained inside (dungeon_runs.xp) less the quests handed in inside, which are in "
@@ -2300,6 +2309,18 @@ def _dungeon_trips(db, rows) -> None:
         pick_end = min(acc_last if acc_last is not None else (pick_t[-1] if pick_t else start), r0)
         back_end = hand_first if hand_first is not None else (hand_t[0] if hand_t else r1)
         back_end = max(back_end, r1)
+        # Which legs the records saw, one by one (an outside review, again:
+        # an unseen leg read as 0 s, and the planner took that 0 as his
+        # time). The pickup and the walk there: only when pickup steps open
+        # the trip; logged at the door, the trip starts at the entry and
+        # neither was seen. The walk back: only when a hand-in follows the
+        # run inside the trip. The hand-ins: that, and none of the trip's
+        # hand-ins came after its end (City of Dalaran's handed in at the
+        # grate hours later: its XP counts here, its time was never seen).
+        seen_out = bool(pick_t)
+        seen_back = hand_first is not None or bool(hand_t)
+        late = any(owner.get(rid) == i and t > end for rid, t, kind, *_ in recs if kind == "turnin")
+        seen_hand = seen_back and not late
         loot = db.execute("SELECT item_id, SUM(count) FROM loot_items WHERE t >= ? AND t <= ? GROUP BY item_id "
                           "ORDER BY item_id", (r0, r1)).fetchall()
         xk = db.execute("SELECT COALESCE(SUM(xp_reward), 0) FROM records WHERE kind = 'kill' AND t >= ? AND t <= ?",
@@ -2318,9 +2339,12 @@ def _dungeon_trips(db, rows) -> None:
         items = [x[0] for x in loot] + rewards
         trips.append((i + 1, name, did, lvs[0] if lvs else lv, start, end,
                       _local(start).isoformat(timespec="seconds"), _local(end).isoformat(timespec="seconds"),
-                      "guides" if pick_t or hand_t else "instance", _online(db, start, pick_end),
-                      _online(db, pick_end, r0), _online(db, r0, r1), _online(db, r1, back_end),
-                      _online(db, back_end, end), _online(db, start, end), afk, xk, xp_kills, xp_q,
+                      "guides" if pick_t or hand_t else "instance",
+                      _online(db, start, pick_end) if seen_out else None,
+                      _online(db, pick_end, r0) if seen_out else None, _online(db, r0, r1),
+                      _online(db, r1, back_end) if seen_back else None,
+                      _online(db, back_end, end) if seen_hand else None, _online(db, start, end),
+                      afk, xk, xp_kills, xp_q,
                       json.dumps(sorted(qset)), len(handed), json.dumps([list(x) for x in loot]),
                       sum(x[1] for x in loot), json.dumps(rewards),
                       json.dumps(sorted({x for x in items if x in worn})), money,

@@ -17,7 +17,10 @@ dungeon trip's line (owner, 2026-11-23: the trip from where he stands, the
 kill estimate counted; only the Overview's dungeon moves' `gain` and text
 changed), and once for the trip at his pace (owner, 2026-11-23: the route's legs
 labelled `your pace` and `gain.trip.pace` added; the demo's trips are quicker than
-the rules, so the minutes stay). This test builds them again and compares, number for number.
+the rules, so the minutes stay), and once for the legs seen or not (2026-11-25, an outside
+review: Razorfen Downs' run, logged at the door, read its pickups as 0 s measured, "~35 min
+trip"; they now come from the route at his pace, "~1h00 trip (20 min pickups · 35 min inside)",
+and `gain.trip.unknown_legs` is added). This test builds them again and compares, number for number.
 
 Rewrite the snapshot only when a change of definition is decided:
 `WOW_UPDATE_SNAPSHOT=1 uv run pytest tests/test_layer_pages.py`, then read the

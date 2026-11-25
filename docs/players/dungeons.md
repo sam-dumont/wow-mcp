@@ -31,7 +31,10 @@ The trip starts where you were last seen: the quests to pick up on the way (Pole
 rules, the same ones its "Pick up the quests" guide follows), the walk or flight to the door, the
 run, and the hand-ins after, at your pace: your past trips took longer than Polestar's
 straight run (you stop, wander, come back for a forgotten hand-in), so these parts are
-stretched by how much longer, measured on your own trips. Your own runs there replace each part with what they measured. For a
+stretched by how much longer, measured on your own trips. Your own runs there replace each part they
+saw with what they measured. A part they didn't see (you logged in at the door, or handed a quest in
+hours later) comes from the rules instead, never as 0 minutes. When nothing can time a part, the
+line gives the quests' XP without a trip time or a "×". For a
 dungeon you haven't run, the time inside and the kill XP are estimates ([Dungeon kill
 XP](../dungeon-xp.md)) and count in the "×".
 
