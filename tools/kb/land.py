@@ -6,6 +6,9 @@ they refused (owner, 2026-11-20: "the goal is automated refreshes").
         --title "..." --body-file body.md --gates gates.json [--kinds "official polestar"]
     uv run python tools/kb/land.py --check-open --branch kb-watch   # an earlier run's PR still open?
 
+What earlier runs left open (their PRs, their issues) is not this script's:
+every run starts with tools/kb/reconcile.py, whatever its mode.
+
 Needs GH_TOKEN (contents, pull requests and issues write); it runs no model
 and reads no page. In order:
 
@@ -14,8 +17,8 @@ and reads no page. In order:
    (a subprocess without the token), so what merges is what was tested. A
    conflict refuses, except with `--regen` (watch mode: the versions lane is
    deterministic): the outcome is then `moved`, nothing is pushed, and the
-   workflow makes the change again on the current main
-   (tools/kb/versions.sh) and lands that, a bounded number of times (`--last`
+   workflow makes the change again on the current main with the kinds it
+   carries (tools/kb/reconcile.py --remake) and lands that, a bounded number of times (`--last`
    on the final try makes `moved` red). 2026-11-22: #140, Polestar
    v0.4.2.2, was refused because semantic wave 1 had regenerated the same
    plan inputs meanwhile; Polestar's numbers are never a reason to refuse.
@@ -34,9 +37,9 @@ and reads no page. In order:
    SHEPHERD_S. The lab's scheduler waits for the run and reports a red one
    (its CronJob fails: CronJobNotSucceeding). Before 2026-11-22 a red PR
    left the run green and nobody saw it (#99).
-6. An earlier run's PR still open (this run then landed nothing): the same
-   shepherding, so a PR the last run left BEHIND still merges; one labelled
-   `kb-refused` keeps the run red until a person merges or closes it.
+6. An earlier run's PR still open (this run then committed nothing): nothing
+   to land here. The run's reconcile job already stayed with it, made it
+   again if it conflicted, and is red if it still waits.
 7. What the issues need: in watch mode, `--why-out` ({kind: why it isn't
    merged}) and `--state-out` (the watch.json the issues compare with: the
    merged one, else the base's), for `tools/kb/watch.py --github`; in the
@@ -148,6 +151,13 @@ def arm(n: int) -> None:
     gh("pr", "merge", str(n), "--auto", "--squash", check=False)
 
 
+def failed_checks(v: dict, required: set[str]) -> list[str]:
+    """The PR view's failed checks that main requires (any, when unknown)."""
+    failed = sorted({c.get("name") or c.get("context") or "?" for c in v.get("statusCheckRollup") or []
+                     if (c.get("conclusion") or c.get("state") or "").upper() in FAILED})
+    return [c for c in failed if not required or c in required]
+
+
 def shepherd(n: int, required: set[str], deadline_s: int = SHEPHERD_S, poll_s: int = POLL_S, view=pr_view,
              update=update_branch, arm=arm, sleep=time.sleep, now=time.monotonic,
              regen: bool = False) -> tuple[str, str]:
@@ -161,9 +171,7 @@ def shepherd(n: int, required: set[str], deadline_s: int = SHEPHERD_S, poll_s: i
             return "merged", ""
         if v["state"] == "CLOSED":
             return "red", f"PR #{n} was closed without merging"
-        failed = sorted({c.get("name") or c.get("context") or "?" for c in v.get("statusCheckRollup") or []
-                         if (c.get("conclusion") or c.get("state") or "").upper() in FAILED})
-        failed = [c for c in failed if not required or c in required]
+        failed = failed_checks(v, required)
         if failed:
             return "red", f"PR #{n}'s required checks failed: {', '.join(failed)}"
         state = v.get("mergeStateStatus") or "UNKNOWN"
@@ -194,8 +202,6 @@ def why_text(outcome: str, n: int | None, detail: str, gates_md: str) -> str:
     if outcome == "moved":
         return (f"{pr} wasn't merged: main kept moving and the change still conflicted after it was made again "
                 f"on it; the next watch run makes it again on the current main.")
-    if outcome == "refused-open":
-        return f"{pr} from an earlier run is open with label {REFUSED}: a person merges or closes it."
     return f"{pr} passed the gates but wasn't merged: {detail}"
 
 
@@ -273,15 +279,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if not git("rev-list", f"{a.base}..HEAD"):
         earlier = open_pr(a.branch)
-        if not earlier:
-            print("nothing committed: nothing to land")
-            return finish("nothing")
-        labels = json.loads(gh("pr", "view", str(earlier), "--json", "labels").stdout).get("labels") or []
-        if any(lb.get("name") == REFUSED for lb in labels):
-            return finish("refused-open", earlier, f"PR #{earlier} is open with label {REFUSED}")
-        print(f"nothing committed; PR #{earlier} from an earlier run is open: staying with it")
-        outcome, detail = shepherd(earlier, required_checks(), regen=a.regen)
-        return finish(outcome, earlier, detail)
+        print(f"nothing committed; PR #{earlier} from an earlier run is open: the run's reconcile job keeps it "
+              "(tools/kb/reconcile.py, red while it waits)" if earlier else "nothing committed: nothing to land")
+        return finish("nothing")
     result = json.loads(Path(a.gates).read_text(encoding="utf-8"))
     gates_md = Path(a.gates_md).read_text(encoding="utf-8") if a.gates_md else ""
     sh("gh", "auth", "setup-git")  # the push's credentials, from this step's GH_TOKEN only

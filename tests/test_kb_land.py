@@ -202,14 +202,17 @@ def test_without_regen_a_conflict_still_refuses(moved_main):
 
 
 def test_the_lane_made_again_on_main_never_holds_the_apps_token():
-    """The versions lane runs Polestar's code: in `land` it runs in steps
-    that get the mirror's read-only token, never the App's write token."""
+    """The versions lane runs Polestar's code: where it runs again (`land`
+    when main moves under its PR, `reconcile` for an earlier run's PR), its
+    step gets the mirror's read-only token, never the App's write token."""
     yaml = pytest.importorskip("yaml")
-    steps = yaml.safe_load((ROOT / ".github" / "workflows" / "kb-refresh.yaml").read_text())["jobs"]["land"]["steps"]
-    lane = [s for s in steps if "tools/kb/versions.sh" in s.get("run", "")]
-    assert len(lane) == 2
-    for s in lane:
-        assert "steps.token" not in json.dumps(s), s["name"]
+    jobs = yaml.safe_load((ROOT / ".github" / "workflows" / "kb-refresh.yaml").read_text())["jobs"]
+    for job, n in (("land", 2), ("reconcile", 1)):
+        lane = [s for s in jobs[job]["steps"] if "tools/kb/reconcile.py --remake" in s.get("run", "")]
+        assert len(lane) == n, job
+        for s in lane:
+            assert "steps.token" not in json.dumps(s), s["name"]
+    steps = jobs["land"]["steps"]
     lands = [s for s in steps if "tools/kb/land.py --mode" in s.get("run", "")]
     assert len(lands) == 3 and "--last" in lands[-1]["run"]
     assert all("--last" not in s["run"] for s in lands[:-1])
