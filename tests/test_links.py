@@ -155,5 +155,6 @@ def test_the_mcp_dungeon_rows_link_the_guide_or_the_wings():
     sm = plantools._dungeon_links("Scarlet Monastery")
     assert sm["url"] == f"https://www.wowhead.com/forever/zone={forever.area_id('Scarlet Monastery')}"
     assert [g["name"] for g in sm["guides"]] == ["Graveyard", "Library", "Armory", "Cathedral"]
-    assert plantools._dungeon_links("Blackmaw Hold") == {
-        "url": "https://www.wowhead.com/forever/search?q=Blackmaw%20Hold"}
+    # No guide: its zone page, now that the client's newest build names it.
+    assert plantools._dungeon_links("Blackmaw Hold") == {"url": "https://www.wowhead.com/forever/zone=16554"}
+    assert plantools._dungeon_links("Nowhere Keep") == {"url": "https://www.wowhead.com/forever/search?q=Nowhere%20Keep"}

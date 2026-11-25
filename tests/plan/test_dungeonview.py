@@ -203,25 +203,37 @@ def test_unmet_prerequisites_block_a_quest(priest):
     assert q["blocked"] and q["needs"] and all(n["state"] != "done" for n in q["needs"])
 
 
-def test_new_dungeons_the_client_lacks_come_from_the_kb(priest):
-    """The Drowned City (35-40) isn't in the client's dungeon table: the
-    KB's dungeon.forever_new gives its range and zone, its entrances rule
-    the way in, so a level 32 sees it opening at 35, with what to bring."""
+def test_forevers_new_dungeons_come_from_the_client(priest):
+    """The Drowned City was missing from the client tables we read (forever-db's
+    build, 1.60.1.70532) and came from the KB's dungeon.forever_new; the
+    newest build lists it, so its range is the Group Finder's (35-42) and its
+    way in Polestar's recording, with the KB's "what to bring" on top. A level
+    32 sees it opening at 35."""
     names = by_name(V.build(priest))
     d = names["The Drowned City"]
-    assert (d["min"], d["max"], d["state"], d["opens_at"], d["area_id"]) == (35, 40, "soon", 35, None)
-    assert d["entrance"]["zone"] == "Stranglethorn Vale" and (d["entrance"]["x"], d["entrance"]["y"]) == (21, 28)
+    assert (d["min"], d["max"], d["state"], d["opens_at"], d["area_id"]) == (35, 42, "soon", 35, 16550)
+    assert d["entrance"]["zone"] == "Stranglethorn Vale" and (d["entrance"]["x"], d["entrance"]["y"]) == (21.6, 27.7)
     assert d["entrance"]["flight"]["name"] == "Booty Bay"  # Testpriest is Alliance
     assert "underwater" in d["entrance"]["prep"]
-    assert d["rule"]["source_url"].startswith("https://worldofwarcraft.blizzard.com/")
     assert d["next"] == {"do": "level", "level": 35, "to_go": 3, "meanwhile": None}
-    # The client's own table wins for a dungeon it lists: City of Dalaran keeps the Group Finder's 28-35.
-    assert "kb:cityofdalaran" not in V.kb_areas() and "kb:drownedcity" in V.kb_areas()
+    # Every dungeon of the KB's list is the client's now: no "kb:" row left.
+    assert V.kb_areas() == {}
 
 
-def test_no_kb_rule_no_extra_dungeon(priest, monkeypatch):
+def test_a_dungeon_the_client_lacks_comes_from_the_kb():
+    """The KB's rows for a dungeon no client table lists (the case before
+    build 1.60.1.70888): range, zone, the way in, the citation."""
+    d = V.kb_areas({})["kb:drownedcity"]
+    assert (d["levels"], d["zone"], d["map"]) == ([35, 40], "Stranglethorn Vale", None)
+    assert (d["entrance"]["x"], d["entrance"]["y"]) == (21, 28)
+    assert d["rule"]["source_url"].startswith("https://worldofwarcraft.blizzard.com/")
+    way = V.kb_entrance(d, "Alliance")
+    assert way["flight"]["name"] == "Booty Bay" and "underwater" in way["prep"]
+
+
+def test_no_kb_rule_the_client_still_lists_them(priest, monkeypatch):
     monkeypatch.setattr(kb, "static_rule", lambda n: None)
-    assert V.kb_areas() == {} and "The Drowned City" not in by_name(V.build(priest))
+    assert V.kb_areas() == {} and "The Drowned City" in by_name(V.build(priest))
 
 
 def _stockade_with_pre(priest):

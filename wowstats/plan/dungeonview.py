@@ -103,21 +103,25 @@ def kb_areas(have: dict[str, dict] | None = None) -> dict[str, dict]:
     same shape as areas(), plus `entrance` and `rule` (the citation, for the
     MCP; the page never shows it). The client's own table wins for a
     dungeon it lists."""
+    seen = {key(a["name"]) for a in (areas() if have is None else have).values()}
+    return {f"kb:{k}": a for k, a in kb_rows().items() if k not in seen}
+
+
+def kb_rows() -> dict[str, dict]:
+    """Every dungeon of the knowledge base's dungeon.forever_new, by key(),
+    in kb_areas' shape, listed by the client or not: a dungeon the client
+    lists (The Drowned City since build 1.60.1.70888) still takes the KB's
+    way in when Polestar has none (Blackmaw Hold), and what to bring."""
     from wowstats.analysis import kb
 
     rule = kb.static_rule("dungeon.forever_new")
     if not rule:
         return {}
     ways = (kb.static_rule("dungeon.forever_new_entrances") or {}).get("value") or {}
-    seen = {key(a["name"]) for a in (areas() if have is None else have).values()}
     cite = {k: rule.get(k) for k in ("name", "source_url", "source_type", "date", "confidence", "last_verified")}
-    out = {}
-    for name, d in (rule.get("value") or {}).items():
-        if key(name) in seen or len(d.get("levels") or []) != 2:
-            continue
-        out[f"kb:{key(name)}"] = {"name": name, "instance": "dungeon", "levels": list(d["levels"]), "map": None,
-                                  "zone": d.get("zone"), "entrance": ways.get(name), "rule": cite}
-    return out
+    return {key(name): {"name": name, "instance": "dungeon", "levels": list(d["levels"]), "map": None,
+                        "zone": d.get("zone"), "entrance": ways.get(name), "rule": cite}
+            for name, d in (rule.get("value") or {}).items() if len(d.get("levels") or []) == 2}
 
 
 def kb_entrance(area: dict, side: str | None) -> dict | None:
@@ -702,7 +706,16 @@ def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_
     side = (inp.get("who") or {}).get("faction")
     done = set(inp.get("quests_done") or [])
     open_ids = {o["quest_id"]: o for o in inp.get("open_quests") or []}
-    ent = kb_entrance(area, side) if str(aid).startswith("kb:") else entrance(places, area, side)
+    if str(aid).startswith("kb:"):
+        ent = kb_entrance(area, side)
+    else:
+        # Polestar's recorded way in first; the KB's when Polestar has none,
+        # and the KB's "what to bring" either way (water breathing).
+        kb_row = kb_rows().get(key(area["name"])) if area.get("map") else None
+        kb_way = kb_entrance(kb_row, side) if kb_row else None
+        ent = entrance(places, area, side) or kb_way
+        if ent and kb_way and kb_way.get("prep") and not ent.get("prep"):
+            ent = {**ent, "prep": kb_way["prep"]}
     missing_now = [d for d in drops if d["state"] == "missing" and d["now"]]
     # The value, not the raw gain: a dungeon whose drops are built for this
     # spec beats one whose only upgrade is another role's piece.

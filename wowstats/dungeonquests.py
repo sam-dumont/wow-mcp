@@ -58,7 +58,7 @@ def dungeons_of(qid) -> list[int]:
 
 
 def sources_of(qid) -> list[str]:
-    """Why the quest is a dungeon quest: zone, journal, route, flag."""
+    """Why the quest is a dungeon quest: zone, boss, journal, route, flag."""
     try:
         return sorted({s for _, ss in data()["quests"].get(str(int(qid))) or [] for s in ss})
     except (TypeError, ValueError):
