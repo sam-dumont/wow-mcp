@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.12.0 (2026-11-25)
+
 What this release changes, in short. Advice says what it really takes: a quest reward rates its effort on the route, the chain and the foe instead of calling everything easy, and a craft says whether you hold the pattern, what the mats cost against your bags, bank and the auction house, and when buying beats crafting. A new `professions` tool prices a skill-up from your skill to a target, and `inventory` counts what your bags and bank hold. Forever's new zones and dungeons read their real names (The Drowned City, Riverglades), and the bundled data follows ForeverDB, forever-db and Polestar every day. The MCP serves six skills and hands back a task for a character's first, slow analysis call. Every change follows.
 
 ### Added
