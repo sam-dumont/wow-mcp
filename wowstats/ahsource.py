@@ -55,6 +55,22 @@ FULL_SCAN_MIN = 50
 GOLD_DAYS = 30
 RIDING_SKILL = 762
 _ID = re.compile(r"^\d+$")
+# Forever's client names its realm "<cluster> Realm <n> <ruleset>" ("... Realm 3
+# PvE": Polestar's and Altoholic's records), while Auctionator keys its scans
+# by the ruleset alone ("PvE", "PvE Alliance"). Seen 2026-11-25: the two never
+# matched, so no scan priced anything (prices complete, gear "scan the AH").
+_REALM_PREFIX = re.compile(r"^.*\bRealm \d+\s+(?=\S)")
+
+
+def ruleset_key(name) -> str:
+    """The ruleset a realm name or an Auctionator key names, in Auctionator's
+    spelling: "CAMWOW EU5 Realm 3 PvE" and "PvE" are both "PvE"."""
+    return _REALM_PREFIX.sub("", str(name or "").strip())
+
+
+def same_ruleset(a, b) -> bool:
+    """Whether two realm names name the same ruleset (ruleset_key)."""
+    return ruleset_key(a) == ruleset_key(b)
 
 # The scans read: the newest day and the two before it, enough to tell a
 # full scan's day from a search's (on_sale). The scans themselves are the
@@ -89,7 +105,7 @@ def on_sale(items: list[dict], faction: str | None, now: float | None = None, ru
 
     def sells(r):
         return ((ok is None or (r.get("faction") or None) in ok)
-                and (not ruleset or (r.get("ruleset") or "") in ("", ruleset)))
+                and (not ruleset or not r.get("ruleset") or same_ruleset(r["ruleset"], ruleset)))
 
     by_house: dict[tuple, dict] = {}
     for r in items:

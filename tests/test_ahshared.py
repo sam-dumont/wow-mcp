@@ -87,6 +87,17 @@ def test_a_scan_serves_its_ruleset_and_faction_and_says_nothing_of_who(lab):
     assert prices_of(loc, people[CLEO]) == {"303": ("Hardcore", "Alliance", "900")}
 
 
+def test_a_character_record_names_the_realm_the_long_way_and_still_gets_its_ruleset(lab):
+    """Forever's client realm name is "<cluster> Realm <n> <ruleset>"; Auctionator's key is the
+    ruleset alone (wowstats.ahsource.ruleset_key). Dora never scans and gets Ada's scan."""
+    loc, people, upload = lab
+    upload(ADA, character(ADA, "Fixture Realm 1 Normal", "Alliance"), price(ADA, "Normal", 505, 400))
+    upload(DORA, character(DORA, "Fixture Realm 1 Normal", "Alliance"))
+    upload(CLEO, character(CLEO, "Fixture Realm 1 Hardcore", "Alliance"))
+    assert prices_of(loc, people[DORA]) == {"505": ("Normal", "Alliance", "400")}
+    assert prices_of(loc, people[CLEO]) == {}
+
+
 def test_the_neutral_house_serves_both_sides_of_its_ruleset(lab):
     loc, people, upload = lab
     upload(ADA, character(ADA, "Normal", "Alliance"), price(ADA, "Normal", 404, 300, faction="Neutral"))
