@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+What this release changes, in short. Advice says what it really takes: a quest reward rates its effort on the route, the chain and the foe instead of calling everything easy, and a craft says whether you hold the pattern, what the mats cost against your bags, bank and the auction house, and when buying beats crafting. A new `professions` tool prices a skill-up from your skill to a target, and `inventory` counts what your bags and bank hold. Forever's new zones and dungeons read their real names (The Drowned City, Riverglades), and the bundled data follows ForeverDB, forever-db and Polestar every day. The MCP serves six skills and hands back a task for a character's first, slow analysis call. Every change follows.
+
 ### Added
 
 - MCP tasks (the MCP Tasks extension, `io.modelcontextprotocol/tasks`): the first `analysis_brief`, `play_sql`, `query_metric` or `propose_finding` for a character builds its analysis database: a few seconds (about 3 s on a real character). A client with tasks now gets a task back for that call and polls it (every second, answer kept 15 minutes, only its maker reads it, `tasks/cancel` stops it); later calls on the same character answer inline. Clients without tasks see no change. Nothing a task runs calls a model on the server, so the AI budget stays where it was. Tasks live in memory: a restart drops them, and the client calls the tool again. New dependency: `fastmcp-tasks` 4.2.0, the same release as `fastmcp` (it brings Docket and its in-process Redis stand-in). The `wow-analyse-play` skill says what to expect.
