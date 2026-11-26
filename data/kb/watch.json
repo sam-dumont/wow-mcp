@@ -11,14 +11,14 @@
       "key": "hotfixes",
       "kind": "page",
       "url": "https://worldofwarcraft.blizzard.com/en-us/news/24315281",
-      "known": "f0fbd438421d3db4092b0bc7bddaa7a2309de3f5956ab1e47c6cbfb1cfa85c5a"
+      "known": "2673a485bf31400422a122a7da8ed3bd73e57eea8fb900fde81a06f2627f4e67"
     },
     {
       "key": "hotfixes-forum",
       "kind": "discourse",
       "url": "https://us.forums.blizzard.com/en/wow/t/2403040.json",
       "page": "https://us.forums.blizzard.com/en/wow/t/2403040",
-      "known": "12 posts, last 2026-11-21T00:18:29.701Z"
+      "known": "14 posts, last 2026-11-25T23:25:08.237Z"
     },
     {
       "key": "beta-development-notes",

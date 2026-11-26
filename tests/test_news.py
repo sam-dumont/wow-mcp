@@ -229,6 +229,20 @@ def test_upcoming_events_and_prep_keep_the_faction_of_the_news_item(monkeypatch)
         assert bool(news.prep_gaps(char, today=TODAY)) is relevant
 
 
+@pytest.mark.parametrize(("spec", "expected"), [
+    (None, ["Tank change", "Damage change"]),
+    ("Protection", ["Tank change"]),
+    ("Arms", ["Damage change"]),
+])
+def test_event_effects_respect_known_roles(monkeypatch, spec, expected):
+    item = ev_item(9, "Upcoming changes", starts="2026-12-01")
+    item["event"]["effects"] = [{"text": "Tank change", "roles": ["tank"]},
+                                {"text": "Damage change", "roles": ["dps"]}]
+    monkeypatch.setattr(news, "weeks", lambda: [{"week": "2026-11-19", "items": [item]}])
+    event, = news.upcoming(today=TODAY, char={"class": "Warrior", "level": 60, "spec": spec})
+    assert event["for_you"] == expected
+
+
 # ---------------------------------------------------------------- events
 
 

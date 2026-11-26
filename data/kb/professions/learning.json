@@ -2,8 +2,8 @@
   "trainer": {
     "1257429": {
       "skill": 150,
-      "source": "https://github.com/sam-dumont/wow-mcp/issues/283",
-      "verification": "https://wowforever.ninja/professions/tailoring/1257429-black-slippers/"
+      "source": "https://wowforever.ninja/professions/tailoring/1257429-black-slippers/",
+      "report": "https://github.com/sam-dumont/wow-mcp/issues/283"
     }
   },
   "pattern_drop": {

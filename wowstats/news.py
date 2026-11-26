@@ -102,12 +102,6 @@ def weeks() -> list[dict]:
     return sorted(out.values(), key=lambda w: w["week"], reverse=True)
 
 
-def role_of(cls, spec) -> str:
-    from . import classmeta
-
-    return classmeta.role(cls, spec) or "dps"
-
-
 def who(char: dict | None) -> dict | None:
     """{class, level, role, faction} from a character header-like dict
     (class, level, spec, faction), or None."""
@@ -119,7 +113,8 @@ def who(char: dict | None) -> dict | None:
     from . import classmeta
 
     spec = classmeta.spec_name(cls, char.get("spec")) if cls else None
-    return {"class": cls, "level": lv, "spec": spec, "role": role_of(cls, spec) if cls else None,
+    role = (classmeta.role(cls, spec) or "dps") if spec else None
+    return {"class": cls, "level": lv, "spec": spec, "role": role,
             "faction": str(char.get("faction") or "").title() or None}
 
 
@@ -396,7 +391,7 @@ def _effect_for(f: dict, w: dict) -> bool:
     classes = [classguide.token(c) for c in f.get("classes") or []]
     roles = f.get("roles") or []
     faction = f.get("faction")
-    return ((not classes or w.get("class") in classes) and (not roles or (w.get("role") or "dps") in roles)
+    return ((not classes or w.get("class") in classes) and (not roles or not w.get("role") or w["role"] in roles)
             and (not faction or w.get("faction") == faction.title()))
 
 
