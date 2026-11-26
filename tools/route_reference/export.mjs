@@ -348,6 +348,7 @@ function measureBias(legs, guides, decodeLeg, frames, params) {
 			n++;
 		}
 	}
+	if (!n) throw new Error('No usable Polestar travel legs for detour calibration');
 	const out = { legs: n, by_continent: {} };
 	// A fixed order: the legs come out of Lua's pairs(), whose order changes
 	// from run to run (5.4 seeds its string hash), and the file must not.
@@ -373,13 +374,7 @@ function main() {
 	const commands = req('./tools/planner/commands.js');
 	const { Geo } = req('./tools/lib/planner/geo.js');
 	const { Data } = req('./tools/lib/dsl/data.js');
-	const { decodeLeg } = (() => {
-		try {
-			return req('./tools/lib/flow/data.js');
-		} catch {
-			return {};
-		}
-	})();
+	const { decodeLeg } = req('./tools/lib/flow/data.js');
 
 	const dumped = lua(o.lua, path.join(ps, 'addon'), 'guides');
 	const ref = referenceData(path.join(ps, 'forever-db'));
@@ -566,8 +561,7 @@ function main() {
 		for (const r of routes) delete r.ding_guides;
 
 		const params = loadParams({ simDir: noSim, cls: null });
-		let bias = null;
-		if (decodeLeg) bias = measureBias(lua(o.lua, path.join(ps, 'addon'), 'legs').legs, guides, decodeLeg, frames, params);
+		const bias = measureBias(lua(o.lua, path.join(ps, 'addon'), 'legs').legs, guides, decodeLeg, frames, params);
 
 		const commit = spawnSync('git', ['-C', ps, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim() || null;
 		const tag = spawnSync('git', ['-C', ps, 'describe', '--tags', '--exact-match'], { encoding: 'utf8' }).stdout.trim() || null;
