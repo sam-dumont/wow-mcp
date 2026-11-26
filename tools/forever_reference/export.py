@@ -215,6 +215,32 @@ def reward_quests(db: Path, who: dict) -> dict[str, list]:
             for k, v in sorted(out.items(), key=lambda kv: int(kv[0]))}
 
 
+def library_rewards(polestar: Path, items: dict, gates: dict, gear_quests: dict) -> dict:
+    """Join the guide's declared reward items to the single hand-in whose tip names those choices."""
+    guide = polestar / "guides" / "forever" / "miscellaneous" / "library-books.guide"
+    if not guide.is_file():
+        return {}
+    header, *steps = re.split(r"^step ", guide.read_text(encoding="utf-8"), flags=re.M)
+    groups = [line.split() for line in re.findall(r"^reward item ([0-9 ]+)$", header, re.M)]
+    out = {}
+    for step in steps:
+        quests = set(re.findall(r"^  turnin (\d+)\b", step, re.M))
+        if len(quests) != 1:
+            continue
+        q = quests.pop()
+        if q not in gates or q in gear_quests:
+            continue
+        tips = " ".join(re.findall(r"^  tip (.+)$", step, re.M))
+        for group in groups:
+            if all(items.get(i) and items[i] in tips for i in group):
+                side, races, classes = gates[q]
+                # The two Greater Friend steps document Alliance. The guide leaves Horde unconfirmed.
+                if re.search(r"^  only Alliance$", step, re.M):
+                    side = 1
+                out[q] = [side, races, classes, [], [int(i) for i in group]]
+    return out
+
+
 # forever-db's quest types the gear advice weighs (Classic's QuestInfo: 1
 # Group, 41 PvP, 62 Raid, 81 Dungeon); 0 and the rest are plain quests.
 WORK_TYPES = {1, 41, 62, 81}
@@ -430,7 +456,9 @@ def main(argv: list[str]) -> int:
     # ForeverDB.net's quest sources) and ForeverDB.net's creature sources:
     # what quest_work describes.
     fdb = json.loads((OUT.parent / "foreverdb" / "item-sources.json").read_text())
-    wanted = set(gear_quests) | set(gear.get("quests") or {})
+    guide_quests = library_rewards(a.polestar, items, quest_gates, gear_quests)
+    guide_quests = {q: row for q, row in guide_quests.items() if int(q) not in unavailable}
+    wanted = set(gear_quests) | set(guide_quests) | set(gear.get("quests") or {})
     sourced_npcs = set()
     for e in (fdb.get("items") or {}).values():
         for x in e.get("sources") or []:
@@ -544,7 +572,8 @@ def main(argv: list[str]) -> int:
     known = {k for k, v in fdb["items"].items()
              if any(s.get("quest") not in unavailable for s in v.get("sources") or [])}
     known.update(k for k, ss in gear["sources"].items() if any(s.get("quest") not in unavailable for s in ss))
-    known.update(str(item) for q in gear_quests.values() for item in (*q[3], *q[4]))
+    for rows in (gear_quests, guide_quests):
+        known.update(str(item) for q in rows.values() for item in (*q[3], *q[4]))
     rosters = json.loads((OUT.parent / "dungeons" / "kill-xp.json").read_text())
     loot = dungeon_drops(observations["drops"], db / "data" / "item_source.jsonl", rosters, out_maps,
                          gear_items, gear_items - known, rewards)
@@ -558,6 +587,7 @@ def main(argv: list[str]) -> int:
                               "tables": ["AreaTable", "Map", "UiMap", "GroupFinderActivity", "DungeonEncounter",
                                          "Faction"],
                               "note": "Game data (c) Blizzard Entertainment, used as facts"},
+            "guide_quests": "Polestar guides/forever/miscellaneous/library-books.guide (milestone reward choices)",
             "levels_exceptions": "Polestar data/codex/levels.json (max, floor)",
             "dungeon_drops": "Polestar trusted boss recordings and forever-db item_source (table rates), "
                              "matched to NPCs in kill-xp.json",
@@ -578,6 +608,7 @@ def main(argv: list[str]) -> int:
         "gear_quests": gear_quests,
         # Explicit forever-db removals and Codex's <NYI> markers override acquisition routes from any source.
         "unavailable_quests": sorted(unavailable.intersection(map(int, wanted))),
+        "guide_quests": guide_quests,
         # Quests without a reward row still gate gear found by other sources.
         "quest_gates": {k: quest_gates[k] for k in sorted(wanted & quest_gates.keys(), key=int)
                         if k not in gear_quests and any(quest_gates[k])},

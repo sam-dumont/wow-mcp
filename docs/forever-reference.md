@@ -58,6 +58,8 @@ withdraw or the gear Codex marks `<NYI>`. Gear advice skips those routes and
 holding their items gives no credit for those quests. The historical Codex
 entry keeps its title and restrictions.
 
+The `guide_quests` rows identify the Library Books reward choices when the quest reward table omits them. The exporter matches each item ID in the guide header to its item name in the milestone step and that step’s hand-in. The guide documents Alliance for the two Greater Friend milestones. Horde availability for those rewards is unknown. [Polestar Library Books guide](https://github.com/fitzforge/polestar/blob/v0.4.3/guides/forever/miscellaneous/library-books.guide)
+
 The `dungeon_drops` fallback covers otherwise unsourced gear. Each NPC must
 appear in a single dungeon in the run or spawn data. Polestar's trusted boss
 recordings supply the observer count and a measured rate when available.

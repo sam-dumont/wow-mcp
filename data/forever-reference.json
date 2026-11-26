@@ -21,6 +21,7 @@
    ],
    "note": "Game data (c) Blizzard Entertainment, used as facts"
   },
+  "guide_quests": "Polestar guides/forever/miscellaneous/library-books.guide (milestone reward choices)",
   "levels_exceptions": "Polestar data/codex/levels.json (max, floor)",
   "dungeon_drops": "Polestar trusted boss recordings and forever-db item_source (table rates), matched to NPCs in kill-xp.json",
   "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)"
@@ -105292,6 +105293,39 @@
   5532,
   88758
  ],
+ "guide_quests": {
+  "78150": [
+   0,
+   0,
+   0,
+   [],
+   [
+    277203,
+    277204
+   ]
+  ],
+  "79536": [
+   1,
+   0,
+   0,
+   [],
+   [
+    281634,
+    281635
+   ]
+  ],
+  "82208": [
+   1,
+   0,
+   0,
+   [],
+   [
+    277254,
+    277258,
+    277260
+   ]
+  ]
+ },
  "quest_gates": {
   "549": [
    2,
@@ -115635,6 +115669,12 @@
    [],
    0
   ],
+  "79536": [
+   0,
+   null,
+   [],
+   0
+  ],
   "79678": [
    0,
    null,
@@ -115656,6 +115696,12 @@
     221360
    ],
    3
+  ],
+  "82208": [
+   0,
+   null,
+   [],
+   0
   ],
   "86574": [
    0,

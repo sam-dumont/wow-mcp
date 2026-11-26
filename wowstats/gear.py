@@ -265,7 +265,8 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
         if iid in sets:
             items[iid]["set"] = sets[iid]
     quests = dict(polestar.get("quests") or {})
-    gear_quests = forever.data().get("gear_quests") or {}
+    guide_quests = forever.data().get("guide_quests") or {}
+    gear_quests = {**guide_quests, **(forever.data().get("gear_quests") or {})}
     # ForeverDB's sources first (owner, 2026-11-24); Polestar's and
     # forever-db's only for an item ForeverDB has none for.
     # Where a creature stands: ForeverDB's creature drops name the creature
@@ -287,12 +288,15 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
         mine = [str(x) for x in (*rewards, *choices) if str(x) in items and str(x) not in fdb_items]
         if not mine:
             continue
+        via = {"via": "polestar-guide"} if qid in guide_quests else {}
         if qid not in quests:
             quests[qid] = _forever_quest(qid, side, races, classes, rewards, choices)
+            if via:
+                quests[qid]["from"] = via["via"]
         for iid in mine:
             got = sources.setdefault(iid, [])
             if not any(x.get("kind") == "quest" and str(x.get("quest")) == qid for x in got):
-                got.append({"kind": "quest", "quest": int(qid)})
+                got.append({"kind": "quest", "quest": int(qid), **via})
     for iid, drops in (forever.data().get("dungeon_drops") or {}).items():
         if iid in items and not sources.get(iid):
             sources[iid] = drops
@@ -1403,6 +1407,8 @@ def _basis(s: dict) -> dict:
         return {"via": "forever-db", "basis": "forever-db loot table"}
     if s.get("via") == "client-recipe":
         return {"via": "client-recipe", "basis": "Forever client recipe"}
+    if s.get("via") == "polestar-guide":
+        return {"via": s["via"], "basis": "Polestar's Library Books guide"}
     if s.get("via") == "polestar-recording":
         return {"via": s["via"], "basis": "seen in Polestar recordings", "voters": s["voters"]}
     if s.get("via") != "foreverdb":

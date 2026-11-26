@@ -9,6 +9,8 @@ Library as easy errands."""
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from wowstats import gear, quests, questwork
@@ -69,9 +71,8 @@ def test_a_dungeon_quest_names_its_dungeon_and_is_some_effort():
 
 
 def test_a_gate_the_quest_data_doesnt_say_comes_from_its_guide():
-    # Greater Friend of the Library: no objective, no zone, and neither has
-    # Friend of the Library before it; the librarian offers each once
-    # enough books are in.
+    # The release links Greater Friend to Friend but has no objectives for either.
+    # Polestar's Library Books guide names the book hand-ins and the reward choices.
     assert questwork.hidden_gate(GREATER_FRIEND)
     f = questwork.facts(GREATER_FRIEND, pos(), level=35)
     assert questwork.hidden_gate(78150)  # Friend of the Library, before it: the same
@@ -111,19 +112,30 @@ def _who(level=37):
                     today="2026-11-25", pos=pos(level))
 
 
-@pytest.mark.parametrize(("item_id", "effort", "words"), [
-    # Ogre Magi's Mantle: ForeverDB's "NPC 268423"; forever-db names it
-    # (Zalfan Moonshadow) but places it nowhere, no level, no zone.
-    (287008, "long shot", "Zalfan Moonshadow, not placed yet, no drop rate known"),
-    # Robe of the Magi: a level 41-42 creature, no rate measured.
-    (1716, "hard", "Firemane Scout (level 41-42), no drop rate known"),
+@pytest.mark.parametrize(("item_id", "npc_id", "effort", "words"), [
+    # Both observed sources of Ogre Magi's Mantle lack a level, zone and measured rate.
+    (287008, 268423, "long shot", "Zalfan Moonshadow, not placed yet, no drop rate known"),
+    (287008, 258687, "long shot", "Krol'dok Brute, not placed yet, no drop rate known"),
+    (1716, 4329, "hard", "Firemane Scout (level 41-42), no drop rate known"),
 ])
-def test_a_creature_drop_says_who_and_the_rate(ref, item_id, effort, words):
+def test_a_creature_drop_says_who_and_the_rate(ref, item_id, npc_id, effort, words):
     srcs = _sources(ref, item_id, _who())
-    assert srcs and srcs[0]["effort"] == effort
-    assert "NPC 268423" not in gear.source_text(srcs[0])
-    assert words in gear.source_text(srcs[0])
+    src = next(s for s in srcs if s["npc_id"] == npc_id)
+    assert src["effort"] == effort
+    assert f"NPC {src['npc_id']}" not in gear.source_text(src)
+    assert words in gear.source_text(src)
     assert gear.EFFORT[gear.item_effort(srcs)] == effort
+
+
+def test_library_ring_names_the_guide_and_checks_the_documented_side(ref):
+    ally = _who()
+    sources = _sources(ref, 281635, ally)
+    assert len(sources) == 1
+    ring = sources[0]
+    assert (ring["quest_id"], ring["choices"], ring["effort"]) == (79536, 2, "hard")
+    assert ring["basis"] == "Polestar's Library Books guide"
+    assert ring["work"]["chain"]["next"]["quest_id"] == 78150
+    assert not _sources(ref, 281635, replace(ally, side=2, pos=replace(ally.pos, side="Horde")))
 
 
 def test_a_quest_source_carries_its_work(ref):
