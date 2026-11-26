@@ -127,7 +127,7 @@ def test_same_climb_and_gear_from_live_public_and_sealed(dashboards, browser, wi
                 assert character_sources.count() == 0
             else:
                 character_sources.locator("summary").click()
-                assert "Battle.net" in character_sources.inner_text()
+                assert character_sources.get_by_text("Battle.net", exact=True).count() == 1
                 assert ("Auctionator scans" in character_sources.inner_text()) == (tier == "owner")
                 main_coverage = character_sources.locator("dl").inner_text()
                 character_sources.locator("summary").click()
