@@ -37,7 +37,8 @@ def call(rows, monkeypatch):
     monkeypatch.setattr(Store, "_get", lambda self, url, params, extra=None: fake(url, params))
     # The prep behind the semantic layer reads through wowstats.stores (its event cache).
     monkeypatch.setattr(stores, "http_get", fake)
-    ctx = tools.Ctx(store=Store(vl_url="http://vl.invalid"))
+    # The roster and event caches identify each dataset by its store URL.
+    ctx = tools.Ctx(store=Store(vl_url="http://independent-check.invalid"))
     return lambda name, **args: tools.call(ctx, name, {"char": CHAR, **args})
 
 
