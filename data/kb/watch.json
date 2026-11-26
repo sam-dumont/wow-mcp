@@ -1,10 +1,10 @@
 {
   "about": "What the knowledge base was last checked against (tools/kb/watch.py). A value here that no longer matches today's opens one issue per kind (label kb-watch). The refresh job moves it in the PR that brings the KB up to date (`tools/kb/watch.py --accept <kind>`); an addon's `contract` is what tools/kb/bump.py checks is unchanged before taking a release.",
-  "checked": "2026-11-25",
+  "checked": "2026-11-26",
   "client_build": {
     "url": "https://wago.tools/api/builds/wowf/latest",
     "page": "https://wago.tools/builds",
-    "known": "1.60.1.71091"
+    "known": "1.60.1.71139"
   },
   "official": [
     {
@@ -49,7 +49,7 @@
     {
       "name": "Questie",
       "repo": "Questie/Questie",
-      "known": "bundle/v12.14.0+v1.1.6",
+      "known": "bundle/v12.15.0+v1.1.6",
       "contract": {
         "toc": "Questie_Forever.toc",
         "files": {
@@ -645,7 +645,7 @@
   "foreverdb": {
     "manifest": "https://foreverdb.net/downloads/addon-manifest.json",
     "page": "https://foreverdb.net",
-    "known": "3be9bb14e060eea0",
-    "taken": "2026-11-24"
+    "known": "bc3b2b026a2506af",
+    "taken": "2026-11-26"
   }
 }
