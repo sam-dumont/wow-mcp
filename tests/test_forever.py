@@ -13,6 +13,16 @@ def test_quests_forever_only_ids_included():
     assert forever.quest(0) is None and forever.quest("x") is None and forever.quest(None) is None
 
 
+def test_spyglass_has_a_recorded_dungeon_source_without_a_measured_percentage():
+    ref = gear.reference()
+    who = gear.Who(cls="PRIEST", level=24, side=1, race_id=7, professions={}, done=set(), zone=None)
+    sources = [gear._source(ref, s, who, ref.item(273298)) for s in ref.data["sources"]["273298"]]
+    cookie = next(s for s in sources if s and s["npc_id"] == 645)
+    assert cookie["dungeon"] and cookie["zone"] == "The Deadmines"
+    assert cookie["basis"] == "seen in Polestar recordings" and cookie["voters"] >= 3
+    assert cookie["chance_pct"] is None
+
+
 def test_name_quests_keeps_the_shipped_name_then_forever_db_then_the_recorder(capsys):
     rows = [{"quest_id": 631, "name": "Shipped"}, {"quest_id": 98246, "name": None},
             {"quest_id": 9999999, "name": None}, {"quest_id": 9999998, "name": None}]

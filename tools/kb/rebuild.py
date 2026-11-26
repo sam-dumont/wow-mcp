@@ -82,7 +82,7 @@ class Export:
 EXPORTS: tuple[Export, ...] = (
     Export("forever-reference", (*PY, "tools/forever_reference/export.py", "--polestar", "{latest}",
                                  "--forever-db-cache", "{fdb}"),
-           ("data/forever-reference.json",), ("polestar", "forever-db", "client-build"),
+           ("data/forever-reference.json",), ("polestar", "forever-db", "client-build", "foreverdb"),
            "docs/forever-reference.md", reads=("data/gear-reference.json",)),
     Export("dungeon-quests", (*PY, "tools/dungeon_quests/export.py", "--polestar", "{latest}",
                               "--forever-db-cache", "{fdb}"),

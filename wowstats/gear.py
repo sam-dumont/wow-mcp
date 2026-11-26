@@ -287,6 +287,9 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
             got = sources.setdefault(iid, [])
             if not any(x.get("kind") == "quest" and str(x.get("quest")) == qid for x in got):
                 got.append({"kind": "quest", "quest": int(qid)})
+    for iid, drops in (forever.data().get("recorded_drops") or {}).items():
+        if iid in items and not sources.get(iid):
+            sources[iid] = drops
     # All gear sources share one quest record. Fill the requirements even
     # when Polestar or a ForeverDB source installed a record first.
     for qid in quests:
@@ -1387,6 +1390,8 @@ def by_effort(srcs: list[dict]) -> list[dict]:
 def _basis(s: dict) -> dict:
     """A ForeverDB source's credit and how sure it is (its label), in the
     answer: `via`, `label`, `basis` (words), and a drop's looted kills."""
+    if s.get("via") == "polestar-recording":
+        return {"via": s["via"], "basis": "seen in Polestar recordings", "voters": s["voters"]}
     if s.get("via") != "foreverdb":
         return {}
     out = {"via": "foreverdb", "label": s.get("label"), "basis": BASIS.get(s.get("label") or "")}

@@ -22,6 +22,7 @@
    "note": "Game data (c) Blizzard Entertainment, used as facts"
   },
   "levels_exceptions": "Polestar data/codex/levels.json (max, floor)",
+  "recorded_drops": "Polestar data/codex/recorded.json (trusted), dungeon bosses from kill-xp.json",
   "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)"
  },
  "quests": {
@@ -86477,6 +86478,338 @@
   "286742": 99156,
   "286743": 99156,
   "286744": 99156
+ },
+ "recorded_drops": {
+  "1155": [
+   {
+    "kind": "drop",
+    "npc": 4832,
+    "npc_name": "Twilight Lord Kelris",
+    "zone": 719,
+    "pct": null,
+    "voters": 43,
+    "via": "polestar-recording"
+   }
+  ],
+  "1816": [
+   {
+    "kind": "drop",
+    "npc": 3669,
+    "npc_name": "Lord Cobrahn",
+    "zone": 718,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "3456": [
+   {
+    "kind": "drop",
+    "npc": 3974,
+    "npc_name": "Houndmaster Loksey",
+    "zone": 796,
+    "pct": null,
+    "voters": 25,
+    "via": "polestar-recording"
+   }
+  ],
+  "5516": [
+   {
+    "kind": "drop",
+    "npc": 4830,
+    "npc_name": "Old Serra'kis",
+    "zone": 719,
+    "pct": null,
+    "voters": 13,
+    "via": "polestar-recording"
+   }
+  ],
+  "6904": [
+   {
+    "kind": "drop",
+    "npc": 4830,
+    "npc_name": "Old Serra'kis",
+    "zone": 719,
+    "pct": null,
+    "voters": 24,
+    "via": "polestar-recording"
+   }
+  ],
+  "6907": [
+   {
+    "kind": "drop",
+    "npc": 4887,
+    "npc_name": "Ghamoo-ra",
+    "zone": 719,
+    "pct": null,
+    "voters": 50,
+    "via": "polestar-recording"
+   }
+  ],
+  "7414": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "9387": [
+   {
+    "kind": "drop",
+    "npc": 6910,
+    "npc_name": "Revelosh",
+    "zone": 1337,
+    "pct": null,
+    "voters": 6,
+    "via": "polestar-recording"
+   }
+  ],
+  "9388": [
+   {
+    "kind": "drop",
+    "npc": 6910,
+    "npc_name": "Revelosh",
+    "zone": 1337,
+    "pct": null,
+    "voters": 7,
+    "via": "polestar-recording"
+   }
+  ],
+  "9389": [
+   {
+    "kind": "drop",
+    "npc": 6910,
+    "npc_name": "Revelosh",
+    "zone": 1337,
+    "pct": null,
+    "voters": 12,
+    "via": "polestar-recording"
+   }
+  ],
+  "9390": [
+   {
+    "kind": "drop",
+    "npc": 6910,
+    "npc_name": "Revelosh",
+    "zone": 1337,
+    "pct": null,
+    "voters": 10,
+    "via": "polestar-recording"
+   }
+  ],
+  "9418": [
+   {
+    "kind": "drop",
+    "npc": 2748,
+    "npc_name": "Archaedas",
+    "zone": 1337,
+    "pct": null,
+    "voters": 17,
+    "via": "polestar-recording"
+   }
+  ],
+  "9458": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 10,
+    "via": "polestar-recording"
+   }
+  ],
+  "9461": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 26,
+    "via": "polestar-recording"
+   }
+  ],
+  "9819": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 6,
+    "via": "polestar-recording"
+   }
+  ],
+  "9853": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   }
+  ],
+  "9860": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "10795": [
+   {
+    "kind": "drop",
+    "npc": 5722,
+    "npc_name": "Hazzas",
+    "zone": 1417,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "10828": [
+   {
+    "kind": "drop",
+    "npc": 5709,
+    "npc_name": "Shade of Eranikus",
+    "zone": 1417,
+    "pct": null,
+    "voters": 6,
+    "via": "polestar-recording"
+   }
+  ],
+  "11118": [
+   {
+    "kind": "drop",
+    "npc": 2748,
+    "npc_name": "Archaedas",
+    "zone": 1337,
+    "pct": null,
+    "voters": 36,
+    "via": "polestar-recording"
+   }
+  ],
+  "11767": [
+   {
+    "kind": "drop",
+    "npc": 9017,
+    "npc_name": "Lord Incendius",
+    "zone": 1584,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   }
+  ],
+  "17744": [
+   {
+    "kind": "drop",
+    "npc": 13282,
+    "npc_name": "Noxxion",
+    "zone": 2100,
+    "pct": null,
+    "voters": 8,
+    "via": "polestar-recording"
+   }
+  ],
+  "17750": [
+   {
+    "kind": "drop",
+    "npc": 12258,
+    "npc_name": "Razorlash",
+    "zone": 2100,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "271217": [
+   {
+    "kind": "drop",
+    "npc": 256097,
+    "npc_name": "Bjork",
+    "zone": 16611,
+    "pct": null,
+    "voters": 31,
+    "via": "polestar-recording"
+   }
+  ],
+  "273084": [
+   {
+    "kind": "drop",
+    "npc": 3653,
+    "npc_name": "Kresh",
+    "zone": 718,
+    "pct": null,
+    "voters": 22,
+    "via": "polestar-recording"
+   }
+  ],
+  "273298": [
+   {
+    "kind": "drop",
+    "npc": 645,
+    "npc_name": "Cookie",
+    "zone": 1581,
+    "pct": null,
+    "voters": 29,
+    "via": "polestar-recording"
+   }
+  ],
+  "273819": [
+   {
+    "kind": "drop",
+    "npc": 1663,
+    "npc_name": "Dextren Ward",
+    "zone": 717,
+    "pct": null,
+    "voters": 22,
+    "via": "polestar-recording"
+   }
+  ],
+  "273820": [
+   {
+    "kind": "drop",
+    "npc": 1663,
+    "npc_name": "Dextren Ward",
+    "zone": 717,
+    "pct": null,
+    "voters": 34,
+    "via": "polestar-recording"
+   }
+  ],
+  "273840": [
+   {
+    "kind": "drop",
+    "npc": 6243,
+    "npc_name": "Gelihast",
+    "zone": 719,
+    "pct": null,
+    "voters": 41,
+    "via": "polestar-recording"
+   }
+  ],
+  "274615": [
+   {
+    "kind": "drop",
+    "npc": 263886,
+    "npc_name": "Primeval Elemental",
+    "zone": 16550,
+    "pct": null,
+    "voters": 26,
+    "via": "polestar-recording"
+   }
+  ]
  },
  "gear_quests": {
   "6": [

@@ -292,7 +292,7 @@ uv run python tools/kb/rebuild.py run --polestar /tmp/polestar --check   # what 
 
 | Export | Writes | Moves with | Daily |
 |---|---|---|---|
-| forever-reference | `data/forever-reference.json` | polestar, forever-db, client-build | yes |
+| forever-reference | `data/forever-reference.json` | polestar, forever-db, client-build, foreverdb | yes |
 | dungeon-quests | `data/dungeons/quests.json` | polestar, forever-db, client-build | yes |
 | route-reference | `data/route-reference.json` | polestar, client-build | yes |
 | gear-reference | `data/gear-reference.json` | polestar | yes |

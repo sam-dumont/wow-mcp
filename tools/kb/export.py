@@ -92,8 +92,8 @@ def main() -> int:
     # checkout.py links addon/ to the tagged checkout when forever-db uses its own release.
     addon = (ps / "addon").resolve()
     try:
-        tag = subprocess.run(["git", "-C", str(addon), "describe", "--tags", "--exact-match"], capture_output=True, text=True,
-                             check=True).stdout.strip()
+        tag = subprocess.run(["git", "-C", str(addon), "describe", "--tags", "--exact-match"],
+                             capture_output=True, text=True, check=True).stdout.strip()
         commit = subprocess.run(["git", "-C", str(addon), "rev-parse", "HEAD"], capture_output=True, text=True,
                                 check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError) as e:

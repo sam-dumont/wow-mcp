@@ -326,6 +326,38 @@ def faction_sides(rows: list[dict]) -> dict[str, dict]:
     return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
 
 
+def recorded_boss_drops(drops: dict, rosters: dict, maps: dict, gear_items: set[str],
+                        missing: set[str], rewards: dict) -> dict:
+    """Trusted drops of scored gear, linked by NPC id to a boss in one known dungeon.
+    Keep acquisition rows only for gear the item sources and quest rewards cannot place."""
+    bosses = {}
+    for name, dungeon in rosters["dungeons"].items():
+        candidates = [m for mid, m in maps.items() if m["type"] == "dungeon" and m.get("area") and
+                      (int(mid) == dungeon.get("map") or (not dungeon.get("map") and same_name(name, m["name"])))]
+        columns = rosters["mob_columns"].get(dungeon.get("basis"))
+        if len(candidates) != 1 or not columns:
+            continue
+        for part in (dungeon, *(dungeon.get("wings") or {}).values()):
+            for mob in part.get("mobs") or []:
+                if mob[columns.index("boss")]:
+                    bosses.setdefault(str(mob[0]), set()).add((mob[1], candidates[0]["area"]))
+    result = {}
+    for npc, locations in bosses.items():
+        if len(locations) != 1:
+            continue
+        name, area = next(iter(locations))
+        for item, seen in drops.get(npc, {}).get("items", {}).items():
+            if item not in gear_items or seen.get("trusted") is not True:
+                continue
+            # A second way of getting an item invalidates possession as proof of a quest hand-in.
+            rewards.pop(item, None)
+            if item in missing:
+                result.setdefault(item, []).append({"kind": "drop", "npc": int(npc), "npc_name": name, "zone": area,
+                                                    "pct": seen.get("chance"), "voters": seen["voters"],
+                                                    "via": "polestar-recording"})
+    return {k: sorted(v, key=lambda d: d["npc"]) for k, v in sorted(result.items(), key=lambda i: int(i[0]))}
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--polestar", required=True, type=Path)
@@ -408,7 +440,8 @@ def main(argv: list[str]) -> int:
             bosses.setdefault(r["MapID"], set()).add(r["Name_lang"])
     factions = faction_sides(table("Faction", build))
     overrides = {r["key"]: r for r in json.loads((a.polestar / "data" / "codex" / "levels.json").read_text())["levels"]}
-    recorded = json.loads((a.polestar / "data" / "codex" / "recorded.json").read_text()).get("dungeons") or {}
+    observations = json.loads((a.polestar / "data" / "codex" / "recorded.json").read_text())
+    recorded = observations.get("dungeons") or {}
 
     def levels(map_id: str, kind: str) -> list[int] | None:
         rows = [r for r in gfa if r["MapID"] == map_id and i(r["MinLevel"])]
@@ -491,6 +524,12 @@ def main(argv: list[str]) -> int:
     if missing:
         raise SystemExit(f"the gear data's drop zones client {build} doesn't name: {', '.join(missing)}")
 
+    gear_items = set(json.loads((OUT.parent / "game-items.json").read_text())["items"])
+    known = {k for k, v in fdb["items"].items() if v.get("sources")} | set(gear["sources"])
+    known.update(str(item) for q in gear_quests.values() for item in (*q[3], *q[4]))
+    rosters = json.loads((OUT.parent / "dungeons" / "kill-xp.json").read_text())
+    observed = recorded_boss_drops(observations["drops"], rosters, out_maps, gear_items, gear_items - known, rewards)
+
     doc = {
         "schema": 1,
         "source": {
@@ -501,6 +540,7 @@ def main(argv: list[str]) -> int:
                                          "Faction"],
                               "note": "Game data (c) Blizzard Entertainment, used as facts"},
             "levels_exceptions": "Polestar data/codex/levels.json (max, floor)",
+            "recorded_drops": "Polestar data/codex/recorded.json (trusted), dungeon bosses from kill-xp.json",
             "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)",
         },
         # quest id -> [title, level, minimum level, zone area id (0: none)]
@@ -513,6 +553,7 @@ def main(argv: list[str]) -> int:
         "items": dict(sorted(items.items(), key=lambda kv: int(kv[0]))),
         # item id -> the one quest that gives it (only_rewards)
         "rewards": rewards,
+        "recorded_drops": observed,
         # quest id -> [side, race mask, class mask, [item rewards], [choice rewards]] (reward_quests)
         "gear_quests": gear_quests,
         # Quests without a reward row still gate gear found by other sources.
