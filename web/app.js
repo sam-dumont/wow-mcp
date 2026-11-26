@@ -1403,7 +1403,8 @@ function craftStatus(sr) {
 // link wherever the data shows (GPL-3.0 section 7(b)).
 const SOURCE_CREDIT = { text: 'Source: ForeverDB.net', url: 'https://foreverdb.net' };
 function basisEl(sr) {
-  if (sr.via !== 'foreverdb') return null;
+  if (sr.via === 'polestar-recording' && !sr.placement) return h('span', { class: 'sub basis', text: ` (${sr.basis})` });
+  if (sr.via !== 'foreverdb' && sr.placement !== 'foreverdb') return null;
   return h('span', { class: 'sub basis' }, sr.basis ? ` (${sr.basis}) · ` : ' · ',
     h('a', { href: SOURCE_CREDIT.url, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer', text: SOURCE_CREDIT.text }));
 }
@@ -1494,8 +1495,9 @@ function sourceEl(sr, level, ah) {
     return h('span', { class: 'src' }, sr.rank ? `PvP rank ${sr.rank} reward` : 'PvP rank reward', you, basisEl(sr));
   }
   if (sr.kind === 'container') {
-    return h('span', { class: 'src' }, sr.object ? 'In ' : 'From ', sr.container_item_id ? wh('item', sr.container_item_id, sr.name || 'a container') : (sr.name || 'a container'),
-      chanceText(sr), basisEl(sr));
+    const name = sr.name || 'a container';
+    const link = sr.object_id ? wh('object', sr.object_id, name) : sr.container_item_id ? wh('item', sr.container_item_id, name) : name;
+    return h('span', { class: 'src' }, sr.object ? 'In ' : 'From ', link, sr.zone ? ` in ${sr.zone}` : '', chanceText(sr), basisEl(sr));
   }
   if (sr.kind === 'craft') {
     if (sr.plan?.materials) return craftPlan(sr);

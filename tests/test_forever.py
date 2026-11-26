@@ -39,6 +39,84 @@ def test_designed_dungeon_loot_preserves_its_source_and_zone():
     assert drop["dungeon"] and "Stratholme" in drop["zone"]
 
 
+def test_missing_roster_bosses_keep_separate_evidence_for_location_and_loot():
+    ref = gear.reference()
+    who = gear.Who(cls="DRUID", level=60, side=2, race_id=6, professions={}, done=set(), zone=None)
+    for item, npc, zone, via, rate in (
+        (9445, 7361, "Gnomeregan", "polestar-recording", None),
+        (9475, 7275, "Zul'Farrak", "polestar-recording", None),
+        (10777, 7355, "Razorfen Downs", "polestar-recording", None),
+        (16720, 1853, "Scholomance", "forever-db", 11.1),
+    ):
+        raw = next(s for s in ref.data["sources"][str(item)] if s.get("npc") == npc)
+        source = gear._source(ref, raw, who, ref.item(item))
+        assert (source["zone"], source["via"], source["chance_pct"]) == (zone, via, rate)
+        assert source["placement"] == "foreverdb" and gear.sources_credited(source)
+        if via == "polestar-recording":
+            assert source["voters"] >= 3
+
+
+def test_stockade_trash_has_observed_loot_without_claiming_a_per_run_rate():
+    sources = gear.reference().data["sources"]["274092"]
+    observed = {s["npc"]: s for s in sources if s.get("via") == "polestar-recording"}
+    assert {1706, 1707, 1708, 1711, 1715} <= observed.keys()
+    for s in observed.values():
+        assert s["zone"] == 717 and s["voters"] >= 3 and s["pct"] is None
+
+
+def test_encounter_placements_need_a_seen_npc_and_one_matching_dungeon():
+    from tools.forever_reference.export import observed_encounters
+
+    maps = {"90": {"type": "dungeon", "area": 721}, "129": {"type": "dungeon", "area": 722}}
+    encounters = {"90": {"Grubbis"}, "129": {"Grubbis"}}
+    seen = {"kind": "drop", "npc": 7361, "instance": 90, "boss": "Grubbis", "label": "s"}
+    assert observed_encounters({"gear": {"sources": [seen]}}, encounters, maps) == {"7361": ("Grubbis", 721)}
+    for rows in ([{**seen, "label": "k"}], [{**seen, "boss": "Other"}], [seen, {**seen, "instance": 129}]):
+        assert not observed_encounters({"gear": {"sources": rows}}, encounters, maps)
+
+
+def test_an_unplaced_sighting_keeps_a_world_drop_out_of_the_dungeon_loot(tmp_path):
+    from tools.forever_reference.export import dungeon_creatures, dungeon_drops
+
+    rosters = {"mob_columns": {"spawns": ["id", "name", "boss"]}, "dungeons": {
+        "The Stockade": {"map": 34, "basis": "spawns", "mobs": [[1706, "Defias Prisoner", False]]}}}
+    maps = {"34": {"name": "The Stockade", "type": "dungeon", "area": 717}}
+    seen = {"voters": 5, "trusted": True, "chance": 10}
+    drops = {"1706": {"items": {"1": seen, "2": seen}}, "other": {"items": {"2": {"trusted": False}}}}
+    designed = tmp_path / "item_source.jsonl"
+    designed.touch()
+    got = dungeon_drops(drops, designed, *dungeon_creatures(rosters, maps, {}), {"1", "2"}, {"1", "2"}, {})
+    assert set(got) == {"1"} and got["1"][0]["pct"] is None
+
+
+def test_trusted_creature_and_chest_sightings_keep_their_identity_and_effort():
+    ref = gear.reference()
+    who = gear.Who(cls="ROGUE", level=40, side=1, race_id=1, professions={}, done=set(), zone=None)
+    for item, field, sid, name, zone in (
+        (1679, "npc", 1142, "Mosh'Ogg Brute", "Stranglethorn Vale"),
+        (3184, "object_id", 75293, "Large Battered Chest", None),
+    ):
+        raw = next(s for s in ref.data["sources"][str(item)] if s.get(field) == sid)
+        source = gear._source(ref, raw, who, ref.item(item))
+        assert (source.get("boss") or source.get("name")) == name
+        assert name in gear.source_text(source) and source.get("zone") == zone
+        assert gear.source_link(source).endswith(f"/{'npc' if field == 'npc' else 'object'}={sid}")
+        assert source["chance_pct"] is None and source["voters"] >= 3
+        assert source["basis"] == "seen in Polestar recordings"
+        assert gear.source_effort(source) == gear.HARD and gear.action_source([source], who.level) is None
+
+
+def test_recorded_routes_require_a_named_entity_and_a_trusted_item_sighting(tmp_path):
+    from tools.forever_reference.export import recorded_loot
+
+    (tmp_path / "npc.jsonl").write_text('{"id":1,"name":"Brute"}\n')
+    (tmp_path / "object.jsonl").write_text('{"id":1,"name":"Chest"}\n')
+    sighting = {"items": {"10": {"voters": 1, "trusted": False}, "11": {"voters": 4, "trusted": True}}}
+    records = {"drops": {"1": sighting, "2": sighting}, "objects": {"2": sighting}}
+    assert recorded_loot(records, tmp_path, {}, {}, {"10", "11"}, {}) == {
+        "11": [{"kind": "drop", "npc": 1, "npc_name": "Brute", "via": "polestar-recording", "voters": 4, "pct": None}]}
+
+
 def test_name_quests_keeps_the_shipped_name_then_forever_db_then_the_recorder(capsys):
     rows = [{"quest_id": 631, "name": "Shipped"}, {"quest_id": 98246, "name": None},
             {"quest_id": 9999999, "name": None}, {"quest_id": 9999998, "name": None}]

@@ -297,12 +297,11 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
             got = sources.setdefault(iid, [])
             if not any(x.get("kind") == "quest" and str(x.get("quest")) == qid for x in got):
                 got.append({"kind": "quest", "quest": int(qid), **via})
-    for iid, drops in (forever.data().get("dungeon_drops") or {}).items():
-        if iid in items and not sources.get(iid):
-            sources[iid] = drops
-    for iid, crafts in crafting.gear_sources().items():
-        if iid in items and not sources.get(iid):
-            sources[iid] = crafts
+    for group in (forever.data().get("dungeon_drops") or {}, crafting.gear_sources(),
+                  forever.data().get("recorded_loot") or {}):
+        for iid, routes in group.items():
+            if iid in items and not sources.get(iid):
+                sources[iid] = routes
     # All gear sources share one quest record. Fill the requirements even
     # when Polestar or a ForeverDB source installed a record first.
     for qid in quests:
@@ -1202,6 +1201,8 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
                 "met": None if have is None or rank is None else have >= rank, **_basis(s), **tag}
     if s["kind"] == "container":
         return {"kind": "container", "name": s.get("name"), "container_item_id": s.get("item"),
+                **({"object_id": s["object_id"]} if s.get("object_id") else {}),
+                **({"zone": (forever.area(s["zone"]) or {}).get("name")} if s.get("zone") else {}),
                 "object": bool(s.get("object")), "chance_pct": s.get("pct") or None, **_basis(s)}
     return None
 
@@ -1406,14 +1407,15 @@ def by_effort(srcs: list[dict]) -> list[dict]:
 def _basis(s: dict) -> dict:
     """A ForeverDB source's credit and how sure it is (its label), in the
     answer: `via`, `label`, `basis` (words), and a drop's looted kills."""
+    placement = {"placement": s["placement"]} if s.get("placement") else {}
     if s.get("via") == "forever-db":
-        return {"via": "forever-db", "basis": "forever-db loot table"}
+        return {"via": "forever-db", "basis": "forever-db loot table", **placement}
     if s.get("via") == "client-recipe":
         return {"via": "client-recipe", "basis": "Forever client recipe"}
     if s.get("via") == "polestar-guide":
         return {"via": s["via"], "basis": "Polestar's Library Books guide"}
     if s.get("via") == "polestar-recording":
-        return {"via": s["via"], "basis": "seen in Polestar recordings", "voters": s["voters"]}
+        return {"via": s["via"], "basis": "seen in Polestar recordings", "voters": s["voters"], **placement}
     if s.get("via") != "foreverdb":
         return {}
     out = {"via": "foreverdb", "label": s.get("label"), "basis": BASIS.get(s.get("label") or "")}
@@ -2857,7 +2859,8 @@ def source_text(s: dict, short: bool = False) -> str:
     if s["kind"] == "container":
         what = "object" if s.get("object") else "container"
         chance = f", {s['chance_pct']}%" if s.get("chance_pct") else ""
-        return f"{what}: {s.get('name') or '?'}{chance}{tail}"
+        zone = f" in {s['zone']}" if s.get("zone") else ""
+        return f"{what}: {s.get('name') or '?'}{zone}{chance}{tail}"
     if s["kind"] != "craft":  # a kind the gear data names that has no words here
         return f"{s['kind']}: {s.get('name') or s.get('zone') or '?'}"
     p = s.get("plan") or {}
@@ -2896,9 +2899,10 @@ def source_link(s: dict) -> str | None:
     spell, the container."""
     from wowstats.links import wowhead_url
 
+    container = ("object", s["object_id"]) if s.get("object_id") else ("item", s.get("container_item_id"))
     kind, i = {"quest": ("quest", s.get("quest_id")), "drop": ("npc", s.get("npc_id")),
                "vendor": ("npc", s.get("npc_id")), "craft": ("spell", s.get("spell_id")),
-               "container": ("item", s.get("container_item_id"))}.get(s.get("kind"), (None, None))
+               "container": container}.get(s.get("kind"), (None, None))
     return wowhead_url(kind, i) if kind and isinstance(i, int) and i > 0 else None
 
 
@@ -2909,7 +2913,7 @@ def sources_credited(tree) -> bool:
     while stack:
         v = stack.pop()
         if isinstance(v, dict):
-            if v.get("via") == "foreverdb":
+            if v.get("via") == "foreverdb" or v.get("placement") == "foreverdb":
                 return True
             stack.extend(v.values())
         elif isinstance(v, list):

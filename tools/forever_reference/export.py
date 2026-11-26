@@ -354,10 +354,24 @@ def faction_sides(rows: list[dict]) -> dict[str, dict]:
     return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
 
 
-def dungeon_drops(drops: dict, item_sources: Path, rosters: dict, maps: dict,
-                  gear_items: set[str], missing: set[str], rewards: dict) -> dict:
-    """Use NPC ids placed in a single dungeon. Prefer trusted recorded boss loot,
-    then a designed forever-db drop for gear the other sources cannot place."""
+def observed_encounters(fdb_items: dict, encounters: dict, maps: dict) -> dict:
+    """NPC IDs seen at one instance, under that map's exact client encounter name."""
+    locations = {}
+    for row in fdb_items.values():
+        for s in row.get("sources") or ():
+            if s.get("kind") == "drop" and s.get("label") == "s" and s.get("npc") and s.get("instance"):
+                locations.setdefault(str(s["npc"]), set()).add((s.get("boss"), str(s["instance"])))
+    out = {}
+    for npc, seen in locations.items():
+        if len(seen) == 1:
+            name, mid = next(iter(seen))
+            m = maps.get(mid) or {}
+            if m.get("type") == "dungeon" and m.get("area") and name in encounters.get(mid, ()):
+                out[npc] = (name, m["area"])
+    return out
+
+
+def dungeon_creatures(rosters: dict, maps: dict, observed_bosses: dict) -> tuple:
     creatures, bosses = {}, set()
     for name, dungeon in rosters["dungeons"].items():
         candidates = [m for mid, m in maps.items() if m["type"] == "dungeon" and m.get("area") and
@@ -370,19 +384,40 @@ def dungeon_drops(drops: dict, item_sources: Path, rosters: dict, maps: dict,
                 creatures.setdefault(str(mob[0]), set()).add((mob[1], candidates[0]["area"]))
                 if mob[columns.index("boss")]:
                     bosses.add(str(mob[0]))
-    result = {}
+    credited = observed_bosses.keys() - bosses
+    for npc, location in observed_bosses.items():
+        roster = creatures.setdefault(npc, set())
+        if not any(area == location[1] for _, area in roster):
+            roster.add(location)
+    bosses.update(observed_bosses)
     placed = {npc: next(iter(locations)) for npc, locations in creatures.items() if len(locations) == 1}
-    for npc in bosses & placed.keys():
-        name, area = placed[npc]
+    return placed, bosses, credited
+
+
+def dungeon_drops(drops: dict, item_sources: Path, placed: dict, bosses: set, credited: set,
+                  gear_items: set[str], missing: set[str], rewards: dict) -> dict:
+    """Prefer recorded dungeon loot, then a designed forever-db drop. A non-boss
+    drop needs all the item's recorded NPC sources in the same dungeon."""
+    seen_areas = {}
+    for npc, recording in drops.items():
+        area = placed[npc][1] if npc in placed else None
+        for item in recording.get("items", {}):
+            if item in missing:
+                seen_areas.setdefault(item, set()).add(area)
+    result = {}
+    for npc, (name, area) in placed.items():
         for item, seen in drops.get(npc, {}).get("items", {}).items():
             if item not in gear_items or seen.get("trusted") is not True:
                 continue
             # A second way of getting an item invalidates possession as proof of a quest hand-in.
             rewards.pop(item, None)
-            if item in missing:
+            if item in missing and (npc in bosses or seen_areas[item] == {area}):
+                # Gear advice counts dungeon runs. A trash mob's per-kill rate doesn't measure runs.
+                chance = seen.get("chance") if npc in bosses else None
                 result.setdefault(item, []).append({"kind": "drop", "npc": int(npc), "npc_name": name, "zone": area,
-                                                    "pct": seen.get("chance"), "voters": seen["voters"],
-                                                    "via": "polestar-recording"})
+                                                    "pct": chance, "voters": seen["voters"],
+                                                    "via": "polestar-recording",
+                                                    **({"placement": "foreverdb"} if npc in credited else {})})
     unplaced = missing - result.keys()
     for line in item_sources.read_text(encoding="utf-8").splitlines():
         s = json.loads(line)
@@ -390,8 +425,41 @@ def dungeon_drops(drops: dict, item_sources: Path, rosters: dict, maps: dict,
         if item in unplaced and s["kind"] == "npc" and npc in placed:
             name, area = placed[npc]
             result.setdefault(item, []).append({"kind": "drop", "npc": int(npc), "npc_name": name, "zone": area,
-                                                "pct": s.get("chance"), "via": "forever-db"})
+                                                "pct": s.get("chance"), "via": "forever-db",
+                                                **({"placement": "foreverdb"} if npc in credited else {})})
     return {k: sorted(v, key=lambda d: d["npc"]) for k, v in sorted(result.items(), key=lambda i: int(i[0]))}
+
+
+def recorded_loot(recordings: dict, data: Path, maps: dict, placed: dict, wanted: set, rewards: dict) -> dict:
+    """Direct sightings on named NPCs and game objects. An unplaced source keeps its identity."""
+    out = {}
+    for kind, file in (("drops", "npc"), ("objects", "object")):
+        names = {}
+        for line in (data / f"{file}.jsonl").read_text(encoding="utf-8").splitlines():
+            row = json.loads(line)
+            if row.get("name"):
+                names[str(row["id"])] = row["name"]
+        for sid, record in recordings[kind].items():
+            if sid not in names:
+                continue
+            if kind == "drops":
+                name, zone = placed.get(sid, (names[sid], None))
+                source = {"kind": "drop", "npc": int(sid), "npc_name": name}
+            else:
+                zone = (maps.get(str(record.get("instance"))) or {}).get("area")
+                source = {"kind": "container", "object": True, "object_id": int(sid), "name": names[sid]}
+            if zone:
+                source["zone"] = zone
+            for item, seen in record["items"].items():
+                if seen.get("trusted") is not True:
+                    continue
+                rewards.pop(item, None)
+                if item in wanted:
+                    # An ordinary mob's chance is per kill, never per dungeon run.
+                    chance = None if kind == "drops" and zone else seen.get("chance")
+                    out.setdefault(item, []).append({**source, "via": "polestar-recording",
+                                                     "voters": seen["voters"], "pct": chance})
+    return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
 
 
 def main(argv: list[str]) -> int:
@@ -469,8 +537,6 @@ def main(argv: list[str]) -> int:
     ui = table("UiMap", build)
     # Zone maps only (UiMap type 3): a continent's frame holds every zone.
     ui_names = {r["ID"]: r["Name_lang"] for r in ui if r.get("Name_lang") and r["Type"] == "3"}
-    work, npcs = quest_work(db, {q for q in wanted if q in quests}, sourced_npcs, ui_names)
-
     areas = table("AreaTable", build)
     maps = {r["ID"]: r for r in table("Map", build)}
     by_area = {r["AreaTableID"]: r for r in maps.values() if INSTANCE.get(r["InstanceType"]) and i(r["AreaTableID"])}
@@ -568,17 +634,28 @@ def main(argv: list[str]) -> int:
     if missing:
         raise SystemExit(f"the gear data's drop zones client {build} doesn't name: {', '.join(missing)}")
 
-    gear_items = set(json.loads((OUT.parent / "game-items.json").read_text())["items"])
+    game_items = json.loads((OUT.parent / "game-items.json").read_text())["items"]
+    gear_items = set(game_items)
     known = {k for k, v in fdb["items"].items()
-             if any(s.get("quest") not in unavailable for s in v.get("sources") or [])}
+             if any(s.get("kind") != "quest" or (i(s.get("quest")) > 0 and i(s["quest"]) not in unavailable)
+                    for s in v.get("sources") or [])}
     known.update(k for k, ss in gear["sources"].items() if any(s.get("quest") not in unavailable for s in ss))
     for rows in (gear_quests, guide_quests):
         known.update(str(item) for q in rows.values() for item in (*q[3], *q[4]))
     rosters = json.loads((OUT.parent / "dungeons" / "kill-xp.json").read_text())
-    loot = dungeon_drops(observations["drops"], db / "data" / "item_source.jsonl", rosters, out_maps,
+    encounter_npcs = observed_encounters(fdb["items"], bosses, out_maps)
+    placed, dungeon_bosses, credited = dungeon_creatures(rosters, out_maps, encounter_npcs)
+    loot = dungeon_drops(observations["drops"], db / "data" / "item_source.jsonl", placed, dungeon_bosses, credited,
                          gear_items, gear_items - known, rewards)
+    uncommon = {i for i, row in game_items.items() if (row.get("quality") or 0) >= 2}
+    other_loot = recorded_loot(observations, db / "data", out_maps, placed, uncommon - known - loot.keys(), rewards)
+    sourced_npcs.update(s["npc"] for ss in other_loot.values() for s in ss if "npc" in s and not s.get("zone"))
+    work, npcs = quest_work(db, {q for q in wanted if q in quests}, sourced_npcs, ui_names)
 
     doc = {
+        "_notice": [*fdb["_notice"][:2],
+                    "NPC encounter placements use ForeverDB.net addon data under GPL-3.0 with its section 7(b) "
+                    "attribution term. See data/foreverdb/LICENSE.txt, NOTICE.txt and COPYING.txt."],
         "schema": 1,
         "source": {
             "forever_db": {"version": index.get("version"), "client_build": index.get("clientBuild"),
@@ -589,8 +666,10 @@ def main(argv: list[str]) -> int:
                               "note": "Game data (c) Blizzard Entertainment, used as facts"},
             "guide_quests": "Polestar guides/forever/miscellaneous/library-books.guide (milestone reward choices)",
             "levels_exceptions": "Polestar data/codex/levels.json (max, floor)",
-            "dungeon_drops": "Polestar trusted boss recordings and forever-db item_source (table rates), "
-                             "matched to NPCs in kill-xp.json",
+            "dungeon_drops": "Polestar trusted loot recordings and forever-db item_source (table rates), "
+                             "matched to kill-xp.json or observed NPC IDs and client dungeon encounters",
+            "encounter_placement": "ForeverDB.net observed NPC IDs and maps, checked against DungeonEncounter",
+            "recorded_loot": "Polestar trusted NPC and object loot windows, named by the released forever-db",
             "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)",
         },
         # quest id -> [title, level, minimum level, zone area id (0: none)]
@@ -604,6 +683,7 @@ def main(argv: list[str]) -> int:
         # item id -> the one quest that gives it (only_rewards)
         "rewards": rewards,
         "dungeon_drops": loot,
+        "recorded_loot": other_loot,
         # quest id -> [side, race mask, class mask, [item rewards], [choice rewards]] (reward_quests)
         "gear_quests": gear_quests,
         # Explicit forever-db removals and Codex's <NYI> markers override acquisition routes from any source.

@@ -1,4 +1,9 @@
 {
+ "_notice": [
+  "-- Data: ForeverDB.net (https://foreverdb.net), build 1.60.1.71139. Reuse requires this credit: see NOTICE.txt (GPL-3.0 section 7(b)).",
+  "Data from ForeverDB.net (https://foreverdb.net)",
+  "NPC encounter placements use ForeverDB.net addon data under GPL-3.0 with its section 7(b) attribution term. See data/foreverdb/LICENSE.txt, NOTICE.txt and COPYING.txt."
+ ],
  "schema": 1,
  "source": {
   "forever_db": {
@@ -23,7 +28,9 @@
   },
   "guide_quests": "Polestar guides/forever/miscellaneous/library-books.guide (milestone reward choices)",
   "levels_exceptions": "Polestar data/codex/levels.json (max, floor)",
-  "dungeon_drops": "Polestar trusted boss recordings and forever-db item_source (table rates), matched to NPCs in kill-xp.json",
+  "dungeon_drops": "Polestar trusted loot recordings and forever-db item_source (table rates), matched to kill-xp.json or observed NPC IDs and client dungeon encounters",
+  "encounter_placement": "ForeverDB.net observed NPC IDs and maps, checked against DungeonEncounter",
+  "recorded_loot": "Polestar trusted NPC and object loot windows, named by the released forever-db",
   "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)"
  },
  "quests": {
@@ -86533,6 +86540,28 @@
     "pct": null,
     "voters": 13,
     "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 7273,
+    "npc_name": "Gahz'rilla",
+    "zone": 1176,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
+   }
+  ],
+  "6582": [
+   {
+    "kind": "drop",
+    "npc": 3654,
+    "npc_name": "Mutanus the Devourer",
+    "zone": 718,
+    "pct": null,
+    "voters": 5,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
    }
   ],
   "6904": [
@@ -86623,6 +86652,18 @@
     "via": "polestar-recording"
    }
   ],
+  "9445": [
+   {
+    "kind": "drop",
+    "npc": 7361,
+    "npc_name": "Grubbis",
+    "zone": 721,
+    "pct": null,
+    "voters": 29,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
+   }
+  ],
   "9458": [
    {
     "kind": "drop",
@@ -86643,6 +86684,18 @@
     "pct": null,
     "voters": 26,
     "via": "polestar-recording"
+   }
+  ],
+  "9475": [
+   {
+    "kind": "drop",
+    "npc": 7275,
+    "npc_name": "Shadowpriest Sezz'ziz",
+    "zone": 1176,
+    "pct": null,
+    "voters": 10,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
    }
   ],
   "9819": [
@@ -86678,6 +86731,18 @@
     "via": "polestar-recording"
    }
   ],
+  "10777": [
+   {
+    "kind": "drop",
+    "npc": 7355,
+    "npc_name": "Tuten'kash",
+    "zone": 722,
+    "pct": null,
+    "voters": 16,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
+   }
+  ],
   "10795": [
    {
     "kind": "drop",
@@ -86686,6 +86751,29 @@
     "zone": 1417,
     "pct": null,
     "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "10800": [
+   {
+    "kind": "drop",
+    "npc": 8580,
+    "npc_name": "Atal'alarion",
+    "zone": 1417,
+    "pct": null,
+    "voters": 9,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
+   }
+  ],
+  "10803": [
+   {
+    "kind": "drop",
+    "npc": 5711,
+    "npc_name": "Ogom the Wretched",
+    "zone": 1417,
+    "pct": null,
+    "voters": 10,
     "via": "polestar-recording"
    }
   ],
@@ -86914,6 +87002,17 @@
     "via": "forever-db"
    }
   ],
+  "16720": [
+   {
+    "kind": "drop",
+    "npc": 1853,
+    "npc_name": "Darkmaster Gandling",
+    "zone": 2057,
+    "pct": 11.1,
+    "via": "forever-db",
+    "placement": "foreverdb"
+   }
+  ],
   "17744": [
    {
     "kind": "drop",
@@ -86933,6 +87032,192 @@
     "zone": 2100,
     "pct": null,
     "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "215374": [
+   {
+    "kind": "drop",
+    "npc": 4290,
+    "npc_name": "Scarlet Guardsman",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4298,
+    "npc_name": "Scarlet Defender",
+    "zone": 796,
+    "pct": null,
+    "voters": 6,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4299,
+    "npc_name": "Scarlet Chaplain",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4301,
+    "npc_name": "Scarlet Centurion",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "215375": [
+   {
+    "kind": "drop",
+    "npc": 4287,
+    "npc_name": "Scarlet Gallant",
+    "zone": 796,
+    "pct": null,
+    "voters": 5,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4290,
+    "npc_name": "Scarlet Guardsman",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4295,
+    "npc_name": "Scarlet Myrmidon",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4296,
+    "npc_name": "Scarlet Adept",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4298,
+    "npc_name": "Scarlet Defender",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4540,
+    "npc_name": "Scarlet Monk",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "215376": [
+   {
+    "kind": "drop",
+    "npc": 4287,
+    "npc_name": "Scarlet Gallant",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4290,
+    "npc_name": "Scarlet Guardsman",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4291,
+    "npc_name": "Scarlet Diviner",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4292,
+    "npc_name": "Scarlet Protector",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4295,
+    "npc_name": "Scarlet Myrmidon",
+    "zone": 796,
+    "pct": null,
+    "voters": 5,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4298,
+    "npc_name": "Scarlet Defender",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4299,
+    "npc_name": "Scarlet Chaplain",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4301,
+    "npc_name": "Scarlet Centurion",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4302,
+    "npc_name": "Scarlet Champion",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4540,
+    "npc_name": "Scarlet Monk",
+    "zone": 796,
+    "pct": null,
+    "voters": 5,
     "via": "polestar-recording"
    }
   ],
@@ -87002,6 +87287,53 @@
     "via": "polestar-recording"
    }
   ],
+  "274092": [
+   {
+    "kind": "drop",
+    "npc": 1706,
+    "npc_name": "Defias Prisoner",
+    "zone": 717,
+    "pct": null,
+    "voters": 8,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 1707,
+    "npc_name": "Defias Captive",
+    "zone": 717,
+    "pct": null,
+    "voters": 9,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 1708,
+    "npc_name": "Defias Inmate",
+    "zone": 717,
+    "pct": null,
+    "voters": 8,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 1711,
+    "npc_name": "Defias Convict",
+    "zone": 717,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 1715,
+    "npc_name": "Defias Insurgent",
+    "zone": 717,
+    "pct": null,
+    "voters": 5,
+    "via": "polestar-recording"
+   }
+  ],
   "274615": [
    {
     "kind": "drop",
@@ -87011,6 +87343,1751 @@
     "pct": null,
     "voters": 26,
     "via": "polestar-recording"
+   }
+  ]
+ },
+ "recorded_loot": {
+  "790": [
+   {
+    "kind": "drop",
+    "npc": 202,
+    "npc_name": "Skeletal Horror",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 1706,
+    "npc_name": "Defias Prisoner",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 1708,
+    "npc_name": "Defias Inmate",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "880": [
+   {
+    "kind": "drop",
+    "npc": 202,
+    "npc_name": "Skeletal Horror",
+    "via": "polestar-recording",
+    "voters": 23,
+    "pct": null
+   }
+  ],
+  "886": [
+   {
+    "kind": "drop",
+    "npc": 210,
+    "npc_name": "Bone Chewer",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "920": [
+   {
+    "kind": "drop",
+    "npc": 909,
+    "npc_name": "Defias Night Blade",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "1296": [
+   {
+    "kind": "drop",
+    "npc": 437,
+    "npc_name": "Blackrock Renegade",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4065,
+    "npc_name": "Blackrock Sentry",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "1455": [
+   {
+    "kind": "drop",
+    "npc": 435,
+    "npc_name": "Blackrock Champion",
+    "via": "polestar-recording",
+    "voters": 11,
+    "pct": null
+   }
+  ],
+  "1461": [
+   {
+    "kind": "drop",
+    "npc": 431,
+    "npc_name": "Shadowhide Slayer",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "1462": [
+   {
+    "kind": "drop",
+    "npc": 429,
+    "npc_name": "Shadowhide Darkweaver",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "1679": [
+   {
+    "kind": "drop",
+    "npc": 1142,
+    "npc_name": "Mosh'Ogg Brute",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "1997": [
+   {
+    "kind": "drop",
+    "npc": 701,
+    "npc_name": "Bloodscalp Mystic",
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   }
+  ],
+  "2015": [
+   {
+    "kind": "drop",
+    "npc": 570,
+    "npc_name": "Brain Eater",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "2084": [
+   {
+    "kind": "drop",
+    "npc": 1054,
+    "npc_name": "Dark Iron Demolitionist",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 275045,
+    "npc_name": "Dragonmaw Saboteur",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "2175": [
+   {
+    "kind": "drop",
+    "npc": 568,
+    "npc_name": "Shadowhide Warrior",
+    "via": "polestar-recording",
+    "voters": 7,
+    "pct": null
+   }
+  ],
+  "2942": [
+   {
+    "kind": "drop",
+    "npc": 1720,
+    "npc_name": "Bruegal Ironknuckle",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "3184": [
+   {
+    "kind": "drop",
+    "npc": 657,
+    "npc_name": "Defias Pirate",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 1732,
+    "npc_name": "Defias Squallshaper",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 6,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 12,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5756,
+    "npc_name": "Deviate Venomwing",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   },
+   {
+    "kind": "container",
+    "object": true,
+    "object_id": 75293,
+    "name": "Large Battered Chest",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "3323": [
+   {
+    "kind": "drop",
+    "npc": 1533,
+    "npc_name": "Tormented Spirit",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "6604": [
+   {
+    "kind": "drop",
+    "npc": 6329,
+    "npc_name": "Irradiated Pillager",
+    "zone": 721,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 260800,
+    "npc_name": "Thicket Lurker",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7355": [
+   {
+    "kind": "drop",
+    "npc": 6234,
+    "npc_name": "Mechanized Guardian",
+    "zone": 721,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7407": [
+   {
+    "kind": "drop",
+    "npc": 689,
+    "npc_name": "Crystal Spine Basilisk",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7433": [
+   {
+    "kind": "drop",
+    "npc": 258792,
+    "npc_name": "Risen Sentry",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "7434": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 263196,
+    "npc_name": "Profane Necromancer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7437": [
+   {
+    "kind": "drop",
+    "npc": 4540,
+    "npc_name": "Scarlet Monk",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7441": [
+   {
+    "kind": "drop",
+    "npc": 2735,
+    "npc_name": "Lesser Rock Elemental",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7443": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7445": [
+   {
+    "kind": "drop",
+    "npc": 258792,
+    "npc_name": "Risen Sentry",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "7446": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7447": [
+   {
+    "kind": "drop",
+    "npc": 4540,
+    "npc_name": "Scarlet Monk",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7456": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "7462": [
+   {
+    "kind": "drop",
+    "npc": 4295,
+    "npc_name": "Scarlet Myrmidon",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7494": [
+   {
+    "kind": "drop",
+    "npc": 258042,
+    "npc_name": "Twilight Grunt",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9770": [
+   {
+    "kind": "drop",
+    "npc": 3636,
+    "npc_name": "Deviate Ravager",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 6,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5755,
+    "npc_name": "Deviate Viper",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 12,
+    "pct": null
+   }
+  ],
+  "9794": [
+   {
+    "kind": "drop",
+    "npc": 2529,
+    "npc_name": "Son of Arugal",
+    "zone": 209,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 6206,
+    "npc_name": "Caverndeep Burrower",
+    "zone": 721,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 6329,
+    "npc_name": "Irradiated Pillager",
+    "zone": 721,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9800": [
+   {
+    "kind": "drop",
+    "npc": 246664,
+    "npc_name": "Fragmented Sentry",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9838": [
+   {
+    "kind": "drop",
+    "npc": 246664,
+    "npc_name": "Fragmented Sentry",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9847": [
+   {
+    "kind": "drop",
+    "npc": 4287,
+    "npc_name": "Scarlet Gallant",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9851": [
+   {
+    "kind": "drop",
+    "npc": 258792,
+    "npc_name": "Risen Sentry",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9852": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9859": [
+   {
+    "kind": "drop",
+    "npc": 4299,
+    "npc_name": "Scarlet Chaplain",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9868": [
+   {
+    "kind": "drop",
+    "npc": 4540,
+    "npc_name": "Scarlet Monk",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "10787": [
+   {
+    "kind": "drop",
+    "npc": 5714,
+    "npc_name": "Loro",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "10788": [
+   {
+    "kind": "drop",
+    "npc": 5712,
+    "npc_name": "Zolo",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5717,
+    "npc_name": "Mijan",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "11967": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "11981": [
+   {
+    "kind": "drop",
+    "npc": 657,
+    "npc_name": "Defias Pirate",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "11993": [
+   {
+    "kind": "drop",
+    "npc": 5763,
+    "npc_name": "Nightmare Ectoplasm",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "12010": [
+   {
+    "kind": "drop",
+    "npc": 258792,
+    "npc_name": "Risen Sentry",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "12040": [
+   {
+    "kind": "drop",
+    "npc": 258792,
+    "npc_name": "Risen Sentry",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14120": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "14121": [
+   {
+    "kind": "drop",
+    "npc": 3636,
+    "npc_name": "Deviate Ravager",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 6,
+    "pct": null
+   }
+  ],
+  "14123": [
+   {
+    "kind": "drop",
+    "npc": 3256,
+    "npc_name": "Sunscale Scytheclaw",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3640,
+    "npc_name": "Evolving Ectoplasm",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 11318,
+    "npc_name": "Ragefire Trogg",
+    "zone": 2437,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14127": [
+   {
+    "kind": "drop",
+    "npc": 4809,
+    "npc_name": "Twilight Acolyte",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14129": [
+   {
+    "kind": "drop",
+    "npc": 3636,
+    "npc_name": "Deviate Ravager",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 6,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 13,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   }
+  ],
+  "14159": [
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "14162": [
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "14166": [
+   {
+    "kind": "drop",
+    "npc": 428,
+    "npc_name": "Dire Condor",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 657,
+    "npc_name": "Defias Pirate",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3853,
+    "npc_name": "Shadowfang Moonwalker",
+    "zone": 209,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3861,
+    "npc_name": "Bleak Worg",
+    "zone": 209,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "container",
+    "object": true,
+    "object_id": 75293,
+    "name": "Large Battered Chest",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "14167": [
+   {
+    "kind": "drop",
+    "npc": 1731,
+    "npc_name": "Goblin Craftsman",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3947,
+    "npc_name": "Goblin Shipbuilder",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "14171": [
+   {
+    "kind": "drop",
+    "npc": 1707,
+    "npc_name": "Defias Captive",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14174": [
+   {
+    "kind": "drop",
+    "npc": 657,
+    "npc_name": "Defias Pirate",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3853,
+    "npc_name": "Shadowfang Moonwalker",
+    "zone": 209,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14181": [
+   {
+    "kind": "drop",
+    "npc": 4442,
+    "npc_name": "Razorfen Defender",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14183": [
+   {
+    "kind": "drop",
+    "npc": 4623,
+    "npc_name": "Quilguard Champion",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14257": [
+   {
+    "kind": "drop",
+    "npc": 5649,
+    "npc_name": "Sandfury Blood Drinker",
+    "zone": 1176,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15018": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 10,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5056,
+    "npc_name": "Deviate Dreadfang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15111": [
+   {
+    "kind": "drop",
+    "npc": 3636,
+    "npc_name": "Deviate Ravager",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5756,
+    "npc_name": "Deviate Venomwing",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15114": [
+   {
+    "kind": "drop",
+    "npc": 3636,
+    "npc_name": "Deviate Ravager",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3637,
+    "npc_name": "Deviate Guardian",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3640,
+    "npc_name": "Evolving Ectoplasm",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5048,
+    "npc_name": "Deviate Adder",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15116": [
+   {
+    "kind": "drop",
+    "npc": 4814,
+    "npc_name": "Twilight Elementalist",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15117": [
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "15120": [
+   {
+    "kind": "drop",
+    "npc": 4514,
+    "npc_name": "Raging Agam'ar",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15122": [
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4820,
+    "npc_name": "Blindlight Oracle",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15124": [
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15135": [
+   {
+    "kind": "drop",
+    "npc": 4538,
+    "npc_name": "Kraul Bat",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15211": [
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 7,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "container",
+    "object": true,
+    "object_id": 75298,
+    "name": "Large Solid Chest",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15230": [
+   {
+    "kind": "drop",
+    "npc": 1708,
+    "npc_name": "Defias Inmate",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 1715,
+    "npc_name": "Defias Insurgent",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 2268,
+    "npc_name": "Hillsbrad Footman",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4437,
+    "npc_name": "Razorfen Warden",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4511,
+    "npc_name": "Agam'ar",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4514,
+    "npc_name": "Raging Agam'ar",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4799,
+    "npc_name": "Fallenroot Hellcaller",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 6329,
+    "npc_name": "Irradiated Pillager",
+    "zone": 721,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15310": [
+   {
+    "kind": "drop",
+    "npc": 3637,
+    "npc_name": "Deviate Guardian",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3640,
+    "npc_name": "Evolving Ectoplasm",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "15311": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15322": [
+   {
+    "kind": "drop",
+    "npc": 4298,
+    "npc_name": "Scarlet Defender",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15329": [
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15330": [
+   {
+    "kind": "drop",
+    "npc": 4809,
+    "npc_name": "Twilight Acolyte",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15331": [
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15333": [
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15348": [
+   {
+    "kind": "drop",
+    "npc": 4814,
+    "npc_name": "Twilight Elementalist",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15488": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15498": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "15500": [
+   {
+    "kind": "drop",
+    "npc": 4811,
+    "npc_name": "Twilight Aquamancer",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15501": [
+   {
+    "kind": "drop",
+    "npc": 3640,
+    "npc_name": "Evolving Ectoplasm",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15503": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15506": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5755,
+    "npc_name": "Deviate Viper",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "15510": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15517": [
+   {
+    "kind": "drop",
+    "npc": 4810,
+    "npc_name": "Twilight Reaver",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15519": [
+   {
+    "kind": "drop",
+    "npc": 3917,
+    "npc_name": "Befouled Water Elemental",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15520": [
+   {
+    "kind": "drop",
+    "npc": 4825,
+    "npc_name": "Aku'mai Snapjaw",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15526": [
+   {
+    "kind": "drop",
+    "npc": 4798,
+    "npc_name": "Fallenroot Shadowstalker",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15912": [
+   {
+    "kind": "drop",
+    "npc": 1706,
+    "npc_name": "Defias Prisoner",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15918": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15933": [
+   {
+    "kind": "drop",
+    "npc": 504,
+    "npc_name": "Defias Trapper",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 263390,
+    "npc_name": "Tormented Soul",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 263466,
+    "npc_name": "Lesser Stone Golem",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 263470,
+    "npc_name": "Bloodhound Runt",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15970": [
+   {
+    "kind": "drop",
+    "npc": 11318,
+    "npc_name": "Ragefire Trogg",
+    "zone": 2437,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 11322,
+    "npc_name": "Searing Blade Cultist",
+    "zone": 2437,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 11323,
+    "npc_name": "Searing Blade Enforcer",
+    "zone": 2437,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15971": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5056,
+    "npc_name": "Deviate Dreadfang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "264501": [
+   {
+    "kind": "container",
+    "object": true,
+    "object_id": 618822,
+    "name": "Ancient Sword",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "274648": [
+   {
+    "kind": "drop",
+    "npc": 7604,
+    "npc_name": "Sergeant Bly",
+    "via": "polestar-recording",
+    "voters": 13,
+    "pct": null
+   }
+  ],
+  "276745": [
+   {
+    "kind": "drop",
+    "npc": 255702,
+    "npc_name": "Blazeroar",
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   }
+  ],
+  "280059": [
+   {
+    "kind": "drop",
+    "npc": 247198,
+    "npc_name": "Bonesnout the Unbroken",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "280071": [
+   {
+    "kind": "drop",
+    "npc": 247231,
+    "npc_name": "Unbound Spirit",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "280075": [
+   {
+    "kind": "drop",
+    "npc": 247234,
+    "npc_name": "Varrox Bleakhoof",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "281648": [
+   {
+    "kind": "drop",
+    "npc": 259758,
+    "npc_name": "Gul'gash",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "281676": [
+   {
+    "kind": "drop",
+    "npc": 259801,
+    "npc_name": "Mosh'gra",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "283253": [
+   {
+    "kind": "drop",
+    "npc": 14222,
+    "npc_name": "Araga",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "284192": [
+   {
+    "kind": "drop",
+    "npc": 2186,
+    "npc_name": "Carnivous the Breaker",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "284859": [
+   {
+    "kind": "drop",
+    "npc": 5350,
+    "npc_name": "Qirot",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "286541": [
+   {
+    "kind": "drop",
+    "npc": 5848,
+    "npc_name": "Malgin Barleybrew",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
    }
   ]
  },
@@ -117533,6 +119610,13 @@
    0,
    "Duskwood"
   ],
+  "210": [
+   "Bone Chewer",
+   26,
+   27,
+   0,
+   null
+  ],
   "212": [
    "Splinter Fist Warrior",
    29,
@@ -117677,6 +119761,13 @@
    "Rabid Shadowhide Gnoll",
    21,
    22,
+   0,
+   null
+  ],
+  "435": [
+   "Blackrock Champion",
+   24,
+   25,
    0,
    null
   ],
@@ -118541,6 +120632,13 @@
    1,
    "Stranglethorn Vale"
   ],
+  "909": [
+   "Defias Night Blade",
+   25,
+   26,
+   0,
+   "Duskwood"
+  ],
   "910": [
    "Defias Enchanter",
    26,
@@ -118741,6 +120839,13 @@
    "Dark Iron Tunneler",
    29,
    30,
+   1,
+   "Wetlands"
+  ],
+  "1054": [
+   "Dark Iron Demolitionist",
+   30,
+   31,
    1,
    "Wetlands"
   ],
@@ -119248,6 +121353,13 @@
    4,
    "Tirisfal Glades"
   ],
+  "1533": [
+   "Tormented Spirit",
+   8,
+   9,
+   4,
+   "Tirisfal Glades"
+  ],
   "1535": [
    "Scarlet Warrior",
    6,
@@ -119471,6 +121583,13 @@
    4,
    0,
    "Dun Morogh"
+  ],
+  "1720": [
+   "Bruegal Ironknuckle",
+   26,
+   26,
+   2,
+   null
   ],
   "1725": [
    "Defias Watchman",
@@ -119864,6 +121983,13 @@
    0,
    "Darkshore"
   ],
+  "2186": [
+   "Carnivous the Breaker",
+   16,
+   16,
+   4,
+   null
+  ],
   "2189": [
    "Vile Sprite",
    10,
@@ -119980,6 +122106,13 @@
    "Hillsbrad Farmer",
    23,
    24,
+   0,
+   null
+  ],
+  "2268": [
+   "Hillsbrad Footman",
+   24,
+   26,
    0,
    null
   ],
@@ -120865,6 +122998,13 @@
    0,
    "The Barrens"
   ],
+  "3256": [
+   "Sunscale Scytheclaw",
+   16,
+   18,
+   0,
+   "The Barrens"
+  ],
   "3260": [
    "Bristleback Water Seeker",
    16,
@@ -121348,6 +123488,13 @@
    1,
    null
   ],
+  "3917": [
+   "Befouled Water Elemental",
+   23,
+   25,
+   0,
+   null
+  ],
   "3924": [
    "Thistlefur Shaman",
    23,
@@ -121492,6 +123639,13 @@
    "Blackrock Scout",
    20,
    21,
+   1,
+   null
+  ],
+  "4065": [
+   "Blackrock Sentry",
+   20,
+   22,
    1,
    null
   ],
@@ -122524,6 +124678,13 @@
    4,
    null
   ],
+  "5350": [
+   "Qirot",
+   47,
+   47,
+   4,
+   "Feralas"
+  ],
   "5358": [
    "Cliff Giant",
    49,
@@ -122671,8 +124832,22 @@
    1,
    null
   ],
+  "5714": [
+   "Loro",
+   51,
+   51,
+   1,
+   null
+  ],
   "5715": [
    "Hukku",
+   52,
+   52,
+   1,
+   null
+  ],
+  "5717": [
+   "Mijan",
    52,
    52,
    1,
@@ -122871,6 +125046,13 @@
    "Heggin Stonewhisker",
    24,
    24,
+   4,
+   null
+  ],
+  "5848": [
+   "Malgin Barleybrew",
+   25,
+   25,
    4,
    null
   ],
@@ -126045,6 +128227,13 @@
    0,
    "Tanaris"
   ],
+  "14222": [
+   "Araga",
+   35,
+   35,
+   4,
+   null
+  ],
   "14267": [
    "Emogg the Crusher",
    19,
@@ -127459,6 +129648,13 @@
    2,
    "Riverglades"
   ],
+  "259801": [
+   "Mosh'gra",
+   41,
+   41,
+   4,
+   "Riverglades"
+  ],
   "259897": [
    "Old Fire-Eye",
    25,
@@ -127533,6 +129729,13 @@
    "Marsh Crocolisk",
    26,
    26,
+   0,
+   null
+  ],
+  "260800": [
+   "Thicket Lurker",
+   0,
+   0,
    0,
    null
   ],
@@ -127704,6 +129907,20 @@
    1,
    null
   ],
+  "263466": [
+   "Lesser Stone Golem",
+   0,
+   0,
+   1,
+   null
+  ],
+  "263470": [
+   "Bloodhound Runt",
+   0,
+   0,
+   0,
+   null
+  ],
   "263681": [
    "Bear",
    41,
@@ -127860,6 +130077,13 @@
   ],
   "275044": [
    "Dragonmaw Warder",
+   0,
+   0,
+   0,
+   null
+  ],
+  "275045": [
+   "Dragonmaw Saboteur",
    0,
    0,
    0,

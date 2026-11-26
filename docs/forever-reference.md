@@ -60,12 +60,21 @@ entry keeps its title and restrictions.
 
 The `guide_quests` rows identify the Library Books reward choices when the quest reward table omits them. The exporter matches each item ID in the guide header to its item name in the milestone step and that step’s hand-in. The guide documents Alliance for the two Greater Friend milestones. Horde availability for those rewards is unknown. [Polestar Library Books guide](https://github.com/fitzforge/polestar/blob/v0.4.3/guides/forever/miscellaneous/library-books.guide)
 
-The `dungeon_drops` fallback covers otherwise unsourced gear. Each NPC must
-appear in a single dungeon in the run or spawn data. Polestar's trusted boss
-recordings supply the observer count and a measured rate when available.
-The separate forever-db release supplies designed loot rates. Each drop
-identifies which source supplied it.
+The `dungeon_drops` fallback covers otherwise unsourced gear. The run and spawn
+rosters place each NPC in one dungeon. A boss missing from a roster also
+qualifies when ForeverDB.net players observed its NPC ID in one instance and
+its name matches that map's client encounter. The source credits ForeverDB.net
+for that placement. Polestar's trusted recordings supply the observer count and
+any measured boss rate. For other mobs, every recorded NPC that dropped the item
+must place in the same dungeon. Their kill counts supply no per-run rate.
+The separate forever-db release supplies designed loot rates.
 [Polestar recording format](https://github.com/fitzforge/polestar/blob/v0.4.3/rust/crates/forge-data/src/codex/recorded.rs)
+
+`recorded_loot` fills the remaining gaps for uncommon or better gear. It takes
+trusted loot windows from Polestar and the matching creature or object's name
+from the released forever-db. The recorded ID identifies the source even when
+its zone or drop chance is unknown. Korg Bat, for example, has three observers
+on Mosh'Ogg Brute in Stranglethorn Vale and no measured drop rate.
 
 ## New zones and dungeons
 
