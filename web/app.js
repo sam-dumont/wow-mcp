@@ -3926,6 +3926,7 @@ function renderTimeline(t, err) {
 function backInTime(t) {
   const lv = t.levels;
   const cur = state.snapLevel && lv.includes(state.snapLevel) ? state.snapLevel : lv[lv.length - 1];
+  state.snapLevel = cur;
   // The facts and gear, then the 3D model (kept from level to level: the
   // frame isn't reloaded: the 3D script dresses it again), then the talents.
   const info = h('div', { 'aria-live': 'polite' });
@@ -3938,6 +3939,8 @@ function backInTime(t) {
   let tm;
   slider.addEventListener('input', () => {
     const l = lv[Number(slider.value)];
+    // A timeline redraw can replace this slider before its timer fires.
+    state.snapLevel = l;
     label.textContent = `Level ${l}`;
     clearTimeout(tm);
     tm = setTimeout(() => { if (out.isConnected && state.char === t.char) loadSnapshot(l, out); }, 200);
@@ -3949,7 +3952,6 @@ function backInTime(t) {
 
 async function loadSnapshot(level, out) {
   const current = latestRequest('snapshot');
-  state.snapLevel = level;
   try {
     const sn = await getJSON(api('snapshot', { name: state.char, level }));
     if (current()) {
