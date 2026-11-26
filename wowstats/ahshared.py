@@ -182,7 +182,7 @@ def homes(own) -> set[tuple[str, str]]:
     return out
 
 
-def one_house(rows: list[dict], home: tuple[str, str] | None, *, exact: bool = False) -> tuple[dict, list[dict]]:
+def one_house(rows: list[dict], home: tuple[str, str | None] | None, *, exact: bool = False) -> tuple[dict, list[dict]]:
     """Keep every day of one house together for trends and loot valuations."""
     houses: dict[tuple[str, str], list[dict]] = {}
     for row in rows:
@@ -192,6 +192,8 @@ def one_house(rows: list[dict], home: tuple[str, str] | None, *, exact: bool = F
         realm, faction = home
         realm = ahsource.ruleset_key(realm)
         choices = [faction] if exact else [faction, NEUTRAL]
+        if not faction and not exact and len(houses) == 1:
+            choices.append("")  # A single legacy house can match only on the character's own ruleset.
         key = next(((realm, f) for f in choices if (realm, f) in houses), None)
     else:
         # Old single-house exports sometimes lack a faction. A labelled house
@@ -204,7 +206,7 @@ def one_house(rows: list[dict], home: tuple[str, str] | None, *, exact: bool = F
     return {"ruleset": key[0] or None, "faction": key[1] or None}, houses[key]
 
 
-def character_house(own, char: str) -> tuple[str, str] | None:
+def character_house(own, char: str) -> tuple[str, str | None] | None:
     """Read the character's own realm and side. Scanning a house can't change either."""
     names = sorted({char, char.replace("-", " "), char.replace(" ", "-")})
     filt = "char:in(" + ", ".join(lq(n) for n in names) + ")"
@@ -214,8 +216,7 @@ def character_house(own, char: str) -> tuple[str, str] | None:
     current = max((r for r in rows if r.get("realm")), key=lambda r: r.get("t") or "", default=None)
     if current:
         faction = side(current.get("faction"), current.get("race")) or _side_in_store(own, current["char"])
-        if faction:
-            return ahsource.ruleset_key(current["realm"]), faction
+        return ahsource.ruleset_key(current["realm"]), faction
     return None
 
 

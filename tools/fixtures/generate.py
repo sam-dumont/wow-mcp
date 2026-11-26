@@ -1743,6 +1743,9 @@ class DemoPlayer(Player):
 
     sold: set[int] = frozenset()  # sold to a vendor: out of the bags
 
+    def snapshot(self, **extra) -> None:
+        super().snapshot(realm=DEMO_REALM, **extra)
+
     def gear_sheet(self) -> None:
         key = (tuple(sorted(self.worn.items())), tuple((s, r) for s, (r, _c) in sorted(self.skills.items())))
         if key == getattr(self, "_sheet", None):

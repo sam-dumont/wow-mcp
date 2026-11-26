@@ -142,6 +142,22 @@ def test_neutral_market_is_a_fallback_and_never_merged_with_a_side():
     assert ahshared.one_house(rows, None)[1] == []
 
 
+def test_an_unknown_side_still_has_a_known_ruleset(lab):
+    from wowstats.plan import facts
+
+    _, people, upload = lab
+    own = people[ADA]
+    upload(ADA, character(ADA, "Fixture Realm 1 Normal", race="Skyborne"),
+           price(ADA, "Hardcore", 505, 99000))
+    assert facts.prices(own, char=ADA) == {}
+    upload(ADA, price(ADA, "Normal", 505, 3000, faction="Neutral"))
+    assert facts.prices(own, char=ADA)[505]["copper"] == 3000
+
+    legacy = [{"ruleset": "Normal"}]
+    assert ahshared.one_house(legacy, ("Normal", None))[1] == legacy
+    assert ahshared.one_house(legacy, None)[1] == legacy
+
+
 def test_the_side_comes_from_the_store_or_the_race_else_it_stays_home(lab):
     loc, people, upload = lab
     upload(BRAM, character(BRAM, "Normal", race="Orc"))  # an earlier upload: race only
