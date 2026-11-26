@@ -435,7 +435,7 @@ class App:
                  "plan": full,
                  # Each outside source's version as the bundled files record
                  # it (wowstats.dataversions), public: nothing about a person.
-                 "data_versions": dataversions.versions()}
+                 **dataversions.status()}
         return feats if full else redact.public("config", feats)
 
     def nudge(self, name: str) -> dict | None:

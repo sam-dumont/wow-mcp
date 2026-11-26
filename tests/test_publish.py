@@ -29,7 +29,7 @@ from tests.test_public_view import (
     SECRETS,
     PoisonStore,
 )
-from wowstats import bar, publish, static, ui
+from wowstats import bar, dataversions, publish, static, ui
 from wowstats.redact import ZOGZOG_MOVE_KINDS
 
 pytest.importorskip("cryptography")
@@ -110,7 +110,7 @@ def test_public_bundle_has_no_full_data(site):
     page = pub["index.html"].decode()
     assert 'data-static="1"' in page and 'id="people"' not in page and 'data-sealed' not in page
     cfg = json.loads(pub["data/config.json"])
-    assert cfg == {"view": "public", "static": True}
+    assert cfg == {"view": "public", "static": True, **dataversions.status()}
 
 
 def opened(key: str, zz: dict) -> dict:
@@ -188,6 +188,7 @@ def test_zogzog_bundle_is_sealed_full_content(site):
     cfg = json.loads(publish.unseal(k, "data/config.json", data["data/config.json.enc"]))
     assert cfg["view"] == "full" and "coach" not in cfg and not cfg["mcp"] and not cfg["debug"]
     assert not cfg["people"] and cfg["loot"]
+    assert {k: cfg[k] for k in ("version", "data_versions")} == dataversions.status()
     page = zz["index.html"].decode()
     assert 'data-sealed="1"' in page and 'id="askbox"' not in page and 'id="debug"' not in page
 
@@ -259,6 +260,16 @@ def shape_maps(spec, prefix=""):
 
 def test_rebuilds_only_on_new_events(site):
     env, *_ = site
+    assert publish.publish(env)["built"] is False
+
+
+def test_new_source_revision_republishes_without_a_new_character_event(site, monkeypatch):
+    env, _, _, current = site
+    previous = dataversions.versions()
+    monkeypatch.setattr(dataversions, "versions", lambda: {**previous, "polestar": "v0.0.1-example"})
+    assert publish.publish(env)["why"] == "new version or page settings"
+    cfg = json.loads((current / "public/data/config.json").read_text())
+    assert cfg["data_versions"]["polestar"] == "v0.0.1-example"
     assert publish.publish(env)["built"] is False
 
 
@@ -358,7 +369,18 @@ CLASS_GUIDE_KEYS = {
 
 
 ALLOWED = {
-    "config": {"view", "static"},
+    "config": {"view", "static", "version", "data_versions",
+               *keys("data_versions.", ("foreverdb", "forever_db", "polestar", "client_build", "wowsims",
+                                       "checked_addons", "checked", "watched_client_build", "spell_hotfix_push",
+                                       "kb_digest_week", "kb_statement_reviews")),
+               *keys("data_versions.kb_statement_reviews.", ("oldest", "newest")),
+               *keys("data_versions.foreverdb.", ("data_version", "build", "weights_data_version", "addon_version",
+                                                 "fingerprint", "weights_fetched")),
+               *keys("data_versions.forever_db.", ("version", "client_build")),
+               *keys("data_versions.client_build.", ("zones", "spells", "items", "crafting")),
+               *keys("data_versions.wowsims.", ("sim", "exporter")),
+               *keys("data_versions.checked_addons.", ("Questie", "WoWSims Exporter")),
+               *keys("data_versions.kb_digest_week.", ("news", "community"))},
     "chars": {"chars", *keys("chars[].", ("char", "level", "demo"))},
     "char": {"char", "generated_at", "stale", "route_source", "header", "levels", "dungeons", "gear",
              *keys("header.", ("char", "name", "race", "class", "faction", "level", "xp", "xp_max", "polestar",

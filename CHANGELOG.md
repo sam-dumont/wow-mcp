@@ -16,6 +16,7 @@
 - A two-point difference between profession readings keeps a trained Expert cap. Gear still shows which specs suit faction- or profession-gated items, while checking those requirements for a particular character.
 - The knowledge base includes Blizzard's November 23 and 25 hotfixes. News for a character with an unknown role includes changes affecting tanks and healers.
 - The scheduled reference refresh reports test progress and identifies timed-out tests in the job log.
+- All three dashboard footers show the app version and bundled data sources. MCP exposes the same versions and dates through `data_status` and `character_summary`. Run `wow-stats data-status` for the same JSON locally.
 
 ### Upgrading
 

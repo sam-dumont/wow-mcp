@@ -98,7 +98,7 @@ Not in CI: it needs a model client. See [evaluation.md](evaluation.md).
 
 ## The MCP check
 
-`make eval-mcp` puts 71 questions about the demo character to Claude Haiku, through this checkout's MCP
+`make eval-mcp` puts 74 questions about the demo character and server to Claude Haiku, through this checkout's MCP
 tools and nothing else: one `claude -p` per question, six at a time, 3 minutes each. Each answer is one short
 value computed from the demo data (`tools/eval_mcp/answers.py`, or the value a probe reads), and the grade is an
 exact or normalized match, no model involved. A question passes when the answer is right, the run called the
@@ -108,12 +108,12 @@ The questions (`tools/eval_mcp/questions.yaml`) come in 15 groups, each with a p
 
 | group | questions | what it checks |
 |---|---|---|
-| lookup | 8 | one fact from one tool: level, gold, deaths, the top killer, rested XP |
+| lookup | 10 | one fact from one tool: level, gold, deaths, the top killer, rested XP |
 | time | 10 | levels, sessions, breaks, `since`/`until` windows, the last 30 days |
 | gear | 8 | every mode (Leveling, PvP, PvE), another spec, options, weapon setups; the first pick is never a long shot |
 | route | 5 | the next guide step, the dungeon ranking and its drops, the route's plan per level |
 | multi | 5 | "2 hours tonight", "am I slower than usual and why", the gold left for riding |
-| hedge | 3 | riding and Tailoring trainers from game data only; "the data can't tell" for an unknown recipe |
+| hedge | 4 | riding and Tailoring trainers from game data only; "the data can't tell" for an unknown recipe |
 | plan | 2 | `plan_session` then `check_plan`; no plan to review yet |
 | market | 4 | own auction scans, the upgrade on sale; the WoW Token without Battle.net is NONE |
 | people | 3 | players seen; no invented group members or classes |
@@ -135,7 +135,7 @@ answer found through `play_sql` alone: that data has no typed path yet.
   mark text other people wrote as untrusted, and hold the question's answer. The same test fails when an MCP tool
   has no probe and no reason in `tools/eval_mcp/coverage.yaml`, or when an argument or situation listed there
   (`gear:mode=pvp`, `deaths:since`, `scenario:no-recorder`, `error`...) has no probe. About a minute and a half.
-- **By hand, with a model** (`make eval-mcp`, your Claude Code login): the 71 questions to Haiku, six at a
+- **By hand, with a model** (`make eval-mcp`, your Claude Code login): the 74 questions to Haiku, six at a
   time. A full run takes about 5 minutes and Claude Code counts about $0.20 for it (what the API would charge;
   on a Claude plan it is not a bill). On 0.10.0 (2026-11-24): 67 of 71 in 117 s, $0.20. `--max-usd` (default 2) stops
   starting questions past that. Not in CI, not a release gate.

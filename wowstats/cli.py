@@ -1,6 +1,7 @@
 """`wow-stats <mode>`: one entry point for the image and for `uv run`."""
 
 import argparse
+import json
 import sys
 
 from wowstats import __version__
@@ -10,6 +11,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="wow-stats", description="WoW Forever leveling log")
     ap.add_argument("--version", action="version", version=f"wow-stats {__version__}")
     sub = ap.add_subparsers(dest="mode", required=True)
+    sub.add_parser("data-status", help="print this install's app version, data sources and freshness as JSON")
     sub.add_parser("ui", help="the web UI, its JSON API and the optional ingest endpoint (env: see README)")
     sub.add_parser("exporter", help="the Battle.net API exporter, pushing to the 30-day VictoriaMetrics")
     pub = sub.add_parser("publish", help="write the static sites (public, and the sealed full content)")
@@ -37,6 +39,11 @@ def main(argv: list[str] | None = None) -> int:
 
         return analysis.main(args[1:])
     a = ap.parse_args(argv)
+    if a.mode == "data-status":
+        from wowstats import dataversions
+
+        print(json.dumps(dataversions.status(), indent=2))
+        return 0
     if a.mode == "publish":
         from wowstats import publish
 

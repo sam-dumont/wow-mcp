@@ -323,11 +323,22 @@ patch release the same day, with a release note line that names what moved
 client build, the addons, the rebuilt exports). No release while a release
 candidate series is open; the data rides the next candidate then.
 
-**What a server serves.** `/api/config` and the MCP's `character_summary`
-carry `data_versions` (`wowstats/dataversions.py`): ForeverDB.net's data
+**What a server serves.** Open **Data sources** in the footer of any dashboard.
+The live page shows the server version. Public and sealed snapshots show the
+publisher version and the revisions bundled when it built the page.
+`/api/config`, MCP `data_status` (no character required) and
+`character_summary` return `version` and `data_versions`. The CLI prints the
+same JSON with `wow-stats data-status`. The metadata includes ForeverDB.net's data
 version and build, the forever-db release and its client build, the
 Polestar tag, the client build of each set of client tables, and the day
-the watch last landed, all read from the shipped files. The craft build
+the watch last accepted a change. The weights fetch date, spell hotfix push,
+watched client build and latest available news and community digest weeks
+each describe their own source. `kb_statement_reviews` gives the oldest and
+newest verification dates among dated research statements. The character's event time is separate.
+`foreverdb.fingerprint` identifies the source files.
+`checked_addons` lists the Questie and WoWSims Exporter releases checked
+by the watch. `wowsims` identifies the exporter and sim commits behind the
+shipped talent order. The craft build
 comes from `craft-reference.json`. Advancing items requires a same-build
 Forever `DBCache.bin`. Pass that file and its build to
 `tools/game_items/export.py`, then run `tools/craft_reference/export.py` at

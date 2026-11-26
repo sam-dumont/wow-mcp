@@ -621,6 +621,10 @@ a.whx:hover { color: var(--gold-hi); background: color-mix(in srgb, var(--rule) 
 
 .foot { max-width: 1160px; margin: 0 auto; padding: 18px 16px 40px; color: var(--muted); font-size: 14px; }
 .foot p { margin: 0 0 4px; }
+.source-versions { margin-top: 6px; }
+.source-versions summary { cursor: pointer; color: var(--gold); width: fit-content; }
+.source-versions dl { display: grid; grid-template-columns: fit-content(48%) minmax(0, 1fr); gap: 4px 14px; max-width: 42rem; }
+.source-versions dd { margin: 0; overflow-wrap: anywhere; }
 .warn { color: var(--death); }
 
 .demo {

@@ -9,7 +9,7 @@ import types
 
 import pytest
 
-from wowstats import ui
+from wowstats import __version__, ui
 from wowstats.stores import Store
 
 SECRET_PLAYER = "Secretfriend-Otherrealm"
@@ -147,9 +147,11 @@ def test_public_config_and_payload_shape(run_app):
     srv = run_app(make("public"))
     cfg = json.loads(srv.get("/api/config")[2])
     versions = cfg.pop("data_versions")
-    assert cfg == {"view": "public", "static": None}
+    assert cfg == {"view": "public", "static": None, "version": __version__}
     # What the bundled data was built from: public sources' versions, no more.
-    assert set(versions) <= {"foreverdb", "forever_db", "polestar", "client_build", "checked"} and versions
+    assert set(versions) <= {
+        "foreverdb", "forever_db", "polestar", "client_build", "wowsims", "checked_addons", "checked",
+        "watched_client_build", "spell_hotfix_push", "kb_digest_week", "kb_statement_reviews"} and versions
     d = json.loads(srv.get(f"/api/char?name={CHAR}")[2])
     # The card, the climb and the dungeons; nothing else (redact.PUBLIC).
     assert set(d) == {"char", "generated_at", "stale", "route_source", "header", "levels", "dungeons", "gear",

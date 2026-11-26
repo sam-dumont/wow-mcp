@@ -376,6 +376,12 @@ def current_zone(ctx: Ctx, char: str) -> str | None:
     return zone_now(pick_sheet(sheet_rows(one_row(st), cf(char))), (last or [{}])[0])
 
 
+def t_data_status(ctx: Ctx, args: dict) -> dict:
+    from wowstats import dataversions
+
+    return dataversions.status()
+
+
 def t_character_summary(ctx: Ctx, args: dict) -> dict:
     from wowstats import dataversions
     from wowstats.analysis import pages
@@ -453,7 +459,7 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
         **({"from_level_splits": estimated} if estimated else {}),
         # What the server's static data was built from (wowstats.dataversions):
         # how fresh the item sources, quests and routes behind every answer are.
-        "data_versions": dataversions.versions(),
+        **dataversions.status(),
     }
 
 
@@ -1657,6 +1663,10 @@ TOOLS: tuple[Tool, ...] = (
          "last 3 levels), ETA to the next level, deaths, the kills and quests in named populations (counts: "
          "completed_levels, current_level so far, including_current_level), and the other characters on record.",
          schema({"char": CHAR}), t_character_summary),
+    Tool("data_status", "Version and data sources",
+         "The running wow-stats version and bundled source revisions, client builds, ForeverDB weights fetch date "
+         "and knowledge-base digest weeks. checked is the date of the last accepted watch change. No character needed.",
+         schema({}), t_data_status),
     Tool("levels", "Time per level",
          "Time, XP, quests and kills per level from Polestar's XP splits, with median, fastest and slowest. A level "
          "whose split is missing or partial is timed from the game's /played (`from`: altoholic). The current "
@@ -1910,6 +1920,8 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
     extra = sorted(set(args) - allowed)
     if extra:
         raise ToolError(f"unknown argument(s): {', '.join(extra)}")
+    if name == "data_status":  # No account data or character-store dependency.
+        return tool.fn(ctx, args)
     from wowstats import eventcache, itemfacts
     from wowstats.analysis import copies, drive
     from wowstats.stores import SourceError as ViewsSourceError

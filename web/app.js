@@ -4204,6 +4204,45 @@ function initDebug() {
 
 // ------------------------------------------------------------ footer
 
+// Config is read once, including on an empty dashboard. Keep this disclosure
+// outside the character footer so switching characters preserves its open state.
+function renderSourceVersions(config) {
+  const { version, data_versions: data = {} } = config;
+  const rows = [];
+  function add(label, value) {
+    if (value != null && value !== '') rows.push(h('dt', { text: label }), h('dd', { text: value }));
+  }
+  const v = data || {};
+  add(STATIC ? 'Publisher version' : 'Server version', version);
+  add('Last accepted source change', v.checked);
+  add('Watched Forever client', v.watched_client_build);
+  const builds = new Map();
+  for (const [name, build] of Object.entries(v.client_build || {})) {
+    if (!builds.has(build)) builds.set(build, []);
+    builds.get(build).push(name);
+  }
+  for (const [build, names] of builds) add('Client tables · ' + names.join(', '), build);
+  add('Spell hotfix push', v.spell_hotfix_push);
+  add('Polestar routes', v.polestar);
+  add('Forever quest database', v.forever_db?.version);
+  add('Quest database client', v.forever_db?.client_build);
+  add('ForeverDB.net item sources', v.foreverdb?.data_version);
+  add('ForeverDB.net addon', v.foreverdb?.addon_version);
+  add('ForeverDB.net client', v.foreverdb?.build);
+  add('ForeverDB.net stat weights', v.foreverdb?.weights_data_version);
+  add('Stat weights fetched', v.foreverdb?.weights_fetched);
+  add('ForeverDB.net fingerprint', v.foreverdb?.fingerprint);
+  add('Oldest KB statement review', v.kb_statement_reviews?.oldest);
+  add('Newest KB statement review', v.kb_statement_reviews?.newest);
+  add('News digest week', v.kb_digest_week?.news);
+  add('Community digest week', v.kb_digest_week?.community);
+  for (const [name, release] of Object.entries(v.checked_addons || {})) add(name + ' · watched release', release);
+  for (const [name, revision] of Object.entries(v.wowsims || {})) add('WoWSims ' + name + ' revision', revision);
+  const summary = version ? `wow-stats ${version} · Data sources` : 'Version and data sources';
+  fill($('#foot-sources'), h('details', { class: 'source-versions' }, h('summary', { text: summary }),
+    rows.length ? h('dl', {}, ...rows) : h('p', { text: 'Source information is unavailable.' })));
+}
+
 function renderFoot(d, err) {
   const kids = [];
   if (err) kids.push(h('p', { class: 'warn', text: `Couldn’t refresh: ${err}.` }));
@@ -4213,7 +4252,7 @@ function renderFoot(d, err) {
   }
   if (d) kids.push(h('p', { text: STATIC ? `As of ${day(d.generated_at)} ${timeFmt.format(new Date(d.generated_at))}. Rebuilt after each play session.`
     : `As of ${timeFmt.format(new Date(d.generated_at))}.` }));
-  fill($('#foot'), ...kids);
+  fill($('#foot-status'), ...kids);
 }
 
 // ------------------------------------------------------------ new data
@@ -4493,6 +4532,7 @@ async function start() {
       state.config = { view: 'public' };
     }
   }
+  renderSourceVersions(state.config);
   if (!PUBLIC && feat('plan')) initPlan();
   initDebug();
   let chars;

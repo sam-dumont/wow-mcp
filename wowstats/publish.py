@@ -71,6 +71,7 @@ from wowstats import (
     armory,
     bar,
     character3d,
+    dataversions,
     forever,
     gearmode,
     itemcard,
@@ -423,10 +424,6 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
             return
         try:
             body = out(what, fn())
-            if what == "config":
-                # data_versions describe a running server's bundled data
-                # (/api/config), not a snapshot published once.
-                body.pop("data_versions", None)
             b.json(rel, body)
         except Exception as e:  # noqa: BLE001 - a store that is down drops one section
             if what not in ("market", "prices"):
@@ -738,7 +735,7 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
     pics = pictures.Pictures(env, out, log)
     # The page itself changes with a new version or analytics setting: rebuild
     # then too, not only on new data.
-    page_id = hashlib.sha256(json.dumps([__version__, stats, zz_path, public, sorted(hide_public),
+    page_id = hashlib.sha256(json.dumps([dataversions.status(), stats, zz_path, public, sorted(hide_public),
                                          sorted(hide_zogzog), canonical, pics.on, full_app.model3d is not None,
                                          env.get("MODEL3D_MODELS", ""),
                                          full_app.settings.weights, env[gearmode.PUBLISHED]],

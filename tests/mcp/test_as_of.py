@@ -44,7 +44,7 @@ READERS = [
 ]
 # Answers that read no event of the character: the knowledge base, the
 # metric catalogue, the account's auction scans (not a character's history).
-NOT_READERS = [("list_metrics", {}), ("kb_search", {"query": "riding"}), ("kb_get", {"ids": ["note:xp-sources"]}),
+NOT_READERS = [("data_status", {}), ("list_metrics", {}), ("kb_search", {"query": "riding"}), ("kb_get", {"ids": ["note:xp-sources"]}),
                ("kb_lookup", {"ids": ["quest:56"]}), ("kb_rule", {"name": "riding.apprentice"}), ("kb_topics", {}),
                ("prices", {}), ("market", {})]
 

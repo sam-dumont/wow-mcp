@@ -14,8 +14,8 @@ from fastmcp import Client
 from fastmcp.server.auth.redirect_validation import matches_allowed_pattern
 
 from tests.mcp import fakes, inmem, oauth_client, oidc_standin, proxy
+from wowstats import __version__, dataversions, ui
 from wowstats import mcp as mcpmod
-from wowstats import ui
 from wowstats.mcp import prompts, server, tools
 from wowstats.mcp.store import Store
 
@@ -38,6 +38,9 @@ def ctx(stores):
 def test_registry_is_tools_and_prompts(ctx):
     async def go():
         async with Client(inmem.build(ctx)) as c:
+            assert c.server_info.version == __version__
+            status = await c.call_tool("data_status", {})
+            assert status.structured_content == dataversions.status()
             return await c.list_tools(), await c.list_prompts()
 
     listed, ps = asyncio.run(go())

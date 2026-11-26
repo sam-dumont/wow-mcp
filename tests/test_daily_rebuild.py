@@ -303,10 +303,42 @@ def test_the_server_says_what_its_data_was_built_from():
     assert set(v["client_build"]) == {"zones", "spells", "items", "crafting"}
     craft = json.loads((ROOT / "data/craft-reference.json").read_text())
     assert v["client_build"]["crafting"] == craft["source"]["client_tables"]["build"]
+    assert v["foreverdb"]["fingerprint"] == src["fingerprint"]
+    assert v["foreverdb"]["addon_version"] == src["addon_version"]
+    talent_order = json.loads((ROOT / "data/wowsims-talents.json").read_text())
+    assert v["wowsims"] == {k: talent_order[k] for k in ("exporter", "sim")}
+    checked = {a["name"]: a["known"] for a in state()["addons"] if a.get("repo") and a.get("known")}
+    assert v["checked_addons"] == checked
+    assert {"Questie", "WoWSims Exporter"} <= set(checked)
     assert v["checked"] == state()["checked"]
+    assert v["watched_client_build"] == state()["client_build"]["known"]
+    classes = json.loads((ROOT / "data/class-reference.json").read_text())["source"]
+    weights = json.loads((ROOT / "data/foreverdb-weights.json").read_text())["source"]
+    assert v["spell_hotfix_push"] == classes["client"]["hotfix"]["push"]
+    assert v["foreverdb"]["weights_fetched"] == weights["fetched"]
+    for name, group in (("news", "digests"), ("community", "weeks")):
+        digests = json.loads((ROOT / f"data/kb/{name}.json").read_text())[group]
+        assert v["kb_digest_week"][name] == max(row["week"] for row in digests)
     pub = redact.public("config", {"view": "public", "debug": True, "data_versions": v})
     assert pub["data_versions"] == v and "debug" not in pub
     assert redact.zogzog("config", {"view": "zogzog", "data_versions": v})["data_versions"] == v
+
+
+def test_data_status_reads_dates_from_the_bundle_without_a_character(tmp_path, monkeypatch, capsys):
+    from wowstats import __version__, cli, dataversions
+
+    monkeypatch.setattr(dataversions, "DATA_DIRS", (tmp_path,))
+    (tmp_path / "forever-reference.json").write_text("{}")
+    assert cli.main(["data-status"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"version": __version__, "data_versions": {}}
+    research = tmp_path / "kb/research"
+    research.mkdir(parents=True)
+    (research / "dungeons.json").write_text(json.dumps({"statements": [
+        {"last_verified": "2026-10-01"}, {}, {"last_verified": "2026-11-01"}]}))
+    first = dataversions.versions()["kb_statement_reviews"]
+    assert first == {"oldest": "2026-10-01", "newest": "2026-11-01"}
+    (research / "new.json").write_text('{"statements":[{"last_verified":"2026-11-26"}]}')
+    assert dataversions.versions()["kb_statement_reviews"]["newest"] == "2026-11-26"
 
 
 def test_the_release_note_names_forever_db_and_the_rebuild():

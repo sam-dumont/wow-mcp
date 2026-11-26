@@ -113,7 +113,9 @@ CLASS_GUIDE = {
 # 2026-11-20), from the class, spec and level too.
 META_PARAGRAPH = {k: None for k in ("class", "spec", "text", "checked", "stale", "soon")}
 
-DATA_VERSIONS = {"foreverdb": {}, "forever_db": {}, "polestar": None, "client_build": {}, "checked": None}
+DATA_VERSIONS = {"foreverdb": {}, "forever_db": {}, "polestar": None, "client_build": {},
+                 "wowsims": {}, "checked_addons": {}, "checked": None, "watched_client_build": None,
+                 "spell_hotfix_push": None, "kb_digest_week": {}, "kb_statement_reviews": {}}
 
 LEVEL_SPLIT = {k: None for k in ("level", "seconds", "partial", "route_s")}
 
@@ -121,7 +123,7 @@ PUBLIC: dict[str, dict] = {
     # What the page may turn on: nothing beyond the four parts above.
     # What the static data was built from (wowstats.dataversions): source
     # versions, nothing about a person.
-    "config": {"view": None, "static": None, "data_versions": DATA_VERSIONS},
+    "config": {"version": None, "view": None, "static": None, "data_versions": DATA_VERSIONS},
     # The character switcher.
     "chars": {"chars": [{"char": None, "level": None, "demo": None}]},
     # The card, the climb and the dungeons. No zone, no "last seen", no
@@ -359,7 +361,7 @@ DUNGEON = {
 }
 
 ZOGZOG: dict[str, dict] = {
-    "config": {**_keys("view", "static", "players", "gold", "market", "prices", "debug", "mcp", "journal",
+    "config": {**_keys("version", "view", "static", "players", "gold", "market", "prices", "debug", "mcp", "journal",
                        "people", "loot"), "data_versions": DATA_VERSIONS},
     "chars": {"chars": [_keys("char", "events", "level", "demo")]},
     "char": {

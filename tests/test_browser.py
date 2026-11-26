@@ -26,7 +26,7 @@ import pytest
 sync_api = pytest.importorskip("playwright.sync_api")
 
 from tests.test_public_view import PoisonStore  # noqa: E402
-from wowstats import armory, itemcard, publish, static, stores, ui  # noqa: E402
+from wowstats import armory, dataversions, itemcard, publish, static, stores, ui  # noqa: E402
 
 FIXTURES = Path(__file__).parent / "fixtures"
 JPEG = (FIXTURES / "icon.jpg").read_bytes() if (FIXTURES / "icon.jpg").is_file() else None
@@ -270,6 +270,22 @@ def test_plausible_sees_the_path_and_never_the_key(served, browser, bundle):
     # Every request stays on the site: no third party.
     assert all(u.startswith(base + "/") or u.startswith("data:") for u in seen), [
         u for u in seen if not u.startswith(base)]
+    c.close()
+
+
+@pytest.mark.parametrize("bundle", ["public", "zogzog"])
+def test_published_source_versions_on_mobile(served, browser, bundle):
+    base, key = served
+    c, pg, _, _ = page_with_plausible(browser, viewport={"width": 375, "height": 812})
+    pg.goto(f"{base}/" if bundle == "public" else f"{base}/zogzog/#{key}")
+    details = pg.locator("#foot-sources details")
+    details.locator("summary").click()
+    versions = dataversions.status()
+    assert f"wow-stats {versions['version']}" in details.inner_text()
+    assert "Publisher version" in details.inner_text()
+    for value in (versions["data_versions"]["foreverdb"]["data_version"], versions["data_versions"]["checked"]):
+        assert value in details.inner_text()
+    assert details.evaluate("el => el.scrollWidth <= el.clientWidth")
     c.close()
 
 

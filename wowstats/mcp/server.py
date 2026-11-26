@@ -65,6 +65,8 @@ from fastmcp.utilities.authorization import AuthContext  # noqa: E402
 from mcp.types import TextContent, ToolAnnotations  # noqa: E402
 from pydantic import PrivateAttr  # noqa: E402
 
+from wowstats import __version__  # noqa: E402
+
 from . import consent, prompts, reminder, tasks, tools, wowhead  # noqa: E402
 
 log = logging.getLogger("wowstats.mcp")
@@ -411,7 +413,7 @@ def build_server(who: Who, *, auth=None) -> FastMCP:
         middleware.append(AuthMiddleware(auth=allowed_check(who)))
     middleware.append(PersonTools(who))
     keeper = getattr(auth, "state_keeper", None)
-    mcp = FastMCP(name=NAME, instructions=INSTRUCTIONS, auth=auth, middleware=middleware,
+    mcp = FastMCP(name=NAME, version=__version__, instructions=INSTRUCTIONS, auth=auth, middleware=middleware,
                   lifespan=keeper.lifespan() if keeper else None)
     # MCP Tasks (io.modelcontextprotocol/tasks): a cold analysis call runs in
     # the background for a client that opts in (wowstats/mcp/tasks.py).

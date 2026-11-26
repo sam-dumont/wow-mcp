@@ -214,7 +214,7 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
       "analysis_submit", "analysis_progress", "dashboard_refresh")),
     ("People", "players your game showed you", ("players",)),
     ("Game rules", "game facts: quests, items, NPCs, zones, rules, how to level your class and its meta",
-     ("kb_search", "kb_get", "kb_lookup", "kb_rule", "kb_topics", "class_guide", "class_meta")),
+     ("data_status", "kb_search", "kb_get", "kb_lookup", "kb_rule", "kb_topics", "class_guide", "class_meta")),
     ("News", "what's new on Forever this week, and what is coming", ("news",)),
 )
 
