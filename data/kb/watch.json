@@ -95,7 +95,7 @@
         "category": "Forever",
         "source_type": "press",
         "max_confidence": "medium",
-        "known": 383959
+        "known": 384000
       },
       {
         "key": "blizzard-tracker",
@@ -104,7 +104,7 @@
         "forum": "https://us.forums.blizzard.com/en/wow",
         "source_type": "official",
         "max_confidence": "high",
-        "known": 1795220358
+        "known": 1795649108
       }
     ],
     "guides": [
@@ -166,7 +166,7 @@
       {
         "key": "wowgg-kroldok-stronghold",
         "url": "https://wow.gg/guides/kroldok-stronghold",
-        "known": "e8647ca93839f2ada220b148bc4dea6c89ad4f67a2ec9946948059f4c2a54b85"
+        "known": "d5538105ea650bc8d93b0056deac9fba0318981759889e082c52453b2f3f477e"
       },
       {
         "key": "wowgg-dungeon-xp",
@@ -267,19 +267,19 @@
         "key": "fdb-guide-leveling-hunter",
         "url": "https://foreverdb.net/guide/leveling-hunter",
         "class": "Hunter",
-        "known": "a2807b87d69ae320b29f28f9ddd1f38ac62cab37a7803f5ca3631fb918ff98f6"
+        "known": "a5545b7848f2e0fc5a4ab352175b2d8f3b1dbf693316c477ba4d5f853c3a914f"
       },
       {
         "key": "fdb-guide-leveling-rogue",
         "url": "https://foreverdb.net/guide/leveling-rogue",
         "class": "Rogue",
-        "known": "04a95bb0cdd8b99ec0890106186d6407c3d8c8280a62b52cfc4e3a8b0fc015b0"
+        "known": "39ed482f4332db557a6cc9308337a6ceb56258e31b85793ce28c655e97a4fda0"
       },
       {
         "key": "fdb-guide-leveling-warrior",
         "url": "https://foreverdb.net/guide/leveling-warrior",
         "class": "Warrior",
-        "known": "780b7637bbd41ca7812f7f9185dd85c097570aa790eae6b01c75e9f8dd2995ef"
+        "known": "0d2d573dd2d584f377038af7ad29399586d0fd1f7804f05e3a23b04dc7ca4db3"
       },
       {
         "key": "kami-build-chaman-amelioration-leveling",
@@ -509,12 +509,12 @@
       {
         "key": "fdb-professions-best",
         "url": "https://foreverdb.net/professions/best",
-        "known": "1febd36665956a95c1c3d10009571bc3f8677990671265e577ba8296244826a9"
+        "known": "f387459d1b92eff005caf59ca1c20981d9ca90e45ba2feedbe994a3ddb96c5dc"
       },
       {
         "key": "kami-tier-list-wow-forever",
         "url": "https://kami-labs.fr/en/tier-list-wow-forever/",
-        "known": "d8911e975f4ce8ee579ab758c7670b705aa7ae6384eec352ac83adc56b2b8893"
+        "known": "40a548af53ab00ac70d7c2cb9339b1198de5551fea86710dc8935995a84eca39"
       },
       {
         "key": "kami-which-class",
