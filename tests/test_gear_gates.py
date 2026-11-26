@@ -48,3 +48,19 @@ def test_item_side_applies_to_held_and_full_advice():
             assert (iid in all_ids) == (side == "Horde")
             if side == "Alliance":
                 assert all(u["item_id"] != iid for u, s in insights.in_reach(a, 60))
+
+
+def test_flying_tiger_goggles_require_engineering_on_every_route(monkeypatch):
+    iid = 4368
+    ref = gear.reference()
+    item = ref.item(iid)
+    # The released client data populates these same fields (tools/game_items).
+    monkeypatch.setitem(item, "required_skill", 202)
+    monkeypatch.setitem(item, "required_skill_rank", 100)
+    market = {"items": {iid: {"price_copper": 50, "seen_days_ago": 0}}}
+    sheet = {"class": "PRIEST", "race": "Human", "faction": "Alliance"}
+    for prof in (None, [], [{"skill_id": 202, "rank": 99}], [{"name": "Engineering", "rank": 100}]):
+        for held in (None, {"bags": [iid]}, {"bank": [iid]}):
+            a = gear.advise(ref, {**sheet, "professions": prof}, level=46, spec="shadow",
+                            held=held, market=market, every=True)
+            assert any(u["item_id"] == iid for u in a["upgrades_all"]) == bool(prof and prof[0]["rank"] == 100)

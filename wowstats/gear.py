@@ -693,6 +693,9 @@ def usability(ref: Reference, info: dict, cls: str, level: int, who: Who | None 
     min_level = available_level(info)
     if info.get("side") and (who is None or info["side"] != who.side):
         return False, "faction", min_level
+    skill = info.get("required_skill")
+    if skill and (who is None or who.skill_ranks.get(skill, 0) < max(1, info.get("required_skill_rank") or 0)):
+        return False, "skill", min_level
     if not (prof and meta):
         return True, None, min_level
     allow = info.get("allow") or 0
@@ -1033,6 +1036,7 @@ class Who:
     # DataStore_Crafts through the shipper's `recipes`; a profession missing
     # here is unknown, never "not learned".
     recipes: dict = field(default_factory=dict)
+    skill_ranks: dict = field(default_factory=dict)  # SkillLine ID -> observed rank for equip requirements
     bags: set = field(default_factory=set)  # item IDs in the bags (wow-bags)
     # {faction id: (reaction 1-8, points from the start of Neutral)}, from
     # the Recorder's rep records and Altoholic's (reputations); None when
@@ -1069,10 +1073,8 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
     """One source of an item in the answer's shape, or None when this
     character can't take it (the other side's quest, another race's or
     class's, a quest already handed in), from content Forever hasn't opened
-    (closed_content), or a PvP reward while PvP rewards don't count. A craft counts when the character
-    makes it at its rank, or when the item has a level to wear it at (gear
-    others make and sell); a craft with no level (Engineering's goggles)
-    asks for the profession to wear it, which the item table doesn't say."""
+    (closed_content), or a PvP reward while PvP rewards don't count. Item-level equip requirements are checked
+    by usability before any acquisition route is considered."""
     # A quest's zone as forever-db gives it: where it is done (a raid's
     # tier quest is handed in outside, its zone is the raid's).
     qz = (forever.quest(s["quest"]) or {}).get("zone") if s["kind"] == "quest" else None
@@ -1150,8 +1152,6 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
         prof = s.get("profession")
         rank = who.professions.get(str(prof).lower()) if prof else None
         skill_ok = rank is not None and rank >= (s.get("skill") or 0)
-        if not skill_ok and not info.get("req"):
-            return None
         known = recipe_known(who, prof, s.get("spell"))
         name = (ref.data.get("names") or {}).get(str(item_id)) or forever.item_name(item_id) if item_id else None
         pattern = pattern_in_bags(who, name) if known is not True else None
@@ -1663,6 +1663,9 @@ def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: s
     who = Who(cls=cls, level=level, side=SIDES.get(str(sheet.get("faction") or "").lower()), race_id=race_id,
               professions={str(p.get("name") or "").lower(): p.get("rank") for p in sheet.get("professions") or []
                            if p.get("name") and isinstance(p.get("rank"), (int, float))},
+              skill_ranks={int(sid): int(p["rank"]) for p in sheet.get("professions") or []
+                          if (sid := _num(p.get("skill_id")) or crafting.line_of(p.get("name")))
+                          and isinstance(p.get("rank"), (int, float))},
               done=set(done or ()), zone=zone, recipes=recipe_lists(sheet.get("recipes")),
               reps=sheet.get("reps"), pvp_rank=sheet.get("pvp_rank"), pvp=bool(pvp), pvp_mode=mode == "pvp",
               today=_today())
