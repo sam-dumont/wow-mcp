@@ -216,3 +216,42 @@ def test_the_lane_made_again_on_main_never_holds_the_apps_token():
     lands = [s for s in steps if "tools/kb/land.py --mode" in s.get("run", "")]
     assert len(lands) == 3 and "--last" in lands[-1]["run"]
     assert all("--last" not in s["run"] for s in lands[:-1])
+
+
+def test_a_rebase_done_in_its_own_step_lands_without_fetching_or_gating_again(moved_main, tmp_path):
+    """The rebase and its gates run before the App's token is minted
+    (--rebase-out); the landing step reads the result (--prepared) and only
+    pushes, opens the PR and stays with it, well inside the token's hour.
+    2026-11-24: the push after an hour of gates failed on an expired token."""
+    m = moved_main
+    prep = tmp_path / "prep.json"
+    assert land.main(["--branch", "kb-watch", "--base", m["base"], "--rebase-out", str(prep)]) == 0
+    assert json.loads(prep.read_text())["state"] == "conflict"
+    assert m["calls"] == []  # no GitHub call: this step holds no token
+    assert _land(m, "--prepared", str(prep)) == 1  # without --regen a conflict refuses
+    assert any(c[:2] == ("pr", "create") for c in m["calls"])
+
+
+def test_every_app_token_is_minted_right_before_the_steps_that_use_it():
+    """An installation token lasts an hour. No step that can take that long
+    (the gates, the lane made again) sits between a token's minting and a
+    step that uses it, and no step holding the token runs the gates itself
+    (land.py gets --prepared). 2026-11-24 and 11-25: kb-refresh's push and
+    issues failed on a token minted before an hour or more of gates."""
+    yaml = pytest.importorskip("yaml")
+    jobs = yaml.safe_load((ROOT / ".github" / "workflows" / "kb-refresh.yaml").read_text())["jobs"]
+    long = ("tools/kb/gates.py", "reconcile.py --remake", "--rebase-out")
+    for job in ("reconcile", "land"):
+        steps = jobs[job]["steps"]
+        minted = {}
+        for i, s in enumerate(steps):
+            if "create-github-app-token" in s.get("uses", ""):
+                minted[s["id"]] = i
+                continue
+            text = json.dumps(s)
+            for tid, at in minted.items():
+                if f"steps.{tid}.outputs.token" in text:
+                    between = [x.get("name") for x in steps[at + 1:i] if any(k in x.get("run", "") for k in long)]
+                    assert not between, (job, s.get("name"), tid, between)
+            if "tools/kb/land.py --mode" in s.get("run", ""):
+                assert "--prepared" in s["run"], (job, s.get("name"))
