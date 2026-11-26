@@ -262,12 +262,15 @@ def test_profile_counts_every_table(db):
     assert "distinct" in p and not re.search(r"standing|unexplain|detour|wander|idle|wast", p, re.I)
 
 
+# The four sessions end at 26. A completed level's XP bar stays the same when guide steps move.
+XP_BY_LEVEL = {
+    "key": "xp-by-level", "title": "XP gained at level {level}",
+    "claim": "At level {level} you gained {xp:int} XP in {played:dur} of play.",
+    "sql": "SELECT level, xp, played_s AS played FROM levels WHERE partial = 0 ORDER BY xp DESC, level LIMIT 2",
+    "expect": {"level": 25, "xp": 34000}, "relevance": 3, "kb": ["note:xp-sources", "quest:0"], "action": None,
+}
 FINDINGS = [
-    finding(),
-    {"key": "xp-by-level", "title": "XP gained at level {level}", "claim": "At level {level} you gained "
-     "{xp:int} XP in {online:dur} online.", "sql": "SELECT level, xp_gained AS xp, online_s AS online FROM "
-     "agg_level ORDER BY xp_gained DESC LIMIT 1", "expect": {"level": 25, "xp": 32860}, "relevance": 3,
-     "kb": ["note:xp-sources", "quest:0"], "action": None},
+    finding(), XP_BY_LEVEL,
     # The model misread: refused.
     {**finding(), "key": "misread", "expect": {"n": 7}},
 ]
@@ -288,7 +291,7 @@ SYNTH = {
                  {"text": "Levelling ran through Duskwood.", "findings": ["xp-by-level"]},
                  {"text": "Pattern on a refused finding.", "findings": ["misread"]}],
 }
-QUESTIONS = [{"question": f"Question {i} about sessions and levels?", "tables": ["agg_session", "agg_level"]}
+QUESTIONS = [{"question": f"Question {i} about sessions and levels?", "tables": ["agg_session", "levels"]}
              for i in range(12)]
 
 
@@ -399,7 +402,9 @@ def test_a_client_run_keeps_what_reproduces(driven, rows, knowledge):
     res = walk(env, drive)
     assert res["accepted"] and res["kept"] == ["sessions-online", "xp-by-level"]
     out = analysis.load_state(env, CHAR)
-    assert out["findings"]["xp-by-level"]["text"] == "At level 25 you gained 32 860 XP in 1h24 online."
+    split = next(r for r in rows if r["feed"] == "wow-level" and r["level"] == "25")
+    played = verify.fmt(int(split["seconds"]), "dur")
+    assert out["findings"]["xp-by-level"]["text"] == f"At level 25 you gained 34 000 XP in {played} of play."
     assert out["findings"]["xp-by-level"]["kb"] == ["note:xp-sources"]  # quest:0 isn't in the KB
     run = out["runs"][-1]
     assert run["kind"] == "client" and run["driver"] == "test" and run["new"] == 2
