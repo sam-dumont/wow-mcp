@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.13.0 (2026-11-26)
+
 The Climb shows your played time beside Polestar’s planned time on all three dashboards. Craft cards break out recipe requirements, materials and auction prices. The dashboard and MCP also show which client build and data sources those recommendations use.
 
 ### Fixed
