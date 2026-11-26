@@ -1344,6 +1344,29 @@ def _listing(sale: dict, money: int | None) -> dict:
             "affordable": None if money is None else (sale.get("price_copper") or 0) <= money}
 
 
+def action_source(sources: list[dict], level: int | None) -> dict | None:
+    """First easy or moderate acquisition the character can take at this level."""
+    gated = any(s.get("kind") in ("pvp", "reputation") and s.get("met") is not True for s in sources)
+    for s in sources:
+        kind = s.get("kind")
+        if s.get("effort") in EFFORT[HARD:] or source_effort(s) > SOME:
+            continue
+        if kind == "ah" and (not s.get("price_copper") or s.get("affordable") is False
+                             or s.get("seen_days_ago") not in (0, 1)):
+            continue
+        if kind == "craft" and not s.get("can_make"):
+            continue
+        if kind in ("reputation", "pvp") and s.get("met") is not True or kind == "vendor" and gated:
+            continue
+        if level is not None:
+            if kind == "quest" and ((s.get("req_level") or 0) > level or (s.get("level") or 0) > level + 3):
+                continue
+            if kind == "drop" and s.get("levels") and s["levels"][0] > level + 3:
+                continue
+        return s
+    return None
+
+
 def by_effort(srcs: list[dict]) -> list[dict]:
     """The sources easiest first (each tagged with its `effort`, a drop
     with its expected `runs`), ForeverDB's label order among equals."""
@@ -1898,6 +1921,9 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         if not here_srcs:
             continue
         here_srcs = by_effort(here_srcs)
+        selected = action_source(here_srcs, level)
+        if selected and selected is not here_srcs[0]:
+            here_srcs = [selected, *(s for s in here_srcs if s is not selected)]
         effort = item_effort(here_srcs)
         if effort == LONG_SHOT and level < ENDGAME_LEVEL:
             # A pipe dream (a 0.03% Classic drop, a PvP rank out of reach)
@@ -2758,7 +2784,8 @@ def source_text(s: dict, short: bool = False) -> str:
     if s["kind"] == "ah":
         share = f", {s['gold_share_pct']:g}% of your gold" if s.get("gold_share_pct") is not None else ""
         return (f"auction house: {ahsource.price_text(s['price_copper'])}{share}, "
-                f"{ahsource.seen_text(s.get('seen_days_ago'))}{' (cheap)' if s.get('cheap') else ''}")
+                f"{ahsource.seen_text(s.get('seen_days_ago'))}"
+                + (f" ({s['seen_day']})" if s.get("seen_day") else "") + (" (cheap)" if s.get("cheap") else ""))
     tail = f" ({basis})" if basis else ""
     if s["kind"] == "vendor":
         price = f", {ahsource.price_text(s['price_copper'])}" if s.get("price_copper") else ""

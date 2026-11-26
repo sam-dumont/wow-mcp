@@ -278,7 +278,7 @@ def source(sale: dict, gain: float | None, market: dict) -> dict:
     out = {"kind": "ah", **sale,
            "gain_per_gold": round(gain / (p / 10000), 2) if gain and p > 0 else None,
            "gold_share_pct": round(p / money * 100, 1) if money else None,
-           "affordable": money is not None and p <= money,
+           "affordable": None if money is None else p <= money,
            "mount_share_pct": round(p / mount["left_copper"] * 100, 1) if mount.get("left_copper") else None,
            "cheap": bool(cheap_under and p <= cheap_under and (money is None or p <= money))}
     return out

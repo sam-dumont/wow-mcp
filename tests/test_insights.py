@@ -326,9 +326,9 @@ def up(item_id, slot, gain, *sources, share=12.0):
 
 
 RFK = {"kind": "drop", "boss": "Agathelos the Raging", "zone": "Razorfen Kraul", "dungeon": True,
-       "instance": "dungeon", "levels": [29, 38]}
+       "instance": "dungeon", "levels": [29, 38], "chance_pct": 25}
 STRAT = {"kind": "drop", "boss": "Baron Rivendare", "zone": "Stratholme", "dungeon": True, "instance": "dungeon",
-         "levels": [58, 60]}
+         "levels": [58, 60], "chance_pct": 25}
 RED_QUEST = {"kind": "quest", "quest_id": 1380, "name": "Khan Hratha", "zone": "Desolace", "level": 42}
 QUEST = {"kind": "quest", "quest_id": 98297, "name": "Stopping the Cycle", "zone": "Wetlands", "level": 34}
 ADVICE = {"upgrades": [up(1, 16, 35, RFK), up(2, 17, 33, RED_QUEST), up(3, 16, 30, QUEST), up(4, 5, 20, STRAT),
@@ -433,3 +433,20 @@ def test_one_item_one_move():
     assert [i["item_id"] for i in rfk["items"]] == [1] and rfk["weight"] == 3
     assert not any(m["kind"] == "upgrade" and m["item_id"] == 1 for m in mv)
     assert any(m["kind"] == "upgrade" and m["item_id"] == 5 for m in mv)  # a quest item: no dungeon names it
+
+
+def test_moves_require_a_reachable_route_for_both_hands():
+    hard = {**RFK, "chance_pct": 5}
+    rare = {**RFK, "chance_pct": 0.3}
+    auction = {"kind": "ah", "price_copper": 245500, "seen_day": "2026-11-26", "seen_days_ago": 0}
+    items = [up(1, 16, 30, hard, rare), up(2, 11, 20, hard, auction),
+             {**up(3, 17, 50, QUEST), "with": {"kind": "get", "sources": [rare]}},
+             up(4, 12, 20, rare, {**auction, "seen_days_ago": 2})]
+    moves = insights.next_moves(35, {"upgrades": items}, {}, {}, {}, [], {})["moves"]
+    assert [m["item_id"] for m in moves] == [2]
+    m = moves[0]
+    assert "Buy Item 2" in m["text"] and "24g 55s" in m["text"] and "2026-11-26" in m["text"]
+    assert m["source"]["price_copper"] == 245500 and m["source"]["seen_day"] == "2026-11-26"
+    from wowstats import redact
+    kept = redact.zogzog("overview", {"moves": moves})["moves"][0]
+    assert kept["source"]["price_copper"] == 245500 and kept["source"]["seen_day"] == "2026-11-26"
