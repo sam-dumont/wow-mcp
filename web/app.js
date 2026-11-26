@@ -4234,13 +4234,22 @@ function renderSourceVersions(config) {
   add('ForeverDB.net fingerprint', v.foreverdb?.fingerprint);
   add('Oldest KB statement review', v.kb_statement_reviews?.oldest);
   add('Newest KB statement review', v.kb_statement_reviews?.newest);
+  add('Dungeon XP observations', v.observations?.dungeon_xp_as_of);
+  add('Dungeon XP · EG Link revision', v.observations?.dungeon_eg_link_commit);
+  add('Gear drops reviewed', v.observations?.gear_reviewed);
+  add('Gear drops · EG Link revision', v.observations?.gear_eg_link_commit);
+  add('Profession sources reviewed', v.observations?.profession_reviewed);
+  add('Latest profession capture build', v.observations?.profession_latest_capture_build);
+  add('Profession sources · EG Link revision', v.observations?.profession_eg_link_commit);
   add('News digest week', v.kb_digest_week?.news);
   add('Community digest week', v.kb_digest_week?.community);
   for (const [name, release] of Object.entries(v.checked_addons || {})) add(name + ' · watched release', release);
   for (const [name, revision] of Object.entries(v.wowsims || {})) add('WoWSims ' + name + ' revision', revision);
   const summary = version ? `wow-stats ${version} · Data sources` : 'Version and data sources';
   fill($('#foot-sources'), h('details', { class: 'source-versions' }, h('summary', { text: summary }),
-    rows.length ? h('dl', {}, ...rows) : h('p', { text: 'Source information is unavailable.' })));
+    rows.length ? h('dl', {}, ...rows) : h('p', { text: 'Source information is unavailable.' }),
+    v.observations ? h('p', {}, 'EG Link data from ', h('a', { href: 'https://efficient.games', text: 'Efficient Games' }),
+      ', licensed under ', h('a', { href: 'https://creativecommons.org/licenses/by/4.0/', text: 'CC BY 4.0' }), '.') : null));
 }
 
 function characterSourceTimes(d) {

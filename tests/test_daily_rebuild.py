@@ -328,7 +328,6 @@ def test_data_status_reads_dates_from_the_bundle_without_a_character(tmp_path, m
     from wowstats import __version__, cli, dataversions
 
     monkeypatch.setattr(dataversions, "DATA_DIRS", (tmp_path,))
-    (tmp_path / "forever-reference.json").write_text("{}")
     assert cli.main(["data-status"]) == 0
     assert json.loads(capsys.readouterr().out) == {"version": __version__, "data_versions": {}}
     research = tmp_path / "kb/research"

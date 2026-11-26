@@ -38,7 +38,7 @@ _CACHE: dict[tuple, dict] = {}
 
 
 def _dir() -> Path | None:
-    return next((d for d in DATA_DIRS if (d / "forever-reference.json").is_file()), None)
+    return next((d for d in DATA_DIRS if d.is_dir()), None)
 
 
 def _read(path: Path) -> dict:
@@ -58,7 +58,7 @@ def _get(d: dict, *keys: str):
 
 FILES = ("foreverdb/item-sources.json", "foreverdb-weights.json", "forever-reference.json", "route-reference.json",
          "class-reference.json", "game-items.json", "craft-reference.json", "wowsims-talents.json",
-         "kb/watch.json", "kb/news.json", "kb/community.json")
+         "kb/watch.json", "kb/news.json", "kb/community.json", "kb/professions/learning.json", "dungeons/kill-xp.json")
 
 
 def _research_files(data: Path) -> list[Path]:
@@ -117,6 +117,19 @@ def build(data: Path) -> dict:
             weeks[source] = max(dates)
     if weeks:
         out["kb_digest_week"] = weeks
+    learning = _read(data / "kb/professions/learning.json")
+    dungeons = _read(data / "dungeons/kill-xp.json")
+    observations = {
+        "dungeon_xp_as_of": _get(dungeons, "as_of"),
+        "dungeon_eg_link_commit": _get(dungeons, "sources", "eg_link", "commit"),
+        "gear_reviewed": _get(fref, "reviewed_loot", "reviewed_on"),
+        "gear_eg_link_commit": _get(fref, "reviewed_loot", "eg_link_commit"),
+        "profession_reviewed": _get(learning, "eg_link", "reviewed"),
+        "profession_latest_capture_build": _get(learning, "eg_link", "latest_build"),
+        "profession_eg_link_commit": _get(learning, "eg_link", "commit"),
+    }
+    if known := {key: value for key, value in observations.items() if value}:
+        out["observations"] = known
     reviews = [date for path in _research_files(data) for row in _read(path).get("statements") or []
                if isinstance(date := _get(row, "last_verified"), str) and date]
     if reviews:

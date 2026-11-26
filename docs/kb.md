@@ -333,7 +333,8 @@ version and build, the forever-db release and its client build, the
 Polestar tag, the client build of each set of client tables, and the day
 the watch last accepted a change. The weights fetch date, spell hotfix push,
 watched client build and latest available news and community digest weeks
-each describe their own source. `kb_statement_reviews` gives the oldest and
+each describe their own source. `observations` dates the supplemental dungeon,
+gear and profession records and names each dataset’s EG Link revision. `kb_statement_reviews` gives the oldest and
 newest verification dates among dated research statements. The owner can expand **Character data sources** for the times the Recorder,
 Polestar, Syndicator, quest history, Auctionator and Battle.net last supplied
 data. The friends page lists the coverage shared in its snapshot.
