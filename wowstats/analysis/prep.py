@@ -591,7 +591,7 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "bank": "how many in the bank (0: not there), NULL when the bank was never seen or its counts are unknown",
         "total": "bags + bank over the containers seen, NULL when one seen has no counts",
         "bags_at": "when the bags were read, unix seconds",
-        "bank_at": "when the bank was read, unix seconds (NULL: never seen)"}),
+        "bank_at": "when these bank contents were observed in the save, unix seconds (NULL: never seen)"}),
     "ah_prices": ("The Auctionator scans of the auction houses that sell to the character (its ruleset; its "
                   "side's house and the neutral one): one row per item, house and scan day, over the price "
                   "window (PRICE_DAYS, 90 by default). On an install with several people, anyone's scans of those "
