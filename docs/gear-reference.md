@@ -72,7 +72,9 @@ Shade: +21 Shadow damage in Classic, 37 in Forever) and no row at all for
   quality), ItemArmorTotal, ArmorLocation, ItemArmorQuality and
   ItemArmorShield (armour), ItemEffect, ItemXItemEffect, SpellEffect and
   SpellEquippedItems ("+1% hit" equip lines, and whether that hit needs a
-  bow, gun or crossbow).
+  bow, gun or crossbow). ItemLimitCategory supplies the shared equip limits
+  for rings and trinkets. Don Julio's Band and Don Rodrigo's Band share a
+  limit of one, even though their item IDs differ.
 - **Forever's hotfixes.** Most of Forever's own and re-itemised items are
   server hotfixes, which wago.tools doesn't have. The exporter reads them
   from a Forever client's hotfix cache (`--dbcache`, the maintainer's
@@ -104,7 +106,7 @@ the likely-suffix estimate below stays) and equip spells that add spell
 power (Briarwood Reed), which ForeverDB doesn't count either.
 
 ```sh
-uv run python tools/game_items/export.py --build 1.60.1.71091 --dbcache <DBCache.bin>
+uv run python tools/game_items/export.py --build 1.60.1.71139 --dbcache <DBCache.bin>
 uv run python tools/game_items/export.py --check   # offline: shape, build, five known items
 ```
 
@@ -116,7 +118,7 @@ Scepter.
 
 ForeverDB.net's addon data first (`data/foreverdb/item-sources.json`, GPL-3.0
 with an attribution term: Data from ForeverDB.net, https://foreverdb.net):
-7,577 items, 9,731 sources on 2026-11-24. Quest rewards, vendors with their
+7,645 items, 9,891 sources on 2026-11-26. Quest rewards, vendors with their
 price, boss drops with the chance players measured and how many kills it
 stands on, creature and rare drops, crafts, reputation, PvP rank, world drops
 and containers. Each source says how ForeverDB knows it, and the advice says

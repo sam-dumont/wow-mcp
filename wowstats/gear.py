@@ -954,13 +954,14 @@ def options(info: dict, item_id: int, worn: Worn, w: dict, dual: bool, every_slo
 
     if inv in (11, 12):
         a, b = slots
-        if every_slot:
+        group = info.get("unique_group")
+        occupied = next((s for s in slots if (group and (worn.infos.get(s) or {}).get("unique_group") == group)
+                         or (info.get("unique") and worn.ids.get(s) == item_id)), None)
+        if occupied is not None:
+            opt(occupied, worn.score(occupied), score, False)
+        elif every_slot:
             opt(a, worn.score(a), score, a not in worn.ids)
             opt(b, worn.score(b), score, b not in worn.ids)
-        elif info.get("unique") and worn.ids.get(a) == item_id:
-            opt(a, worn.score(a), score, False)
-        elif info.get("unique") and worn.ids.get(b) == item_id:
-            opt(b, worn.score(b), score, False)
         else:
             if a not in worn.ids:
                 slot = a
@@ -2041,7 +2042,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                 per_slot.setdefault(o["slot"], {"now": [], "soon": []}).setdefault("unknown", []).append(
                     (o["delta"], -item_id, c, o))
 
-    def pick(slot: int, bucket: str, exclude: frozenset = frozenset()):
+    def pick(slot: int, bucket: str, exclude: frozenset = frozenset(), exclude_group: int | None = None):
         # ForeverDB's order: the score, then the higher item level, then the
         # lower ID; each score less its effort's penalty (effort_penalty):
         # while levelling an easier item wins unless the harder one is
@@ -2051,7 +2052,8 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
 
         ranked = [t for t in sorted((per_slot.get(slot) or {}).get(bucket) or [],
                                     key=lambda t: (adj(t), t[2]["info"].get("ilvl") or 0, t[1]), reverse=True)
-                  if t[2]["id"] not in exclude]
+                  if t[2]["id"] not in exclude
+                  and not (exclude_group and t[2]["info"].get("unique_group") == exclude_group)]
         better = [t for t in ranked if t[0] > 0]
         if not better:
             return max(ranked, key=lambda t: (t[0], t[2]["info"].get("ilvl") or 0, t[1])) if ranked else None
@@ -2083,7 +2085,8 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             strong = b if weak == a else a
             on = frozenset(worn.ids[x] for x in (a, b) if x in worn.ids)
             pw = picks[(weak, bucket)] = pick(weak, bucket, on)
-            picks[(strong, bucket)] = pick(strong, bucket, on | ({pw[2]["id"]} if pw else set()))
+            picks[(strong, bucket)] = pick(strong, bucket, on | ({pw[2]["id"]} if pw else set()),
+                                           pw[2]["info"].get("unique_group") if pw else None)
     # Where each worn item stands against the best the slot can hold now
     # (owner, 2026-11-21: "show bis or second or a percentage of bis").
     stand.update(standings(per_slot, worn, setups, level, gear_score))
@@ -2102,11 +2105,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         row["effort"] = EFFORT[c.get("effort", LONG_SHOT)]  # the unknown bucket's are long shots
         return row
 
-    def top_of(slot: int, exclude: set) -> tuple | None:
+    def top_of(slot: int) -> tuple | None:
         # Gear nobody says where to get stays out: no action to give, and
         # unknown is not open (endgame content, owner 2026-11-25).
         rows = [t for b in ("now", "unknown") for t in (per_slot.get(slot) or {}).get(b) or ()
-                if t[2]["id"] not in exclude and t[2]["sources"]]
+                if t[2]["sources"]]
         return max(rows, key=lambda t: (t[3]["new"], t[2]["info"].get("ilvl") or 0, t[1]), default=None)
 
     def worn_bis(slot: int) -> dict:
@@ -2117,7 +2120,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     for slot in EQUIPPED_SLOTS:
         if slot in PAIRED or slot in (MAIN, OFF):
             continue
-        t = top_of(slot, set())
+        t = top_of(slot)
         if slot in worn.ids and (t is None or t[3]["new"] <= worn.score(slot) + EPS):
             bis_rows[slot] = worn_bis(slot)
         else:
@@ -2126,36 +2129,29 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         # The best two different items, as _pair: a worn one among them is
         # its slot's BiS; the others go weakest slot first, as the picks.
         on = {worn.ids[x] for x in (a, b) if x in worn.ids}
-        first = None
-        got: dict[int, dict | None] = {}
-        entries = [(worn.score(x), 1, x) for x in (a, b) if x in worn.ids]
-        t1 = max([x for x in (top_of(a, on), top_of(b, on)) if x], key=lambda t: t[3]["new"], default=None)
-        if t1:
-            first = t1[2]["id"]
-            t2 = max([x for x in (top_of(a, on | {first}), top_of(b, on | {first})) if x],
-                     key=lambda t: t[3]["new"], default=None)
-            entries += [(t[3]["new"], 0, t) for t in (t1, t2) if t]
-        top2 = sorted(entries, key=lambda e: -e[0])[:2]
-        for e in top2:
-            if e[1] == 1:
-                got[e[2]] = worn_bis(e[2])
-        free = [e[2] for e in top2 if e[1] == 0]
-        rest = sorted([x for x in (a, b) if x not in got], key=lambda x: worn.score(x) if x in worn.ids else -1)
-        for slot, t in zip(rest, free, strict=False):
-            r = next((o for o in options(t[2]["info"], t[2]["id"], worn, w, dual, every_slot=True)
-                      if o["slot"] == slot), t[3])
-            got[slot] = bis_item(t[2], r)
-        # Where the picks put the same two items the other way round, follow them.
+        rows = {x: {t[2]["id"]: t for bucket in ("now", "unknown") for t in (per_slot.get(x) or {}).get(bucket) or ()
+                    if t[2]["sources"] and t[2]["id"] not in on} for x in (a, b)}
+        candidates = {**rows[a], **rows[b]}
+        scores = {iid: t[3]["new"] for iid, t in candidates.items()}
+        groups = {iid: t[2]["info"].get("unique_group") for iid, t in candidates.items()}
+        # The raw BiS breaks equal scores by item level and ID, as top_of does for a single slot.
+        ranked = sorted(candidates, key=lambda i: (scores[i], candidates[i][2]["info"].get("ilvl") or 0, -i),
+                        reverse=True)
+        chosen = _paired_slots(a, b, {i: scores[i] for i in ranked}, groups, worn)
+        # Follow the picks' slot order when both raw BiS items can make that swap.
         pa, pb = (picks.get((x, "now")) for x in (a, b))
         ida, idb = ((p[2]["id"] if p and p[3]["delta"] > 0 else None) for p in (pa, pb))
-        ga, gb = ((got.get(x) or {}).get("item_id") for x in (a, b))
-        if (ida and ida == gb and ga != ida) or (idb and idb == ga and gb != idb):
-            got[a], got[b] = got.get(b), got.get(a)
-            for x in (a, b):
-                if got.get(x) and not got[x].get("worn"):
-                    got[x] = {**got[x], "slot": x}
+        ga, gb = chosen.get(a), chosen.get(b)
+        if ((ida and ida == gb) or (idb and idb == ga)) \
+                and (ga is None or ga in rows[b]) and (gb is None or gb in rows[a]):
+            chosen = {a: gb, b: ga}
         for x in (a, b):
-            bis_rows[x] = got.get(x)
+            iid = chosen.get(x)
+            if iid and iid == worn.ids.get(x):
+                bis_rows[x] = worn_bis(x)
+            else:
+                t = rows[x].get(iid)
+                bis_rows[x] = bis_item(t[2], t[3]) if t else None
     raw_weapons = setups.row("now", out, raw=True)
     raw_total = (raw_weapons or {}).get("setup_score") or setups.current
     if hands_unknown and hands_unknown["sources"] and hands_unknown["score"] > raw_total + EPS:
@@ -2527,6 +2523,33 @@ def _rank(above: int, cur: float, target: float) -> dict:
     return {"rank": 2 if above == 1 else None, "pct": pct, "target": target}
 
 
+def _paired_slots(a: int, b: int, scores: dict, groups: dict, worn: Worn) -> dict[int, int]:
+    """Place the highest-scoring legal pair. A category upgrade replaces the worn item in that group."""
+    current = {worn.ids[s]: worn.score(s) for s in (a, b) if s in worn.ids}
+    worn_groups = {s: (worn.infos.get(s) or {}).get("unique_group") for s in (a, b)}
+    groups = {**groups, **{worn.ids[s]: g for s, g in worn_groups.items() if g}}
+    scores = {**current, **scores}
+    chosen, taken = [], set()
+    for iid in sorted(scores, key=scores.get, reverse=True):
+        group = groups.get(iid)
+        if group and group in taken:
+            continue
+        chosen.append(iid)
+        taken.add(group)
+        if len(chosen) == 2:
+            break
+    result = {}
+    free = chosen.copy()
+    for s in (a, b):
+        for iid in free:
+            if iid == worn.ids.get(s) or (worn_groups[s] and groups.get(iid) == worn_groups[s]):
+                result[s] = iid
+                free.remove(iid)
+                break
+    slots = sorted((s for s in (a, b) if s not in result), key=lambda s: worn.score(s) if s in worn.ids else -1)
+    return {**result, **dict(zip(slots, free, strict=False))}
+
+
 def _pair(a: int, b: int, per_slot: dict, worn: Worn) -> dict[int, dict | None]:
     """Rings or trinkets: BiS is the best two different items. A worn one
     among those two is BiS; the rest measure against the BiS item they'd
@@ -2536,28 +2559,20 @@ def _pair(a: int, b: int, per_slot: dict, worn: Worn) -> dict[int, dict | None]:
     ring could read the higher share (40% next to 34%), and every ring line
     started from it while the doll said the replaced ring was the 40% one."""
     pool: dict[int, float] = {}
+    groups = {}
     for slot in (a, b):
         for _d, _i, c, o in _bis_pool(per_slot.get(slot)):
             pool[c["id"]] = max(pool.get(c["id"], 0.0), o["new"])
+            groups[c["id"]] = (c.get("info") or {}).get("unique_group")
     pool = {i: v for i, v in pool.items() if i not in (worn.ids.get(a), worn.ids.get(b))}
     if not pool:
         return {a: None, b: None}
-    for slot in (a, b):
-        if slot in worn.ids:
-            pool[worn.ids[slot]] = max(pool.get(worn.ids[slot], 0.0), worn.score(slot))
-    ranked = sorted(pool.items(), key=lambda kv: -kv[1])
-    top2 = [i for i, _ in ranked[:2]]
-    out: dict[int, dict | None] = {}
-    rest = []
-    for slot in (a, b):
-        i = worn.ids.get(slot)
-        if i is not None and i in top2:
+    out: dict[int, dict | None] = {a: None, b: None}
+    for slot, iid in _paired_slots(a, b, pool, groups, worn).items():
+        if iid == worn.ids.get(slot):
             out[slot] = {"rank": 1, "pct": 100, "target": worn.score(slot)}
-        else:
-            rest.append(slot)
-    free = [pool[i] for i in top2 if i not in {worn.ids.get(x) for x in (a, b) if out.get(x)}]
-    rest.sort(key=lambda x: worn.score(x) if x in worn.ids else -1)
-    for slot, target in zip(rest, free, strict=False):
+            continue
+        target = pool[iid]
         if target <= 0:
             out[slot] = None
         elif slot not in worn.ids:
@@ -2568,8 +2583,6 @@ def _pair(a: int, b: int, per_slot: dict, worn: Worn) -> dict[int, dict | None]:
             # No "2nd" for a pair: the runner-up to the best two reads "2nd"
             # next to a low percent (17% of BiS, 2nd), so a pair says the percent.
             out[slot] = _rank(max(above, 2), cur, target)
-    for slot in (a, b):
-        out.setdefault(slot, None)
     return out
 
 

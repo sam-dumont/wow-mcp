@@ -12,8 +12,8 @@ The client keeps an item in two places, and this reads both:
   built reach the client as hotfixes (encrypted in the files, so wago.tools
   can't read them) and land in `_forever_/Cache/ADB/<locale>/DBCache.bin`.
   `--dbcache` reads one, read-only, with the shipper's own parser
-  (shipper/wow_stats.py): only its ItemSparse and Item rows, never anything
-  else in it. A hotfix row wins over the file's. The cache's build must be
+  (shipper/wow_stats.py) for ItemSparse and Item. ItemLimitCategory supplies
+  the one-per-pair rules for rings and trinkets. A hotfix row wins over the file's. The cache's build must be
   the files' build. Without it, about half of Forever's changed items keep
   their old numbers, so the file records how many rows came from it.
 - An item neither has (680 of Polestar's 10,621, none with a known source)
@@ -70,7 +70,8 @@ ERA_BUILD = "1.15.9.70576"  # Classic Era's build the fallback rows come from
 FILE_TABLES = ("ItemSparse", "Item", "RandPropPoints", "ItemDamageOneHand", "ItemDamageOneHandCaster",
                "ItemDamageTwoHand", "ItemDamageTwoHandCaster", "ItemDamageRanged", "ItemDamageThrown",
                "ItemDamageWand", "ItemArmorTotal", "ArmorLocation", "ItemArmorQuality", "ItemArmorShield",
-               "ItemEffect", "ItemXItemEffect", "SpellEffect", "SpellEquippedItems")
+               "ItemEffect", "ItemXItemEffect", "SpellEffect", "SpellEquippedItems", "ItemLimitCategory")
+HOTFIX_LIMIT_CATEGORY = 0x7BBA1EB1
 ERA_TABLES = ("ItemSparse", "Item", "ItemEffect", "SpellEffect")
 # Weapons and armour the gear advice can score: wearable slots, no shirts,
 # tabards, bags, ammo or quivers (wowstats.gear SLOTS_OF).
@@ -144,8 +145,17 @@ def flat(row: dict) -> dict:
     return out
 
 
-def hotfix_rows(path: Path) -> tuple[int, dict[str, dict], dict[str, dict]]:
-    """(build, ItemSparse rows, Item rows) of a DBCache.bin, each item's
+def limit_category(data: bytes) -> dict | None:
+    """Forever ItemLimitCategory (WoWDBDefs layout B0A784BD). Skip the localized name."""
+    _, separator, fields = data.partition(b"\0")
+    if separator and len(fields) == 5:
+        quantity, flags = struct.unpack("<BI", fields)
+        return {"Quantity": quantity, "Flags": flags}
+    return None
+
+
+def hotfix_rows(path: Path) -> tuple[int, dict, dict, dict]:
+    """Build and ItemSparse, Item and ItemLimitCategory rows of a DBCache.bin, each record's
     newest valid row (the shipper's own rule: a pushed hotfix beats a row the
     client asked for)."""
     sys.path.insert(0, str(ROOT / "shipper"))
@@ -165,21 +175,24 @@ def hotfix_rows(path: Path) -> tuple[int, dict[str, dict], dict[str, dict]]:
         if size < 0 or pos + 32 + size > len(data):
             break
         n += 1
-        if table in (ws.HOTFIX_SPARSE, ws.HOTFIX_ITEM):
+        if table in (ws.HOTFIX_SPARSE, ws.HOTFIX_ITEM, HOTFIX_LIMIT_CATEGORY):
             rank = (push < ws.HOTFIX_QUERIED, push, n)
             old = newest.get((table, rid))
             if old is None or rank > old[0]:
                 newest[(table, rid)] = (rank, status, pos + 32, size)
         pos += 32 + size
-    sparse, item = {}, {}
+    sparse, item, categories = {}, {}, {}
+    tables = {ws.HOTFIX_SPARSE: (sparse, ws._sparse_row), ws.HOTFIX_ITEM: (item, ws._item_row),
+              HOTFIX_LIMIT_CATEGORY: (categories, limit_category)}
     for (table, rid), (_rank, status, start, size) in newest.items():
         if status != ws.HOTFIX_VALID:
             continue
         raw = data[start:start + size]
-        row = ws._sparse_row(raw) if table == ws.HOTFIX_SPARSE else ws._item_row(raw)
+        rows, parse = tables[table]
+        row = parse(raw)
         if row is not None:
-            (sparse if table == ws.HOTFIX_SPARSE else item)[str(rid)] = flat(row)
-    return build, sparse, item
+            rows[str(rid)] = flat(row)
+    return build, sparse, item, categories
 
 
 class Client:
@@ -412,8 +425,11 @@ def entry(r: dict, it: dict, stats: dict[str, float], armor: float, dmg, origin:
     return e
 
 
-def build_items(t: dict[str, list[dict]], hot_sparse: dict, hot_item: dict, era: dict[str, list[dict]] | None):
+def build_items(t: dict[str, list[dict]], hot_sparse: dict, hot_item: dict, hot_categories: dict,
+                era: dict[str, list[dict]] | None):
     cl = Client(t)
+    categories = {r["ID"]: r for r in t["ItemLimitCategory"]} | hot_categories
+    unique_groups = {int(k) for k, r in categories.items() if i(r["Quantity"]) == 1 and i(r["Flags"]) == 1}
     sparse = {r["ID"]: r for r in t["ItemSparse"]}
     origin = dict.fromkeys(sparse, "file")
     for k, r in hot_sparse.items():
@@ -436,6 +452,9 @@ def build_items(t: dict[str, list[dict]], hot_sparse: dict, hot_item: dict, era:
         dmg = cl.weapon(r, sub) if i(it["ClassID"]) == 2 else None
         armor = (cl.armor(r, sub) if i(it["ClassID"]) == 4 else 0.0) + bonus
         e = entry(r, it, stats, armor, dmg, origin[k])
+        group = i(r.get("LimitCategory"))
+        if e["inv"] in (11, 12) and group in unique_groups:
+            e["unique_group"] = group
         out[k] = e
     era_n = 0
     if era:
@@ -517,19 +536,19 @@ def main(argv: list[str]) -> int:
     if not a.dbcache:
         ap.error("--dbcache is required to build the item reference")
     build = a.build or build_of(fetch(builds_url(WAGO_URL, PRODUCT)))
-    hot_build, hot_sparse, hot_item = hotfix_rows(a.dbcache)
+    hot_build, hot_sparse, hot_item, hot_categories = hotfix_rows(a.dbcache)
     if str(hot_build) != build.rsplit(".", 1)[-1]:
         raise SystemExit(f"{a.dbcache} is build {hot_build}, the files are {build}: log in with that client first")
     t = {name: wago(name, build) for name in FILE_TABLES}
     era = {name: wago(name, a.era) for name in ERA_TABLES} if a.era else None
-    items, era_n = build_items(t, hot_sparse, hot_item, era)
+    items, era_n = build_items(t, hot_sparse, hot_item, hot_categories, era)
     n_hot = sum(1 for e in items.values() if e.get("from") == "hotfix")
     doc = {
         "schema": 1,
         "source": {
             "via": "wago.tools", "product": PRODUCT, "build": build, "tables": list(FILE_TABLES),
             "hotfix_cache": {"build": hot_build, "items": n_hot,
-                             "note": "ItemSparse and Item rows of a Forever client's DBCache.bin, same build"},
+                             "note": "ItemSparse, Item and ItemLimitCategory from a same-build Forever DBCache.bin"},
             "era": {"product": "wow_classic_era", "build": a.era, "items": era_n, "tables": list(ERA_TABLES),
                     "note": "items Forever has in neither its files nor the hotfix cache"} if a.era else None,
             "note": "Game data (c) Blizzard Entertainment, used as facts",

@@ -3,7 +3,7 @@
  "source": {
   "via": "wago.tools",
   "product": "wowf",
-  "build": "1.60.1.71091",
+  "build": "1.60.1.71139",
   "tables": [
    "ItemSparse",
    "Item",
@@ -22,12 +22,13 @@
    "ItemEffect",
    "ItemXItemEffect",
    "SpellEffect",
-   "SpellEquippedItems"
+   "SpellEquippedItems",
+   "ItemLimitCategory"
   ],
   "hotfix_cache": {
-   "build": 71091,
-   "items": 6412,
-   "note": "ItemSparse and Item rows of a Forever client's DBCache.bin, same build"
+   "build": 71139,
+   "items": 6420,
+   "note": "ItemSparse, Item and ItemLimitCategory from a same-build Forever DBCache.bin"
   },
   "era": {
    "product": "wow_classic_era",
@@ -50836,7 +50837,8 @@
     "int": 5,
     "sp": 6,
     "sta": 5
-   }
+   },
+   "from": "hotfix"
   },
   "8199": {
    "name": "Battlefield Destroyer",
@@ -73136,7 +73138,8 @@
    "stats": {
     "armor": 427,
     "sta": 14
-   }
+   },
+   "from": "hotfix"
   },
   "12611": {
    "name": "Runic Plate Boots",
@@ -73149,7 +73152,8 @@
    "stats": {
     "armor": 392,
     "sta": 14
-   }
+   },
+   "from": "hotfix"
   },
   "12612": {
    "name": "Runic Plate Helm",
@@ -73175,7 +73179,8 @@
    "stats": {
     "armor": 588,
     "sta": 18
-   }
+   },
+   "from": "hotfix"
   },
   "12614": {
    "name": "Runic Plate Leggings",
@@ -73188,7 +73193,8 @@
    "stats": {
     "armor": 515,
     "sta": 19
-   }
+   },
+   "from": "hotfix"
   },
   "12615": {
    "name": "Savage Mail Tunic",
@@ -78814,7 +78820,8 @@
    "stats": {
     "ap": 78
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 498
   },
   "13210": {
    "name": "Pads of the Dread Wolf",
@@ -94636,7 +94643,8 @@
    "stats": {
     "armor": 148,
     "sta": 11
-   }
+   },
+   "from": "hotfix"
   },
   "15054": {
    "name": "Volcanic Leggings",
@@ -122591,7 +122599,8 @@
    "stats": {
     "sta": 7
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 718
   },
   "18709": {
    "name": "Arena Wristguards",
@@ -124862,7 +124871,8 @@
    "subclass": 0,
    "stats": {
     "dodgeRating": 12
-   }
+   },
+   "unique_group": 718
   },
   "19028": {
    "name": "Elegant Dress",
@@ -127073,13 +127083,14 @@
    "quality": 4,
    "class": 4,
    "subclass": 0,
-   "unique": true,
    "stats": {
     "ap": 14,
     "critRating": 14,
     "hitRating": 10,
     "sta": 10
-   }
+   },
+   "from": "hotfix",
+   "unique_group": 722
   },
   "19334": {
    "name": "The Untamed Blade",
@@ -131116,7 +131127,8 @@
    "class": 4,
    "subclass": 0,
    "stats": {},
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 498
   },
   "19822": {
    "name": "Zandalar Vindicator's Breastplate",
@@ -134080,7 +134092,8 @@
    "subclass": 0,
    "stats": {
     "sta": 12
-   }
+   },
+   "unique_group": 716
   },
   "20072": {
    "name": "Defiler's Talisman",
@@ -134092,7 +134105,8 @@
    "subclass": 0,
    "stats": {
     "sta": 12
-   }
+   },
+   "unique_group": 716
   },
   "20073": {
    "name": "Cloak of the Honor Guard",
@@ -141217,7 +141231,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 716
   },
   "21116": {
    "name": "Defiler's Talisman",
@@ -141229,7 +141244,8 @@
    "subclass": 0,
    "stats": {
     "sta": 8
-   }
+   },
+   "unique_group": 716
   },
   "21117": {
    "name": "Talisman of Arathor",
@@ -141241,7 +141257,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 716
   },
   "21118": {
    "name": "Talisman of Arathor",
@@ -141253,7 +141270,8 @@
    "subclass": 0,
    "stats": {
     "sta": 8
-   }
+   },
+   "unique_group": 716
   },
   "21119": {
    "name": "Talisman of Arathor",
@@ -141265,7 +141283,8 @@
    "subclass": 0,
    "stats": {
     "sta": 6
-   }
+   },
+   "unique_group": 716
   },
   "21120": {
    "name": "Defiler's Talisman",
@@ -141277,7 +141296,8 @@
    "subclass": 0,
    "stats": {
     "sta": 6
-   }
+   },
+   "unique_group": 716
   },
   "21121": {
    "name": "Monster - Item, Flower - Purple",
@@ -141721,7 +141741,8 @@
     "defense": 5,
     "sta": 18,
     "str": 10
-   }
+   },
+   "unique_group": 475
   },
   "21197": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141736,7 +141757,8 @@
     "defense": 5,
     "sta": 19,
     "str": 11
-   }
+   },
+   "unique_group": 475
   },
   "21198": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141751,7 +141773,8 @@
     "defense": 6,
     "sta": 21,
     "str": 12
-   }
+   },
+   "unique_group": 475
   },
   "21199": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141766,7 +141789,8 @@
     "defense": 6,
     "sta": 22,
     "str": 12
-   }
+   },
+   "unique_group": 475
   },
   "21200": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141781,7 +141805,8 @@
     "defense": 7,
     "sta": 24,
     "str": 13
-   }
+   },
+   "unique_group": 475
   },
   "21201": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141796,7 +141821,8 @@
     "agi": 18,
     "hitRating": 10,
     "sta": 8
-   }
+   },
+   "unique_group": 475
   },
   "21202": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141811,7 +141837,8 @@
     "agi": 19,
     "hitRating": 10,
     "sta": 9
-   }
+   },
+   "unique_group": 475
   },
   "21203": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141826,7 +141853,8 @@
     "agi": 21,
     "hitRating": 10,
     "sta": 11
-   }
+   },
+   "unique_group": 475
   },
   "21204": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141841,7 +141869,8 @@
     "agi": 22,
     "hitRating": 10,
     "sta": 11
-   }
+   },
+   "unique_group": 475
   },
   "21205": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141856,7 +141885,8 @@
     "agi": 24,
     "hitRating": 10,
     "sta": 13
-   }
+   },
+   "unique_group": 475
   },
   "21206": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141873,7 +141903,8 @@
     "mp5": 3,
     "sp": 21,
     "sta": 6
-   }
+   },
+   "unique_group": 475
   },
   "21207": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141890,7 +141921,8 @@
     "mp5": 3,
     "sp": 22,
     "sta": 7
-   }
+   },
+   "unique_group": 475
   },
   "21208": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141907,7 +141939,8 @@
     "mp5": 4,
     "sp": 25,
     "sta": 8
-   }
+   },
+   "unique_group": 475
   },
   "21209": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141924,7 +141957,8 @@
     "mp5": 4,
     "sp": 26,
     "sta": 8
-   }
+   },
+   "unique_group": 475
   },
   "21210": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141941,7 +141975,8 @@
     "mp5": 5,
     "sp": 28,
     "sta": 8
-   }
+   },
+   "unique_group": 475
   },
   "21242": {
    "name": "Blessed Qiraji War Axe",
@@ -145325,12 +145360,13 @@
    "quality": 4,
    "class": 4,
    "subclass": 0,
-   "unique": true,
    "stats": {
     "critRating": 14,
     "spellPen": 5,
     "sta": 6
-   }
+   },
+   "from": "hotfix",
+   "unique_group": 722
   },
   "21564": {
    "name": "Monster - Gun, Kaldorei PVP Alliance",
@@ -145359,7 +145395,8 @@
    "subclass": 0,
    "stats": {
     "sta": 8
-   }
+   },
+   "unique_group": 714
   },
   "21566": {
    "name": "Rune of Perfection",
@@ -145371,7 +145408,8 @@
    "subclass": 0,
    "stats": {
     "sta": 4
-   }
+   },
+   "unique_group": 714
   },
   "21567": {
    "name": "Rune of Duty",
@@ -145383,7 +145421,8 @@
    "subclass": 0,
    "stats": {
     "sta": 8
-   }
+   },
+   "unique_group": 714
   },
   "21568": {
    "name": "Rune of Duty",
@@ -145395,7 +145434,8 @@
    "subclass": 0,
    "stats": {
     "sta": 4
-   }
+   },
+   "unique_group": 714
   },
   "21572": {
    "name": "Monster - Shield, Alliance PVP",
@@ -251711,7 +251751,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 715
   },
   "271904": {
    "name": "Volunteer's Lucky Seal",
@@ -251723,7 +251764,8 @@
    "subclass": 0,
    "stats": {
     "sta": 7
-   }
+   },
+   "unique_group": 715
   },
   "271905": {
    "name": "Enriched Seal",
@@ -251735,7 +251777,8 @@
    "subclass": 0,
    "stats": {
     "sta": 7
-   }
+   },
+   "unique_group": 715
   },
   "271906": {
    "name": "Volunteer's Lucky Seal",
@@ -251747,7 +251790,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 715
   },
   "271907": {
    "name": "Expeditionary's Cape",
@@ -252464,7 +252508,8 @@
    "subclass": 0,
    "stats": {
     "sta": 7
-   }
+   },
+   "unique_group": 715
   },
   "272060": {
    "name": "Relentless Raider's Seal",
@@ -252476,7 +252521,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 715
   },
   "272061": {
    "name": "Darkspear Voodoo Seal",
@@ -252488,7 +252534,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 715
   },
   "272062": {
    "name": "Relentless Raider's Seal",
@@ -252500,7 +252547,8 @@
    "subclass": 0,
    "stats": {
     "sta": 7
-   }
+   },
+   "unique_group": 715
   },
   "272063": {
    "name": "Darkspear Raider's Cloak",
@@ -254037,7 +254085,8 @@
    "stats": {
     "expertise": 11
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 707
   },
   "272438": {
    "name": "Weakness Analyzer",
@@ -254051,7 +254100,8 @@
     "heal": 18,
     "sp": 18
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 707
   },
   "272439": {
    "name": "Serenity Field",
@@ -254065,7 +254115,8 @@
     "heal": 21,
     "sp": 7
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 707
   },
   "272440": {
    "name": "Defender's Grip Stabilizer",
@@ -254077,7 +254128,8 @@
    "subclass": 0,
    "stats": {
     "defense": 13
-   }
+   },
+   "unique_group": 707
   },
   "272451": {
    "name": "Sergeant's Cloak",
@@ -267995,7 +268047,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 0,
-   "stats": {}
+   "stats": {},
+   "unique_group": 709
   },
   "274760": {
    "name": "Everlook Delivery Bot",
@@ -268005,7 +268058,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 0,
-   "stats": {}
+   "stats": {},
+   "unique_group": 709
   },
   "274761": {
    "name": "Parachute-Priest Pager",
@@ -268015,7 +268069,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 0,
-   "stats": {}
+   "stats": {},
+   "unique_group": 709
   },
   "274915": {
    "name": "Sacristan Band",
@@ -270067,7 +270122,8 @@
     "hitRating": 10,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275969": {
    "name": "Initiate's Signet of Brilliance",
@@ -270083,7 +270139,8 @@
     "sp": 8,
     "sta": 6
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275970": {
    "name": "Initiate's Signet of Resolve",
@@ -270099,7 +270156,8 @@
     "spi": 10,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275971": {
    "name": "Initiate's Signet of Vigilance",
@@ -270114,7 +270172,8 @@
     "expertise": 10,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275972": {
    "name": "Tracker's Signet of Ferocity",
@@ -270129,7 +270188,8 @@
     "hitRating": 10,
     "sta": 11
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275973": {
    "name": "Tracker's Signet of Brilliance",
@@ -270145,7 +270205,8 @@
     "sp": 10,
     "sta": 8
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275974": {
    "name": "Tracker's Signet of Resolve",
@@ -270161,7 +270222,8 @@
     "spi": 11,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275975": {
    "name": "Tracker's Signet of Vigilance",
@@ -270176,7 +270238,8 @@
     "expertise": 10,
     "sta": 14
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275976": {
    "name": "Watcher's Signet of Ferocity",
@@ -270191,7 +270254,8 @@
     "hitRating": 10,
     "sta": 13
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275977": {
    "name": "Watcher's Signet of Brilliance",
@@ -270207,7 +270271,8 @@
     "sp": 15,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275979": {
    "name": "Watcher's Signet of Resolve",
@@ -270223,7 +270288,8 @@
     "spi": 13,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275980": {
    "name": "Watcher's Signet of Vigilance",
@@ -270238,7 +270304,8 @@
     "expertise": 10,
     "sta": 16
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275981": {
    "name": "Warden's Signet of Ferocity",
@@ -270253,7 +270320,8 @@
     "hitRating": 10,
     "sta": 14
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275982": {
    "name": "Warden's Signet of Brilliance",
@@ -270269,7 +270337,8 @@
     "sp": 17,
     "sta": 12
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275983": {
    "name": "Warden's Signet of Resolve",
@@ -270285,7 +270354,8 @@
     "spi": 14,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275984": {
    "name": "Warden's Signet of Vigilance",
@@ -270300,7 +270370,8 @@
     "expertise": 10,
     "sta": 18
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "276069": {
    "name": "Gravetoll Gavel",
