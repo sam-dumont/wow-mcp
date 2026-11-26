@@ -6,6 +6,7 @@ caller and a client without the extension get the answer inline, as before."""
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from datetime import timedelta
 
@@ -100,20 +101,34 @@ def test_transparent_for_a_client_that_waits(ctx, cold):  # noqa: F811
     assert not res.is_error and res.structured_content["rows"], res.structured_content
 
 
-def test_cancelled(ctx, cold, slow):  # noqa: F811
+def test_cancelled(ctx, cold, monkeypatch):  # noqa: F811
+    started = threading.Event()
+    release_query = threading.Event()
+    finished = threading.Event()
+
+    def blocked_sql(*args, **kwargs):
+        started.set()
+        release_query.wait(timeout=30)  # Bound cleanup if cancellation hangs.
+        finished.set()
+        return {}
+
+    monkeypatch.setattr(drive, "sql", blocked_sql)
+
     async def go():
         async with Client(inmem.build(ctx)) as c:
             task = await call_tool_task(c, "play_sql", SQL)
+            assert await asyncio.to_thread(started.wait, 30)
             await task.cancel()
             got = await task.wait(timeout=30)
+            assert got.status == "cancelled"
             with pytest.raises(ToolError):
                 await task.result()
-            return got
 
-    t0 = time.monotonic()
-    got = asyncio.run(go())
-    assert got.status == "cancelled"
-    assert time.monotonic() - t0 < 3  # didn't wait for the query
+    try:
+        asyncio.run(go())
+        assert not finished.is_set(), "cancelling the task waited for its SQL query"
+    finally:
+        release_query.set()
 
 
 def test_expired(ctx, cold, monkeypatch):  # noqa: F811
