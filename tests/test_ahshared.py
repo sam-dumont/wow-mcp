@@ -107,6 +107,41 @@ def test_the_neutral_house_serves_both_sides_of_its_ruleset(lab):
     assert prices_of(loc, people[CLEO]) == {}
 
 
+@pytest.mark.parametrize("shared", [False, True])
+def test_market_trends_and_planned_loot_stay_in_one_house(lab, shared):
+    from types import SimpleNamespace
+
+    from wowstats.mcp import tools
+    from wowstats.plan import facts
+
+    loc, people, upload = lab
+    own = people[ADA]
+    upload(ADA, character(ADA, "Normal", "Alliance"), character(CLEO, "Hardcore", "Horde"),
+           price(ADA, "Normal", 505, 10000), price(CLEO, "Hardcore", 505, 99000))
+    loc = loc if shared else ""
+    ctx = tools.Ctx(store=SimpleNamespace(events=own), default_char=ADA, env={"AH_SHARED_STORE": loc})
+
+    def trend(**kwargs):
+        return tools.t_prices(ctx, {"item": "505", **kwargs})
+
+    answer = trend()
+    assert answer["house"] == {"ruleset": "Normal", "faction": "Alliance"}
+    assert [(r["latest_copper"], r["scan_days"], r["change_vs_first"]) for r in answer["items"]] == [(10000, 1, None)]
+    assert trend(ruleset="Hardcore", faction="Horde")["items"][0]["latest_copper"] == 99000
+    assert trend(ruleset="Normal", faction="Neutral")["items"] == []
+    scans = facts.prices(own, shared=loc, char=ADA)
+    assert facts.run_loot({"loot_inside": [(505, 2)]}, None, scans)["ah_copper"] == 20000
+    assert facts.prices(own, shared=loc, char=CLEO)[505]["copper"] == 99000
+    assert facts.prices(own, shared=loc, char="Unknown-Fixture") == {}
+
+
+def test_neutral_market_is_a_fallback_and_never_merged_with_a_side():
+    rows = [{"ruleset": "Normal", "faction": s} for s in ("Alliance", "Neutral")]
+    assert ahshared.one_house(rows, ("Normal", "Alliance"))[1] == rows[:1]
+    assert ahshared.one_house(rows, ("Normal", "Horde"))[1] == rows[1:]
+    assert ahshared.one_house(rows, None)[1] == []
+
+
 def test_the_side_comes_from_the_store_or_the_race_else_it_stays_home(lab):
     loc, people, upload = lab
     upload(BRAM, character(BRAM, "Normal", race="Orc"))  # an earlier upload: race only

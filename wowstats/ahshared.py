@@ -61,7 +61,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from wowstats import ahsource
-from wowstats.stores import lq
+from wowstats.stores import lq, merge_rows
 
 # A tenant no person ever gets: the registry counts friends up from 1
 # (wowstats.tenancy.Registry.ensure), VictoriaLogs' AccountID is a uint32.
@@ -120,7 +120,7 @@ def shared_event(ev: dict, faction: str | None) -> dict | None:
 def _side_in_store(own, char: str) -> str | None:
     """The character's side from the person's own store: the newest event
     with a faction, else with a race."""
-    rows = own.vl_direct(f'{own.stream} char:={lq(char)} (faction:in("Alliance", "Horde") or race:*) '
+    rows = own.vl_direct(f'{own.stream} char:={lq(char)} -feed:="{FEED}" (faction:in("Alliance", "Horde") or race:*) '
                          f"| stats by (faction, race) max(_time) as t", ("faction", "race"), {"t": "maxtime"},
                          limit=1000)
     for r in sorted(rows, key=lambda r: r.get("t") or "", reverse=True):
@@ -182,6 +182,43 @@ def homes(own) -> set[tuple[str, str]]:
     return out
 
 
+def one_house(rows: list[dict], home: tuple[str, str] | None, *, exact: bool = False) -> tuple[dict, list[dict]]:
+    """Keep every day of one house together for trends and loot valuations."""
+    houses: dict[tuple[str, str], list[dict]] = {}
+    for row in rows:
+        key = (ahsource.ruleset_key(row.get("ruleset")), str(row.get("faction") or "").title())
+        houses.setdefault(key, []).append(row)
+    if home:
+        realm, faction = home
+        realm = ahsource.ruleset_key(realm)
+        choices = [faction] if exact else [faction, NEUTRAL]
+        key = next(((realm, f) for f in choices if (realm, f) in houses), None)
+    else:
+        # Old single-house exports sometimes lack a faction. A labelled house
+        # needs a known character or an explicit selection.
+        key = next(iter(houses), None)
+        if len(houses) != 1 or key[1]:
+            key = None
+    if key is None:
+        return {}, []
+    return {"ruleset": key[0] or None, "faction": key[1] or None}, houses[key]
+
+
+def character_house(own, char: str) -> tuple[str, str] | None:
+    """Read the character's own realm and side. Scanning a house can't change either."""
+    names = sorted({char, char.replace("-", " "), char.replace(" ", "-")})
+    filt = "char:in(" + ", ".join(lq(n) for n in names) + ")"
+    rows = own.vl_direct(f'{own.stream} {filt} feed:="wow-character" realm:* '
+                         "| stats by (char, realm, faction, race) max(_time) as t",
+                         ("char", "realm", "faction", "race"), {"t": "maxtime"})
+    current = max((r for r in rows if r.get("realm")), key=lambda r: r.get("t") or "", default=None)
+    if current:
+        faction = side(current.get("faction"), current.get("race")) or _side_in_store(own, current["char"])
+        if faction:
+            return ahsource.ruleset_key(current["realm"]), faction
+    return None
+
+
 def house_filter(pairs: set[tuple[str, str]]) -> str:
     """The LogsQL filter for the houses of `pairs`: each ruleset's side
     house and its neutral one."""
@@ -189,7 +226,7 @@ def house_filter(pairs: set[tuple[str, str]]) -> str:
 
 
 def scans(own, loc: str, agg: str, ops: dict, start: datetime | None = None, end: datetime | None = None,
-          limit: int = 200000) -> list[dict]:
+          limit: int = 200000, *, identify_houses: bool = False) -> list[dict]:
     """The scans' stats rows, one per item, house (ruleset, faction) and
     scan day: `agg` is the stats functions after `stats by (item_key,
     scan_day, ruleset, faction)`, `ops` how split answers merge. From the
@@ -202,11 +239,18 @@ def scans(own, loc: str, agg: str, ops: dict, start: datetime | None = None, end
             return []
         return store(loc).vl_direct(f'feed:="{FEED}" ({house_filter(pairs)}) | stats by ({", ".join(BY)}) {agg}',
                                     BY, ops, limit=limit, start=start, end=end)
-    rows = own.vl_direct(f'{own.stream} feed:="{FEED}" | stats by (item_key, scan_day, realm, faction) {agg}',
-                         ("item_key", "scan_day", "realm", "faction"), ops, limit=limit, start=start, end=end)
+    keys = ("item_key", "scan_day", "realm", "faction") + (("char",) if identify_houses else ())
+    rows = own.vl_direct(f'{own.stream} feed:="{FEED}" | stats by ({", ".join(keys)}) {agg}',
+                         keys, ops, limit=limit, start=start, end=end)
+    sides = {}
     for r in rows:
-        r["ruleset"] = r.pop("realm", None)
-    return rows
+        r["ruleset"] = ahsource.ruleset_key(r.pop("realm", None))
+        scanner = r.pop("char", None)
+        if identify_houses and scanner and not r.get("faction"):
+            if scanner not in sides:
+                sides[scanner] = _side_in_store(own, scanner)
+            r["faction"] = sides[scanner]
+    return merge_rows(rows, BY, ops) if identify_houses else rows
 
 
 # The one read of the scans the price list, the gear advice's Auction House

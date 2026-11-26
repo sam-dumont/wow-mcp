@@ -85,7 +85,7 @@ def last_seen(store) -> str:
     return max(rows, key=lambda r: r.get("last_seen") or "")["char"].replace(" ", "-")
 
 
-def prices(store, days: int = 30, shared: str = "") -> dict[int, dict]:
+def prices(store, days: int = 30, shared: str = "", *, char: str | None = None) -> dict[int, dict]:
     """The Auctionator scans (the player's own, or the install's shared
     scans of their houses: wowstats.ahshared): per item, the newest day's
     lowest buyout (copper), and the day."""
@@ -94,7 +94,8 @@ def prices(store, days: int = 30, shared: str = "") -> dict[int, dict]:
     rows = ahshared.scans(store, shared, "min(price_copper) as price_copper, max(item_name) as item_name, "
                           "max(item_id) as item_id, max(_time) as t",
                           {"price_copper": "min", "item_name": "max", "item_id": "max", "t": "maxtime"},
-                          start=datetime.now(UTC) - timedelta(days=days))
+                          start=datetime.now(UTC) - timedelta(days=days), identify_houses=True)
+    _, rows = ahshared.one_house(rows, ahshared.character_house(store, char) if char else None)
     got = storemodels.prices([{**r, "_time": r.get("t")} for r in rows if _i(r.get("item_id")) is not None])
     return {_i(d["item_id"]): {"t": d["price_latest_t"], "copper": _i(d["price_latest_copper"]),
                                "name": d["price_item"]} for d in got.values()}
@@ -149,7 +150,7 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
             loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char),
                                            (advice or {}).get("bis_by_slot"), mode=mode)
     try:
-        scans = prices(store, shared=ahshared.location(env))
+        scans = prices(store, shared=ahshared.location(env), char=char)
     except Exception:  # noqa: BLE001 - the scans are a bonus, never a reason to fail
         scans = {}
     # The character's one analytical copy (wowstats.analysis.copies), the

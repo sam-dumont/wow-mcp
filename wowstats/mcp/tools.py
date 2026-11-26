@@ -924,9 +924,19 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
                           "min(price_copper) as price_copper, max(price_high_copper) as price_high_copper, "
                           "max(item_name) as item_name, max(item_id) as item_id, max(_time) as t",
                           {"price_copper": "min", "price_high_copper": "max", "item_name": "max",
-                           "item_id": "max", "t": "maxtime"}, start, end)
+                           "item_id": "max", "t": "maxtime"}, start, end, identify_houses=True)
     from wowstats import storemodels
 
+    explicit = "ruleset" in args or "faction" in args
+    if explicit:
+        faction = str(args.get("faction") or "").title()
+        ruleset = str(args.get("ruleset") or "").strip()
+        if not ruleset or faction not in (*ahshared.SIDES, ahshared.NEUTRAL) or args.get("char"):
+            raise ToolError("Select a character, or give both ruleset and faction for an auction house.")
+        home = (ruleset, faction)
+    else:
+        home = ahshared.character_house(ctx.store.events, resolve_char(ctx, args)) if rows else None
+    house, rows = ahshared.one_house(rows, home, exact=explicit)
     out = []
     for key, d in storemodels.prices([{**r, "_time": r.get("t")} for r in rows]).items():
         name = d["price_item"] or f"item {key}"
@@ -941,8 +951,8 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
                     "change_vs_first": gold(d["price_change_copper"]) if d["price_change_copper"] is not None
                     else None})
     out.sort(key=lambda d: d["item"])
-    note = None if out else "no Auctionator scans in that range (feed wow-prices)"
-    return {"items": out[:limit], "total": len(out), "note": note,
+    note = None if out else "No matching Auctionator prices. Select a ruleset and faction to query a specific house."
+    return {"items": out[:limit], "total": len(out), "note": note, "house": house or None,
             "prices": "lowest minimum buyout seen that day, per unit"}
 
 
@@ -1685,7 +1695,9 @@ TOOLS: tuple[Tool, ...] = (
     Tool("prices", "Auction scans",
          "Prices from Auctionator scans of the character's ruleset and faction (the player's own, or on a shared "
          "server anyone's): latest, min and max over the range, change since the first scan.",
-         schema({"item": {"type": "string", "description": "Part of an item name, or an item id."},
+         schema({"char": CHAR, "ruleset": {"type": "string", "description": "Auction ruleset for an explicit house."},
+                 "faction": {"type": "string", "enum": ["Alliance", "Horde", "Neutral"]},
+                 "item": {"type": "string", "description": "Part of an item name, or an item id."},
                  "since": SINCE, "until": UNTIL, "limit": lim(20, 100)}), t_prices),
     Tool("inventory", "Bags and bank",
          "What the character holds in its bags and bank, with counts: per item the count in the bags, in the bank "
