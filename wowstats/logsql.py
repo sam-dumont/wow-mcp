@@ -22,7 +22,7 @@ SQLite store's, it is ordered as numbers where both are, else as text).
 Filters: `field:=v`, `field:in(a, b)`, `field:*`, `field:word`, `field:pre*`,
 `_time:>T`, `_time:>=T`, `_time:<T`, `_time:[T1, T2]`, `_time:30d`, `-x`,
 `!x`, `not x`, `(a or b)`, `a and b`, and the stream filter `{f="v", g="w"}`
-(LOGS_FILTER's `{component="wow"}`). Pipes: `fields`, `sort by (f [desc])`,
+(LOGS_FILTER's `{component="wow"}`). Pipes: `fields`, `rm`, `sort by (f [desc])`,
 `limit`/`head`, `uniq by (...)`, `stats [by (f, _time:1m)] count(),
 count_uniq(f), sum(f), min(f), max(f), uniq_values(f) [limit N],
 row_max(f, a, ...)`.
@@ -430,8 +430,11 @@ def _int(lx: _Lex) -> int:
 @dataclass
 class Fields:
     names: list
+    remove: bool = False
 
     def run(self, rows, now):
+        if self.remove:
+            return [{k: v for k, v in r.items() if k not in self.names} for r in rows]
         return [{k: r[k] for k in self.names if r.get(k) not in (None, "")} for r in rows]
 
 
@@ -684,12 +687,15 @@ def _parse_stats(lx: _Lex) -> Stats:
 
 def parse_pipe(s: str):
     lx = _Lex(s)
-    if lx.keyword("fields"):
+    remove = lx.keyword("rm")
+    if remove or lx.keyword("fields"):
         names = []
         while not lx.done():
             names.append(lx.value())
             lx.eat(",")
-        return Fields(names)
+        if remove and (not names or any("*" in name for name in names)):
+            raise Unsupported("rm expects literal field names")
+        return Fields(names, remove)
     if lx.keyword("sort"):
         lx.need("by")
         lx.need("(")

@@ -150,7 +150,7 @@ def scoped(char: str, q: str) -> str:
 def both(store, query: str) -> tuple[list[dict], list[dict]]:
     """(VictoriaLogs' answer, the cache's answer) to `query`."""
     want = store.vl_raw(store.vl_url, query, HISTORY_START, datetime.now(UTC), 100_000)
-    # The cache keeps no stream fields (eventcache._DROP).
+    # The cache omits VictoriaLogs stream metadata from the page projection.
     want = [{k: v for k, v in r.items() if k not in ("_stream", "_stream_id")} for r in want]
     got = store.cache.answer(query)
     assert got is not None, f"not answered by the cache: {query}"
