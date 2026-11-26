@@ -119,6 +119,10 @@ def build(data: Path) -> dict:
         out["kb_digest_week"] = weeks
     learning = _read(data / "kb/professions/learning.json")
     dungeons = _read(data / "dungeons/kill-xp.json")
+    recipe_files = (learning.get("foreverdb") or {}).get("files") or {}
+    recipe_versions = {name: r["version"] for name, r in recipe_files.items() if _get(r, "version")}
+    if recipe_versions:
+        out["profession_file_versions"] = recipe_versions
     observations = {
         "dungeon_xp_as_of": _get(dungeons, "as_of"),
         "dungeon_eg_link_commit": _get(dungeons, "sources", "eg_link", "commit"),

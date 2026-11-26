@@ -4251,6 +4251,9 @@ function renderSourceVersions(config) {
   add('Profession sources reviewed', v.observations?.profession_reviewed);
   add('Latest profession capture build', v.observations?.profession_latest_capture_build);
   add('Profession sources · EG Link revision', v.observations?.profession_eg_link_commit);
+  for (const [name, revision] of Object.entries(v.profession_file_versions || {})) {
+    add('Profession evidence · ForeverDB.net ' + name, revision);
+  }
   add('News digest week', v.kb_digest_week?.news);
   add('Community digest week', v.kb_digest_week?.community);
   for (const [name, release] of Object.entries(v.checked_addons || {})) add(name + ' · watched release', release);

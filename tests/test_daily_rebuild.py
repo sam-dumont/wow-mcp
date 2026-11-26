@@ -311,6 +311,10 @@ def test_the_server_says_what_its_data_was_built_from():
     assert v["checked_addons"] == checked
     assert {"Questie", "WoWSims Exporter"} <= set(checked)
     assert v["checked"] == state()["checked"]
+    learning = json.loads((ROOT / "data/kb/professions/learning.json").read_text())
+    assert v["profession_file_versions"] == {name: row["version"] for name, row in learning["foreverdb"]["files"].items()}
+    assert v["observations"]["profession_latest_capture_build"] == learning["eg_link"]["latest_build"]
+    assert v["observations"]["gear_eg_link_commit"] == fref["reviewed_loot"]["eg_link_commit"]
     assert v["watched_client_build"] == state()["client_build"]["known"]
     classes = json.loads((ROOT / "data/class-reference.json").read_text())["source"]
     weights = json.loads((ROOT / "data/foreverdb-weights.json").read_text())["source"]

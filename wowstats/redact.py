@@ -115,7 +115,8 @@ META_PARAGRAPH = {k: None for k in ("class", "spec", "text", "checked", "stale",
 
 DATA_VERSIONS = {"foreverdb": {}, "forever_db": {}, "polestar": None, "client_build": {},
                  "wowsims": {}, "checked_addons": {}, "checked": None, "watched_client_build": None,
-                 "spell_hotfix_push": None, "kb_digest_week": {}, "kb_statement_reviews": {}, "observations": {}}
+                 "spell_hotfix_push": None, "kb_digest_week": {}, "kb_statement_reviews": {}, "observations": {},
+                 "profession_file_versions": {}}
 
 LEVEL_SPLIT = {k: None for k in ("level", "seconds", "partial", "route_s")}
 
