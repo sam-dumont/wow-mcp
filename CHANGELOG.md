@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+The Climb shows your played time beside Polestar’s planned time on all three dashboards. Craft cards break out recipe requirements, materials and auction prices. The dashboard and MCP also show which client build and data sources those recommendations use.
+
 ### Fixed
 
 - The Climb uses Polestar 0.4.3.1 for all 90 race and class routes. Tailoring now starts Black Mageweave Headband at 200. A tailor with an Expert cap of 225 only needs Artisan when planning past 225.

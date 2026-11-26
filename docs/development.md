@@ -406,7 +406,7 @@ A real run (`.github/workflows/release.yml`, its header has the detail):
    through a pull request,
    `Release X.Y.Z`, opened by the CI GitHub App so its checks run, and
    auto-merge squashes it when they pass. Its body is short: the version,
-   the section's opening paragraph and a link to CHANGELOG.md at that commit,
+   a link to CHANGELOG.md at that commit and the opening paragraph if the section starts with short prose,
    never the notes (0.7.0's were 108 kB; GitHub refuses a PR body over
    65,536 characters). A `release/vX.Y.Z` branch left by an interrupted run is
    replaced when it holds only that run's `Release X.Y.Z` commit; anything
