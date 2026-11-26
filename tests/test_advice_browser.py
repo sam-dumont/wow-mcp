@@ -364,7 +364,7 @@ def test_weights_copy_for_forever_leveling_bis(site, pw, engine, width):
         b.close()
 
 
-def test_published_and_owner_show_the_same_acquisition_at_phone_width(tmp_path, monkeypatch):
+def test_published_and_owner_show_the_same_acquisition_at_phone_width(tmp_path, monkeypatch, pw):
     from datetime import date, timedelta
 
     from tests.conftest import Running
@@ -402,11 +402,11 @@ def test_published_and_owner_show_the_same_acquisition_at_phone_width(tmp_path, 
     friends = static.Server(("127.0.0.1", 0), static.make_handler(site))
     threading.Thread(target=friends.serve_forever, daemon=True).start()
     try:
-        with sync_api.sync_playwright() as pw:
-            try:
-                browser = pw.chromium.launch()
-            except Exception as exc:
-                pytest.skip(f"no Chromium: {exc}")
+        try:
+            browser = pw.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"no Chromium: {exc}")
+        try:
             for url in (owner.base + f"/?char={CHAR}",
                         f"http://wow.localhost:{friends.server_address[1]}/zogzog/?char={CHAR}#{key}"):
                 pg = browser.new_page(viewport={"width": 390, "height": 844})
@@ -429,6 +429,7 @@ def test_published_and_owner_show_the_same_acquisition_at_phone_width(tmp_path, 
                 assert "Riding at level" in details.inner_text() and "×" in details.inner_text()
                 assert pg.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
                 pg.close()
+        finally:
             browser.close()
     finally:
         friends.shutdown()
