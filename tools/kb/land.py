@@ -32,6 +32,11 @@ and reads no page. In order:
    back on if it went off. Refused: the PR keeps label `kb-refused` and stays
    open for a person. With `--regen`, a PR that went DIRTY (main moved and
    conflicts) is `moved` too: made again and force-pushed.
+   The rebase and its gates run as their own step before the token is
+   minted (`--rebase-out`, then `--prepared` on the landing step): the gates
+   take about an hour on the mirror's runner and the App's token lasts one.
+   2026-11-24 and 11-25: the push and the issues after a rebase failed on an
+   expired token.
 5. The step ends red unless the PR merged (or there was nothing to land): a
    refusal, a failed required check, a conflict, or no merge within
    SHEPHERD_S. The lab's scheduler waits for the run and reports a red one
@@ -95,6 +100,26 @@ def regate(base: str, out: str, md: str) -> dict:
     sh("uv", "run", "--frozen", "python", "tools/kb/gates.py", "--base", base, "--out", out, "--markdown", md,
        check=False, env=env)
     return json.loads(Path(out).read_text(encoding="utf-8"))
+
+
+def rebase(base: str) -> dict:
+    """Step 2 on its own, no token needed (the public repository's main is
+    read anonymously): {"state": "same" | "rebased" | "conflict", "main": sha,
+    and for "rebased" the gates' files}. A conflict leaves the tree as it was."""
+    if not git("rev-list", f"{base}..HEAD"):
+        return {"state": "same", "main": base}
+    git("fetch", "-q", "origin", "main")
+    main_now = git("rev-parse", "origin/main")
+    if main_now == git("rev-parse", base):
+        return {"state": "same", "main": main_now}
+    r = sh("git", "rebase", "origin/main", check=False)
+    if r.returncode:
+        sh("git", "rebase", "--abort", check=False)
+        return {"state": "conflict", "main": main_now}
+    out = os.environ.get("RUNNER_TEMP", "/tmp") + "/gates-rebased.json"
+    md = out.replace(".json", ".md")
+    regate(main_now, out, md)
+    return {"state": "rebased", "main": main_now, "gates": out, "gates_md": md}
 
 
 def merge_state(n: int, tries: int = 12) -> str:
@@ -222,6 +247,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--regen", action="store_true",
                     help="deterministic change (watch): a conflict with main is `moved`, made again, not refused")
     ap.add_argument("--last", action="store_true", help="with --regen: the last try, `moved` is red")
+    ap.add_argument("--rebase-out", help="only rebase on main and run the gates again (no token); write the "
+                    "result here for --prepared")
+    ap.add_argument("--prepared", help="a --rebase-out file: the rebase is done, don't fetch or gate again")
     a = ap.parse_args(argv)
     gh_out = os.environ.get("GITHUB_OUTPUT")
 
@@ -231,6 +259,11 @@ def main(argv: list[str] | None = None) -> int:
             with open(gh_out, "a", encoding="utf-8") as f:
                 f.writelines(f"{k}={v}\n" for k, v in kv.items())
 
+    if a.rebase_out:
+        prep = rebase(a.base)
+        Path(a.rebase_out).write_text(json.dumps(prep) + "\n", encoding="utf-8")
+        print(json.dumps(prep))
+        return 0
     if a.check_open:
         n = open_pr(a.branch)
         output(pr=n or "")
@@ -285,21 +318,16 @@ def main(argv: list[str] | None = None) -> int:
     result = json.loads(Path(a.gates).read_text(encoding="utf-8"))
     gates_md = Path(a.gates_md).read_text(encoding="utf-8") if a.gates_md else ""
     sh("gh", "auth", "setup-git")  # the push's credentials, from this step's GH_TOKEN only
-    git("fetch", "-q", "origin", "main")
-    main_now = seen["main"] = git("rev-parse", "origin/main")
-    if main_now != git("rev-parse", a.base):
-        r = sh("git", "rebase", "origin/main", check=False)
-        if r.returncode:
-            sh("git", "rebase", "--abort", check=False)
-            if a.regen:
-                return finish("moved", open_pr(a.branch), "the rebase on main conflicts")
-            result = {"ok": False, "refused": ["main moved during the run and the change conflicts with it"]}
-            gates_md = "**Gates: refused.**\n\n- main moved during the run and the change conflicts with it\n"
-        else:
-            out = os.environ.get("RUNNER_TEMP", "/tmp") + "/gates-rebased.json"
-            md = out.replace(".json", ".md")
-            result = regate(main_now, out, md)
-            gates_md = Path(md).read_text(encoding="utf-8")
+    prep = json.loads(Path(a.prepared).read_text(encoding="utf-8")) if a.prepared else rebase(a.base)
+    seen["main"] = prep["main"]
+    if prep["state"] == "conflict":
+        if a.regen:
+            return finish("moved", open_pr(a.branch), "the rebase on main conflicts")
+        result = {"ok": False, "refused": ["main moved during the run and the change conflicts with it"]}
+        gates_md = "**Gates: refused.**\n\n- main moved during the run and the change conflicts with it\n"
+    elif prep["state"] == "rebased":
+        result = json.loads(Path(prep["gates"]).read_text(encoding="utf-8"))
+        gates_md = Path(prep["gates_md"]).read_text(encoding="utf-8")
     sha = git("rev-parse", "HEAD")
     git("push", "-f", "origin", f"HEAD:refs/heads/{a.branch}")
     body = (Path(a.body_file).read_text(encoding="utf-8") if a.body_file else "") + "\n\n" + gates_md
