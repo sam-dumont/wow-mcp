@@ -9,20 +9,20 @@
   "name": "ForeverDB.net",
   "url": "https://foreverdb.net",
   "build": "1.60.1.71139",
-  "data_version": "2026-11-26.75cf354c",
+  "data_version": "2026-11-26.a0032eb5",
   "addon_version": "0.77.1",
   "manifest": "https://foreverdb.net/downloads/addon-manifest.json",
-  "fingerprint": "4067c6e0746fc40e",
+  "fingerprint": "9e81dcbb36d14aa3",
   "files": {
    "Data/GearSources.lua": {
-    "url": "https://foreverdb.net/downloads/addon-data/GearSources.lua?v=b26d06c982",
-    "sha256": "b26d06c982d57c22831fbd8b08b3b647308ac71f88e03bbfe09f68f0118691c9",
-    "bytes": 586357
+    "url": "https://foreverdb.net/downloads/addon-data/GearSources.lua?v=a3fe36f13d",
+    "sha256": "a3fe36f13d5fa4921eaf453afbf8c7dca9449fe5836b3769b27c7966adc65f63",
+    "bytes": 586358
    },
    "Data/Loot.lua": {
-    "url": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=ea7c67f182",
-    "sha256": "ea7c67f1825e80a6703802ffac8846e1c6179888b54615e5dfbebe116cff8a78",
-    "bytes": 123217
+    "url": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95",
+    "sha256": "d905c2bd95eaf7b5858c232c7901c7804b857cc523a16a90b8478ae140abd950",
+    "bytes": 123219
    },
    "Data/GearFinder.lua": {
     "url": "https://foreverdb.net/downloads/addon-data/GearFinder.lua?v=2545db6c79",
@@ -30,8 +30,8 @@
     "bytes": 218926
    },
    "Data/Meta.lua": {
-    "url": "https://foreverdb.net/downloads/addon-data/Meta.lua?v=91cd6d102e",
-    "sha256": "91cd6d102ec6bda79a963f19080773f9b71189be28255990ae9cc5fba7955b79",
+    "url": "https://foreverdb.net/downloads/addon-data/Meta.lua?v=4cfb30e2b0",
+    "sha256": "4cfb30e2b0a4ff983c7bf247975776c6cd32802ee81b4e0a27105dde1e797a1e",
     "bytes": 284
    }
   },
