@@ -2,6 +2,7 @@
  "_notice": [
   "-- Data: ForeverDB.net (https://foreverdb.net), build 1.60.1.71139. Reuse requires this credit: see NOTICE.txt (GPL-3.0 section 7(b)).",
   "Data from ForeverDB.net (https://foreverdb.net)",
+  "-- Data: ForeverDB.net (https://foreverdb.net), build 1.60.1.71037. Reuse requires this credit: see NOTICE.txt (GPL-3.0 section 7(b)).",
   "NPC encounter placements use ForeverDB.net addon data under GPL-3.0 with its section 7(b) attribution term. See data/foreverdb/LICENSE.txt, NOTICE.txt and COPYING.txt."
  ],
  "schema": 1,
@@ -31,6 +32,11 @@
   "dungeon_drops": "Polestar trusted loot recordings and forever-db item_source (table rates), matched to kill-xp.json or observed NPC IDs and client dungeon encounters",
   "encounter_placement": "ForeverDB.net observed NPC IDs and maps, checked against DungeonEncounter",
   "recorded_loot": "Polestar trusted NPC and object loot windows, named by the released forever-db",
+  "reviewed_loot": {
+   "reviewed_on": "2026-11-26",
+   "eg_link_commit": "f25e0efde0c8490e4e6f356a68f7a81a703fa21c",
+   "credit": "Data from Efficient Games (https://efficient.games), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Reduced to NPC and item IDs. See docs/gear-source-review.md for the evidence for each item."
+  },
   "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)"
  },
  "quests": {
@@ -86497,6 +86503,24 @@
   "286743": 99156,
   "286744": 99156
  },
+ "quest_supplies": {
+  "5387": 993
+ },
+ "summons": {
+  "10584": {
+   "items": [
+    12533,
+    12534
+   ],
+   "note": "bring a Roughshod Pike and Omokk's Head to Urok's Tribute Pile"
+  },
+  "14516": {
+   "items": [
+    18746
+   ],
+   "note": "use the Divination Scryer in the Great Ossuary"
+  }
+ },
  "dungeon_drops": {
   "1155": [
    {
@@ -87605,6 +87629,15 @@
     "pct": null
    }
   ],
+  "6593": [
+   {
+    "kind": "drop",
+    "via": "eg-link",
+    "npc": 260809,
+    "zone": 11,
+    "npc_name": "Highland Tortoise"
+   }
+  ],
   "6604": [
    {
     "kind": "drop",
@@ -87782,6 +87815,24 @@
     "pct": null
    }
   ],
+  "9428": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 4844,
+    "zone": 3,
+    "npc_name": "Shadowforge Surveyor"
+   }
+  ],
+  "9455": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 6228,
+    "zone": 721,
+    "npc_name": "Dark Iron Ambassador"
+   }
+  ],
   "9770": [
    {
     "kind": "drop",
@@ -87924,6 +87975,41 @@
     "pct": null
    }
   ],
+  "10131": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 8921,
+    "zone": 1584,
+    "npc_name": "Bloodhound"
+   }
+  ],
+  "10238": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "world": true,
+    "zone_name": "Sunken Temple"
+   }
+  ],
+  "10243": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "world": true
+   }
+  ],
+  "10387": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 9568,
+    "zone": 1583,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Overlord Wyrmthalak"
+   }
+  ],
   "10787": [
    {
     "kind": "drop",
@@ -88013,6 +88099,61 @@
     "via": "polestar-recording",
     "voters": 3,
     "pct": null
+   }
+  ],
+  "12582": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 9237,
+    "zone": 1583,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "War Master Voone"
+   }
+  ],
+  "13051": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 12219,
+    "zone": 2100,
+    "npc_name": "Barbed Lasher"
+   }
+  ],
+  "13206": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 10268,
+    "zone": 1583,
+    "zone_name": "Blackrock Spire: Lower",
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Gizrul the Slavener"
+   }
+  ],
+  "13258": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 10584,
+    "zone": 1583,
+    "zone_name": "Blackrock Spire: Lower",
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Urok Doomhowl"
+   }
+  ],
+  "13953": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 1853,
+    "zone": 2057,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Darkmaster Gandling"
    }
   ],
   "14120": [
@@ -88233,6 +88374,15 @@
     "pct": null
    }
   ],
+  "14179": [
+   {
+    "kind": "drop",
+    "via": "eg-link",
+    "npc": 4805,
+    "zone": 719,
+    "npc_name": "Blackfathom Sea Witch"
+   }
+  ],
   "14181": [
    {
     "kind": "drop",
@@ -88264,6 +88414,100 @@
     "via": "polestar-recording",
     "voters": 3,
     "pct": null
+   }
+  ],
+  "14425": [
+   {
+    "kind": "drop",
+    "via": "eg-link",
+    "npc": 7269,
+    "zone": 1176,
+    "npc_name": "Scarab"
+   }
+  ],
+  "14434": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 255377,
+    "zone": 16620,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Alcaz Jailer"
+   }
+  ],
+  "14487": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 10508,
+    "zone": 2057,
+    "npc_name": "Ras Frostwhisper"
+   }
+  ],
+  "14756": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 4107,
+    "zone": 400,
+    "npc_name": "Highperch Wyvern"
+   }
+  ],
+  "14833": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 5649,
+    "zone": 1176,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Sandfury Blood Drinker"
+   }
+  ],
+  "14919": [
+   {
+    "kind": "drop",
+    "via": "eg-link",
+    "npc": 6527,
+    "zone": 490,
+    "npc_name": "Tar Creeper"
+   }
+  ],
+  "14922": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 9167,
+    "zone": 490,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Frenzied Pterrordax"
+   }
+  ],
+  "14952": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 255377,
+    "zone": 16620,
+    "npc_name": "Alcaz Jailer"
+   }
+  ],
+  "14957": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "world": true
+   }
+  ],
+  "14960": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 9166,
+    "zone": 490,
+    "npc_name": "Pterrordax"
    }
   ],
   "15018": [
@@ -88555,6 +88799,17 @@
     "via": "polestar-recording",
     "voters": 3,
     "pct": null
+   }
+  ],
+  "15255": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 9262,
+    "zone": 1583,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Firebrand Invoker"
    }
   ],
   "15310": [
@@ -88967,6 +89222,37 @@
     "via": "polestar-recording",
     "voters": 3,
     "pct": null
+   }
+  ],
+  "18374": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 11487,
+    "zone": 2557,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Magister Kalendris"
+   }
+  ],
+  "18462": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 14326,
+    "zone": 2557,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Guard Mol'dar"
+   }
+  ],
+  "18760": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 14516,
+    "zone": 2057,
+    "npc_name": "Death Knight Darkreaver"
    }
   ],
   "264501": [
@@ -125217,6 +125503,13 @@
    1,
    null
   ],
+  "6228": [
+   "Dark Iron Ambassador",
+   33,
+   33,
+   2,
+   null
+  ],
   "6229": [
    "Crowd Pummeler 9-60",
    32,
@@ -125312,6 +125605,13 @@
    "Living Blaze",
    54,
    55,
+   0,
+   null
+  ],
+  "6527": [
+   "Tar Creeper",
+   51,
+   52,
    0,
    null
   ],
@@ -126463,6 +126763,13 @@
    0,
    null
   ],
+  "9166": [
+   "Pterrordax",
+   50,
+   52,
+   0,
+   null
+  ],
   "9167": [
    "Frenzied Pterrordax",
    51,
@@ -126535,6 +126842,13 @@
   ],
   "9261": [
    "Firebrand Darkweaver",
+   56,
+   57,
+   1,
+   null
+  ],
+  "9262": [
+   "Firebrand Invoker",
    56,
    57,
    1,
@@ -129751,6 +130065,13 @@
    28,
    29,
    1,
+   "Wetlands"
+  ],
+  "260809": [
+   "Highland Tortoise",
+   25,
+   26,
+   0,
    "Wetlands"
   ],
   "260995": [

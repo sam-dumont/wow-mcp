@@ -695,3 +695,5 @@ and 75 cases of their picks per slot and level (`tests/data/foreverdb-picks.json
 - Picks: the same best item per slot and level, and the same "-N%" for the
   next two, within one point on a rounding edge.
 - Weapons: the same setup, but for the off hand rule above.
+
+The [November 26 gear-source review](gear-source-review.md) records 31 item-level decisions, including the evidence for each drop and the items required to summon two bosses.

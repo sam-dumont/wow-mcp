@@ -143,7 +143,7 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
 
             advice = gear.advise(gear.reference(), gi["sheet"], every=True, mode=mode, **gear_args(gi))
             loot = gear.instance_loot(gear.reference(), gi["sheet"], level=gi["level"], weights=gi["weights"],
-                                      bis=advice.get("bis_by_slot"), mode=mode)
+                                      bis=advice.get("bis_by_slot"), mode=mode, held=gi.get("held"))
         else:
             advice = gear.advise_rows(rows, analysis.weights_for(env, char), battlenet=battlenet, mode=mode,
                                       pvp=pvp)

@@ -650,10 +650,26 @@ def main(argv: list[str]) -> int:
     uncommon = {i for i, row in game_items.items() if (row.get("quality") or 0) >= 2}
     other_loot = recorded_loot(observations, db / "data", out_maps, placed, uncommon - known - loot.keys(), rewards)
     sourced_npcs.update(s["npc"] for ss in other_loot.values() for s in ss if "npc" in s and not s.get("zone"))
+    # Independently checked fallbacks. Daily upstreams take priority. A known second
+    # route also rules out using the item as proof that a quest was completed.
+    review = json.loads(Path(__file__).with_name("reviewed-loot.json").read_text())
+    for item in review["drops"].keys() | review["quest_supplies"].keys():
+        rewards.pop(item, None)
+    missing = uncommon - known - loot.keys() - other_loot.keys()
+    reviewed = {item: row for item, row in review["drops"].items() if item in missing}
+    sourced_npcs.update(row["npc"] for row in reviewed.values() if "npc" in row)
     work, npcs = quest_work(db, {q for q in wanted if q in quests}, sourced_npcs, ui_names)
+    for item, row in reviewed.items():
+        route = {"kind": "drop", "via": "reviewed-loot", **row}
+        if route["via"] == "foreverdb":
+            route["reviewed"] = True
+        if "npc" in row:
+            route["npc_name"] = npcs[str(row["npc"])][0]
+        other_loot[item] = [route]
+    other_loot = dict(sorted(other_loot.items(), key=lambda kv: int(kv[0])))
 
     doc = {
-        "_notice": [*fdb["_notice"][:2],
+        "_notice": [*fdb["_notice"][:2], review["_notice"][0],
                     "NPC encounter placements use ForeverDB.net addon data under GPL-3.0 with its section 7(b) "
                     "attribution term. See data/foreverdb/LICENSE.txt, NOTICE.txt and COPYING.txt."],
         "schema": 1,
@@ -670,6 +686,7 @@ def main(argv: list[str]) -> int:
                              "matched to kill-xp.json or observed NPC IDs and client dungeon encounters",
             "encounter_placement": "ForeverDB.net observed NPC IDs and maps, checked against DungeonEncounter",
             "recorded_loot": "Polestar trusted NPC and object loot windows, named by the released forever-db",
+            "reviewed_loot": review["source"],
             "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)",
         },
         # quest id -> [title, level, minimum level, zone area id (0: none)]
@@ -682,6 +699,8 @@ def main(argv: list[str]) -> int:
         "items": dict(sorted(items.items(), key=lambda kv: int(kv[0]))),
         # item id -> the one quest that gives it (only_rewards)
         "rewards": rewards,
+        "quest_supplies": review["quest_supplies"],
+        "summons": review["summons"],
         "dungeon_drops": loot,
         "recorded_loot": other_loot,
         # quest id -> [side, race mask, class mask, [item rewards], [choice rewards]] (reward_quests)

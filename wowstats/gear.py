@@ -252,6 +252,7 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
     sets = fdb.get("sets") or {}
     era_only: list[str] = []
     old = polestar.get("items") or {}
+    quest_supplies = forever.data().get("quest_supplies") or {}
     for iid, e in (game.get("items") or {}).items():
         names[iid] = e["name"]
         items[iid] = {k: v for k, v in e.items() if k not in ("name", "dmg", "from")}
@@ -260,6 +261,8 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
         # the Zul'Gurub bracers: the server enforces those), Polestar knows.
         if not e.get("allow") and (old.get(iid) or {}).get("allow"):
             items[iid]["allow"] = old[iid]["allow"]
+        if iid in quest_supplies:
+            items[iid]["quest_supply"] = quest_supplies[iid]
         if e.get("from") == "era":
             era_only.append(iid)
         if iid in sets:
@@ -302,6 +305,13 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
         for iid, routes in group.items():
             if iid in items and not sources.get(iid):
                 sources[iid] = routes
+    for iid, qid in quest_supplies.items():
+        if iid in sources:
+            permanent = [s for s in sources[iid] if s.get("quest") != qid]
+            if permanent:
+                sources[iid] = permanent
+            else:
+                del sources[iid]
     # All gear sources share one quest record. Fill the requirements even
     # when Polestar or a ForeverDB source installed a record first.
     for qid in quests:
@@ -710,6 +720,8 @@ def usability(ref: Reference, info: dict, cls: str, level: int, who: Who | None 
     prof = (g.get("PROFICIENCY") or {}).get(cls)
     meta = (g.get("CLASSES") or {}).get(cls)
     min_level = available_level(info)
+    if info.get("quest_supply"):
+        return False, "quest supply", min_level
     if who is not None:
         if info.get("side") and info["side"] != who.side:
             return False, "faction", min_level
@@ -1132,6 +1144,9 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
                 "choices": len(q.get("choices") or []), "work": work,
                 "work_says": questwork.says(work, who.level), "work_effort": work_effort, **_basis(s)}
     if s["kind"] == "drop":
+        summon = (forever.data().get("summons") or {}).get(str(s.get("npc")))
+        if summon and not who.bags.issuperset(summon["items"]):
+            return None
         # Whether the zone is a dungeon or a raid, and its level range as the
         # game's Group Finder gives it (data/forever-reference.json): Forever's
         # own instances (City of Dalaran) included.
@@ -1154,6 +1169,8 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
             # No zone and no level in the data: it spawns nowhere yet
             # (forever-db 2026.11.2 names Zalfan Moonshadow, places it nowhere).
             out["unplaced"] = not (out["zone"] or foe.get("level"))
+        if summon:
+            out["basis"] = ", ".join(filter(None, (out.get("basis"), summon["note"])))
         if s.get("rare"):
             out["rare"] = True
         if a.get("instance"):
@@ -1408,6 +1425,9 @@ def _basis(s: dict) -> dict:
     """A ForeverDB source's credit and how sure it is (its label), in the
     answer: `via`, `label`, `basis` (words), and a drop's looted kills."""
     placement = {"placement": s["placement"]} if s.get("placement") else {}
+    if s.get("via") in ("eg-link", "reviewed-loot"):
+        basis = "seen in EG Link loot windows" if s["via"] == "eg-link" else "corroborated Forever drop"
+        return {"via": s["via"], "basis": basis}
     if s.get("via") == "forever-db":
         return {"via": "forever-db", "basis": "forever-db loot table", **placement}
     if s.get("via") == "client-recipe":
@@ -1419,6 +1439,8 @@ def _basis(s: dict) -> dict:
     if s.get("via") != "foreverdb":
         return {}
     out = {"via": "foreverdb", "label": s.get("label"), "basis": BASIS.get(s.get("label") or "")}
+    if s.get("reviewed"):
+        out["basis"] = "earlier ForeverDB.net sighting, independently corroborated"
     if s.get("kills"):
         out["kills"] = s["kills"]
     return out
@@ -3333,7 +3355,7 @@ def advise_rows(rows: list[dict], weights: str | None = None, battlenet=None, mo
 
 def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None = None,
                   weights: str | None = None, bis: dict | None = None,
-                  mode: str | None = None) -> dict[str, list[dict]]:
+                  mode: str | None = None, held: dict | None = None) -> dict[str, list[dict]]:
     """Every item a dungeon gives this character, by the dungeon's area ID:
     its bosses' drops (with the chance) and the rewards of its own quests
     (the quests whose zone is the dungeon), each scored with the character's
@@ -3348,6 +3370,8 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
     from wowstats import gearfit
 
     cx = _context(ref, sheet, level, None, None, spec, weights, mode)
+    cx.who.bags = {i for i, where in held_where(held).items() if where == "bags"}
+    summons = forever.data().get("summons") or {}
     quests = ref.data.get("quests") or {}
     out: dict[str, list[dict]] = {}
     for sid, srcs in (ref.data.get("sources") or {}).items():
@@ -3361,6 +3385,9 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
         by_area: dict[str, dict] = {}
         for s in srcs:
             if s.get("kind") == "drop":
+                summon = summons.get(str(s.get("npc")))
+                if summon and not cx.who.bags.issuperset(summon["items"]):
+                    continue
                 a = forever.area(s.get("zone")) or {}
                 if a.get("instance") != "dungeon":
                     continue
@@ -3368,6 +3395,8 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
                 drop = {"boss": s.get("npc_name") if s.get("npc") else None, "npc_id": s.get("npc") or None,
                         "chance_pct": s.get("pct") or None,
                         "wing": (_wing_area(a, s.get("npc")) or {}).get("name") or s.get("zone_name") or a.get("name")}
+                if summon:
+                    drop["summon"] = summon["note"]
                 if drop not in d["drops"]:
                     d["drops"].append(drop)
             elif s.get("kind") == "quest":
@@ -3516,5 +3545,5 @@ def instance_loot_rows(rows: list[dict], weights: str | None = None, bis: dict |
     if got is None:
         return {}
     sh, level, _, _ = got
-    return instance_loot(reference(), sh, level=level, weights=weights, bis=bis, mode=mode)
+    return instance_loot(reference(), sh, level=level, weights=weights, bis=bis, mode=mode, held=newest_bags(rows))
 

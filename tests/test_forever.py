@@ -317,3 +317,42 @@ def test_a_quest_that_kills_a_dungeon_boss_is_the_dungeons():
     assert {"Captain Dreadrise", "Var'Taka"} <= set(forever.area(16550)["bosses"])
     got = json.loads((root / "data" / "dungeons" / "quests.json").read_text())["quests"]
     assert got["95791"] == [[2970, ["boss"]]] and got["95776"] == [[2970, ["boss"]]]
+
+
+def test_reviewed_drops_have_no_farming_rate_and_quest_supplies_never_prove_a_hand_in():
+    ref = gear.reference()
+    who = gear.Who(cls="WARRIOR", level=60, side=1, race_id=1, professions={}, done=set(), zone=None)
+    for item, npc, expected in ((6593, 260809, "Wetlands"), (9428, 4844, "Badlands"), (14425, 7269, "Zul'Farrak")):
+        raw = next(s for s in ref.data["sources"][str(item)] if s.get("npc") == npc)
+        drop = gear._source(ref, raw, who, ref.item(item))
+        assert drop["zone"] == expected and drop["chance_pct"] is None
+        assert gear.source_effort(drop) == gear.HARD and gear.action_source([drop], 60) is None
+    assert ref.item(5387)["quest_supply"] == 993
+    assert gear.usability(ref, ref.item(5387), who.cls, who.level, who)[:2] == (False, "quest supply")
+    assert "5387" not in forever.data()["rewards"]
+    assert not ref.data["sources"].get("5387")
+
+
+def test_summoned_loot_only_counts_when_the_character_can_start_the_encounter():
+    ref = gear.reference()
+    who = gear.Who(cls="SHAMAN", level=60, side=2, race_id=2, professions={}, done=set(), zone=None)
+    for item, npc, supplies in ((13258, 10584, {12533, 12534}), (18760, 14516, {18746})):
+        raw = next(s for s in ref.data["sources"][str(item)] if s.get("npc") == npc)
+        who.bags = supplies - {min(supplies)}
+        assert gear._source(ref, raw, who, ref.item(item)) is None
+        who.bags = supplies
+        drop = gear._source(ref, raw, who, ref.item(item))
+        assert drop["npc_id"] == npc and drop["chance_pct"] is None
+        assert drop["zone"] == ("Blackrock Spire: Lower" if npc == 10584 else "Scholomance")
+        assert ("Tribute Pile" if npc == 10584 else "Divination Scryer") in gear.source_text(drop)
+        assert gear.action_source([drop], 60) is None
+
+    # Check the dungeon view's separate entry point with real bundled data.
+    from dataclasses import replace
+
+    only_band = replace(ref, data={**ref.data, "sources": {"18760": ref.data["sources"]["18760"]}})
+    sheet = {"class": "SHAMAN", "faction": "Horde"}
+    assert not gear.instance_loot(only_band, sheet, level=60, held={"bank": [18746]})
+    loot = gear.instance_loot(only_band, sheet, level=60, held={"bags": [18746]})
+    assert loot["2057"][0]["drops"][0]["npc_id"] == 14516
+    assert "Divination Scryer" in loot["2057"][0]["drops"][0]["summon"]

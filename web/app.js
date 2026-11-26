@@ -1403,7 +1403,9 @@ function craftStatus(sr) {
 // link wherever the data shows (GPL-3.0 section 7(b)).
 const SOURCE_CREDIT = { text: 'Source: ForeverDB.net', url: 'https://foreverdb.net' };
 function basisEl(sr) {
-  if (sr.via === 'polestar-recording' && !sr.placement) return h('span', { class: 'sub basis', text: ` (${sr.basis})` });
+  if (['polestar-recording', 'eg-link', 'reviewed-loot'].includes(sr.via) && !sr.placement) {
+    return h('span', { class: 'sub basis', text: ` (${sr.basis})` });
+  }
   if (sr.via !== 'foreverdb' && sr.placement !== 'foreverdb') return null;
   return h('span', { class: 'sub basis' }, sr.basis ? ` (${sr.basis}) · ` : ' · ',
     h('a', { href: SOURCE_CREDIT.url, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer', text: SOURCE_CREDIT.text }));
@@ -2598,6 +2600,7 @@ function dropSource(it, dungeon, quests) {
       best.chance_pct ? ` ${best.chance_pct}%` : '',
       // A wing (Scarlet Monastery's Library), not the dungeon's own name again.
       best.wing && best.wing !== dungeon && best.wing.includes(':') ? h('span', { class: 'sub', text: `, ${best.wing.split(':').pop().trim()}` }) : null,
+      best.summon ? h('span', { class: 'sub', text: `, ${best.summon}` }) : null,
       it.drops.length > 1 ? h('span', { class: 'sub', text: ` +${it.drops.length - 1} more` }) : null);
   }
   // A quest's reward: which quest, and the next thing to do for it.
