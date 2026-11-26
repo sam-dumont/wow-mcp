@@ -239,7 +239,7 @@ VS_GUIDE = {**_keys("agrees", "we_say", "reason", "under_floor", "text"), "guide
 MOVE = {**_keys("text", "link", "cite", "kind", "title", "detail", "action", "blocker", "item_id", "skill_id",
                 "weight"),
         "item": MOVE_ITEM, "items": [MOVE_ITEM], "zone": PLACE, "quest_rewards": [QUEST_REWARD],
-        "source": {**_keys("kind", "boss", "profession", "blocker"), "quest": _keys("id", "name", "url"),
+        "source": {**_keys("kind", "boss", "profession", "blocker", "price_copper", "seen_day", "seen_days_ago"), "quest": _keys("id", "name", "url"),
                    "zone": PLACE},
         "skill": {**_keys("skill_id", "name", "rank", "max_rank", "next", "need_level", "level_ok", "need_skill",
                           "skill_ok", "cost_copper", "cost_scope", "money_copper", "search_url"),

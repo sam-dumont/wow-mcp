@@ -58,6 +58,14 @@ def quest(qid) -> dict | None:
             "zone": a["name"] if a else None, "part": (data().get("parts") or {}).get(str(int(qid)))}
 
 
+def quest_gates(qid) -> tuple[int, int, int]:
+    """Side, race mask and class mask from the same Forever quest record."""
+    d = data()
+    q = str(qid)
+    row = (d.get("gear_quests") or {}).get(q) or (d.get("quest_gates") or {}).get(q)
+    return tuple(row[:3]) if row else (0, 0, 0)
+
+
 def dungeon_area(aid) -> str | None:
     """The dungeon an area ID stands for, as its instance area ID: itself,
     or the same-named area the client zones the dungeon's quests in. Four

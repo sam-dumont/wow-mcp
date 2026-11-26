@@ -401,6 +401,9 @@ def entry(r: dict, it: dict, stats: dict[str, float], armor: float, dmg, origin:
     allow = i(r.get("AllowableClass"))
     if allow > 0 and allow & ALL_CLASSES != ALL_CLASSES:
         e["allow"] = allow
+    if i(r.get("RequiredSkill")):
+        e["required_skill"] = i(r["RequiredSkill"])
+        e["required_skill_rank"] = i(r.get("RequiredSkillRank"))
     if i(r.get("MaxCount")) == 1:
         e["unique"] = True
     e["stats"] = dict(sorted(st.items()))

@@ -195,21 +195,17 @@ def only_rewards(db: Path, gear: dict) -> dict[str, int]:
     return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
 
 
-def reward_quests(db: Path, quests: dict) -> dict[str, list]:
+def reward_quests(db: Path, who: dict) -> dict[str, list]:
     """{quest id: [side, race mask, class mask, [items], [choices]]} for every
     quest with an item reward: where gear comes from for the items Polestar's
     gear data has no source for (wowstats.gear, owner 2026-11-24: "knowing
     where to get the item is the important"). Side 0 both, 1 Alliance, 2
     Horde; a mask of 0 is everyone."""
-    who = {}
-    for line in (db / "data" / "quest.jsonl").read_text(encoding="utf-8").splitlines():
-        q = json.loads(line)
-        who[str(q["id"])] = [q.get("side") or 0, q.get("races") or 0, q.get("classes") or 0]
     out: dict[str, list] = {}
     for line in (db / "data" / "quest_reward.jsonl").read_text(encoding="utf-8").splitlines():
         r = json.loads(line)
         q = str(r["quest"])
-        if r.get("kind") not in ("item", "choice") or q not in quests or q not in who:
+        if r.get("kind") not in ("item", "choice") or q not in who:
             continue
         row = out.setdefault(q, [*who[q], [], []])
         row[3 if r["kind"] == "item" else 4].append(int(r["id"]))
@@ -350,15 +346,17 @@ def main(argv: list[str]) -> int:
     build = v["client_build"]
 
     quests: dict[str, list] = {}
+    quest_gates = {}
     for line in (db / "data" / "quest.jsonl").read_text(encoding="utf-8").splitlines():
         q = json.loads(line)
         if not q.get("title"):
             continue
+        quest_gates[str(q["id"])] = [q.get("side") or 0, q.get("races") or 0, q.get("classes") or 0]
         zone = q.get("zone_area") or 0
         quests[str(q["id"])] = [q["title"], q.get("level") or 0, q.get("min_level") or 0, zone if zone > 0 else 0]
 
     parts = chain_parts(db, {k: v[0] for k, v in quests.items()})
-    gear_quests = reward_quests(db, quests)
+    gear_quests = reward_quests(db, quest_gates)
 
     # What a quest needs done first (forever-db, breadcrumbs left out: they
     # only point the way): {quest id: [[all of these], [any one of these]]}.
@@ -517,6 +515,9 @@ def main(argv: list[str]) -> int:
         "rewards": rewards,
         # quest id -> [side, race mask, class mask, [item rewards], [choice rewards]] (reward_quests)
         "gear_quests": gear_quests,
+        # Quests without a reward row still gate gear found by other sources.
+        "quest_gates": {k: quest_gates[k] for k in sorted(quest_gates, key=int)
+                        if k not in gear_quests and any(quest_gates[k])},
         # quest id -> [type (1 group, 41 PvP, 62 raid, 81 dungeon, else 0), foe npc id, [items to bring],
         # objectives]
         # for the quests that give gear (quest_work)

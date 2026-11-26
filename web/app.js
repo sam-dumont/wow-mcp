@@ -1328,11 +1328,8 @@ const HELD = { bags: 'In your bags: equip it', bank: 'In your bank: take it out 
 const ahAge = (s) => (s.seen_day ? Math.floor((Date.now() - new Date(`${s.seen_day}T00:00:00`).getTime()) / 864e5) : s.seen_days_ago);
 const ahOf = (u) => ((u && u.sources) || []).find((s) => s.kind === 'ah' && ahAge(s) <= 1) || null;
 function primarySource(u) {
-  const srcs = u.sources || [];
-  return srcs.find((s) => HELD[s.kind]) || srcs.find((s) => s.kind === 'quest') || srcs.find((s) => s.kind === 'vendor')
-    || srcs.find((s) => s.kind === 'craft' && s.can_make)
-    || srcs.slice().sort((x, y) => (y.chance_pct || 0) - (x.chance_pct || 0)).find((s) => s.kind === 'drop')
-    || ahOf(u) || srcs[0] || null;
+  // Gear puts the selected route first. A saved page can outlive its listing.
+  return (u.sources || []).find((s) => s.kind !== 'ah' || ahAge(s) <= 1) || null;
 }
 function sourceGroup(s) {
   if (!s) return { key: 'other', title: 'Elsewhere', kind: 'other' };
@@ -1366,7 +1363,7 @@ function ahEl(sr) {
     ? ` (${sr.gold_share_pct < 1 ? '<1' : Math.round(sr.gold_share_pct)}% of your gold)` : '';
   const mount = sr.mount_share_pct ? `${sr.mount_share_pct < 1 ? 'Under 1' : Math.round(sr.mount_share_pct)}% of the gold your riding training still needs` : null;
   return h('span', { class: 'src' }, 'Auction House, ', h('b', { class: 'ahprice', text: priceText(sr.price_copper), title: mount }), share,
-    `, ${SEEN[ahAge(sr)] || 'on sale'}`, sr.cheap ? h('span', { class: 'pill cheap', text: 'cheap' }) : null,
+    `, ${SEEN[ahAge(sr)] || 'on sale'}${sr.seen_day ? ' (' + sr.seen_day + ')' : ''}`, sr.cheap ? h('span', { class: 'pill cheap', text: 'cheap' }) : null,
     sr.affordable === false ? h('span', { class: 'sub', text: ' (more than you have)' }) : null);
 }
 
@@ -3507,6 +3504,7 @@ function sourceLine(src) {
   const block = src.blocker ? h('span', { class: 'mblock', text: ` (${src.blocker})` }) : null;
   const how = basisEl(src);
   if (src.kind === 'quest' && src.quest) return h('span', {}, 'Quest ', whRef(src.quest), z ? [' in ', whRef(z)] : null, how, block);
+  if (src.kind === 'ah') return ahEl(src);
   if (src.kind === 'drop') return h('span', {}, `Drops from ${src.boss || 'a creature'}`, z ? [' in ', whRef(z), lv] : null, how, block);
   if (src.kind === 'craft') return h('span', { text: `You can make it with ${src.profession || 'a profession'}` });
   if (HELD[src.kind]) return h('span', { text: HELD[src.kind] });
@@ -3708,7 +3706,7 @@ function renderOverview(ov, err, an) {
   // actionable): the analysis' pattern lines describe, and stay folded in
   // the full view's "How you play"; its actions are there and, screened,
   // on /zogzog/.
-  const moves = ov.moves || [];
+  const moves = (ov.moves || []).filter((mv) => mv.source?.kind !== 'ah' || ahAge(mv.source) <= 1);
   const recent = tr.per_level || [];
   const paceHost = h('div', { class: 'pacehost' });
   paceRedraw = null;

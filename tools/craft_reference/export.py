@@ -196,7 +196,7 @@ def client(build: str) -> dict:
             s = sparse.get(x["ItemID"]) or {}
             teaches[x["ItemID"]] = [i(e["SpellID"]), i(s.get("RequiredSkillRank"))]
     made = {str(e["i"]) for e in recipes.values() if e.get("i")}
-    bop = sorted(int(k) for k in made if i((sparse.get(k) or {}).get("Bonding")) == BIND_ON_PICKUP)
+    bop = sorted(int(k) for k in made | teaches.keys() if i((sparse.get(k) or {}).get("Bonding")) == BIND_ON_PICKUP)
     return {"recipes": dict(sorted(recipes.items(), key=lambda kv: int(kv[0]))),
             "patterns": dict(sorted(teaches.items(), key=lambda kv: int(kv[0]))), "bop": bop}
 
