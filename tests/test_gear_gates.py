@@ -1,6 +1,16 @@
 """All gear consumers use the same quest and equip restrictions."""
 
-from wowstats import forever, gear, insights
+from wowstats import dungeonquests, forever, gear, insights
+
+
+def test_supplementary_quest_restrictions_are_only_shipped_for_consumers():
+    ref = forever.data()
+    gear_ids = set(ref["quest_gates"])
+    dungeon_ids = set(dungeonquests.data()["quest_gates"])
+    assert gear_ids and gear_ids <= gear.reference().data["quests"].keys()
+    assert dungeon_ids and dungeon_ids <= dungeonquests.data()["quests"].keys()
+    assert gear_ids.isdisjoint(dungeon_ids)
+    assert (gear_ids | dungeon_ids).isdisjoint(ref["gear_quests"])
 
 
 def test_all_sourced_quests_preserve_known_requirements():
