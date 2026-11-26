@@ -426,9 +426,9 @@ def foreverdb(why: str | None, handoff: str | None, summary: str | None, known: 
 
 FDB_TAG_FILE = ROOT / "tools" / "forever-db-tag"
 # THIRD_PARTY.md's copy of forever-db's NOTICE.md: from the line after this
-# one to the next paragraph that isn't the notice.
+# one to the end of its level-two Markdown section.
 NOTICE_START = re.compile(r"^forever-db's `NOTICE\.md`")
-NOTICE_END = re.compile(r"^Polestar's own notice")
+NOTICE_END = re.compile(r"^#{1,2}\s")
 # THIRD_PARTY.md's line naming the release read: "(here 2026.11.1, client build 1.60.1.70532"
 FDB_LINE = re.compile(r"(`tools/forever-db-tag` \()(\d{4}\.\d{1,2}\.\d{1,3})(, client build )([\d.]+)")
 

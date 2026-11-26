@@ -1,4 +1,8 @@
 {
+ "_notice": [
+  "-- Data: ForeverDB.net (https://foreverdb.net), build 1.60.1.71037. Reuse requires this credit: see NOTICE.txt (GPL-3.0 section 7(b)).",
+  "Data from ForeverDB.net (https://foreverdb.net)"
+ ],
  "schema": 1,
  "source": {
   "name": "ForeverDB.net",
