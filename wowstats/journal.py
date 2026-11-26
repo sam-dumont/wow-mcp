@@ -101,17 +101,17 @@ def build(minutes: list[dict], xp: list[dict], events: list[dict], dungeons: lis
             snap_t.append((t, r))
     snap_t.sort(key=lambda x: x[0])
     out = []
-    starts = sorted(x["start"] for x in sessions)
-    for s in sessions:
-        before = [r for t, r in snap_t if t <= s["start"] + 60]
-        # Money doesn't move while logged out: any snapshot up to the next
-        # session's start closes this one.
-        nxt = next((t for t in starts if t > s["start"]), None)
-        until = max(s["end"] + 1800, nxt + 60) if nxt is not None else float("inf")
-        after = [r for t, r in snap_t if s["end"] - 300 <= t <= until]
+    for i, s in enumerate(sessions):
+        # Only a balance at or after the previous logout can open this
+        # session. A reading during the next session cannot close it.
+        prev = sessions[i - 1]["end"] if i else float("-inf")
+        nxt = sessions[i + 1]["start"] if i + 1 < len(sessions) else float("inf")
+        before = [tup for tup in snap_t if prev <= tup[0] <= s["start"] + 60]
+        after = [tup for tup in snap_t if max(s["start"], s["end"] - 300) <= tup[0] <= s["end"] + 1800
+                 and tup[0] < nxt]
         gold = None
-        if before and after:
-            gold = int(num(after[0]["money_copper"]) - num(before[-1]["money_copper"]))
+        if before and after and before[-1][0] < after[-1][0]:
+            gold = int(num(after[-1][1]["money_copper"]) - num(before[-1][1]["money_copper"]))
         if s["level_start"] is not None and s["level_end"] is None:
             s["level_end"] = s["level_start"]
         out.append({

@@ -2546,7 +2546,6 @@ def extract_inventory(acct: Path, chars: dict[str, dict], state: dict, out: Out)
 
 # Auctionator counts days from time({year=2020, month=1, day=1, hour=0}): local
 # midnight on the player's machine, then whole 86400 s days (Constants/Main.lua).
-SCAN_DAY_0 = time.mktime((2020, 1, 1, 0, 0, 0, 0, 0, -1))
 FACTIONS = ("Alliance", "Horde", "Neutral")
 
 
@@ -2638,6 +2637,7 @@ def extract_auctionator(acct: Path, char: str | None, state: dict, out: Out) -> 
     minimum buyout and the most it saw listed), so a change sends the day
     again with the next `rev`; readers keep the highest rev per source_id."""
     seen = state.setdefault("prices", {})
+    day_zero = time.mktime((2020, 1, 1, 0, 0, 0, 0, 0, -1))
     item_names = names("Items")
     for realm, items in auctionator_db(acct).items():
         realm_name, faction = realm, None
@@ -2668,7 +2668,7 @@ def extract_auctionator(acct: Path, char: str | None, state: dict, out: Out) -> 
                         continue
                 rev = prev[3] + 1 if prev else 1
                 seen[sid] = [lo, hi, av, rev]
-                t = SCAN_DAY_0 + int(day) * 86400
+                t = day_zero + int(day) * 86400
                 name = item_names.get(item_id) if item_id is not None else None
                 out.emit({"_time": iso(t), "feed": "wow-prices", "char": char, "source_id": sid, "rev": rev,
                           "_msg": f"{name or key}: lowest {round(lo)} copper on {datetime.fromtimestamp(t):%Y-%m-%d}",

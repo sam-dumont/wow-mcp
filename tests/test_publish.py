@@ -390,7 +390,7 @@ class VmWow(PoisonStore):
 
     choice = "12"
 
-    def vm_query(self, q):
+    def profile_query(self, q):
         if "wow_character_customization" in q:
             return [{"metric": {"character": "Hero-Test", "option_id": "1"}, "value": [1, VmWow.choice]}]
         return []
