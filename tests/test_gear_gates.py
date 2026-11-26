@@ -1,6 +1,6 @@
 """All gear consumers use the same quest and equip restrictions."""
 
-from wowstats import dungeonquests, forever, gear, insights
+from wowstats import dungeonquests, forever, gear, insights, quests
 
 
 def test_supplementary_quest_restrictions_are_only_shipped_for_consumers():
@@ -45,6 +45,32 @@ def test_shared_class_and_side_specific_quests():
         assert source(338)  # The Green Hills of Stranglethorn
         if side == "Alliance":
             assert gear._source_level(source(971)) == 18
+
+
+def test_placeholder_and_withdrawn_quests_offer_no_gear_or_completion_credit():
+    ref = gear.reference()
+    withdrawn = ref.data["quests"]["88758"]  # The historical Codex record keeps its Alliance race mask.
+    assert (withdrawn["side"], withdrawn["race"]) == (1, 4294967373)
+    assert ref.data["quests"]["5532"]["name"].startswith("<NYI>")
+    for iid, qid in ((13812, 5532), (281258, 88758)):
+        assert all(s.get("quest") != qid for s in ref.data["sources"].get(str(iid), []))
+    assert quests.with_battlenet({}, [13812, 281258]) == {}
+    a = gear.advise(ref, {"class": "PRIEST", "race": "Human", "faction": "Alliance"},
+                    level=53, spec="holy", every=True)
+    assert not {13812, 281258}.intersection(u["item_id"] for u in a["upgrades_all"])
+
+
+def test_heroes_of_old_keeps_its_prerequisite_and_the_trinkets_equip_level():
+    ref = gear.reference()
+    assert forever.quest(2701)["min_level"] == 45
+    assert quests.with_battlenet({}, [10659]) == {2701: "battlenet", 2702: "inferred"}
+    for level in (50, 52):
+        a = gear.advise(ref, {"class": "PRIEST", "race": "Human", "faction": "Alliance"},
+                        level=level, spec="holy", every=True)
+        shard = next(u for u in a["upgrades_all"] if u["item_id"] == 10659)
+        source = next(s for s in shard["sources"] if s.get("quest_id") == 2701)
+        assert (source["req_level"], source["work"]["chain"]["next"]["quest_id"]) == (45, 2702)
+        assert shard["level"] == 52 and shard["now"] == (level >= 52)
 
 
 def test_item_side_applies_to_held_and_full_advice():

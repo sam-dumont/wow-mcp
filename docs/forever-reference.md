@@ -17,7 +17,7 @@ Without this file the journal would print "quest 631".
 The server names a quest in this order:
 
 1. the name the record carries,
-2. forever-db's title (every quest Forever has, its own 98xxx ones too),
+2. forever-db's title, or the gear Codex title when forever-db's record has none,
 3. the title of a Recorder `text` record in the store (`Views.quest_titles`),
 4. nothing: the page says "Unknown quest (631)" and the publisher logs the id.
 
@@ -52,6 +52,11 @@ game's question mark (`inv_misc_questionmark`), never an empty frame.
 | `ui_maps`: each world map's name by its UiMap id, where ForeverDB.net places a quest's giver | Forever's client table UiMap, same build | Game data © Blizzard Entertainment, used as facts |
 | `quest_work`: for every quest that gives gear, `[type, foe, bring, objectives]`: forever-db's quest type (1 group, 41 PvP, 62 raid, 81 dungeon, else 0), the strongest creature its objectives send you to (a kill target, or the one creature that drops a collected item; by rank, then level), the items to bring that no creature drops and no object gives, and how many objectives it lists. `npcs`: those creatures and every creature ForeverDB.net names as a drop source, as `[name, level min, level max, rank, zone]` (rank 0 normal, 1 elite, 2 rare elite, 3 boss, 4 rare; the zone for a drop source when one zone map alone holds all its spawns). The gear advice's quest work (`wowstats/questwork.py`) | forever-db's `quest.jsonl`, `quest_objective.jsonl`, `item_source.jsonl`, `npc.jsonl`, `spawn.jsonl` and `ui_map.jsonl`; the gear data's and ForeverDB.net's quests and creatures (`data/gear-reference.json`, `data/foreverdb/item-sources.json`); zone names from Forever's client table UiMap on wago.tools | GPL-3.0, with CC BY 4.0 and MIT parts (`THIRD_PARTY.md`); ForeverDB.net's data GPL-3.0 with its attribution term |
 | `factions`: every reputation's name and side (Alliance, Horde, or none for a neutral one like Ratchet): a reputation's quartermaster sells to its side (`wowstats/gear.py` `side_of_gate`) | Forever's client table Faction on wago.tools, same build: the side of the faction it sits under (Alliance or Alliance Forces, Horde or Horde Forces) | Game data © Blizzard Entertainment, used as facts |
+
+`unavailable_quests` lists gear quests the released forever-db corrections
+withdraw or the gear Codex marks `<NYI>`. Gear advice skips those routes and
+holding their items gives no credit for those quests. The historical Codex
+entry keeps its title and restrictions.
 
 The `dungeon_drops` fallback covers otherwise unsourced gear. Each NPC must
 appear in a single dungeon in the run or spawn data. Polestar's trusted boss
@@ -99,7 +104,9 @@ release in `tools/forever-db-tag` (`--latest` moves it to the newest
 `data-v*` release, then exports) and the client build in
 `data/kb/watch.json` (`client_build.known`, moved daily by the refresh job's
 client-build kind, which reruns this export, the dungeon quests and the
-route reference). Stdlib only, the same bytes for the same pins.
+route reference). The export reuses the checked release in the daily build's
+overlay or in `--forever-db-cache`. The addon checkout can have unpublished
+quest corrections even when its index carries the same version.
 `.github/workflows/route-reference.yml` reruns it on each change, on a new
 `tools/polestar-tag`, `tools/forever-db-tag` or client build, and fails when
 the committed file differs.

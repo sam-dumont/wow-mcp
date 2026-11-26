@@ -272,11 +272,17 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
     # only, Polestar's drop sources say its zone (Scorn: Scarlet Monastery).
     npc_zone = {x["npc"]: (x.get("zone"), x.get("zone_name")) for ss in (polestar.get("sources") or {}).values()
                 for x in ss if x.get("kind") == "drop" and x.get("npc") and (x.get("zone") or x.get("zone_name"))}
+    unavailable = set(forever.data().get("unavailable_quests") or ())
+
+    def live(ss: list[dict]) -> list[dict]:
+        return [s for s in ss if s.get("quest") not in unavailable]
+
     fdb_items, fdb_meta = foreverdb_sources(items, quests, gear_quests, sources_data(), npc_zone)
+    fdb_items = {iid: kept for iid, ss in fdb_items.items() if (kept := live(ss))}
     sources = dict(fdb_items)
     for iid, ss in (polestar.get("sources") or {}).items():
-        if iid in items and iid not in fdb_items:
-            sources[iid] = list(ss)
+        if iid in items and iid not in fdb_items and (kept := live(ss)):
+            sources[iid] = kept
     for qid, (side, races, classes, rewards, choices) in gear_quests.items():
         mine = [str(x) for x in (*rewards, *choices) if str(x) in items and str(x) not in fdb_items]
         if not mine:

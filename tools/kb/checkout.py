@@ -52,6 +52,7 @@ DATA_TAG = re.compile(r"^data-v(\d{4}\.\d{1,2}\.\d{1,3})$")
 ASSET = "https://github.com/{repo}/releases/download/{tag}/{name}"
 UA = {"User-Agent": "wow-mcp data export"}
 MAX_ZIP = 64 << 20  # 2026.11.2's is 2.2 MB
+VERIFIED = ".wow-mcp-release.json"
 
 
 class Refused(Exception):
@@ -68,6 +69,19 @@ def get(url: str, limit: int = MAX_ZIP) -> bytes:
     if len(body) > limit:
         raise Refused(f"{url}: over {limit} bytes")
     return body
+
+
+def verified_release(root: Path, version: str) -> bool:
+    """A release verified by unpack(), with its data and corrections still intact."""
+    try:
+        stamp = json.loads((root / VERIFIED).read_text(encoding="utf-8"))
+        if not isinstance(stamp, dict) or stamp.get("version") != version:
+            return False
+        hashes = {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in root.rglob("*") if p.is_file() and p != root / VERIFIED}
+        return hashes == stamp.get("files")
+    except (OSError, ValueError):
+        return False
 
 
 def unpack(zip_bytes: bytes, sums: str, name: str, version: str, dest: Path) -> dict:
@@ -103,6 +117,10 @@ def unpack(zip_bytes: bytes, sums: str, name: str, version: str, dest: Path) -> 
         out = dest / rel
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(body)
+    # The addon's unbuilt corrections can change while its compiled database
+    # still reports this release. Only the checked archive earns this stamp.
+    hashes = {rel: hashlib.sha256(body).hexdigest() for rel, body in files.items()}
+    (dest / VERIFIED).write_text(json.dumps({"version": version, "files": hashes}), encoding="utf-8")
     return index
 
 

@@ -169,6 +169,36 @@ def sums(body: bytes, name: str = "forever-db-2026.11.9.zip") -> str:
     return f"{hashlib.sha256(body).hexdigest()}  {name}\n"
 
 
+def test_exports_use_the_verified_release_when_an_addon_has_the_same_version(tmp_path, monkeypatch):
+    from tools.forever_reference import upstream
+
+    version = "2026.11.9"
+    name = f"forever-db-{version}.zip"
+    body = zip_of({"data/quest.jsonl": b"{}", "corrections/quests.json": b'{"88758":{"remove":true}}'})
+    addon = tmp_path / "addon"
+    bundled = addon / "forever-db"
+    # The source checkout and release agree on index.json and compiled data.
+    # The addon's corrections can already contain unpublished changes.
+    checkout.unpack(body, sums(body), name, version, bundled)
+    (bundled / checkout.VERIFIED).unlink()
+    (bundled / "corrections/quests.json").write_text('{"2701":{"remove":true}}')
+    reads = []
+
+    def asset(url, *args):
+        reads.append(url)
+        return sums(body).encode() if url.endswith("/SHA256SUMS") else body
+
+    monkeypatch.setattr(checkout, "get", asset)
+    release = upstream.forever_db(version, tmp_path / "cache", addon)
+    assert release != bundled and json.loads((release / "corrections/quests.json").read_text()) == {"88758": {"remove": True}}
+    assert upstream.forever_db(version, tmp_path / "cache", addon) == release and len(reads) == 2
+    overlay = tmp_path / "overlay"
+    checkout.unpack(body, sums(body), name, version, overlay / "forever-db")
+    assert upstream.forever_db(version, tmp_path / "cache", overlay) == overlay / "forever-db"
+    (overlay / "forever-db/corrections/quests.json").write_text("{}")
+    assert upstream.forever_db(version, tmp_path / "cache", overlay) == release and len(reads) == 2
+
+
 def test_a_release_is_read_only_as_its_checksums_say(tmp_path):
     good = zip_of({"data/quest.jsonl": b'{"id":1}\n', "LICENSE": b"GPL"})
     idx = checkout.unpack(good, sums(good), "forever-db-2026.11.9.zip", "2026.11.9", tmp_path / "f")

@@ -41,8 +41,9 @@ pins:
 
 `--latest` moves the forever-db pin to its newest release, then exports.
 The Polestar checkout (tools/polestar-tag) gives only the Codex's level
-exceptions and floors, and its forever-db when it is the pinned release (no
-download then). `--forever-db-cache` keeps the unpacked forever-db for the
+exceptions and floors. The pinned release archive supplies quest corrections:
+a checkout can carry unpublished removals even with the same database
+version in its index. `--forever-db-cache` reuses the unpacked release for the
 exports that read it next (tools/dungeon_quests/export.py).
 """
 
@@ -157,7 +158,7 @@ def chain_parts(db: Path, titles: dict[str, str]) -> dict[str, list[int]]:
     return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
 
 
-def only_rewards(db: Path, gear: dict) -> dict[str, int]:
+def only_rewards(db: Path, gear: dict, unavailable: set[int]) -> dict[str, int]:
     """{item id: quest id} for the gear exactly one quest gives and nothing
     else does, so a character holding it handed that quest in (owner,
     2026-11-19: "it should see that I turned it in and got the reward").
@@ -186,6 +187,7 @@ def only_rewards(db: Path, gear: dict) -> dict[str, int]:
                for line in (db / "data" / "item_source.jsonl").read_text(encoding="utf-8").splitlines()}
     out = {}
     for item, qs in reward_of.items():
+        qs = qs - unavailable
         info = (gear.get("items") or {}).get(str(item)) or {}
         gs = (gear.get("sources") or {}).get(str(item)) or []
         if any(s.get("kind") != "quest" for s in gs):
@@ -385,18 +387,25 @@ def main(argv: list[str]) -> int:
     # 2026.11.1 (client 1.60.1.70532) predates The Drowned City (Map 2970).
     build = v["client_build"]
 
+    gear = json.loads((OUT.parent / "gear-reference.json").read_text())
+    codex = gear.get("quests") or {}
+    corrections = json.loads((db / "corrections" / "quests.json").read_text())
+    unavailable = {int(q) for q, change in corrections.items() if change.get("remove") is True}
+    unavailable.update(int(q) for q, row in codex.items() if (row.get("name") or "").startswith("<NYI>"))
     quests: dict[str, list] = {}
     quest_gates = {}
     for line in (db / "data" / "quest.jsonl").read_text(encoding="utf-8").splitlines():
         q = json.loads(line)
-        if not q.get("title"):
+        # An untitled record can still have the actual gates, zone and rewards.
+        title = q.get("title") or codex.get(str(q["id"]), {}).get("name")
+        if not title:
             continue
         quest_gates[str(q["id"])] = [q.get("side") or 0, q.get("races") or 0, q.get("classes") or 0]
         zone = q.get("zone_area") or 0
-        quests[str(q["id"])] = [q["title"], q.get("level") or 0, q.get("min_level") or 0, zone if zone > 0 else 0]
+        quests[str(q["id"])] = [title, q.get("level") or 0, q.get("min_level") or 0, zone if zone > 0 else 0]
 
     parts = chain_parts(db, {k: v[0] for k, v in quests.items()})
-    gear_quests = reward_quests(db, quest_gates)
+    gear_quests = {q: row for q, row in reward_quests(db, quest_gates).items() if int(q) not in unavailable}
 
     # What a quest needs done first (forever-db, breadcrumbs left out: they
     # only point the way): {quest id: [[all of these], [any one of these]]}.
@@ -416,8 +425,7 @@ def main(argv: list[str]) -> int:
             items[str(it["id"])] = it["name"]
 
     # The gear data's drop zones, so a drop says when it is a dungeon's.
-    gear = json.loads((OUT.parent / "gear-reference.json").read_text())
-    rewards = only_rewards(db, gear)
+    rewards = only_rewards(db, gear, unavailable)
     # The quests that give gear (the gear data's, forever-db's rewards and
     # ForeverDB.net's quest sources) and ForeverDB.net's creature sources:
     # what quest_work describes.
@@ -533,7 +541,9 @@ def main(argv: list[str]) -> int:
         raise SystemExit(f"the gear data's drop zones client {build} doesn't name: {', '.join(missing)}")
 
     gear_items = set(json.loads((OUT.parent / "game-items.json").read_text())["items"])
-    known = {k for k, v in fdb["items"].items() if v.get("sources")} | set(gear["sources"])
+    known = {k for k, v in fdb["items"].items()
+             if any(s.get("quest") not in unavailable for s in v.get("sources") or [])}
+    known.update(k for k, ss in gear["sources"].items() if any(s.get("quest") not in unavailable for s in ss))
     known.update(str(item) for q in gear_quests.values() for item in (*q[3], *q[4]))
     rosters = json.loads((OUT.parent / "dungeons" / "kill-xp.json").read_text())
     loot = dungeon_drops(observations["drops"], db / "data" / "item_source.jsonl", rosters, out_maps,
@@ -566,6 +576,8 @@ def main(argv: list[str]) -> int:
         "dungeon_drops": loot,
         # quest id -> [side, race mask, class mask, [item rewards], [choice rewards]] (reward_quests)
         "gear_quests": gear_quests,
+        # Explicit forever-db removals and Codex's <NYI> markers override acquisition routes from any source.
+        "unavailable_quests": sorted(unavailable.intersection(map(int, wanted))),
         # Quests without a reward row still gate gear found by other sources.
         "quest_gates": {k: quest_gates[k] for k in sorted(wanted & quest_gates.keys(), key=int)
                         if k not in gear_quests and any(quest_gates[k])},

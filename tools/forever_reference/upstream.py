@@ -13,18 +13,18 @@ writes to the pin. Stdlib only.
 
 from __future__ import annotations
 
-import hashlib
-import io
 import json
 import os
 import re
+import sys
 import urllib.request
-import zipfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "kb"))
+import checkout as release  # noqa: E402
 
 REPO = "fitzforge/polestar"
 RELEASES = f"https://api.github.com/repos/{REPO}/releases?per_page=100"
-ASSET = f"https://github.com/{REPO}/releases/download/data-v{{v}}/{{name}}"
 TAG = re.compile(r"^data-v(\d{4}\.\d{1,2}\.\d+)$")
 ROOT = Path(__file__).resolve().parents[2]
 FOREVER_DB_TAG = ROOT / "tools" / "forever-db-tag"
@@ -70,29 +70,13 @@ def pin_forever_db(version: str) -> None:
 
 
 def forever_db(version: str, dest: Path, checkout: Path | None = None) -> Path:
-    """forever-db `version` unpacked under `dest` (its `forever-db/` directory),
-    the zip checked against the release's SHA256SUMS. Reused when there, or
-    taken from a Polestar checkout whose forever-db is that version already
-    (its addon release bundles it, or the checkout carries the release)."""
-    for root in ((checkout / "forever-db") if checkout else None, dest / f"forever-db-{version}" / "forever-db"):
-        try:
-            if root and json.loads((root / "index.json").read_text(encoding="utf-8")).get("version") == version:
-                return root
-        except (OSError, ValueError):
-            pass
+    """Reuse the verified release in the overlay or cache, or fetch it."""
     root = dest / f"forever-db-{version}" / "forever-db"
-    name = f"forever-db-{version}.zip"
-    sums = _get(ASSET.format(v=version, name="SHA256SUMS")).decode()
-    want = next((ln.split()[0] for ln in sums.splitlines() if ln.split()[-1:] == [name]), None)
-    body = _get(ASSET.format(v=version, name=name), timeout=300)
-    if not want or hashlib.sha256(body).hexdigest() != want:
-        raise SystemExit(f"{name}: not the SHA-256 its release's SHA256SUMS gives")
-    with zipfile.ZipFile(io.BytesIO(body)) as z:
-        bad = [n for n in z.namelist() if not n.startswith("forever-db/") or ".." in Path(n).parts]
-        if bad:
-            raise SystemExit(f"{name}: unexpected paths {bad[:3]}")
-        z.extractall(dest / f"forever-db-{version}")
-    got = json.loads((root / "index.json").read_text(encoding="utf-8")).get("version")
-    if got != version:
-        raise SystemExit(f"{name}: its index.json says {got}")
+    if checkout and release.verified_release(checkout / "forever-db", version):
+        return checkout / "forever-db"
+    if not release.verified_release(root, version):
+        try:
+            release.forever_db(f"data-v{version}", root)
+        except release.Refused as e:
+            raise SystemExit(str(e)) from e
     return root
