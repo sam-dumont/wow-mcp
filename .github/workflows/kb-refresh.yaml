@@ -235,9 +235,10 @@ jobs:
     # After reconcile, red or not: what this run does is its own.
     if: always() && github.repository_id == '1465633168' && (github.ref == 'refs/heads/main') && needs.reconcile.result != 'cancelled'
     runs-on: ubuntu-24.04
-    # The gates run the whole suite (about 5 minutes), once more if main
-    # moved during the run; a Polestar bump adds a 450 MB clone and the exports.
-    timeout-minutes: 75
+    # The mirror runs the full pytest suite on one runner (51 to 61 minutes
+    # on Nov 24–25). The Nov 26 rebuild took 14 minutes before the gates,
+    # and the old 75-minute job expired before it could record a verdict.
+    timeout-minutes: 120
     # GH_TOKEN (the mirror's token: it only reads) is given to the steps
     # that read GitHub and to no other: never to the model passes, which
     # handle outside text, nor to the gates, which run the tests. The

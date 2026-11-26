@@ -437,17 +437,23 @@ def test_gate() -> list[str]:
     out = []
     steps = [("ruff", ["uv", "run", "--frozen", "ruff", "check", "."]),
              ("pytest", ["uv", "run", "--frozen", "pytest", "-q", "-rfEs", "-p", "no:cacheprovider", "-n", "auto",
-                         "-m", "not browser"]),
+                         "-m", "not browser", "--timeout", "300"]),
              ("fixtures", ["uv", "run", "--frozen", "python", "tools/fixtures/generate.py", "--check"])]
     env = suite_env()
     for name, cmd in steps:
-        r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, env=env)
-        sys.stderr.write(r.stdout[-6000:] + r.stderr[-3000:])
-        if r.returncode:
-            failed = re.findall(r"^(?:FAILED|ERROR) (\S+)", r.stdout, re.M)
-            detail = ", ".join(f"`{f}`" for f in failed[:15]) or (r.stdout + r.stderr).strip().splitlines()[-1:]
-            out.append(f"tests: {name} failed" + (f": {detail}" if isinstance(detail, str) else
-                                                    f": {' '.join(detail)[:300]}"))
+        print(f"Running {name}", file=sys.stderr, flush=True)
+        failed, last = [], ""
+        with subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              text=True, env=env) as proc:
+            for line in proc.stdout:
+                print(line, file=sys.stderr, end="", flush=True)
+                if line.strip():
+                    last = line.strip()
+                if match := re.match(r"^(?:FAILED|ERROR) (\S+)", line):
+                    failed.append(match[1])
+        if proc.returncode:
+            detail = ", ".join(f"`{f}`" for f in failed[:15]) or last[:300] or f"exit {proc.returncode}"
+            out.append(f"tests: {name} failed: {detail}")
     return out
 
 
