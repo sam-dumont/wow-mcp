@@ -48,7 +48,7 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wowstats import ahsource, crafting, endgame, forever, quests, questwork, stores
+from wowstats import ahsource, classguide, crafting, endgame, forever, quests, questwork, stores
 
 _HERE = Path(__file__).resolve()
 # An installed wheel carries it as wowstats/data/; a checkout has it at the root.
@@ -102,9 +102,6 @@ QUEST_AHEAD = 5
 SLOT_NAMES = {1: "Head", 2: "Neck", 3: "Shoulder", 5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet", 9: "Wrist",
               10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 14: "Trinket", 15: "Back", 16: "Main hand",
               17: "Off hand", 18: "Ranged"}
-# ChrRaces IDs (quest race masks are 1 << (id - 1); Skyborne is Forever's 33).
-RACE_IDS = {"human": 1, "orc": 2, "dwarf": 3, "nightelf": 4, "night elf": 4, "scourge": 5, "undead": 5,
-            "tauren": 6, "gnome": 7, "troll": 8, "skyborne": 33}
 SIDES = {"alliance": 1, "horde": 2}
 SOON_LEVELS = 3  # "the next one coming": within this many levels
 MIN_UPGRADE = 1.0  # the least gain, in percent, that counts as an upgrade
@@ -291,6 +288,14 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
             got = sources.setdefault(iid, [])
             if not any(x.get("kind") == "quest" and str(x.get("quest")) == qid for x in got):
                 got.append({"kind": "quest", "quest": int(qid)})
+    # All gear sources share one quest record. Fill the requirements even
+    # when Polestar or a ForeverDB source installed a record first.
+    for qid in quests:
+        side, races, classes = forever.quest_gates(qid)
+        q = quests[qid]
+        quests[qid] = {**q, "side": side if side in (1, 2) else q.get("side", 3),
+                       "race": races or q.get("race", 0), "class": classes or q.get("class", 0),
+                       "req": (forever.quest(qid) or {}).get("min_level") or q.get("req", 0)}
     return {**polestar, "items": items, "names": names, "sources": sources, "quests": quests,
             "era_only": era_only, "item_stats": {k: v for k, v in (game.get("source") or {}).items() if k != "tables"},
             "foreverdb": fdb_meta}
@@ -322,6 +327,8 @@ def foreverdb_sources(items: dict, quests: dict, gear_quests: dict, data: dict |
     for iid, e in (data.get("items") or {}).items():
         if iid not in items:
             continue
+        if e.get("side") in _SIDE:
+            items[iid]["side"] = _SIDE[e["side"]]
         raw = []
         gate = next((x.get("faction") for x in e.get("sources") or [] if x.get("kind") == "reputation"), None)
         sided, gate_side = side_of_gate(e.get("sources") or [])
@@ -675,7 +682,7 @@ def behind_pct(best: float, alt: float) -> int:
     return max(1, math.floor((best - alt) / best * 100 + 0.5))
 
 
-def usability(ref: Reference, info: dict, cls: str, level: int) -> tuple[bool, str | None, int]:
+def usability(ref: Reference, info: dict, cls: str, level: int, who: Who | None = None) -> tuple[bool, str | None, int]:
     """Gear.lua usability -> usable, reason, the level it counts from
     (available_level: ForeverDB's rule). Without the client's weapon skills,
     every weapon the class can train counts (knowsWeaponSkill's own
@@ -684,6 +691,8 @@ def usability(ref: Reference, info: dict, cls: str, level: int) -> tuple[bool, s
     prof = (g.get("PROFICIENCY") or {}).get(cls)
     meta = (g.get("CLASSES") or {}).get(cls)
     min_level = available_level(info)
+    if info.get("side") and (who is None or info["side"] != who.side):
+        return False, "faction", min_level
     if not (prof and meta):
         return True, None, min_level
     allow = info.get("allow") or 0
@@ -1648,7 +1657,7 @@ def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: s
     from wowstats import gearfit
 
     points = gearfit.spec_points(ref, cls, key, sheet)
-    race_id = RACE_IDS.get(str(sheet.get("race") or "").strip().lower())
+    race_id = classguide.race_bit(sheet.get("race"), sheet.get("faction")).bit_length() or None
     prof = (ref.gear.get("PROFICIENCY") or {}).get(cls)
     dual = can_dual_wield(prof, level)
     who = Who(cls=cls, level=level, side=SIDES.get(str(sheet.get("faction") or "").lower()), race_id=race_id,
@@ -1851,7 +1860,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         info = item_for(ref, item_id, w)
         if not info:  # not gear, or gear the advice doesn't score
             continue
-        usable, _, min_level = usability(ref, info, cls, level)
+        usable, _, min_level = usability(ref, info, cls, level, who)
         if usable and min_level <= level + SOON_LEVELS:
             cands.append({"id": item_id, "info": info, "at": min_level, "sources": [{"kind": where}],
                           "effort": EASY, "here": False})
@@ -1861,7 +1870,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         if not base or item_id in holding:
             continue
         info = item_for(ref, item_id, w)
-        usable, _, min_level = usability(ref, info, cls, level)
+        usable, _, min_level = usability(ref, info, cls, level, who)
         if not usable:
             continue
         # The other side's reputation and its quartermaster, and PvP rewards
@@ -1906,7 +1915,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         if (not info or item_id in holding or str(item_id) in (ref.data.get("sources") or {})
                 or not buyable(info, level)):
             continue
-        usable, _, min_level = usability(ref, info, cls, level)
+        usable, _, min_level = usability(ref, info, cls, level, who)
         if usable and min_level <= level + SOON_LEVELS:
             srcs = by_effort([_listing(s, money)])
             cands.append({"id": item_id, "info": info, "at": min_level, "sources": srcs,
@@ -1977,7 +1986,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     for item_id, info, srcs in [(i, x, []) for i, x in unsourced(ref)] + gated:
         if item_id in holding:
             continue
-        usable, _, at = usability(ref, info, cls, level)
+        usable, _, at = usability(ref, info, cls, level, who)
         if not usable or at > level:
             continue
         if info["inv"] in WEAPON_INV:
@@ -3252,7 +3261,7 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
         info = item_for(ref, item_id, cx.w)
         if not info:
             continue
-        usable, _, min_level = usability(ref, info, cx.cls, cx.level)
+        usable, _, min_level = usability(ref, info, cx.cls, cx.level, cx.who)
         if not usable:
             continue
         by_area: dict[str, dict] = {}

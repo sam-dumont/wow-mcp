@@ -145,15 +145,16 @@ def trainers(cls: str, race=None, faction=None) -> list[dict]:
 # ------------------------------------------------------------------ spells
 
 
-def _race_ok(mask: int, race, faction) -> bool:
-    if not mask:
-        return True
+def race_bit(race, faction) -> int:
     r = _letters(race)
     if r == "skyborne":
-        bit = SKYBORNE_BITS.get(str(faction or "").lower())
-    else:
-        bit = RACE_BIT.get(r)
-    return bit is None or (mask // bit) % 2 == 1
+        return SKYBORNE_BITS.get(str(faction or "").lower(), 0)
+    return RACE_BIT.get(r, 0)
+
+
+def _race_ok(mask: int, race, faction) -> bool:
+    bit = race_bit(race, faction)
+    return not mask or not bit or bool(mask & bit)
 
 
 def _talent_spells(cls: str) -> dict[int, str]:
