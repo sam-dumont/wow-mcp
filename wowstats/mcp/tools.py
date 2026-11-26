@@ -1163,7 +1163,8 @@ def inventory_answer(held: dict | None, want: str = "", limit: int = 50, now: da
     if held.get("bank") is None:
         notes.append("the bank not seen yet: open it at a banker in game once")
     elif when["bank"] and (now or datetime.now(UTC)) - when["bank"] > timedelta(days=BANK_STALE_DAYS):
-        notes.append(f"the bank as of {when['bank'].date().isoformat()}: open it in game to refresh")
+        notes.append(f"bank contents last observed in the save on {when['bank'].date().isoformat()}: "
+                     "open the bank in game to check them")
     if not rows:
         notes.append(f"nothing matching {want!r} in the bags or the bank" if want else "the bags and bank are empty")
     out = {"items": rows[:limit], "total_items": len(rows), "counts_known": known,
@@ -1692,7 +1693,7 @@ TOOLS: tuple[Tool, ...] = (
                  "since": SINCE, "until": UNTIL, "limit": lim(20, 100)}), t_prices),
     Tool("inventory", "Bags and bank",
          "What the character holds in its bags and bank, with counts: per item the count in the bags, in the bank "
-         "and the total, and when each was read (the bank is as of the last time the character opened it; `note` "
+         "and the total, and when each container's contents were observed in the save (`note` "
          "says when that is old). `counts_known` false: the IDs only, `unlock` says how to get counts. For 'do I "
          "have X', 'how many X', 'what's in my bank'.",
          schema({"char": CHAR, "item": {"type": "string", "description": "Part of an item name, or an item id."},
