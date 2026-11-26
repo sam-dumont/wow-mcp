@@ -108,7 +108,7 @@ def reader_settles(pg):
     pg.locator("#gearspec").evaluate("(s) => s.blur()")
     wait_count(pg, "#gearspec option[value='holy'][selected]", 1)  # the redraw for the pick is in
     fold = pg.locator("#advice details.upmore").first
-    fold.locator("summary").click()
+    fold.locator(":scope > summary").click()
     assert fold.evaluate("(d) => d.open")
     pg.evaluate("() => window.scrollTo(0, 600)")
     return pg.evaluate("() => window.scrollY")
