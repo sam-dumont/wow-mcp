@@ -6221,39 +6221,6 @@
    ],
    "findings": [
     {
-     "cite": "gear advice",
-     "item": {
-      "bis_pct": 100,
-      "bis_pct_worn": 37,
-      "delta_pct": 63,
-      "gain": 31.52,
-      "gain_share_pct": 10.9,
-      "item_id": 2549,
-      "name": "Staff of the Shade",
-      "negligible": null,
-      "quality": 3,
-      "slot": 16,
-      "slot_name": "Main hand",
-      "url": "https://www.wowhead.com/forever/item=2549"
-     },
-     "item_id": 2549,
-     "kind": "upgrade",
-     "link": "#up-16",
-     "source": {
-      "basis": "seen in Forever",
-      "blocker": null,
-      "boss": "Razorfen Warden",
-      "kind": "drop",
-      "profession": null,
-      "quest": null,
-      "via": "foreverdb",
-      "zone": null
-     },
-     "text": "You could wear Staff of the Shade now: 37% → 100% on your weapons (drops from Razorfen Warden (seen in Forever)).",
-     "title": "Staff of the Shade",
-     "weight": 3
-    },
-    {
      "action": "Check a creature's level before you pull; come back at level 47 (you are 46).",
      "cite": "likely killer's level vs yours",
      "kind": "deaths_level_gap",
