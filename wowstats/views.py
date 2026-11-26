@@ -268,6 +268,9 @@ class Views:
             self._prices = (time.monotonic(), rows)
             return rows
 
+    def character_price_rows(self, char: str) -> list[dict]:
+        return ahshared.for_character(self.store, char, self.price_rows())[1]
+
     def char_filter(self, char: str) -> str:
         names = sorted(set(self._aliases.get(char) or [char]) | {char})
         if len(names) == 1:
@@ -590,7 +593,7 @@ class Views:
         # scans are the price list's own read.
         ah = {k: sub(vl, f"{st} {q}", keys, ops)
               for k, (q, keys, ops) in ahsource.queries(cf, f'feed:="wow-recorder" {cf}').items()}
-        ah["items"] = sub(self.price_rows)
+        ah["items"] = sub(self.character_price_rows, char)
         res = {k: f.result() for k, f in jobs.items()}
         row = gearmod.pick_sheet(res["gear"])
         header = build_header(char, [], res)

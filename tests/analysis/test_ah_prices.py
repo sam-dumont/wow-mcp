@@ -115,7 +115,7 @@ def test_the_brief_says_it_in_one_line(demo, tmp_path, monkeypatch):
     rows, prices = _mine(demo["rows"]), demo["prices"]
     monkeypatch.setattr(prep, "query", lambda store, stream, char: [dict(r) for r in rows])
     monkeypatch.setattr(analysis, "other_players", lambda store, stream, char: set())
-    monkeypatch.setattr(analysis, "prices_for", lambda store, env: prices)
+    monkeypatch.setattr(analysis, "prices_for", lambda store, env, char: prices)
     drive._WS.clear()
     with D.clock():
         b = drive.brief({**env_for(tmp_path), "DEFAULT_CHAR": D.CHAR}, D.CHAR)

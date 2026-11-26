@@ -422,7 +422,9 @@ player's own auction house scans.
   some items), `item_name` (LibForeverData's or Polestar_QuestDB's item table),
   `price_copper` (the day's lowest price), `price_high_copper`, `available`
   (items listed), `scan_day` (`YYYY-MM-DD`), `realm`, `faction` (only for
-  houses Auctionator keys as "Realm Faction"). `_time` is the scan day's local
+  Auctionator keys of the form "Realm Faction"). The LegacyAH addon uses
+  the player's faction even at a neutral auctioneer. A realm-only key has
+  an unknown faction and stays private. `_time` is the scan day's local
   midnight.
 - Each realm's table is a CBOR string (Auctionator 11+); the shipper decodes
   it with the standard library. Days count from 2020-01-01 local time.

@@ -495,7 +495,7 @@ def advice_for(rows: list[dict], char: str, env: dict) -> dict | None:
         return None
 
 
-def prices_for(store, env: dict) -> list[dict]:
+def prices_for(store, env: dict, char: str | None = None) -> list[dict]:
     """The Auctionator scans for prep's ah_prices and ah_upgrades: the price
     list's own read (wowstats.ahshared.price_rows, one row per item, house
     and scan day; on an install with several people the shared scans of this
@@ -509,7 +509,8 @@ def prices_for(store, env: dict) -> list[dict]:
         return []
     try:
         days = int(env.get("PRICE_DAYS") or ahshared.PRICE_DAYS)
-        return ahshared.price_rows(store, ahshared.location(env), start=datetime.now(UTC) - timedelta(days=days))
+        rows = ahshared.price_rows(store, ahshared.location(env), start=datetime.now(UTC) - timedelta(days=days))
+        return ahshared.for_character(store, char, rows)[1] if char else rows
     except Exception as e:  # noqa: BLE001 - prices are optional: the analysis runs without them
         log(f"no auction scans for the prep: {e}")
         return []
@@ -920,7 +921,7 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     ref = route.reference()
     advice = advice_for(rows, char, env)
     db = prep.build(rows, char, ref, map_sizes=knowledge.meta.get("ui_map"),
-                    advice=advice, prices=prices_for(store, env))
+                    advice=advice, prices=prices_for(store, env, char))
     build = manifest.build(db, rows, knowledge, ref, scoring=scoring_for(advice))
     now = datetime.now(UTC).isoformat(timespec="seconds")
     state = load_state(env, char)

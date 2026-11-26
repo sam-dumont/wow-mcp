@@ -924,7 +924,7 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
                           "min(price_copper) as price_copper, max(price_high_copper) as price_high_copper, "
                           "max(item_name) as item_name, max(item_id) as item_id, max(_time) as t",
                           {"price_copper": "min", "price_high_copper": "max", "item_name": "max",
-                           "item_id": "max", "t": "maxtime"}, start, end, identify_houses=True)
+                           "item_id": "max", "t": "maxtime"}, start, end)
     from wowstats import storemodels
 
     char = None
@@ -932,14 +932,13 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
     if explicit:
         faction = str(args.get("faction") or "").title()
         ruleset = str(args.get("ruleset") or "").strip()
-        if not ruleset or faction not in (*ahshared.SIDES, ahshared.NEUTRAL) or args.get("char"):
+        if not ruleset or faction not in (*ahshared.SIDES, ahshared.NEUTRAL, "Unknown") or args.get("char"):
             raise ToolError("Select a character, or give both ruleset and faction for an auction house.")
-        home = (ruleset, faction)
+        house, rows = ahshared.one_house(rows, (ruleset, "" if faction == "Unknown" else faction), exact=True)
     else:
         if rows or args.get("char") or ctx.default_char:
             char = resolve_char(ctx, args)
-        home = ahshared.character_house(ctx.store.events, char) if rows and char else None
-    house, rows = ahshared.one_house(rows, home, exact=explicit)
+        house, rows = ahshared.for_character(ctx.store.events, char, rows) if char else ahshared.one_house(rows, None)
     out = []
     for key, d in storemodels.prices([{**r, "_time": r.get("t")} for r in rows]).items():
         name = d["price_item"] or f"item {key}"
@@ -1260,7 +1259,7 @@ def _gear_inputs(ctx: Ctx, char: str) -> dict:
         from wowstats import profcaps
 
         sheet["professions"] = profcaps.fill(sheet["professions"], profcaps.newest_skills(res.get("skills", [])))
-        res["items"] = _views(ctx).price_rows()
+        res["items"] = _views(ctx).character_price_rows(char)
         market = ahsource.market(res, faction=sheet.get("faction"), money=opt_num(s.get("money_copper")),
                                  who=sheet, done=done, log=log)
     except SourceError:
@@ -1704,7 +1703,7 @@ TOOLS: tuple[Tool, ...] = (
          "Prices from Auctionator scans of the character's ruleset and faction (the player's own, or on a shared "
          "server anyone's): latest, min and max over the range, change since the first scan.",
          schema({"char": CHAR, "ruleset": {"type": "string", "description": "Auction ruleset for an explicit house."},
-                 "faction": {"type": "string", "enum": ["Alliance", "Horde", "Neutral"],
+                 "faction": {"type": "string", "enum": ["Alliance", "Horde", "Neutral", "Unknown"],
                              "description": "Auction house on the selected ruleset."},
                  "item": {"type": "string", "description": "Part of an item name, or an item id."},
                  "since": SINCE, "until": UNTIL, "limit": lim(20, 100)}), t_prices),

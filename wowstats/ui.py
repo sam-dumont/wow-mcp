@@ -1426,7 +1426,7 @@ def make_handler(root: App, tenancy=None):
                 from wowstats import ahshared
 
                 try:
-                    ahshared.share(ahshared.location(app.env), lines, app.store)
+                    ahshared.share(ahshared.location(app.env), lines)
                 except (SourceError, ValueError) as e:
                     public_error(e, "/ingest (shared auction scans)")
 

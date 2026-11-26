@@ -114,7 +114,7 @@ class Workspace:
         ref = route.reference()
         advice = advice_for(rows, self.char, env)
         self.db = prep.build(rows, self.char, ref, map_sizes=self.kb.meta.get("ui_map"),
-                             advice=advice, prices=prices_for(st, env))
+                             advice=advice, prices=prices_for(st, env, self.char))
         # What this build was computed with: each finding judged here keeps its id.
         self.manifest = manifest.build(self.db, rows, self.kb, ref, scoring=scoring_for(advice))
         # What the tables stand on (wowstats.coverage): every play_sql and

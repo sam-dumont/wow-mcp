@@ -94,8 +94,8 @@ def prices(store, days: int = 30, shared: str = "", *, char: str | None = None) 
     rows = ahshared.scans(store, shared, "min(price_copper) as price_copper, max(item_name) as item_name, "
                           "max(item_id) as item_id, max(_time) as t",
                           {"price_copper": "min", "item_name": "max", "item_id": "max", "t": "maxtime"},
-                          start=datetime.now(UTC) - timedelta(days=days), identify_houses=True)
-    _, rows = ahshared.one_house(rows, ahshared.character_house(store, char) if char else None)
+                          start=datetime.now(UTC) - timedelta(days=days))
+    _, rows = ahshared.for_character(store, char, rows) if char else ahshared.one_house(rows, None)
     got = storemodels.prices([{**r, "_time": r.get("t")} for r in rows if _i(r.get("item_id")) is not None])
     return {_i(d["item_id"]): {"t": d["price_latest_t"], "copper": _i(d["price_latest_copper"]),
                                "name": d["price_item"]} for d in got.values()}

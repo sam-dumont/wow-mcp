@@ -235,6 +235,7 @@ LOGS = [
     ("kind:in(xp, kill, turnin, death) | uniq", ZONE_ACT),
     ("kind:in(step, skip)", STEPS),
     ("kind:=death", DEATHS),
+    ("stats by (realm, faction) max(_time) as t", [{"realm": "Fixture", "faction": "", "t": _t(17, 12)}]),
     ("min(price_copper) as price_copper", PRICE_DAYS),
     ('feed:="wow-prices"', PRICES),
 ]
