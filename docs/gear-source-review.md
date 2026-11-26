@@ -1,5 +1,7 @@
 # Where the 31 missing gear sources went
 
+**For:** players checking where an item drops and contributors maintaining gear sources.
+
 The November 26 review recovered 27 of the 30 dropped items in [issue 333](https://github.com/sam-dumont/wow-mcp/issues/333#issuecomment-7188711928). Two come from summons. Three still lack a verified route. The 31st item is a cloak the player must hand back.
 
 The exporter uses these rows only when the normal sources have no route. A loot window establishes that the item dropped. It supplies no reliable chance per kill or dungeon clear here. Every recovered drop stays hard, and the planner skips it as a next action. A real auction listing goes through the usual price, item and character checks.

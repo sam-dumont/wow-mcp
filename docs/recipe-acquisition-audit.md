@@ -1,5 +1,7 @@
 # Recipe acquisition review, November 26, 2026
 
+**For:** players checking a recipe requirement and contributors updating trainer and pattern data.
+
 The original comparison for [#283](https://github.com/sam-dumont/wow-mcp/issues/283) flagged 119 craft spells. Trainer captures give a rank for 61. Polestar's guide gives a rank for two more. The client identifies 46 patterns and their reading ranks. Six slippers have both a trainer and a pattern. Across those 119 spells, 103 have a numeric rank for at least one learning method. Four others have a recorded trainer visit with no numeric rank. The remaining 12 have no verified learning method in these sources.
 
 For Black Slippers (1257429), a tailor at 143 can read pattern 254008 at 140. Without the pattern or an accessible seller, the next recorded route is a trainer at 150. A tailor who already knows the recipe needs neither acquisition step. NPC 3363 offers all six slippers at 150 in the 71091 capture. The emulator's 145 has verified build zero. [Trainer capture][slippers] · [Emulator SQL][sql]
