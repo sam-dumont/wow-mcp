@@ -6,6 +6,7 @@ The Climb shows your played time beside Polestar’s planned time on all three d
 
 ### Fixed
 
+- The dashboards retry the item catalog once after a dropped connection. Equipped items such as shirts and tabards can then show their names without a page reload.
 - The timeline keeps the level you picked in Back in time when new timeline data arrives or you change an event filter.
 - The Climb uses Polestar 0.4.3.1 for all 90 race and class routes. Tailoring now starts Black Mageweave Headband at 200. A tailor with an Expert cap of 225 only needs Artisan when planning past 225.
 - The rogue guide now cites a November 26 Blackrock Spire kill. On Gizrul the Slavener, the same rogue’s normal Sinister Strikes averaged 31% more damage with Expose Armor active.
