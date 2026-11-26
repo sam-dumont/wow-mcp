@@ -64,7 +64,6 @@ HIST_LIMIT = 100_000
 # Fields that repeat across rows: one string each in memory.
 _INTERN_MAX = 40
 _NO_INTERN = frozenset({"_time", "_msg", "source_id", "items", "item_names", "talents", "professions", "wanted"})
-_DROP = frozenset({"_stream", "_stream_id"})
 # Each snapshot's number, unique in the process: a character's entry dropped
 # and read again never hands back a number an older snapshot had.
 _STAMPS = itertools.count(1)
@@ -221,13 +220,17 @@ class EventCache:
         rows; False, keeping nothing, when more came back than a page
         (events landed since the count: the caller reads finer)."""
         self.reads += 1
-        got = self.store.vl_range(base, _dt(lo), _dt(hi) - timedelta(microseconds=1), self.page + 1)
+        # A new row can already be counted before VictoriaLogs v1.54 can
+        # resolve its _stream. Requesting that column hides the entire row
+        # until its stream metadata is visible. The cache uses only event fields.
+        got = self.store.vl_range(f"{base} | rm _stream, _stream_id", _dt(lo),
+                                  _dt(hi) - timedelta(microseconds=1), self.page + 1)
         if len(got) > self.page:
             return False
         fresh: dict[int, list] = {h: [] for h in range(lo - lo % HOUR, hi, HOUR)}
         for raw in got:
             r = {sys.intern(k): (sys.intern(v) if k not in _NO_INTERN and isinstance(v, str) and len(v) <= _INTERN_MAX
-                                 else v) for k, v in raw.items() if k not in _DROP}
+                                 else v) for k, v in raw.items()}
             t = int(parse_t(r.get("_time")).timestamp())
             fresh.setdefault(t - t % HOUR, []).append(r)
         for h, rs in fresh.items():

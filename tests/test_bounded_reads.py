@@ -95,7 +95,7 @@ def test_one_full_page_load_reads_the_store_a_bounded_number_of_times(fake_vl, r
     assert len(qs) <= MAX_QUERIES, "\n".join(q for q, _, _ in qs)
     assert fake_vl.max_inflight <= 2, "VL_GATE lets at most two requests run at once"
     # The character's events are read once, in pages of at most VL_PAGE rows.
-    pages = [(q, n, got) for q, n, got in qs if "|" not in q]
+    pages = [(q, n, got) for q, n, got in qs if q.endswith("| rm _stream, _stream_id")]
     assert pages and all(n <= VL_PAGE + 1 for _, n, _ in pages)
     assert sum(got for _, _, got in pages) == len(fake_vl.rows)
     # A second load inside the freshness window reads nothing new.
@@ -174,6 +174,21 @@ def test_a_refresh_reads_only_the_hours_that_changed():
     # An hour gone from the store (retention) leaves the cache too.
     rows[:] = [r for r in rows if parse_t(r["_time"]) >= t0 + timedelta(hours=1)]
     assert len(cache.rows(CHAR)) == 101 - 6 and st.reads == []
+
+
+def test_recent_rows_do_not_need_stream_metadata():
+    # VictoriaLogs v1.54 counts new events before their _stream can be
+    # returned. Every game field, including new ones, must survive that gap.
+    class NewStreams(SlowStore):
+        def vl_range(self, query, start, end, limit):
+            records = super().vl_range(query, start, end, limit)
+            return [r for r in records if r.get("_stream") != "pending"]
+
+    stamp = datetime(2026, 11, 12, 10, tzinfo=UTC)
+    rows = [_ev(stamp, "old", _stream="known", _stream_id="old-id"),
+            _ev(stamp, "ding", feed="wow-level", level="28", future_field="keep", _stream="pending", _stream_id="id")]
+    cache = eventcache.EventCache(NewStreams(rows))
+    assert cache.rows(CHAR) == tuple({k: v for k, v in r.items() if k not in ("_stream", "_stream_id")} for r in rows)
 
 
 def test_an_hour_over_a_page_is_read_by_the_minute():
