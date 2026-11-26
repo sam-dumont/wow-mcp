@@ -53,6 +53,7 @@ refresh pass (tools/kb/refresh.py). No new item: no model call, nothing spent.
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import math
 import os
@@ -85,7 +86,6 @@ KNOWN_PER_CALL = 120  # KB statements handed with each call, the ones sharing th
 BLUE_POSTS = 3  # staff posts read in one topic at most, the newest
 BLUE_AUTHOR = "Blizzard staff"  # who wrote a blue post, by role: never a name
 BLUE_TOPIC = re.compile(r"/blue-tracker/topic/us/(\d+)")
-QUOTE = re.compile(r"<aside class=\"quote.*?</aside>", re.S)
 VERBATIM = verbatim.RUN  # a statement sharing this many consecutive words with its item copies it
 FOREVER_TITLE = re.compile(r"\bWoW:?\s+Forever\b", re.I)
 CONTENT = "{http://purl.org/rss/1.0/modules/content/}encoded"
@@ -294,22 +294,19 @@ def rss_items(feed: dict, fetch) -> tuple[list[dict], dict]:
     return out, note
 
 
-def tracked_text(feed: dict, fetch, topic: int, after: datetime) -> tuple[str, int, str]:
-    """The text of the staff posts the forum tracks in a topic, written after
-    `after`, quotes of other posts cut out (players' words); the first
-    one's post number (0 when none); and what failed to load ("" when
-    everything did). A deleted topic or post (404/410) has nothing to read;
+def tracked_posts(feed: dict, fetch, topic: int, after: datetime) -> tuple[list[tuple[int, str]], str]:
+    """The new, verified staff replies by post number. A deleted topic or post (404/410) has nothing to read;
     any other failure means the topic wasn't read."""
     status, body = fetch.get(f"{feed['forum']}/t/{topic}.json")
     if status in web.GONE:
-        return "", 0, ""
+        return [], ""
     try:
         tracked = json.loads(body).get("tracked_posts") or [] if status == 200 else None
     except (ValueError, AttributeError):
         tracked = None
     if tracked is None:
-        return "", 0, f"topic {topic}: HTTP {status}" if status != 200 else f"topic {topic}: not JSON"
-    texts, first = [], 0
+        return [], f"topic {topic}: HTTP {status}" if status != 200 else f"topic {topic}: not JSON"
+    posts = []
     for t in sorted(tracked, key=lambda t: t.get("post_number") or 0)[-BLUE_POSTS:]:
         n = int(t.get("post_number") or 0)
         status, body = fetch.get(f"{feed['forum']}/posts/by_number/{topic}/{n}.json")
@@ -320,16 +317,15 @@ def tracked_text(feed: dict, fetch, topic: int, after: datetime) -> tuple[str, i
         except ValueError:
             post = None
         if not isinstance(post, dict):
-            return "", 0, f"topic {topic} post {n}: " + (f"HTTP {status}" if status != 200 else "not JSON")
-        if not post.get("staff") or not post.get("created_at"):
+            return [], f"topic {topic} post {n}: " + (f"HTTP {status}" if status != 200 else "not JSON")
+        if post.get("staff") is not True or not post.get("created_at"):
             continue
         if datetime.fromisoformat(post["created_at"].replace("Z", "+00:00")) <= after:
             continue
-        text = html_text(QUOTE.sub("", post.get("cooked") or ""))
+        text = web.staff_text(post)
         if text:
-            texts.append(text)
-            first = first or n
-    return "\n\n".join(texts), first, ""
+            posts.append((n, text))
+    return posts, ""
 
 
 def blue_items(feed: dict, fetch, today: str) -> tuple[list[dict], dict]:
@@ -362,15 +358,15 @@ def blue_items(feed: dict, fetch, today: str) -> tuple[list[dict], dict]:
         if stamp <= known:
             continue
         topic = int(m.group(1))
-        text, n, why = tracked_text(feed, fetch, topic, datetime.fromtimestamp(known, UTC))
+        posts, why = tracked_posts(feed, fetch, topic, datetime.fromtimestamp(known, UTC))
         if why:
             failed.append((stamp, why))
             continue
-        if len(text) < 80:
-            continue
-        out.append({"source": feed["key"], "id": stamp, "url": f"{feed['forum']}/t/{topic}/{n}",
-                    "title": " ".join((it.findtext("title") or "").split()), "author": BLUE_AUTHOR,
-                    "date": when.date().isoformat(), "text": text[:MAX_ITEM]})
+        for n, text in posts:
+            if len(text) >= 80:
+                out.append({"source": feed["key"], "id": stamp, "url": f"{feed['forum']}/t/{topic}/{n}",
+                            "title": " ".join((it.findtext("title") or "").split()), "author": BLUE_AUTHOR,
+                            "date": when.date().isoformat(), "text": text[:MAX_ITEM]})
     note = {}
     if failed:
         stop, why = min(failed)
@@ -410,6 +406,8 @@ def collect(state: dict, fetch, today: str | None = None) -> dict:
     for feed in meta["feeds"]:
         got, note = (rss_items(feed, fetch) if feed["kind"] == "rss" else blue_items(feed, fetch, today))
         for it in got:
+            if it.get("author") == BLUE_AUTHOR:
+                kbschema.add_staff_posts(allow, [it["url"]])
             # The page's own type (sources.json), the feed's for a page off the list.
             it.update(source_type=kbschema.source_type(it["url"], allow) or feed["source_type"],
                       max_confidence=feed["max_confidence"], date=it["date"] or today)
@@ -463,12 +461,17 @@ def relevant(known: list[dict], text: str, n: int = KNOWN_PER_CALL) -> list[dict
 def batches(items: list[dict]) -> list[list[dict]]:
     """News and blue posts packed up to MAX_BATCH characters, oldest first; each guide alone."""
     out, cur, size = [], [], 0
-    for it in [i for i in items if i["source"] != "guides"]:
-        if cur and size + len(it["text"]) > MAX_BATCH:
+    for _, group in itertools.groupby((i for i in items if i["source"] != "guides"),
+                                      key=lambda i: (i["source"], i["id"])):
+        # A tracker timestamp can cover multiple staff replies. Read them in
+        # one batch so the budget cannot advance the timestamp past a sibling.
+        posts = list(group)
+        length = sum(len(it["text"]) for it in posts)
+        if cur and size + length > MAX_BATCH:
             out.append(cur)
             cur, size = [], 0
-        cur.append(it)
-        size += len(it["text"])
+        cur.extend(posts)
+        size += length
     out += [cur] if cur else []
     return out + [[i] for i in items if i["source"] == "guides"]
 
@@ -511,10 +514,9 @@ def to_records(props: list[dict], batch: list[dict], allow: dict, day: str, know
             continue
         it = batch[n - 1]
         text = " ".join(str(p.get("text") or "").split())[:600]
-        dom = allow.get(kbschema.domain(it["url"]))
         conf = p.get("confidence") if p.get("confidence") in kbschema.CONFIDENCE else "low"
         conf = kbschema.cap(conf, it["max_confidence"])
-        conf = kbschema.cap(conf, dom["max_confidence"]) if dom else conf
+        conf = kbschema.cap(conf, kbschema.source_cap(it["url"], allow))
         counter["n"] += 1
         rec = {"id": f"meta-{day}:{it['source']}-{counter['n']}", "topic": str(p.get("topic") or "")[:80],
                "text": text, "source_url": it["url"], "source_type": it["source_type"], "date": it["date"],
@@ -615,8 +617,7 @@ def to_digest(props: list[dict], batch: list[dict], allow: dict, day: str, known
             refused.append({"text": text[:200], "source_url": it["url"], "copy": True, "digest": True, "prop": p,
                             "why": f"digest entry copies its source: {why}", "source": it["text"]})
             continue
-        dom = allow.get(kbschema.domain(it["url"]))
-        conf = kbschema.cap(it["max_confidence"], dom["max_confidence"]) if dom else it["max_confidence"]
+        conf = kbschema.cap(it["max_confidence"], kbschema.source_cap(it["url"], allow))
         counter["d"] = counter.get("d", 0) + 1
         rec = {"id": f"digest-{day}:{counter['d']}", "category": p["category"], "title": title or text[:60],
                "text": text, "date": it["date"], "source_url": it["url"], "source_type": it["source_type"],
@@ -714,8 +715,7 @@ def to_endgame(props: list[dict], batch: list[dict], allow: dict, day: str,
             opens = ""
         if status == "open":
             opens = ""
-        dom = allow.get(kbschema.domain(it["url"]))
-        conf = kbschema.cap(it["max_confidence"], dom["max_confidence"]) if dom else it["max_confidence"]
+        conf = kbschema.cap(it["max_confidence"], kbschema.source_cap(it["url"], allow))
         rec = {"id": f"meta-{day}:endgame-{len(kept) + len(refused) + 1}", "key": key, "name": name, "kind": kind,
                "status": status, "opens": opens or None, "statement": text,
                "source_url": it["url"], "source_type": it["source_type"], "date": it["date"], "confidence": conf,
@@ -742,6 +742,7 @@ def run(items: list[dict], client, cap: float, day: str | None = None) -> dict:
     """The model pass over the collected items; no item, no call."""
     day = day or datetime.now(UTC).date().isoformat()
     allow = kbschema.load_allow(KB / "sources.json")
+    kbschema.add_staff_posts(allow, [it["url"] for it in items if it.get("author") == BLUE_AUTHOR])
     known = known_statements()
     known_src = {k["id"]: k["source_url"] for k in known}
     from wowstats import news
@@ -867,6 +868,9 @@ def main(argv: list[str] | None = None) -> int:
 
     cap = float(os.environ.get("KB_REFRESH_MAX_USD") or 3)
     out = run(got["items"], anthropic.Anthropic(), cap, got.get("day"))
+    staff = [it["url"] for it in got["items"] if it.get("author") == BLUE_AUTHOR]
+    if staff:
+        kbschema.save_staff_posts(KB / "sources.json", staff)
     refresh.step_summary(out["meter"], "News, blue posts and guides, model pass (tools/kb/meta.py)")
     doc = out["doc"]
     print(json.dumps({"statements": len(doc["statements"]), "digest": len(doc["digest"]["items"]),

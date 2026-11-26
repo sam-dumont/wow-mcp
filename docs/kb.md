@@ -85,6 +85,12 @@ doesn't keep their sentences. Each statement is in our own words (or a
 model's, checked by code) and links the page it came from, so the author
 gets the credit and you can check the claim.
 
+A Blizzard forum citation counts as official when Discourse marks the
+cited post as staff. `data/kb/forum-staff.json` holds the verified post
+numbers for each host and topic. The refresh records those numbers from
+the public post JSON and cites the numbered reply. An unverified reply
+counts as community evidence, capped at medium when it is the only source.
+
 - **Statements and the digest:** one fact each, own words, with
   `source_url`. The model passes (`refresh`, `meta`) compare every proposal
   with the text they just read (`wowstats/analysis/verbatim.py`): 12 words

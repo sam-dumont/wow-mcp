@@ -119,8 +119,19 @@ def test_encoded_search_parameters_are_valid(allow):
     assert kbschema.check(rec, allow) == []
 
 
+def test_forum_authorship_matches_the_post_number(allow):
+    player = "https://us.forums.blizzard.com/en/wow/t/wow-forever-exp-eliminator/2406791"
+    mixed = "https://eu.forums.blizzard.com/en/wow/t/643840"
+    assert kbschema.source_type(player, allow) == kbschema.source_type(mixed, allow) == "community"
+    assert kbschema.source_type(mixed + "/233", allow) == "official"
+    assert kbschema.source_type(mixed + "/234", allow) == "community"
+    assert kbschema.best_cap({"source_url": player}, allow) == "medium"
+    assert kbschema.multi_source({"source_url": player}, allow)
+    assert kbschema.multi_source({"source_url": mixed + "/233"}, allow) == ""
+
+
 def test_a_booster_backed_by_an_official_source_may_be_high(allow):
-    rec = {"source_url": "https://conquestcapped.com/x", "sources": ["https://us.forums.blizzard.com/t/1"],
+    rec = {"source_url": "https://conquestcapped.com/x", "sources": ["https://us.forums.blizzard.com/en/wow/t/2403040/14"],
            "source_type": "commercial", "date": "2026-11", "confidence": "high", "scope": "forever",
            "last_verified": "2026-11-18"}
     assert kbschema.check(rec, allow) == []

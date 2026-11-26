@@ -250,7 +250,10 @@ def test_a_recorded_answer_makes_a_schema_valid_lane(state):
     client = Client(answers)
     out = meta.run(batch_news + [guide], client, cap=3.0, day="2026-11-23")
     doc = out["doc"]
-    assert kbschema.check_file(doc, ALLOW) == []
+    # The CLI persists the staff flag checked during collection for offline validation.
+    verified = copy.deepcopy(ALLOW)
+    kbschema.add_staff_posts(verified, [batch_news[1]["url"]])
+    assert kbschema.check_file(doc, verified) == []
     by = {s["text"]: s for s in doc["statements"]}
     s = by["Shadowform gives 5% more shadow damage since the hotfix."]
     assert (s["class"], s["confidence"], s["source_type"], s["source_url"], s["date"], s["last_verified"]) == (

@@ -75,6 +75,7 @@ one. If an existing statement is now wrong or incomplete because of the page, pr
 `supersedes` set to its id; otherwise `supersedes` is "". Skip what the knowledge base already says. Skip \
 cosmetic changes, store items, events without a rule, and anything the page only hints at. confidence: "high" \
 when the page states it plainly, "medium" when it needs reading between two lines of the page, never more. \
+For a numbered forum post, set `post_number` to its number; use 0 on other pages.
 scope: "forever". An empty list is a fine answer."""
 
 SCHEMA = {
@@ -89,8 +90,9 @@ SCHEMA = {
                     "text": {"type": "string"},
                     "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
                     "supersedes": {"type": "string"},
+                    "post_number": {"type": "integer"},
                 },
-                "required": ["topic", "text", "confidence", "supersedes"],
+                "required": ["topic", "text", "confidence", "supersedes", "post_number"],
                 "additionalProperties": False,
             },
         },
@@ -191,11 +193,11 @@ def official_statements() -> list[dict]:
     for path in sorted((KB / "research").glob("*.json")):
         doc = json.loads(path.read_text(encoding="utf-8"))
         for s in doc.get("statements") or []:
-            if any(allow.get(kbschema.domain(u), {}).get("type") == "official" for u in kbschema.urls(s)):
+            if any(kbschema.source_type(u, allow) == "official" for u in kbschema.urls(s)):
                 out.append({"id": s["id"], "text": s["text"][:400], "source_url": s["source_url"]})
     rules = json.loads((KB / "rules.json").read_text(encoding="utf-8"))["rules"]
     for name, r in rules.items():
-        if any(allow.get(kbschema.domain(u), {}).get("type") == "official" for u in kbschema.urls(r)):
+        if any(kbschema.source_type(u, allow) == "official" for u in kbschema.urls(r)):
             out.append({"id": f"rule:{name}", "text": r["statement"][:400], "source_url": r["source_url"]})
     # Sorted, so the cached prefix is the same bytes whatever order the files list in.
     return sorted(out, key=lambda k: k["id"])
@@ -277,18 +279,25 @@ def refused_note(r: dict) -> str:
 
 
 def to_records(props: list[dict], page_url: str, page_key: str, allow: dict, day: str,
-               known_ids: set[str], source: str = "", start: int = 0) -> tuple[list[dict], list[dict]]:
+               known_ids: set[str], source: str = "", start: int = 0,
+               posts: dict[int, str] | None = None) -> tuple[list[dict], list[dict]]:
     """The model's proposals as KB statements, provenance set by code; (kept, refused with why). A
     proposal that copies `source` (the page it came from: verbatim.copied) is refused with `copy`
     set, for reword()."""
     kept, refused = [], []
-    dom = allow.get(kbschema.domain(page_url))
     for n, p in enumerate(props, start + 1):
+        url, evidence = page_url, source
+        if posts:
+            post = p.get("post_number") or (next(iter(posts)) if len(posts) == 1 else None)
+            if post not in posts:
+                refused.append({"text": str(p.get("text") or "")[:200], "why": "no matching staff post"})
+                continue
+            url, evidence = f"{page_url}/{post}", posts[post]
         text = " ".join(str(p.get("text") or "").split())[:600]
         conf = p.get("confidence") if p.get("confidence") in kbschema.CONFIDENCE else "low"
         rec = {"id": f"refresh-{day}:{page_key}-{n}", "topic": str(p.get("topic") or "")[:80], "text": text,
-               "source_url": page_url, "source_type": kbschema.source_type(page_url, allow) or "", "date": day,
-               "confidence": kbschema.cap(conf, dom["max_confidence"]) if dom else conf, "scope": "forever",
+               "source_url": url, "source_type": kbschema.source_type(url, allow) or "", "date": day,
+               "confidence": kbschema.cap(conf, kbschema.source_cap(url, allow)), "scope": "forever",
                "last_verified": day, "origin": "model proposal from the official page"}
         sup = str(p.get("supersedes") or "").strip()
         if sup:
@@ -297,7 +306,7 @@ def to_records(props: list[dict], page_url: str, page_key: str, allow: dict, day
                 continue
             rec["supersedes"] = sup
         errs = kbschema.check(rec, allow) + ([] if text else ["no text"])
-        why = verbatim.copied(text, source) if text and source else ""
+        why = verbatim.copied(text, evidence) if text and evidence else ""
         if why:
             refused.append({**rec, "why": f"copies its source: {why}", "copy": True, "prop": p})
             continue
@@ -316,6 +325,7 @@ def run(keys: list[str], client, fetch, cap: float, day: str | None = None, stat
     cache = sum(k in watched for k in keys) >= CACHE_MIN_PAGES
     statements, refused, skipped, read = [], [], [], []
     versions: dict[str, str] = {}  # what each read page was when read: the accept step records these
+    staff_urls = []
     for key in keys:
         p = watched.get(key)
         if p is None:
@@ -332,7 +342,15 @@ def run(keys: list[str], client, fetch, cap: float, day: str | None = None, stat
             read.append(key)
             versions[key] = got["version"]
             continue
-        web.remember(page_url, text)
+        posts = got.get("posts")
+        if posts:
+            urls = [f"{page_url}/{n}" for n in posts]
+            kbschema.add_staff_posts(allow, urls)
+            staff_urls.extend(urls)
+            for n, body in posts.items():
+                web.remember(f"{page_url}/{n}", body)
+        else:
+            web.remember(page_url, text)
         try:
             props = ask(client, meter, page_url, text, known, cache)
         except OverBudget as e:
@@ -341,12 +359,13 @@ def run(keys: list[str], client, fetch, cap: float, day: str | None = None, stat
         if props is None:
             skipped.append(f"{key}: the model stopped without an answer; left pending")
             continue
-        kept, bad = to_records(props, page_url, key, allow, day, known_ids, source=text)
+        kept, bad = to_records(props, page_url, key, allow, day, known_ids, source=text, posts=posts)
         # A copy gets one rewrite in the model's own words; a second copy is dropped.
         copies = [b for b in bad if b.get("copy")]
         texts = reword(client, meter, copies, text)
         again = [{**c["prop"], "text": t} for c, t in zip(copies, texts, strict=True) if t]
-        kept2, bad2 = to_records(again, page_url, key, allow, day, known_ids, source=text, start=len(props))
+        kept2, bad2 = to_records(again, page_url, key, allow, day, known_ids, source=text, start=len(props),
+                                 posts=posts)
         statements += kept + kept2
         dropped = [c for c, t in zip(copies, texts, strict=True) if not t]
         refused += [b for b in bad if not b.get("copy")] + bad2 + dropped
@@ -359,7 +378,7 @@ def run(keys: list[str], client, fetch, cap: float, day: str | None = None, stat
            "open_questions": [{"id": f"refresh-{day}:refused-{i}", "text": refused_note(r)}
                               for i, r in enumerate(refused, 1)]}
     return {"doc": doc, "spent_usd": round(meter.spent, 4), "skipped": skipped, "refused": len(refused),
-            "read": read, "versions": versions, "meter": meter}
+            "read": read, "versions": versions, "meter": meter, "staff_posts": staff_urls}
 
 
 def read_page(fetch, p: dict) -> dict:
@@ -376,10 +395,11 @@ def read_page(fetch, p: dict) -> dict:
         return {"ok": False, "why": "unreadable (not the page or topic JSON expected)"}
     if p["kind"] != "discourse":
         return {"ok": True, "text": web.text_of(body, p.get("page") or p["url"]), "version": version}
-    text, failed = thread_text(fetch, p["url"], body, read_posts(p.get("known")))
+    posts, failed = thread_posts(fetch, p["url"], body, read_posts(p.get("known")))
     if failed:
         return {"ok": False, "why": ", ".join(failed)}
-    return {"ok": True, "text": text, "version": version}
+    text = "\n\n".join(f"Post {n}\n{body}" for n, body in sorted(posts.items()))
+    return {"ok": True, "text": text, "version": version, "posts": posts}
 
 
 def read_posts(known) -> int:
@@ -394,7 +414,7 @@ def read_posts(known) -> int:
 MAX_NEW_POSTS = 40  # posts of one thread read in one run at most, the newest
 
 
-def thread_text(fetch, url: str, body: bytes, after: int) -> tuple[str, list[str]]:
+def thread_posts(fetch, url: str, body: bytes, after: int) -> tuple[dict[int, str], list[str]]:
     """The thread's posts numbered past `after`, and the posts that failed to
     load (empty when all came). Discourse's topic JSON holds its first 20
     posts only: newer ones come one by one from
@@ -405,38 +425,30 @@ def thread_text(fetch, url: str, body: bytes, after: int) -> tuple[str, list[str
         d = json.loads(body)
         count = int(d.get("posts_count") or 0)
     except (ValueError, TypeError, AttributeError):
-        return "", ["topic: not JSON"]
-    have = {p.get("post_number") for p in (d.get("post_stream") or {}).get("posts") or []}
-    missing = [n for n in range(max(after + 1, count - MAX_NEW_POSTS + 1), count + 1) if n not in have]
+        return {}, ["topic: not JSON"]
+    posts = {p["post_number"]: p for p in (d.get("post_stream") or {}).get("posts") or []
+             if isinstance(p.get("post_number"), int) and p["post_number"] > after}
     base, _, rest = url.partition("/t/")
     topic = rest.split(".json")[0].split("/")[-1]
-    texts, failed = [forum_text(body, after)], []
-    for n in missing:
-        status, post = fetch.get(f"{base}/posts/by_number/{topic}/{n}.json")
+    failed = []
+    for n in range(max(after + 1, count - MAX_NEW_POSTS + 1), count + 1):
+        if n in posts:
+            continue
+        status, raw = fetch.get(f"{base}/posts/by_number/{topic}/{n}.json")
         if status in web.GONE:
             continue
         try:
-            cooked = (json.loads(post).get("cooked") or "") if status == 200 else None
-        except (ValueError, AttributeError):
-            cooked = None
-        if cooked is None:
+            post = json.loads(raw) if status == 200 else None
+        except ValueError:
+            post = None
+        if not isinstance(post, dict) or not isinstance(post.get("cooked"), str):
             failed.append(f"post {n}: HTTP {status}" if status != 200 else f"post {n}: not JSON")
-        elif cooked:
-            texts.append(web.text_of(f"<article>{cooked}</article>".encode()))
-    return "\n\n".join(t for t in texts if t), failed
-
-
-def forum_text(body: bytes, after: int = 0) -> str:
-    """A Discourse topic's posts (its .json), as text: each post's cooked HTML
-    stripped. `after`: only the posts numbered past it (a post without a
-    number is kept)."""
-    try:
-        d = json.loads(body)
-    except ValueError:
-        return ""
-    posts = [p for p in (d.get("post_stream") or {}).get("posts") or []
-             if not after or not isinstance(p.get("post_number"), int) or p["post_number"] > after]
-    return "\n\n".join(web.text_of(f"<article>{p.get('cooked') or ''}</article>".encode()) for p in posts)
+            continue
+        posts[n] = post
+    for n, post in posts.items():
+        if not isinstance(post.get("staff"), bool):
+            failed.append(f"post {n}: missing staff flag")
+    return {n: web.staff_text(p) for n, p in posts.items() if p.get("staff") is True and p.get("cooked")}, failed
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -453,8 +465,11 @@ def main(argv: list[str] | None = None) -> int:
     if a.dry_run:
         state = json.loads((KB / "watch.json").read_text(encoding="utf-8"))
         p = next(p for p in state["official"] if p["key"] == keys[0])
-        _, body = web.Fetcher().get(p["url"])
-        text = forum_text(body, read_posts(p.get("known"))) if p["kind"] == "discourse" else web.text_of(body)
+        result = read_page(web.Fetcher(), p)
+        if not result["ok"]:
+            print(result["why"], file=sys.stderr)
+            return 1
+        text = result["text"]
         print(SYSTEM, "\n\n", prompt(p.get("page") or p["url"], text, official_statements())[:4000])
         return 0
     import anthropic
@@ -467,6 +482,8 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps({k: v for k, v in out.items() if k not in ("doc", "meter", "versions")}
                      | {"statements": len(doc["statements"])}))
     if doc["statements"]:
+        if out["staff_posts"]:
+            kbschema.save_staff_posts(KB / "sources.json", out["staff_posts"])
         path = Path(a.out) / f"{doc['lane']}.json"
         path.write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         print(f"wrote {path}")
