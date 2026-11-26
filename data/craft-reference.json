@@ -2,8 +2,8 @@
  "schema": 1,
  "source": {
   "polestar": {
-   "tag": "v0.4.3",
-   "commit": "3cf9e32bb38b8d73164acea249039d010e03d2c5",
+   "tag": "v0.4.3.1",
+   "commit": "efccd3c027327537746819a6e60ec689ca2e6a71",
    "licence": "GPL-3.0",
    "files": [
     "addon/Polestar_Guides/Guides.lua"
@@ -1745,7 +1745,8 @@
       {
        "t": "train",
        "rank": 4,
-       "max": 300
+       "max": 300,
+       "optional": true
       }
      ]
     },
@@ -3229,7 +3230,8 @@
       {
        "t": "train",
        "rank": 4,
-       "max": 300
+       "max": 300,
+       "optional": true
       }
      ]
     },
@@ -7349,7 +7351,7 @@
     {
      "n": 18,
      "title": "Tailoring 150-225: vendor goods",
-     "note": "Buy the whole bracket's share in one go: 44 Fine Thread (44s), 90 Silken Thread (4g 50s), 44 Blue Dye (22s) and 80 Heavy Silken Thread (16g); about 21g 16s in all. The arrow picks the nearest seller of your faction (Stormwind City: Alexandra Bolero, Edna Mullby and Jillian Tanner; Orgrimmar: Borya, Felika and Shimra).",
+     "note": "Buy the whole bracket's share in one go: 44 Fine Thread (44s), 108 Silken Thread (5g 40s), 44 Blue Dye (22s) and 74 Heavy Silken Thread (14g 80s); about 20g 86s in all. The arrow picks the nearest seller of your faction (Stormwind City: Alexandra Bolero, Edna Mullby and Jillian Tanner; Orgrimmar: Borya, Felika and Shimra).",
      "section": 3,
      "goals": [
       {
@@ -7360,7 +7362,7 @@
       {
        "t": "buy",
        "item": 4291,
-       "count": 90
+       "count": 108
       },
       {
        "t": "buy",
@@ -7370,7 +7372,7 @@
       {
        "t": "buy",
        "item": 8343,
-       "count": 80
+       "count": 74
       }
      ]
     },
@@ -7389,7 +7391,7 @@
     {
      "n": 20,
      "title": "Tailoring 150-225: Auction House",
-     "note": "What 150-225 takes that the Auction House sells: 264 Silk Cloth and 900 Mageweave Cloth. The counts drop by what your bags, bank and mail hold.",
+     "note": "What 150-225 takes that the Auction House sells: 264 Silk Cloth and 915 Mageweave Cloth. The counts drop by what your bags, bank and mail hold.",
      "section": 3,
      "goals": [
       {
@@ -7400,7 +7402,7 @@
       {
        "t": "auction",
        "item": 4338,
-       "count": 900
+       "count": 915
       }
      ]
     },
@@ -7420,20 +7422,20 @@
     {
      "n": 22,
      "title": "Mageweave Cloth",
-     "note": "900 Mageweave Cloth for Black Mageweave Vest and Black Mageweave Headband: humanoids of level 35-50 drop it. Keep what you loot as you level, or take it from your bank.",
+     "note": "915 Mageweave Cloth for Black Mageweave Vest and Black Mageweave Headband: humanoids of level 35-50 drop it. Keep what you loot as you level, or take it from your bank.",
      "section": 3,
      "goals": [
       {
        "t": "collect",
        "item": 4338,
-       "count": 900
+       "count": 915
       }
      ]
     },
     {
      "n": 23,
      "title": "Expert Tailoring",
-     "note": "Expert raises the cap from 150 to 225; it needs Tailoring 125 and character level 20, so you can take it on any visit from 125. Only a few trainers teach it: Alliance Georgio Bolero (Stormwind City); Horde Josef Gregorian (Undercity). The arrow picks the nearest of your faction. Learn now: Bolt of Mageweave (from 140). 150-225 takes about 15s of recipes and 21g 16s of vendor goods, plus 264 Silk Cloth and 900 Mageweave Cloth to gather or buy. Come with all of it in your bags (the steps above, the rest from the Auction House): these trainers also teach Black Mageweave Vest (from 170), and the crafts need no station, so craft right here and learn each recipe as you reach its skill. One trip instead of 2. Black Mageweave Headband (from 190) takes a second trip, to other trainers (below).",
+     "note": "Expert raises the cap from 150 to 225; it needs Tailoring 125 and character level 20, so you can take it on any visit from 125. Only a few trainers teach it: Alliance Georgio Bolero (Stormwind City); Horde Josef Gregorian (Undercity). The arrow picks the nearest of your faction. Learn now: Bolt of Mageweave (from 140). 150-225 takes about 15s of recipes and 20g 86s of vendor goods, plus 264 Silk Cloth and 915 Mageweave Cloth to gather or buy. Come with all of it in your bags (the steps above, the rest from the Auction House): these trainers also teach Black Mageweave Vest (from 170), and the crafts need no station, so craft right here and learn each recipe as you reach its skill. One trip instead of 2. Black Mageweave Headband (from 200) takes a second trip, to other trainers (below).",
      "section": 3,
      "goals": [
       {
@@ -7517,8 +7519,8 @@
     },
     {
      "n": 26,
-     "title": "Black Mageweave Vest to 197",
-     "note": "Black Mageweave Vest is orange at 170 (yellow 185, green 200, grey 215): about 30 crafts to 197. Each takes 2 Bolt of Mageweave and 3 Silken Thread. Make the 60 Bolt of Mageweave first. The trainer teaches it, and it is the cheapest way through these points in the data.",
+     "title": "Black Mageweave Vest to 200",
+     "note": "Black Mageweave Vest is orange at 170 (yellow 185, green 200, grey 215): about 36 crafts to 200. Each takes 2 Bolt of Mageweave and 3 Silken Thread. Make the 72 Bolt of Mageweave first. The trainer teaches it, and it is the cheapest way through these points in the data.",
      "section": 3,
      "goals": [
       {
@@ -7531,7 +7533,7 @@
          5
         ]
        ],
-       "count": 60
+       "count": 72
       },
       {
        "t": "craft",
@@ -7547,7 +7549,7 @@
          3
         ]
        ],
-       "until": 197,
+       "until": 200,
        "yellow": 185,
        "grey": 215,
        "orange": 170
@@ -7556,8 +7558,8 @@
     },
     {
      "n": 27,
-     "title": "Tailoring recipes at 197",
-     "note": "Black Mageweave Headband (from 190) is taught only by the Artisan trainers: Alliance Timothy Worthington (Dustwallow Marsh); Horde Daryl Stack (Hillsbrad Foothills).",
+     "title": "Tailoring recipes at 200",
+     "note": "Black Mageweave Headband (from 200) is taught only by the Artisan trainers: Alliance Timothy Worthington (Dustwallow Marsh); Horde Daryl Stack (Hillsbrad Foothills). You can train Artisan there now if you are level 35 (it needs Tailoring 200), which saves the trip at 225.",
      "section": 3,
      "goals": [
       {
@@ -7577,13 +7579,19 @@
          "Horde"
         ]
        }
+      },
+      {
+       "t": "train",
+       "rank": 4,
+       "max": 300,
+       "optional": true
       }
      ]
     },
     {
      "n": 28,
      "title": "Black Mageweave Headband to 225",
-     "note": "Black Mageweave Headband is orange at 197 (yellow 205, green 220, grey 235): about 40 crafts to 225. Each takes 3 Bolt of Mageweave and 2 Heavy Silken Thread. Make the 120 Bolt of Mageweave first. The trainer teaches it, and it is the cheapest way through these points in the data. Tailoring 225 is a Legacy System milestone.",
+     "note": "Black Mageweave Headband is orange at 200 (yellow 205, green 220, grey 235): about 37 crafts to 225. Each takes 3 Bolt of Mageweave and 2 Heavy Silken Thread. Make the 111 Bolt of Mageweave first. The trainer teaches it, and it is the cheapest way through these points in the data. Tailoring 225 is a Legacy System milestone.",
      "section": 3,
      "goals": [
       {
@@ -7596,7 +7604,7 @@
          5
         ]
        ],
-       "count": 120
+       "count": 111
       },
       {
        "t": "craft",
@@ -7615,7 +7623,7 @@
        "until": 225,
        "yellow": 205,
        "grey": 235,
-       "orange": 197
+       "orange": 200
       },
       {
        "t": "skill",
@@ -11422,7 +11430,7 @@
    "copper": null
   },
   "12072": {
-   "from": 190,
+   "from": 200,
    "copper": null
   },
   "12585": {

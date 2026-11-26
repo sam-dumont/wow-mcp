@@ -87,7 +87,7 @@ The trainer column gives the required skill, NPC ID and short build. The pattern
 | 12069 | [Cindercloth Robe](https://wowforever.ninja/professions/tailoring/12069-cindercloth-robe/) | [190 · NPC 4576 · 70959][source3] | — | — |
 | 12070 | [Dreamweave Vest](https://wowforever.ninja/professions/tailoring/12070-dreamweave-vest/) | [190 · NPC 4576 · 70959][source3] | — | — |
 | 12071 | [Shadoweave Gloves](https://wowforever.ninja/professions/tailoring/12071-shadoweave-gloves/) | — | — | Learning method and rank unverified |
-| 12072 | [Black Mageweave Headband](https://wowforever.ninja/professions/tailoring/12072-black-mageweave-headband/) | [190 · guide][source4] | — | — |
+| 12072 | [Black Mageweave Headband](https://wowforever.ninja/professions/tailoring/12072-black-mageweave-headband/) | [200 · guide][source4] | — | — |
 | 12073 | [Black Mageweave Boots](https://wowforever.ninja/professions/tailoring/12073-black-mageweave-boots/) | [Seen · rank unknown][source5] | — | — |
 | 12074 | [Black Mageweave Shoulders](https://wowforever.ninja/professions/tailoring/12074-black-mageweave-shoulders/) | [Seen · rank unknown][source5] | — | — |
 | 12076 | [Shadoweave Shoulders](https://wowforever.ninja/professions/tailoring/12076-shadoweave-shoulders/) | — | — | Learning method and rank unverified |
@@ -149,7 +149,7 @@ Rerunning `tools/craft_reference/audit.py` on November 26 with the installed add
 [source1]: https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json
 [source2]: https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json
 [source3]: https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json
-[source4]: https://github.com/fitzforge/polestar/blob/3cf9e32bb38b8d73164acea249039d010e03d2c5/addon/Polestar_Guides/Guides.lua
+[source4]: https://github.com/fitzforge/polestar/blob/efccd3c027327537746819a6e60ec689ca2e6a71/addon/Polestar_Guides/Guides.lua
 [source5]: https://foreverdb.net/downloads/addon-data/Recipes.lua?v=91d4902752
 [source6]: https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95
 [source7]: https://foreverdb.net/downloads/addon-data/Items.lua?v=b5b77c572c

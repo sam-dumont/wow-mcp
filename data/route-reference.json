@@ -1,10 +1,10 @@
 {
  "schema": 1,
- "source": "Polestar 0.4.3 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
+ "source": "Polestar 0.4.3.1 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
  "polestar": {
-  "version": "0.4.3",
-  "tag": "v0.4.3",
-  "commit": "3cf9e32bb38b8d73164acea249039d010e03d2c5",
+  "version": "0.4.3.1",
+  "tag": "v0.4.3.1",
+  "commit": "efccd3c027327537746819a6e60ec689ca2e6a71",
   "license": "GPL-3.0-only",
   "forever_db": "2026.11.2"
  },
@@ -768,7 +768,7 @@
    },
    "40": {
     "seconds": 7130,
-    "min_s": 5799,
+    "min_s": 5803,
     "max_s": 7850,
     "reached_s": 151676,
     "guide": "forever/alliance/40-50/01b-riverglades",
@@ -781,38 +781,38 @@
      "ROGUE": 7311,
      "SHAMAN": 7122,
      "WARLOCK": 6893,
-     "WARRIOR": 7511
+     "WARRIOR": 7515
     }
    },
    "41": {
-    "seconds": 5018,
-    "min_s": 4072,
-    "max_s": 6648,
-    "reached_s": 159224,
+    "seconds": 5034,
+    "min_s": 4087,
+    "max_s": 6660,
+    "reached_s": 159240,
     "guide": "forever/alliance/40-50/01b-riverglades",
     "by_class": {
-     "DRUID": 5034,
-     "HUNTER": 4464,
-     "MAGE": 4749,
-     "PALADIN": 5241,
-     "PRIEST": 5067,
-     "ROGUE": 4547,
-     "SHAMAN": 4674,
-     "WARLOCK": 4606,
-     "WARRIOR": 5018
+     "DRUID": 5050,
+     "HUNTER": 4480,
+     "MAGE": 4765,
+     "PALADIN": 5257,
+     "PRIEST": 5083,
+     "ROGUE": 4563,
+     "SHAMAN": 4689,
+     "WARLOCK": 4622,
+     "WARRIOR": 5034
     }
    },
    "42": {
     "seconds": 13755,
     "min_s": 11015,
     "max_s": 15809,
-    "reached_s": 164327,
+    "reached_s": 164343,
     "guide": "forever/alliance/40-50/01b-riverglades",
     "by_class": {
      "DRUID": 13755,
      "HUNTER": 11016,
      "MAGE": 12386,
-     "PALADIN": 15125,
+     "PALADIN": 15124,
      "PRIEST": 14440,
      "ROGUE": 13755,
      "SHAMAN": 13755,
@@ -823,8 +823,8 @@
    "43": {
     "seconds": 14384,
     "min_s": 11519,
-    "max_s": 16534,
-    "reached_s": 179452,
+    "max_s": 16533,
+    "reached_s": 179467,
     "guide": "forever/alliance/40-50/01b-riverglades",
     "by_class": {
      "DRUID": 14384,
@@ -839,10 +839,10 @@
     }
    },
    "44": {
-    "seconds": 5167,
+    "seconds": 5166,
     "min_s": 4900,
-    "max_s": 5366,
-    "reached_s": 192563,
+    "max_s": 5367,
+    "reached_s": 192578,
     "guide": "forever/alliance/40-50/01b-riverglades",
     "by_class": {
      "DRUID": 5167,
@@ -857,88 +857,88 @@
     }
    },
    "45": {
-    "seconds": 9799,
-    "min_s": 9507,
-    "max_s": 10112,
-    "reached_s": 197705,
+    "seconds": 9921,
+    "min_s": 9636,
+    "max_s": 10221,
+    "reached_s": 197721,
     "guide": "forever/alliance/40-50/03-feralas",
     "by_class": {
-     "DRUID": 9784,
-     "HUNTER": 9508,
-     "MAGE": 9629,
-     "PALADIN": 9856,
-     "PRIEST": 9799,
-     "ROGUE": 9687,
-     "SHAMAN": 10097,
-     "WARLOCK": 9849,
-     "WARRIOR": 9875
+     "DRUID": 9908,
+     "HUNTER": 9636,
+     "MAGE": 9755,
+     "PALADIN": 9978,
+     "PRIEST": 9921,
+     "ROGUE": 9811,
+     "SHAMAN": 10221,
+     "WARLOCK": 9976,
+     "WARRIOR": 9996
     }
    },
    "46": {
-    "seconds": 8899,
-    "min_s": 8264,
-    "max_s": 9376,
-    "reached_s": 207504,
+    "seconds": 8744,
+    "min_s": 8113,
+    "max_s": 9217,
+    "reached_s": 207643,
     "guide": "forever/alliance/40-50/04-tanaris",
     "by_class": {
-     "DRUID": 8899,
-     "HUNTER": 8264,
-     "MAGE": 8582,
-     "PALADIN": 9217,
-     "PRIEST": 9058,
-     "ROGUE": 8899,
-     "SHAMAN": 8899,
-     "WARLOCK": 8423,
-     "WARRIOR": 9376
+     "DRUID": 8744,
+     "HUNTER": 8114,
+     "MAGE": 8429,
+     "PALADIN": 9059,
+     "PRIEST": 8902,
+     "ROGUE": 8744,
+     "SHAMAN": 8744,
+     "WARLOCK": 8272,
+     "WARRIOR": 9217
     }
    },
    "47": {
-    "seconds": 8651,
-    "min_s": 8500,
-    "max_s": 8797,
-    "reached_s": 216562,
+    "seconds": 8659,
+    "min_s": 8508,
+    "max_s": 8805,
+    "reached_s": 216545,
     "guide": "forever/alliance/40-50/05-the-hinterlands",
     "by_class": {
-     "DRUID": 8628,
-     "HUNTER": 8500,
-     "MAGE": 8575,
-     "PALADIN": 8747,
-     "PRIEST": 8701,
-     "ROGUE": 8652,
-     "SHAMAN": 8651,
-     "WARLOCK": 8533,
-     "WARRIOR": 8797
+     "DRUID": 8636,
+     "HUNTER": 8508,
+     "MAGE": 8583,
+     "PALADIN": 8755,
+     "PRIEST": 8709,
+     "ROGUE": 8660,
+     "SHAMAN": 8659,
+     "WARLOCK": 8541,
+     "WARRIOR": 8805
     }
    },
    "48": {
-    "seconds": 11960,
-    "min_s": 10442,
-    "max_s": 13098,
-    "reached_s": 225263,
+    "seconds": 12013,
+    "min_s": 10483,
+    "max_s": 13161,
+    "reached_s": 225254,
     "guide": "forever/alliance/40-50/06-searing-gorge",
     "by_class": {
-     "DRUID": 11960,
-     "HUNTER": 10442,
-     "MAGE": 11201,
-     "PALADIN": 12718,
-     "PRIEST": 12339,
-     "ROGUE": 11959,
-     "SHAMAN": 11960,
-     "WARLOCK": 10821,
-     "WARRIOR": 13098
+     "DRUID": 12013,
+     "HUNTER": 10483,
+     "MAGE": 11248,
+     "PALADIN": 12778,
+     "PRIEST": 12395,
+     "ROGUE": 12013,
+     "SHAMAN": 12013,
+     "WARLOCK": 10865,
+     "WARRIOR": 13160
     }
    },
    "49": {
     "seconds": 10196,
     "min_s": 9136,
     "max_s": 10984,
-    "reached_s": 237602,
+    "reached_s": 237649,
     "guide": "forever/alliance/40-50/07-un-goro-crater",
     "by_class": {
      "DRUID": 10186,
      "HUNTER": 9136,
      "MAGE": 9669,
-     "PALADIN": 10730,
+     "PALADIN": 10729,
      "PRIEST": 10464,
      "ROGUE": 10198,
      "SHAMAN": 10196,
@@ -950,7 +950,7 @@
     "seconds": 13858,
     "min_s": 13403,
     "max_s": 14274,
-    "reached_s": 248067,
+    "reached_s": 248113,
     "guide": "forever/alliance/50-60/01-burning-steppes",
     "by_class": {
      "DRUID": 13820,
@@ -960,7 +960,7 @@
      "PRIEST": 13986,
      "ROGUE": 13862,
      "SHAMAN": 13858,
-     "WARLOCK": 13498,
+     "WARLOCK": 13497,
      "WARRIOR": 14273
     }
    },
@@ -968,35 +968,35 @@
     "seconds": 9768,
     "min_s": 8946,
     "max_s": 10386,
-    "reached_s": 262053,
+    "reached_s": 262100,
     "guide": "forever/alliance/50-60/02-felwood",
     "by_class": {
-     "DRUID": 9768,
+     "DRUID": 9769,
      "HUNTER": 8946,
-     "MAGE": 9105,
+     "MAGE": 9141,
      "PALADIN": 10180,
-     "PRIEST": 9668,
+     "PRIEST": 9667,
      "ROGUE": 9769,
      "SHAMAN": 9768,
-     "WARLOCK": 9151,
-     "WARRIOR": 10386
+     "WARLOCK": 9152,
+     "WARRIOR": 10385
     }
    },
    "52": {
-    "seconds": 10215,
+    "seconds": 10214,
     "min_s": 9881,
     "max_s": 10984,
-    "reached_s": 271721,
+    "reached_s": 271767,
     "guide": "forever/alliance/50-60/03-winterspring",
     "by_class": {
      "DRUID": 10215,
      "HUNTER": 9882,
-     "MAGE": 10738,
+     "MAGE": 10739,
      "PALADIN": 10372,
      "PRIEST": 10984,
-     "ROGUE": 10209,
+     "ROGUE": 10208,
      "SHAMAN": 10209,
-     "WARLOCK": 9964,
+     "WARLOCK": 9963,
      "WARRIOR": 10454
     }
    },
@@ -1004,25 +1004,25 @@
     "seconds": 6637,
     "min_s": 6082,
     "max_s": 6669,
-    "reached_s": 282705,
+    "reached_s": 282751,
     "guide": "forever/alliance/50-60/04-western-plaguelands",
     "by_class": {
      "DRUID": 6605,
      "HUNTER": 6625,
-     "MAGE": 6083,
-     "PALADIN": 6668,
+     "MAGE": 6082,
+     "PALADIN": 6669,
      "PRIEST": 6097,
-     "ROGUE": 6637,
-     "SHAMAN": 6639,
-     "WARLOCK": 6632,
+     "ROGUE": 6638,
+     "SHAMAN": 6638,
+     "WARLOCK": 6633,
      "WARRIOR": 6658
     }
    },
    "54": {
     "seconds": 8358,
     "min_s": 7889,
-    "max_s": 8750,
-    "reached_s": 288801,
+    "max_s": 8751,
+    "reached_s": 288848,
     "guide": "forever/alliance/50-60/04-western-plaguelands",
     "by_class": {
      "DRUID": 8425,
@@ -1031,8 +1031,8 @@
      "PALADIN": 8635,
      "PRIEST": 8713,
      "ROGUE": 8358,
-     "SHAMAN": 8326,
-     "WARLOCK": 8044,
+     "SHAMAN": 8327,
+     "WARLOCK": 8043,
      "WARRIOR": 8750
     }
    },
@@ -1040,10 +1040,10 @@
     "seconds": 7524,
     "min_s": 7119,
     "max_s": 7914,
-    "reached_s": 297514,
+    "reached_s": 297561,
     "guide": "forever/50-60/mount-hyjal",
     "by_class": {
-     "DRUID": 7525,
+     "DRUID": 7524,
      "HUNTER": 7119,
      "MAGE": 7725,
      "PALADIN": 7628,
@@ -1051,32 +1051,32 @@
      "ROGUE": 7406,
      "SHAMAN": 7397,
      "WARLOCK": 7288,
-     "WARRIOR": 7641
+     "WARRIOR": 7640
     }
    },
    "56": {
-    "seconds": 8023,
-    "min_s": 7574,
-    "max_s": 8361,
-    "reached_s": 305428,
+    "seconds": 8077,
+    "min_s": 7627,
+    "max_s": 8414,
+    "reached_s": 305475,
     "guide": "forever/50-60/mount-hyjal",
     "by_class": {
-     "DRUID": 8023,
-     "HUNTER": 7575,
-     "MAGE": 7782,
-     "PALADIN": 8248,
-     "PRIEST": 8119,
-     "ROGUE": 8024,
-     "SHAMAN": 8023,
-     "WARLOCK": 7687,
-     "WARRIOR": 8361
+     "DRUID": 8077,
+     "HUNTER": 7628,
+     "MAGE": 7835,
+     "PALADIN": 8301,
+     "PRIEST": 8172,
+     "ROGUE": 8077,
+     "SHAMAN": 8076,
+     "WARLOCK": 7740,
+     "WARRIOR": 8414
     }
    },
    "57": {
     "seconds": 7696,
     "min_s": 7189,
-    "max_s": 8077,
-    "reached_s": 313547,
+    "max_s": 8076,
+    "reached_s": 313647,
     "guide": "forever/alliance/50-60/06-silithus",
     "by_class": {
      "DRUID": 7696,
@@ -1094,12 +1094,12 @@
     "seconds": 22660,
     "min_s": 18168,
     "max_s": 26030,
-    "reached_s": 321387,
+    "reached_s": 321487,
     "guide": "forever/alliance/50-60/06-silithus",
     "by_class": {
      "DRUID": 22661,
      "HUNTER": 18168,
-     "MAGE": 19228,
+     "MAGE": 19227,
      "PALADIN": 24907,
      "PRIEST": 22396,
      "ROGUE": 22661,
@@ -1112,7 +1112,7 @@
     "seconds": 26221,
     "min_s": 20989,
     "max_s": 30146,
-    "reached_s": 343783,
+    "reached_s": 343882,
     "guide": "forever/alliance/50-60/06-silithus",
     "by_class": {
      "DRUID": 26221,
@@ -1838,12 +1838,12 @@
     "guide": "forever/horde/40-50/01b-riverglades",
     "by_class": {
      "DRUID": 4375,
-     "HUNTER": 3978,
+     "HUNTER": 3977,
      "MAGE": 4171,
-     "PALADIN": 4569,
+     "PALADIN": 4568,
      "PRIEST": 4469,
      "ROGUE": 4369,
-     "SHAMAN": 4376,
+     "SHAMAN": 4375,
      "WARLOCK": 4071,
      "WARRIOR": 6755
     }
@@ -1855,11 +1855,11 @@
     "reached_s": 173593,
     "guide": "forever/horde/40-50/01b-riverglades",
     "by_class": {
-     "DRUID": 6519,
+     "DRUID": 6518,
      "HUNTER": 6087,
-     "MAGE": 6054,
+     "MAGE": 6053,
      "PALADIN": 6476,
-     "PRIEST": 6371,
+     "PRIEST": 6370,
      "ROGUE": 6265,
      "SHAMAN": 6518,
      "WARLOCK": 5948,
@@ -1869,26 +1869,26 @@
    "42": {
     "seconds": 7274,
     "min_s": 6843,
-    "max_s": 8145,
+    "max_s": 8144,
     "reached_s": 179964,
     "guide": "forever/horde/40-50/02-feralas",
     "by_class": {
      "DRUID": 7199,
-     "HUNTER": 6844,
+     "HUNTER": 6843,
      "MAGE": 7274,
-     "PALADIN": 7638,
+     "PALADIN": 7637,
      "PRIEST": 7547,
-     "ROGUE": 7456,
-     "SHAMAN": 7200,
+     "ROGUE": 7455,
+     "SHAMAN": 7199,
      "WARLOCK": 7183,
-     "WARRIOR": 8145
+     "WARRIOR": 8144
     }
    },
    "43": {
     "seconds": 10162,
     "min_s": 9324,
     "max_s": 13344,
-    "reached_s": 187510,
+    "reached_s": 187509,
     "guide": "forever/horde/40-50/02-feralas",
     "by_class": {
      "DRUID": 9958,
@@ -1903,73 +1903,73 @@
     }
    },
    "44": {
-    "seconds": 8689,
-    "min_s": 8386,
-    "max_s": 9020,
-    "reached_s": 198168,
+    "seconds": 8734,
+    "min_s": 8406,
+    "max_s": 9039,
+    "reached_s": 198167,
     "guide": "forever/40-50/shendralas",
     "by_class": {
-     "DRUID": 9019,
-     "HUNTER": 8621,
-     "MAGE": 8518,
-     "PALADIN": 8859,
-     "PRIEST": 8774,
-     "ROGUE": 8689,
-     "SHAMAN": 9020,
-     "WARLOCK": 8387,
-     "WARRIOR": 8610
+     "DRUID": 9038,
+     "HUNTER": 8640,
+     "MAGE": 8562,
+     "PALADIN": 8906,
+     "PRIEST": 8820,
+     "ROGUE": 8734,
+     "SHAMAN": 9039,
+     "WARLOCK": 8406,
+     "WARRIOR": 8640
     }
    },
    "45": {
-    "seconds": 7326,
-    "min_s": 6992,
-    "max_s": 7702,
-    "reached_s": 206601,
+    "seconds": 7353,
+    "min_s": 7001,
+    "max_s": 7703,
+    "reached_s": 206642,
     "guide": "forever/horde/40-50/04-tanaris",
     "by_class": {
-     "DRUID": 7528,
-     "HUNTER": 6992,
-     "MAGE": 7145,
-     "PALADIN": 7701,
-     "PRIEST": 7412,
-     "ROGUE": 7326,
-     "SHAMAN": 7342,
-     "WARLOCK": 7045,
-     "WARRIOR": 7293
+     "DRUID": 7539,
+     "HUNTER": 7001,
+     "MAGE": 7147,
+     "PALADIN": 7702,
+     "PRIEST": 7413,
+     "ROGUE": 7327,
+     "SHAMAN": 7353,
+     "WARLOCK": 7070,
+     "WARRIOR": 7583
     }
    },
    "46": {
-    "seconds": 8396,
-    "min_s": 7732,
-    "max_s": 9330,
-    "reached_s": 214008,
+    "seconds": 8320,
+    "min_s": 7666,
+    "max_s": 8974,
+    "reached_s": 214055,
     "guide": "forever/horde/40-50/05-the-hinterlands",
     "by_class": {
-     "DRUID": 8934,
-     "HUNTER": 8277,
-     "MAGE": 7898,
-     "PALADIN": 8562,
-     "PRIEST": 8396,
-     "ROGUE": 8230,
-     "SHAMAN": 8934,
-     "WARLOCK": 7797,
-     "WARRIOR": 9330
+     "DRUID": 8923,
+     "HUNTER": 8269,
+     "MAGE": 7830,
+     "PALADIN": 8483,
+     "PRIEST": 8320,
+     "ROGUE": 8156,
+     "SHAMAN": 8923,
+     "WARLOCK": 7731,
+     "WARRIOR": 8973
     }
    },
    "47": {
     "seconds": 6850,
-    "min_s": 5593,
+    "min_s": 5603,
     "max_s": 8000,
-    "reached_s": 222404,
+    "reached_s": 222374,
     "guide": "forever/horde/40-50/05-the-hinterlands",
     "by_class": {
-     "DRUID": 6501,
-     "HUNTER": 5593,
+     "DRUID": 6517,
+     "HUNTER": 5603,
      "MAGE": 6850,
      "PALADIN": 7770,
      "PRIEST": 7540,
      "ROGUE": 7310,
-     "SHAMAN": 6501,
+     "SHAMAN": 6517,
      "WARLOCK": 6620,
      "WARRIOR": 8000
     }
@@ -1977,26 +1977,26 @@
    "48": {
     "seconds": 17758,
     "min_s": 14219,
-    "max_s": 19892,
-    "reached_s": 229944,
+    "max_s": 19964,
+    "reached_s": 229914,
     "guide": "forever/horde/40-50/05-the-hinterlands",
     "by_class": {
      "DRUID": 17758,
      "HUNTER": 14219,
-     "MAGE": 15865,
-     "PALADIN": 19368,
-     "PRIEST": 18492,
-     "ROGUE": 17617,
+     "MAGE": 15919,
+     "PALADIN": 19434,
+     "PRIEST": 18555,
+     "ROGUE": 17677,
      "SHAMAN": 17759,
-     "WARLOCK": 14923,
-     "WARRIOR": 19892
+     "WARLOCK": 14975,
+     "WARRIOR": 19964
     }
    },
    "49": {
     "seconds": 8768,
     "min_s": 8630,
     "max_s": 9084,
-    "reached_s": 248436,
+    "reached_s": 248469,
     "guide": "forever/horde/40-50/06-azshara",
     "by_class": {
      "DRUID": 8722,
@@ -2014,7 +2014,7 @@
     "seconds": 7264,
     "min_s": 6795,
     "max_s": 7616,
-    "reached_s": 257363,
+    "reached_s": 257396,
     "guide": "forever/horde/50-60/01-un-goro-crater",
     "by_class": {
      "DRUID": 7264,
@@ -2029,28 +2029,28 @@
     }
    },
    "51": {
-    "seconds": 10212,
-    "min_s": 9499,
-    "max_s": 10870,
-    "reached_s": 264744,
+    "seconds": 10244,
+    "min_s": 9531,
+    "max_s": 10902,
+    "reached_s": 264777,
     "guide": "forever/horde/50-60/02-felwood",
     "by_class": {
-     "DRUID": 10013,
-     "HUNTER": 10212,
-     "MAGE": 9678,
-     "PALADIN": 10466,
-     "PRIEST": 10236,
-     "ROGUE": 10021,
-     "SHAMAN": 10870,
-     "WARLOCK": 9499,
-     "WARRIOR": 10595
+     "DRUID": 10045,
+     "HUNTER": 10244,
+     "MAGE": 9710,
+     "PALADIN": 10498,
+     "PRIEST": 10268,
+     "ROGUE": 10053,
+     "SHAMAN": 10902,
+     "WARLOCK": 9531,
+     "WARRIOR": 10626
     }
    },
    "52": {
     "seconds": 9936,
     "min_s": 8996,
     "max_s": 11038,
-    "reached_s": 274980,
+    "reached_s": 275045,
     "guide": "forever/horde/50-60/03-winterspring",
     "by_class": {
      "DRUID": 11038,
@@ -2066,13 +2066,13 @@
    },
    "53": {
     "seconds": 7831,
-    "min_s": 7762,
+    "min_s": 7763,
     "max_s": 9155,
-    "reached_s": 285193,
+    "reached_s": 285258,
     "guide": "forever/horde/50-60/05-eastern-plaguelands",
     "by_class": {
      "DRUID": 7799,
-     "HUNTER": 7808,
+     "HUNTER": 7809,
      "MAGE": 7776,
      "PALADIN": 9154,
      "PRIEST": 7853,
@@ -2086,7 +2086,7 @@
     "seconds": 10555,
     "min_s": 9368,
     "max_s": 11716,
-    "reached_s": 293046,
+    "reached_s": 293111,
     "guide": "forever/horde/50-60/05-eastern-plaguelands",
     "by_class": {
      "DRUID": 9369,
@@ -2104,7 +2104,7 @@
     "seconds": 8211,
     "min_s": 7741,
     "max_s": 8563,
-    "reached_s": 303755,
+    "reached_s": 303821,
     "guide": "forever/50-60/mount-hyjal",
     "by_class": {
      "DRUID": 8211,
@@ -2114,38 +2114,38 @@
      "PRIEST": 8328,
      "ROGUE": 8211,
      "SHAMAN": 8211,
-     "WARLOCK": 7858,
+     "WARLOCK": 7859,
      "WARRIOR": 8563
     }
    },
    "56": {
-    "seconds": 6189,
-    "min_s": 5802,
-    "max_s": 6481,
-    "reached_s": 312084,
+    "seconds": 6314,
+    "min_s": 5926,
+    "max_s": 6605,
+    "reached_s": 312149,
     "guide": "forever/50-60/mount-hyjal",
     "by_class": {
-     "DRUID": 6189,
-     "HUNTER": 5802,
-     "MAGE": 5996,
-     "PALADIN": 6383,
-     "PRIEST": 6286,
-     "ROGUE": 6189,
-     "SHAMAN": 6190,
-     "WARLOCK": 5899,
-     "WARRIOR": 6480
+     "DRUID": 6314,
+     "HUNTER": 5927,
+     "MAGE": 6120,
+     "PALADIN": 6508,
+     "PRIEST": 6411,
+     "ROGUE": 6314,
+     "SHAMAN": 6315,
+     "WARLOCK": 6023,
+     "WARRIOR": 6605
     }
    },
    "57": {
     "seconds": 7451,
-    "min_s": 6972,
+    "min_s": 6971,
     "max_s": 7811,
-    "reached_s": 318370,
+    "reached_s": 318560,
     "guide": "forever/horde/50-60/06-silithus",
     "by_class": {
-     "DRUID": 7452,
+     "DRUID": 7451,
      "HUNTER": 6972,
-     "MAGE": 7211,
+     "MAGE": 7212,
      "PALADIN": 7691,
      "PRIEST": 7571,
      "ROGUE": 7451,
@@ -2155,37 +2155,37 @@
     }
    },
    "58": {
-    "seconds": 19534,
+    "seconds": 19535,
     "min_s": 16471,
     "max_s": 22298,
-    "reached_s": 325941,
+    "reached_s": 326131,
     "guide": "forever/horde/50-60/07-felwood",
     "by_class": {
-     "DRUID": 19534,
-     "HUNTER": 16471,
+     "DRUID": 19535,
+     "HUNTER": 16472,
      "MAGE": 18014,
      "PALADIN": 22298,
-     "PRIEST": 20358,
+     "PRIEST": 20357,
      "ROGUE": 19525,
-     "SHAMAN": 19555,
+     "SHAMAN": 19554,
      "WARLOCK": 17189,
-     "WARRIOR": 21936
+     "WARRIOR": 21937
     }
    },
    "59": {
     "seconds": 22153,
-    "min_s": 18163,
+    "min_s": 18162,
     "max_s": 25146,
-    "reached_s": 346299,
+    "reached_s": 346489,
     "guide": "forever/horde/50-60/07-felwood",
     "by_class": {
-     "DRUID": 22153,
-     "HUNTER": 18163,
+     "DRUID": 22152,
+     "HUNTER": 18162,
      "MAGE": 20158,
      "PALADIN": 24148,
      "PRIEST": 23150,
      "ROGUE": 22153,
-     "SHAMAN": 22152,
+     "SHAMAN": 22153,
      "WARLOCK": 19160,
      "WARRIOR": 25145
     }
@@ -2200,9 +2200,9 @@
     45,
     47
    ],
-   "seconds": 5179,
-   "min_s": 4094,
-   "max_s": 6201,
+   "seconds": 5148,
+   "min_s": 4069,
+   "max_s": 6162,
    "level_start": 44.5,
    "level_end": 45,
    "runs": 90,
@@ -2299,7 +2299,7 @@
     ],
     [
      19,
-     26,
+     10,
      "The western pylon: repair it"
     ],
     [
@@ -2309,12 +2309,12 @@
     ],
     [
      21,
-     101,
+     81,
      "Bristleback Retreat: repair the eastern pylon"
     ],
     [
      22,
-     125,
+     128,
      "Evenshade's Overlook"
     ],
     [
@@ -2339,7 +2339,7 @@
     ],
     [
      27,
-     845,
+     846,
      "The Forlorn Gardens"
     ],
     [
@@ -2381,9 +2381,9 @@
     56,
     58
    ],
-   "seconds": 14744,
-   "min_s": 13624,
-   "max_s": 15864,
+   "seconds": 14833,
+   "min_s": 13749,
+   "max_s": 15917,
    "level_start": 55,
    "level_end": 57,
    "runs": 90,
@@ -2470,7 +2470,7 @@
     ],
     [
      17,
-     277,
+     271,
      "The ancients' outpost"
     ],
     [
@@ -2481,266 +2481,266 @@
     [
      19,
      13,
-     "The Dying Ancients"
+     "Fine Feathered Friend"
     ],
     [
      20,
+     6,
+     "The Dying Ancients"
+    ],
+    [
+     21,
      158,
      "Sunderbark"
     ],
     [
-     21,
+     22,
      54,
      "Fraxinus"
     ],
     [
-     22,
+     23,
      40,
      "The Curious Crow"
     ],
     [
-     23,
+     24,
      36,
      "Felflick"
     ],
     [
-     24,
+     25,
      540,
      "The Ashen camp"
     ],
     [
-     25,
+     26,
      32,
      "Felflick"
     ],
     [
-     26,
+     27,
      28,
      "Fel-slime crystals"
     ],
     [
-     27,
+     28,
      26,
      "The Curious Crow"
     ],
     [
-     28,
+     29,
      15,
      "Slime ooze as you go"
     ],
     [
-     29,
+     30,
      35,
      "Felflick"
     ],
     [
-     30,
+     31,
      117,
      "The warlocks"
     ],
     [
-     31,
+     32,
      30,
      "Felflick"
     ],
     [
-     32,
+     33,
      42,
      "The bone pile"
     ],
     [
-     33,
+     34,
      145,
      "Amalgamated Marrow"
     ],
     [
-     34,
+     35,
      10,
      "Prickly pinecones"
     ],
     [
-     35,
+     36,
      293,
      "Felflick"
     ],
     [
-     36,
+     37,
      0,
      "Finish the slime ooze"
     ],
     [
-     37,
-     42,
-     "The Curious Crow"
-    ],
-    [
      38,
-     6,
+     42,
      "The Curious Crow"
     ],
     [
      39,
+     6,
+     "The Curious Crow"
+    ],
+    [
+     40,
      294,
      "The Ashen workstations"
     ],
     [
-     40,
+     41,
      19,
      "The Curious Crow"
     ],
     [
-     41,
+     42,
      57,
      "Velician"
     ],
     [
-     42,
+     43,
      63,
      "The Curious Crow"
     ],
     [
-     43,
+     44,
      114,
      "Ketharas"
     ],
     [
-     44,
+     45,
      418,
      "Fly to Moonglade"
     ],
     [
-     45,
+     46,
      0,
      "Fly to Moonglade"
     ],
     [
-     46,
+     47,
      92,
      "Dendrite Starblaze"
     ],
     [
-     47,
+     48,
      298,
      "Orokai"
     ],
     [
-     48,
+     49,
      58,
      "Dendrite Starblaze"
     ],
     [
-     49,
+     50,
      41,
      "Rabine Saturna"
     ],
     [
-     50,
+     51,
      0,
      "Rabine Saturna"
     ],
     [
-     51,
+     52,
      230,
      "Fly to Everlook"
     ],
     [
-     52,
+     53,
      20,
      "Nami"
     ],
     [
-     53,
+     54,
      0,
      "Fly to the Tainted Foothills"
     ],
     [
-     54,
+     55,
      318,
      "Kaylaena Springwhisper's workshop"
     ],
     [
-     55,
+     56,
      94,
      "Ketharas"
     ],
     [
-     56,
+     57,
      114,
      "The Curious Crow"
     ],
     [
-     57,
+     58,
      177,
      "Malorne's Retreat"
     ],
     [
-     58,
+     59,
      23,
      "Fenwick's survival pack"
     ],
     [
-     59,
+     60,
      75,
      "Brerufa"
     ],
     [
-     60,
+     61,
      446,
      "Deadwood Den Guardians"
     ],
     [
-     61,
+     62,
      61,
      "Brerufa"
     ],
     [
-     62,
+     63,
      35,
      "Osi Mistpaw"
     ],
     [
-     63,
+     64,
      16,
      "Bear berries"
     ],
     [
-     64,
+     65,
      75,
      "Barkskin Burrow"
     ],
     [
-     65,
+     66,
      74,
      "The Western Post"
     ],
     [
-     66,
+     67,
      76,
      "The Western Post"
     ],
     [
-     67,
+     68,
      13,
      "Ortak Lomgok"
     ],
     [
-     68,
+     69,
      28,
      "Elderwild"
     ],
     [
-     69,
+     70,
      18,
      "Final Death"
     ],
     [
-     70,
-     13,
-     "Final Death"
-    ],
-    [
      71,
-     0,
+     13,
      "Final Death"
     ],
     [
@@ -2750,167 +2750,167 @@
     ],
     [
      73,
+     0,
+     "Final Death"
+    ],
+    [
+     74,
      5,
      "Moonveil Moss"
     ],
     [
-     74,
+     75,
      35,
      "Eluneth"
     ],
     [
-     75,
+     76,
      63,
      "Owl feathers"
     ],
     [
-     76,
+     77,
      79,
      "Unmarked Grave"
     ],
     [
-     77,
+     78,
      640,
      "Mourning's Rest"
     ],
     [
-     78,
+     79,
      20,
      "Final Death"
     ],
     [
-     79,
+     80,
      0,
      "Final Death"
     ],
     [
-     80,
+     81,
      67,
      "Eluneth and the veteran"
     ],
     [
-     81,
+     82,
      44,
      "Hyjal Silphium"
     ],
     [
-     82,
+     83,
      68,
      "Elderwild"
     ],
     [
-     83,
+     84,
      6,
      "Final Death"
     ],
     [
-     84,
+     85,
      6,
      "To the Summit of Eternity"
     ],
     [
-     85,
+     86,
      67,
      "Daythor Brellan and Sefira Everbright"
     ],
     [
-     86,
+     87,
      99,
      "Elderwild"
     ],
     [
-     87,
+     88,
      46,
      "Maruke and Enho Runehoof"
     ],
     [
-     88,
+     89,
      12,
      "Head Scratcher"
     ],
     [
-     89,
+     90,
      55,
      "The overlook"
     ],
     [
-     90,
+     91,
      116,
      "Shalla'kal and Galvinquam Leafsyre"
     ],
     [
-     91,
+     92,
      43,
      "Lisbael Highfeather"
     ],
     [
-     92,
+     93,
      35,
      "Jereman"
     ],
     [
-     93,
+     94,
      24,
      "The falls and the first kitten"
     ],
     [
-     94,
+     95,
      297,
      "Johun \"Punchy\" Dillas's camp"
     ],
     [
-     95,
+     96,
      27,
      "Brie"
     ],
     [
-     96,
+     97,
      10,
      "Foxes"
     ],
     [
-     97,
+     98,
      15,
      "Johun \"Punchy\" Dillas"
     ],
     [
-     98,
+     99,
      71,
      "Kala'th"
     ],
     [
-     99,
+     100,
      12,
      "The burnt buildings"
     ],
     [
-     100,
+     101,
      290,
      "Predatory stags"
     ],
     [
-     101,
+     102,
      29,
      "Kala'th"
     ],
     [
-     102,
+     103,
      38,
      "Marrosis"
     ],
     [
-     103,
+     104,
      11,
      "Bones and stolen life"
     ],
     [
-     104,
-     8,
-     "Final Death"
-    ],
-    [
      105,
-     0,
+     8,
      "Final Death"
     ],
     [
@@ -2920,276 +2920,286 @@
     ],
     [
      107,
+     0,
+     "Final Death"
+    ],
+    [
+     108,
      20,
      "Marrosis"
     ],
     [
-     108,
+     109,
      38,
      "Whisperfur"
     ],
     [
-     109,
+     110,
      60,
      "Shalla'kal and Galvinquam Leafsyre"
     ],
     [
-     110,
+     111,
      137,
      "Corrupted Growth"
     ],
     [
-     111,
+     112,
      42,
      "Skylord Omnuron"
     ],
     [
-     112,
+     113,
      7,
      "Phoebe Highfeather"
     ],
     [
-     113,
+     114,
      25,
      "The Shrine of Aviana"
     ],
     [
-     114,
+     115,
      42,
      "The harpy grounds"
     ],
     [
-     115,
+     116,
      48,
      "The Shrine of Aviana"
     ],
     [
-     116,
-     796,
-     "The Deadwood camps"
-    ],
-    [
      117,
-     13,
-     "Head Scratcher"
+     135,
+     "The way into the Deadwood camps"
     ],
     [
      118,
-     86,
-     "Barkskin Burrow"
+     752,
+     "The Deadwood camps"
     ],
     [
      119,
+     48,
+     "Head Scratcher"
+    ],
+    [
+     120,
+     67,
+     "Barkskin Burrow"
+    ],
+    [
+     121,
      88,
      "Galvinquam Leafsyre"
     ],
     [
-     120,
+     122,
      48,
      "Jereman"
     ],
     [
-     121,
+     123,
      37,
      "Johun \"Punchy\" Dillas"
     ],
     [
-     122,
+     124,
      66,
      "Elaena Moonwhisper, Witherbeard and Yashiro"
     ],
     [
-     123,
+     125,
      65,
      "Maerion Thaelemaches"
     ],
     [
-     124,
+     126,
      83,
      "Renalard"
     ],
     [
-     125,
+     127,
      955,
      "Dae'gun"
     ],
     [
-     126,
+     128,
      122,
      "Elaena Moonwhisper, Witherbeard and Yashiro"
     ],
     [
-     127,
+     129,
      28,
      "Drawing Down the Malevolent"
     ],
     [
-     128,
+     130,
      19,
      "Johun \"Punchy\" Dillas"
     ],
     [
-     129,
+     131,
      97,
      "Bethra'zel the Feeble"
     ],
     [
-     130,
+     132,
      38,
      "Maerion Thaelemaches"
     ],
     [
-     131,
+     133,
      205,
      "Mazzogore"
     ],
     [
-     132,
+     134,
      46,
      "Elaena Moonwhisper"
     ],
     [
-     133,
+     135,
      86,
      "Renalard"
     ],
     [
-     134,
+     136,
      86,
      "The Summit of Eternity"
     ],
     [
-     135,
+     137,
      15,
      "Thisalee Crow"
     ],
     [
-     136,
+     138,
      10,
      "As the Crow Flies"
     ],
     [
-     137,
+     139,
      45,
      "The Summit's Blackthorne quests"
     ],
     [
-     138,
+     140,
      0,
      "Fly to the Tainted Foothills"
     ],
     [
-     139,
+     141,
      69,
      "Kaylaena Springwhisper's workshop"
     ],
     [
-     140,
-     82,
-     "Ketharas"
-    ],
-    [
-     141,
-     6,
-     "Ketharas"
-    ],
-    [
      142,
-     6,
+     82,
      "Ketharas"
     ],
     [
      143,
      6,
-     "The Staff of the Mountain"
+     "Ketharas"
     ],
     [
      144,
-     0,
-     "Final Death, still not done"
+     6,
+     "Ketharas"
     ],
     [
      145,
      6,
-     "Final Death, still not done"
+     "The Staff of the Mountain"
     ],
     [
      146,
+     0,
+     "Final Death, still not done"
+    ],
+    [
+     147,
+     6,
+     "Final Death, still not done"
+    ],
+    [
+     148,
      275,
      "Back to Elderwild"
     ],
     [
-     147,
+     149,
      0,
      "Back to Elderwild"
     ],
     [
-     148,
+     150,
      0,
      "Zet'gan"
-    ],
-    [
-     149,
-     0,
-     "To the Summit of Eternity"
-    ],
-    [
-     150,
-     6,
-     "To the Summit of Eternity"
     ],
     [
      151,
+     0,
+     "To the Summit of Eternity"
+    ],
+    [
+     152,
+     6,
+     "To the Summit of Eternity"
+    ],
+    [
+     153,
      6,
      "Zet'gan"
     ],
     [
-     152,
+     154,
      0,
      "Up to the Summit of Eternity"
     ],
     [
-     153,
+     155,
      190,
      "Tiala Whitemane"
     ],
     [
-     154,
+     156,
      4,
      "Thisalee Crow"
     ],
     [
-     155,
+     157,
      7,
      "Tiala Whitemane"
     ],
     [
-     156,
+     158,
      1682,
      "The Blackthorne camps"
     ],
     [
-     157,
+     159,
      0,
      "The Blackthorne camps"
     ],
     [
-     158,
+     160,
      15,
      "Tiala Whitemane"
     ],
     [
-     159,
+     161,
      52,
      "The Summit of Eternity"
     ],
     [
-     160,
+     162,
      244,
      "Fly to Everlook"
     ],
     [
-     161,
+     163,
      21,
      "Innkeeper Vizzie"
     ]
@@ -8250,9 +8260,9 @@
     41,
     45
    ],
-   "seconds": 46061,
-   "min_s": 38318,
-   "max_s": 52685,
+   "seconds": 46077,
+   "min_s": 38334,
+   "max_s": 52701,
    "level_start": 40,
    "level_end": 45,
    "runs": 45,
@@ -8479,7 +8489,7 @@
     ],
     [
      45,
-     293,
+     309,
      "Fuzzle"
     ],
     [
@@ -8804,7 +8814,7 @@
     ],
     [
      110,
-     52,
+     51,
      "Train before the Badlands"
     ],
     [
@@ -9047,9 +9057,9 @@
     45,
     46
    ],
-   "seconds": 6293,
-   "min_s": 6053,
-   "max_s": 6473,
+   "seconds": 6294,
+   "min_s": 6054,
+   "max_s": 6474,
    "level_start": 45,
    "level_end": 46,
    "runs": 45,
@@ -9106,12 +9116,12 @@
     ],
     [
      11,
-     73,
+     13,
      "The courier's boat"
     ],
     [
      12,
-     899,
+     960,
      "Gordunni ogres"
     ],
     [
@@ -9638,12 +9648,12 @@
     ],
     [
      29,
-     194,
+     134,
      "Booty Bay"
     ],
     [
      30,
-     8,
+     68,
      "Fin Fizracket"
     ],
     [
@@ -9690,9 +9700,9 @@
     48,
     49
    ],
-   "seconds": 10854,
-   "min_s": 9333,
-   "max_s": 11988,
+   "seconds": 10915,
+   "min_s": 9382,
+   "max_s": 12058,
    "level_start": 48,
    "level_end": 49,
    "runs": 45,
@@ -9724,7 +9734,7 @@
     ],
     [
      6,
-     1985,
+     2046,
      "Level 48.27"
     ],
     [
@@ -10336,7 +10346,7 @@
     ],
     [
      47,
-     12,
+     13,
      "Mountaineer Pebblebitty"
     ],
     [
@@ -10501,21 +10511,26 @@
     ],
     [
      80,
-     61,
-     "Archmage Xylem"
+     52,
+     "Sanath Lim-yo"
     ],
     [
      81,
+     45,
+     "Archmage Xylem"
+    ],
+    [
+     82,
      80,
      "Ogtinc"
     ],
     [
-     82,
+     83,
      246,
      "Ravencrest Monument"
     ],
     [
-     83,
+     84,
      398,
      "Talrendis Point"
     ]
@@ -19466,9 +19481,9 @@
     41,
     44
    ],
-   "seconds": 17913,
+   "seconds": 17912,
    "min_s": 16943,
-   "max_s": 18399,
+   "max_s": 18398,
    "level_start": 39,
    "level_end": 42,
    "runs": 45,
@@ -19680,7 +19695,7 @@
     ],
     [
      42,
-     311,
+     310,
      "Fuzzle"
     ],
     [
@@ -19997,9 +20012,9 @@
     44,
     47
    ],
-   "seconds": 17448,
-   "min_s": 16132,
-   "max_s": 20987,
+   "seconds": 17447,
+   "min_s": 16131,
+   "max_s": 20986,
    "level_start": 42,
    "level_end": 44,
    "runs": 45,
@@ -20056,7 +20071,7 @@
     ],
     [
      11,
-     414,
+     413,
      "The Cape of Stranglethorn: kill these as you meet them"
     ],
     [
@@ -20659,9 +20674,9 @@
     47,
     49
    ],
-   "seconds": 8774,
-   "min_s": 8064,
-   "max_s": 9266,
+   "seconds": 8778,
+   "min_s": 8067,
+   "max_s": 9268,
    "level_start": 45,
    "level_end": 46,
    "runs": 45,
@@ -20743,7 +20758,7 @@
     ],
     [
      16,
-     921,
+     932,
      "The Dunemaul Compound"
     ],
     [
@@ -20915,9 +20930,9 @@
     49,
     50
    ],
-   "seconds": 28684,
-   "min_s": 24120,
-   "max_s": 31362,
+   "seconds": 28747,
+   "min_s": 24170,
+   "max_s": 31435,
    "level_start": 46,
    "level_end": 49,
    "runs": 45,
@@ -21044,7 +21059,7 @@
     ],
     [
      25,
-     18374,
+     18434,
      "Level 49.02"
     ],
     [
@@ -21883,9 +21898,9 @@
     53,
     54
    ],
-   "seconds": 9414,
-   "min_s": 8726,
-   "max_s": 10516,
+   "seconds": 9446,
+   "min_s": 8758,
+   "max_s": 10548,
    "level_start": 51,
    "level_end": 52,
    "runs": 45,
@@ -21977,7 +21992,7 @@
     ],
     [
      18,
-     133,
+     165,
      "Ruins of Eldarath"
     ],
     [
@@ -26309,7 +26324,7 @@
    "race": "Dwarf",
    "class": "DRUID",
    "start": "forever/alliance/dwarf/01-dun-morogh",
-   "total_s": 371216,
+   "total_s": 371315,
    "level_end": 60,
    "dings": [
     [
@@ -26478,79 +26493,79 @@
     ],
     [
      42,
-     167433
+     167449
     ],
     [
      43,
-     181188
+     181204
     ],
     [
      44,
-     195573
+     195588
     ],
     [
      45,
-     200739
+     200755
     ],
     [
      46,
-     210523
+     210663
     ],
     [
      47,
-     219422
+     219407
     ],
     [
      48,
-     228051
+     228044
     ],
     [
      49,
-     240010
+     240056
     ],
     [
      50,
-     250196
+     250242
     ],
     [
      51,
-     264016
+     264062
     ],
     [
      52,
-     273784
+     273830
     ],
     [
      53,
-     283999
+     284045
     ],
     [
      54,
-     290604
+     290650
     ],
     [
      55,
-     299029
+     299075
     ],
     [
      56,
-     306554
+     306600
     ],
     [
      57,
-     314577
+     314676
     ],
     [
      58,
-     322274
+     322373
     ],
     [
      59,
-     344934
+     345033
     ],
     [
      60,
-     371156
+     371255
     ]
    ]
   },
@@ -26559,7 +26574,7 @@
    "race": "Dwarf",
    "class": "HUNTER",
    "start": "forever/alliance/dwarf/01-dun-morogh",
-   "total_s": 335628,
+   "total_s": 335724,
    "level_end": 60,
    "dings": [
     [
@@ -26728,79 +26743,79 @@
     ],
     [
      42,
-     154496
+     154512
     ],
     [
      43,
-     165512
+     165528
     ],
     [
      44,
-     177032
+     177048
     ],
     [
      45,
-     181932
+     181948
     ],
     [
      46,
-     191440
+     191584
     ],
     [
      47,
-     199704
+     199698
     ],
     [
      48,
-     208204
+     208206
     ],
     [
      49,
-     218646
+     218689
     ],
     [
      50,
-     227782
+     227825
     ],
     [
      51,
-     241186
+     241229
     ],
     [
      52,
-     250132
+     250175
     ],
     [
      53,
-     260014
+     260057
     ],
     [
      54,
-     266639
+     266682
     ],
     [
      55,
-     274528
+     274571
     ],
     [
      56,
-     281647
+     281690
     ],
     [
      57,
-     289222
+     289318
     ],
     [
      58,
-     296411
+     296507
     ],
     [
      59,
-     314579
+     314675
     ],
     [
      60,
-     335568
+     335664
     ]
    ]
   },
@@ -26809,7 +26824,7 @@
    "race": "Dwarf",
    "class": "MAGE",
    "start": "forever/alliance/dwarf/01-dun-morogh",
-   "total_s": 350115,
+   "total_s": 350213,
    "level_end": 60,
    "dings": [
     [
@@ -26978,79 +26993,79 @@
     ],
     [
      42,
-     157417
+     157433
     ],
     [
      43,
-     169802
+     169818
     ],
     [
      44,
-     182754
+     182770
     ],
     [
      45,
-     187788
+     187804
     ],
     [
      46,
-     197416
+     197558
     ],
     [
      47,
-     205998
+     205987
     ],
     [
      48,
-     214573
+     214570
     ],
     [
      49,
-     225774
+     225818
     ],
     [
      50,
-     235442
+     235487
     ],
     [
      51,
-     249049
+     249093
     ],
     [
      52,
-     258607
+     258652
     ],
     [
      53,
-     268652
+     268697
     ],
     [
      54,
-     275296
+     275340
     ],
     [
      55,
-     283436
+     283481
     ],
     [
      56,
-     290794
+     290838
     ],
     [
      57,
-     298593
+     298690
     ],
     [
      58,
-     306036
+     306133
     ],
     [
      59,
-     326450
+     326548
     ],
     [
      60,
-     350055
+     350153
     ]
    ]
   },
@@ -27059,7 +27074,7 @@
    "race": "Dwarf",
    "class": "PALADIN",
    "start": "forever/alliance/dwarf/01-dun-morogh",
-   "total_s": 379429,
+   "total_s": 379529,
    "level_end": 60,
    "dings": [
     [
@@ -27228,79 +27243,79 @@
     ],
     [
      42,
-     164327
+     164343
     ],
     [
      43,
-     179452
+     179467
     ],
     [
      44,
-     195268
+     195284
     ],
     [
      45,
-     200568
+     200584
     ],
     [
      46,
-     210424
+     210562
     ],
     [
      47,
-     219641
+     219621
     ],
     [
      48,
-     228388
+     228376
     ],
     [
      49,
-     241106
+     241154
     ],
     [
      50,
-     251836
+     251883
     ],
     [
      51,
-     265943
+     265990
     ],
     [
      52,
-     276123
+     276170
     ],
     [
      53,
-     286495
+     286542
     ],
     [
      54,
-     293163
+     293211
     ],
     [
      55,
-     301799
+     301846
     ],
     [
      56,
-     309426
+     309474
     ],
     [
      57,
-     317674
+     317775
     ],
     [
      58,
-     325624
+     325725
     ],
     [
      59,
-     350531
+     350631
     ],
     [
      60,
-     379369
+     379469
     ]
    ]
   },
@@ -27309,7 +27324,7 @@
    "race": "Dwarf",
    "class": "PRIEST",
    "start": "forever/alliance/dwarf/01-dun-morogh",
-   "total_s": 371372,
+   "total_s": 371472,
    "level_end": 60,
    "dings": [
     [
@@ -27478,79 +27493,79 @@
     ],
     [
      42,
-     162932
+     162948
     ],
     [
      43,
-     177372
+     177388
     ],
     [
      44,
-     192472
+     192488
     ],
     [
      45,
-     197705
+     197721
     ],
     [
      46,
-     207504
+     207643
     ],
     [
      47,
-     216562
+     216545
     ],
     [
      48,
-     225263
+     225254
     ],
     [
      49,
-     237602
+     237649
     ],
     [
      50,
-     248067
+     248113
     ],
     [
      51,
-     262053
+     262100
     ],
     [
      52,
-     271721
+     271767
     ],
     [
      53,
-     282705
+     282751
     ],
     [
      54,
-     288801
+     288848
     ],
     [
      55,
-     297514
+     297561
     ],
     [
      56,
-     305428
+     305475
     ],
     [
      57,
-     313547
+     313647
     ],
     [
      58,
-     321387
+     321487
     ],
     [
      59,
-     343783
+     343882
     ],
     [
      60,
-     371312
+     371412
     ]
    ]
   },
@@ -27559,7 +27574,7 @@
    "race": "Dwarf",
    "class": "ROGUE",
    "start": "forever/alliance/dwarf/01-dun-morogh",
-   "total_s": 364909,
+   "total_s": 365008,
    "level_end": 60,
    "dings": [
     [
@@ -27728,79 +27743,79 @@
     ],
     [
      42,
-     161306
+     161322
     ],
     [
      43,
-     175061
+     175076
     ],
     [
      44,
-     189445
+     189461
     ],
     [
      45,
-     194611
+     194627
     ],
     [
      46,
-     204298
+     204438
     ],
     [
      47,
-     213197
+     213182
     ],
     [
      48,
-     221849
+     221842
     ],
     [
      49,
-     233809
+     233855
     ],
     [
      50,
-     244006
+     244052
     ],
     [
      51,
-     257868
+     257914
     ],
     [
      52,
-     267637
+     267683
     ],
     [
      53,
-     277846
+     277892
     ],
     [
      54,
-     284483
+     284529
     ],
     [
      55,
-     292841
+     292887
     ],
     [
      56,
-     300247
+     300293
     ],
     [
      57,
-     308271
+     308370
     ],
     [
      58,
-     315967
+     316066
     ],
     [
      59,
-     338628
+     338727
     ],
     [
      60,
-     364849
+     364948
     ]
    ]
   },
@@ -27809,7 +27824,7 @@
    "race": "Dwarf",
    "class": "SHAMAN",
    "start": "forever/alliance/dwarf/01-dun-morogh",
-   "total_s": 366486,
+   "total_s": 366585,
    "level_end": 60,
    "dings": [
     [
@@ -27978,79 +27993,79 @@
     ],
     [
      42,
-     162519
+     162535
     ],
     [
      43,
-     176274
+     176290
     ],
     [
      44,
-     190658
+     190674
     ],
     [
      45,
-     195825
+     195841
     ],
     [
      46,
-     205922
+     206061
     ],
     [
      47,
-     214821
+     214806
     ],
     [
      48,
-     223472
+     223464
     ],
     [
      49,
-     235431
+     235477
     ],
     [
      50,
-     245627
+     245673
     ],
     [
      51,
-     259485
+     259531
     ],
     [
      52,
-     269253
+     269299
     ],
     [
      53,
-     279462
+     279508
     ],
     [
      54,
-     286101
+     286146
     ],
     [
      55,
-     294427
+     294473
     ],
     [
      56,
-     301824
+     301870
     ],
     [
      57,
-     309847
+     309946
     ],
     [
      58,
-     317544
+     317643
     ],
     [
      59,
-     340204
+     340303
     ],
     [
      60,
-     366426
+     366525
     ]
    ]
   },
@@ -28059,7 +28074,7 @@
    "race": "Dwarf",
    "class": "WARLOCK",
    "start": "forever/alliance/dwarf/01-dun-morogh",
-   "total_s": 343047,
+   "total_s": 343144,
    "level_end": 60,
    "dings": [
     [
@@ -28228,27 +28243,27 @@
     ],
     [
      42,
-     155881
+     155897
     ],
     [
      43,
-     167582
+     167598
     ],
     [
      44,
-     179817
+     179833
     ],
     [
      45,
-     184784
+     184800
     ],
     [
      46,
-     194633
+     194776
     ],
     [
      47,
-     203056
+     203048
     ],
     [
      48,
@@ -28256,51 +28271,51 @@
     ],
     [
      49,
-     222410
+     222454
     ],
     [
      50,
-     231819
+     231863
     ],
     [
      51,
-     245317
+     245360
     ],
     [
      52,
-     254468
+     254512
     ],
     [
      53,
-     264431
+     264475
     ],
     [
      54,
-     271064
+     271107
     ],
     [
      55,
-     279107
+     279151
     ],
     [
      56,
-     286396
+     286439
     ],
     [
      57,
-     294082
+     294179
     ],
     [
      58,
-     301398
+     301495
     ],
     [
      59,
-     320690
+     320786
     ],
     [
      60,
-     342987
+     343084
     ]
    ]
   },
@@ -28309,7 +28324,7 @@
    "race": "Dwarf",
    "class": "WARRIOR",
    "start": "forever/alliance/dwarf/01-dun-morogh",
-   "total_s": 387505,
+   "total_s": 387606,
    "level_end": 60,
    "dings": [
     [
@@ -28478,79 +28493,79 @@
     ],
     [
      42,
-     166832
+     166848
     ],
     [
      43,
-     182641
+     182657
     ],
     [
      44,
-     199174
+     199190
     ],
     [
      45,
-     204540
+     204556
     ],
     [
      46,
-     214416
+     214552
     ],
     [
      47,
-     223791
+     223769
     ],
     [
      48,
-     232588
+     232574
     ],
     [
      49,
-     245686
+     245734
     ],
     [
      50,
-     256670
+     256718
     ],
     [
      51,
-     270944
+     270992
     ],
     [
      52,
-     281329
+     281377
     ],
     [
      53,
-     291783
+     291831
     ],
     [
      54,
-     298441
+     298490
     ],
     [
      55,
-     307191
+     307240
     ],
     [
      56,
-     314832
+     314880
     ],
     [
      57,
-     323193
+     323294
     ],
     [
      58,
-     331269
+     331370
     ],
     [
      59,
-     357299
+     357400
     ],
     [
      60,
-     387445
+     387546
     ]
    ]
   },
@@ -28559,7 +28574,7 @@
    "race": "Gnome",
    "class": "DRUID",
    "start": "forever/alliance/gnome/01-dun-morogh",
-   "total_s": 371253,
+   "total_s": 371352,
    "level_end": 60,
    "dings": [
     [
@@ -28728,79 +28743,79 @@
     ],
     [
      42,
-     167471
+     167487
     ],
     [
      43,
-     181226
+     181242
     ],
     [
      44,
-     195610
+     195626
     ],
     [
      45,
-     200777
+     200793
     ],
     [
      46,
-     210561
+     210701
     ],
     [
      47,
-     219460
+     219445
     ],
     [
      48,
-     228088
+     228081
     ],
     [
      49,
-     240048
+     240094
     ],
     [
      50,
-     250234
+     250280
     ],
     [
      51,
-     264054
+     264099
     ],
     [
      52,
-     273822
+     273868
     ],
     [
      53,
-     284037
+     284083
     ],
     [
      54,
-     290642
+     290688
     ],
     [
      55,
-     299067
+     299113
     ],
     [
      56,
-     306592
+     306637
     ],
     [
      57,
-     314615
+     314714
     ],
     [
      58,
-     322311
+     322410
     ],
     [
      59,
-     344972
+     345071
     ],
     [
      60,
-     371193
+     371292
     ]
    ]
   },
@@ -28809,7 +28824,7 @@
    "race": "Gnome",
    "class": "HUNTER",
    "start": "forever/alliance/gnome/01-dun-morogh",
-   "total_s": 335622,
+   "total_s": 335718,
    "level_end": 60,
    "dings": [
     [
@@ -28978,79 +28993,79 @@
     ],
     [
      42,
-     154490
+     154506
     ],
     [
      43,
-     165506
+     165521
     ],
     [
      44,
-     177025
+     177041
     ],
     [
      45,
-     181925
+     181941
     ],
     [
      46,
-     191433
+     191577
     ],
     [
      47,
-     199697
+     199691
     ],
     [
      48,
-     208197
+     208199
     ],
     [
      49,
-     218639
+     218682
     ],
     [
      50,
-     227776
+     227819
     ],
     [
      51,
-     241179
+     241222
     ],
     [
      52,
-     250125
+     250168
     ],
     [
      53,
-     260007
+     260050
     ],
     [
      54,
-     266632
+     266675
     ],
     [
      55,
-     274521
+     274564
     ],
     [
      56,
-     281641
+     281683
     ],
     [
      57,
-     289215
+     289311
     ],
     [
      58,
-     296404
+     296500
     ],
     [
      59,
-     314572
+     314668
     ],
     [
      60,
-     335562
+     335658
     ]
    ]
   },
@@ -29059,7 +29074,7 @@
    "race": "Gnome",
    "class": "MAGE",
    "start": "forever/alliance/gnome/01-dun-morogh",
-   "total_s": 349335,
+   "total_s": 349469,
    "level_end": 60,
    "dings": [
     [
@@ -29228,79 +29243,79 @@
     ],
     [
      42,
-     157568
+     157584
     ],
     [
      43,
-     169954
+     169970
     ],
     [
      44,
-     182906
+     182922
     ],
     [
      45,
-     187939
+     187955
     ],
     [
      46,
-     197568
+     197710
     ],
     [
      47,
-     206150
+     206139
     ],
     [
      48,
-     214724
+     214722
     ],
     [
      49,
-     225925
+     225970
     ],
     [
      50,
-     235594
+     235638
     ],
     [
      51,
-     249206
+     249251
     ],
     [
      52,
-     258311
+     258391
     ],
     [
      53,
-     269049
+     269130
     ],
     [
      54,
-     275132
+     275212
     ],
     [
      55,
-     283476
+     283556
     ],
     [
      56,
-     291201
+     291281
     ],
     [
      57,
-     298983
+     299116
     ],
     [
      58,
-     306443
+     306576
     ],
     [
      59,
-     325670
+     325803
     ],
     [
      60,
-     349275
+     349409
     ]
    ]
   },
@@ -29309,7 +29324,7 @@
    "race": "Gnome",
    "class": "PALADIN",
    "start": "forever/alliance/gnome/01-dun-morogh",
-   "total_s": 379746,
+   "total_s": 379847,
    "level_end": 60,
    "dings": [
     [
@@ -29478,79 +29493,79 @@
     ],
     [
      42,
-     164645
+     164661
     ],
     [
      43,
-     179769
+     179785
     ],
     [
      44,
-     195586
+     195602
     ],
     [
      45,
-     200886
+     200902
     ],
     [
      46,
-     210742
+     210880
     ],
     [
      47,
-     219959
+     219939
     ],
     [
      48,
-     228706
+     228694
     ],
     [
      49,
-     241424
+     241471
     ],
     [
      50,
-     252154
+     252201
     ],
     [
      51,
-     266261
+     266308
     ],
     [
      52,
-     276440
+     276488
     ],
     [
      53,
-     286813
+     286860
     ],
     [
      54,
-     293481
+     293529
     ],
     [
      55,
-     302116
+     302164
     ],
     [
      56,
-     309744
+     309792
     ],
     [
      57,
-     317992
+     318093
     ],
     [
      58,
-     325942
+     326042
     ],
     [
      59,
-     350849
+     350949
     ],
     [
      60,
-     379686
+     379787
     ]
    ]
   },
@@ -29559,7 +29574,7 @@
    "race": "Gnome",
    "class": "PRIEST",
    "start": "forever/alliance/gnome/01-dun-morogh",
-   "total_s": 371269,
+   "total_s": 371368,
    "level_end": 60,
    "dings": [
     [
@@ -29728,79 +29743,79 @@
     ],
     [
      42,
-     162829
+     162845
     ],
     [
      43,
-     177268
+     177284
     ],
     [
      44,
-     192369
+     192385
     ],
     [
      45,
-     197602
+     197618
     ],
     [
      46,
-     207401
+     207540
     ],
     [
      47,
-     216459
+     216441
     ],
     [
      48,
-     225160
+     225150
     ],
     [
      49,
-     237499
+     237546
     ],
     [
      50,
-     247963
+     248010
     ],
     [
      51,
-     261949
+     261996
     ],
     [
      52,
-     271617
+     271664
     ],
     [
      53,
-     282601
+     282648
     ],
     [
      54,
-     288698
+     288744
     ],
     [
      55,
-     297411
+     297457
     ],
     [
      56,
-     305325
+     305371
     ],
     [
      57,
-     313443
+     313543
     ],
     [
      58,
-     321284
+     321383
     ],
     [
      59,
-     343679
+     343779
     ],
     [
      60,
-     371209
+     371308
     ]
    ]
   },
@@ -29809,7 +29824,7 @@
    "race": "Gnome",
    "class": "ROGUE",
    "start": "forever/alliance/gnome/01-dun-morogh",
-   "total_s": 364947,
+   "total_s": 365046,
    "level_end": 60,
    "dings": [
     [
@@ -29978,79 +29993,79 @@
     ],
     [
      42,
-     161343
+     161359
     ],
     [
      43,
-     175098
+     175114
     ],
     [
      44,
-     189483
+     189499
     ],
     [
      45,
-     194649
+     194665
     ],
     [
      46,
-     204336
+     204476
     ],
     [
      47,
-     213235
+     213220
     ],
     [
      48,
-     221887
+     221880
     ],
     [
      49,
-     233846
+     233892
     ],
     [
      50,
-     244044
+     244090
     ],
     [
      51,
-     257906
+     257952
     ],
     [
      52,
-     267675
+     267721
     ],
     [
      53,
-     277883
+     277929
     ],
     [
      54,
-     284521
+     284567
     ],
     [
      55,
-     292879
+     292925
     ],
     [
      56,
-     300285
+     300331
     ],
     [
      57,
-     308309
+     308408
     ],
     [
      58,
-     316005
+     316104
     ],
     [
      59,
-     338666
+     338765
     ],
     [
      60,
-     364887
+     364986
     ]
    ]
   },
@@ -30059,7 +30074,7 @@
    "race": "Gnome",
    "class": "SHAMAN",
    "start": "forever/alliance/gnome/01-dun-morogh",
-   "total_s": 366504,
+   "total_s": 366603,
    "level_end": 60,
    "dings": [
     [
@@ -30228,79 +30243,79 @@
     ],
     [
      42,
-     162537
+     162553
     ],
     [
      43,
-     176292
+     176308
     ],
     [
      44,
-     190676
+     190692
     ],
     [
      45,
-     195843
+     195859
     ],
     [
      46,
-     205940
+     206080
     ],
     [
      47,
-     214839
+     214824
     ],
     [
      48,
-     223490
+     223483
     ],
     [
      49,
-     235449
+     235495
     ],
     [
      50,
-     245645
+     245691
     ],
     [
      51,
-     259503
+     259549
     ],
     [
      52,
-     269271
+     269317
     ],
     [
      53,
-     279480
+     279526
     ],
     [
      54,
-     286119
+     286165
     ],
     [
      55,
-     294445
+     294491
     ],
     [
      56,
-     301842
+     301888
     ],
     [
      57,
-     309865
+     309964
     ],
     [
      58,
-     317562
+     317661
     ],
     [
      59,
-     340222
+     340321
     ],
     [
      60,
-     366444
+     366543
     ]
    ]
   },
@@ -30309,7 +30324,7 @@
    "race": "Gnome",
    "class": "WARLOCK",
    "start": "forever/alliance/gnome/01-dun-morogh",
-   "total_s": 343976,
+   "total_s": 344073,
    "level_end": 60,
    "dings": [
     [
@@ -30478,79 +30493,79 @@
     ],
     [
      42,
-     156832
+     156848
     ],
     [
      43,
-     168533
+     168549
     ],
     [
      44,
-     180769
+     180785
     ],
     [
      45,
-     185735
+     185751
     ],
     [
      46,
-     195633
+     195624
     ],
     [
      47,
-     204056
+     204047
     ],
     [
      48,
-     212589
+     212580
     ],
     [
      49,
-     223339
+     223384
     ],
     [
      50,
-     232748
+     232793
     ],
     [
      51,
-     246245
+     246290
     ],
     [
      52,
-     255397
+     255442
     ],
     [
      53,
-     265360
+     265405
     ],
     [
      54,
-     271993
+     272037
     ],
     [
      55,
-     280036
+     280081
     ],
     [
      56,
-     287325
+     287369
     ],
     [
      57,
-     295011
+     295109
     ],
     [
      58,
-     302327
+     302425
     ],
     [
      59,
-     321619
+     321716
     ],
     [
      60,
-     343916
+     344013
     ]
    ]
   },
@@ -30559,7 +30574,7 @@
    "race": "Gnome",
    "class": "WARRIOR",
    "start": "forever/alliance/gnome/01-dun-morogh",
-   "total_s": 387537,
+   "total_s": 387639,
    "level_end": 60,
    "dings": [
     [
@@ -30728,79 +30743,79 @@
     ],
     [
      42,
-     166865
+     166881
     ],
     [
      43,
-     182674
+     182690
     ],
     [
      44,
-     199207
+     199223
     ],
     [
      45,
-     204573
+     204589
     ],
     [
      46,
-     214448
+     214585
     ],
     [
      47,
-     223824
+     223802
     ],
     [
      48,
-     232621
+     232607
     ],
     [
      49,
-     245719
+     245767
     ],
     [
      50,
-     256703
+     256751
     ],
     [
      51,
-     270976
+     271024
     ],
     [
      52,
-     281362
+     281410
     ],
     [
      53,
-     291816
+     291864
     ],
     [
      54,
-     298474
+     298522
     ],
     [
      55,
-     307224
+     307272
     ],
     [
      56,
-     314865
+     314913
     ],
     [
      57,
-     323225
+     323327
     ],
     [
      58,
-     331302
+     331403
     ],
     [
      59,
-     357332
+     357433
     ],
     [
      60,
-     387477
+     387579
     ]
    ]
   },
@@ -30809,7 +30824,7 @@
    "race": "Human",
    "class": "DRUID",
    "start": "forever/alliance/human/01-elwynn-forest",
-   "total_s": 372640,
+   "total_s": 372739,
    "level_end": 60,
    "dings": [
     [
@@ -30974,83 +30989,83 @@
     ],
     [
      41,
-     162764
+     162780
     ],
     [
      42,
-     168858
+     168874
     ],
     [
      43,
-     182613
+     182629
     ],
     [
      44,
-     196997
+     197013
     ],
     [
      45,
-     202164
+     202179
     ],
     [
      46,
-     211948
+     212087
     ],
     [
      47,
-     220847
+     220832
     ],
     [
      48,
-     229475
+     229468
     ],
     [
      49,
-     241435
+     241481
     ],
     [
      50,
-     251621
+     251667
     ],
     [
      51,
-     265440
+     265486
     ],
     [
      52,
-     275209
+     275255
     ],
     [
      53,
-     285424
+     285470
     ],
     [
      54,
-     292029
+     292075
     ],
     [
      55,
-     300454
+     300500
     ],
     [
      56,
-     307978
+     308024
     ],
     [
      57,
-     316002
+     316101
     ],
     [
      58,
-     323698
+     323797
     ],
     [
      59,
-     346359
+     346458
     ],
     [
      60,
-     372580
+     372679
     ]
    ]
   },
@@ -31059,7 +31074,7 @@
    "race": "Human",
    "class": "HUNTER",
    "start": "forever/alliance/human/01-elwynn-forest",
-   "total_s": 338035,
+   "total_s": 338131,
    "level_end": 60,
    "dings": [
     [
@@ -31224,83 +31239,83 @@
     ],
     [
      41,
-     151618
+     151622
     ],
     [
      42,
-     156903
+     156919
     ],
     [
      43,
-     167919
+     167935
     ],
     [
      44,
-     179439
+     179455
     ],
     [
      45,
-     184339
+     184355
     ],
     [
      46,
-     193847
+     193991
     ],
     [
      47,
-     202111
+     202105
     ],
     [
      48,
-     210611
+     210613
     ],
     [
      49,
-     221053
+     221096
     ],
     [
      50,
-     230189
+     230232
     ],
     [
      51,
-     243593
+     243636
     ],
     [
      52,
-     252539
+     252582
     ],
     [
      53,
-     262421
+     262464
     ],
     [
      54,
-     269046
+     269089
     ],
     [
      55,
-     276935
+     276978
     ],
     [
      56,
-     284054
+     284097
     ],
     [
      57,
-     291629
+     291725
     ],
     [
      58,
-     298818
+     298914
     ],
     [
      59,
-     316986
+     317082
     ],
     [
      60,
-     337975
+     338071
     ]
    ]
   },
@@ -31309,7 +31324,7 @@
    "race": "Human",
    "class": "MAGE",
    "start": "forever/alliance/human/01-elwynn-forest",
-   "total_s": 351944,
+   "total_s": 352077,
    "level_end": 60,
    "dings": [
     [
@@ -31474,83 +31489,83 @@
     ],
     [
      41,
-     154649
+     154665
     ],
     [
      42,
-     160177
+     160193
     ],
     [
      43,
-     172563
+     172579
     ],
     [
      44,
-     185515
+     185531
     ],
     [
      45,
-     190548
+     190564
     ],
     [
      46,
-     200177
+     200319
     ],
     [
      47,
-     208758
+     208748
     ],
     [
      48,
-     217333
+     217331
     ],
     [
      49,
-     228534
+     228579
     ],
     [
      50,
-     238203
+     238247
     ],
     [
      51,
-     251815
+     251860
     ],
     [
      52,
-     260920
+     261000
     ],
     [
      53,
-     271658
+     271739
     ],
     [
      54,
-     277741
+     277821
     ],
     [
      55,
-     286085
+     286165
     ],
     [
      56,
-     293810
+     293890
     ],
     [
      57,
-     301592
+     301725
     ],
     [
      58,
-     309052
+     309185
     ],
     [
      59,
-     328279
+     328412
     ],
     [
      60,
-     351884
+     352017
     ]
    ]
   },
@@ -31559,7 +31574,7 @@
    "race": "Human",
    "class": "PALADIN",
    "start": "forever/alliance/human/01-elwynn-forest",
-   "total_s": 381636,
+   "total_s": 381737,
    "level_end": 60,
    "dings": [
     [
@@ -31728,79 +31743,79 @@
     ],
     [
      42,
-     166535
+     166551
     ],
     [
      43,
-     181659
+     181675
     ],
     [
      44,
-     197476
+     197492
     ],
     [
      45,
-     202776
+     202792
     ],
     [
      46,
-     212632
+     212770
     ],
     [
      47,
-     221849
+     221829
     ],
     [
      48,
-     230595
+     230584
     ],
     [
      49,
-     243314
+     243361
     ],
     [
      50,
-     254044
+     254091
     ],
     [
      51,
-     268151
+     268198
     ],
     [
      52,
-     278330
+     278378
     ],
     [
      53,
-     288703
+     288750
     ],
     [
      54,
-     295371
+     295419
     ],
     [
      55,
-     304006
+     304054
     ],
     [
      56,
-     311634
+     311681
     ],
     [
      57,
-     319882
+     319983
     ],
     [
      58,
-     327832
+     327932
     ],
     [
      59,
-     352739
+     352839
     ],
     [
      60,
-     381576
+     381677
     ]
    ]
   },
@@ -31809,7 +31824,7 @@
    "race": "Human",
    "class": "PRIEST",
    "start": "forever/alliance/human/01-elwynn-forest",
-   "total_s": 373950,
+   "total_s": 374050,
    "level_end": 60,
    "dings": [
     [
@@ -31974,83 +31989,83 @@
     ],
     [
      41,
-     159224
+     159240
     ],
     [
      42,
-     165510
+     165526
     ],
     [
      43,
-     179950
+     179966
     ],
     [
      44,
-     195051
+     195067
     ],
     [
      45,
-     200284
+     200300
     ],
     [
      46,
-     210083
+     210221
     ],
     [
      47,
-     219141
+     219123
     ],
     [
      48,
-     227842
+     227832
     ],
     [
      49,
-     240181
+     240227
     ],
     [
      50,
-     250645
+     250692
     ],
     [
      51,
-     264631
+     264678
     ],
     [
      52,
-     274299
+     274345
     ],
     [
      53,
-     285283
+     285329
     ],
     [
      54,
-     291380
+     291426
     ],
     [
      55,
-     300092
+     300139
     ],
     [
      56,
-     308006
+     308053
     ],
     [
      57,
-     316125
+     316225
     ],
     [
      58,
-     323965
+     324065
     ],
     [
      59,
-     346361
+     346461
     ],
     [
      60,
-     373890
+     373990
     ]
    ]
   },
@@ -32059,7 +32074,7 @@
    "race": "Human",
    "class": "ROGUE",
    "start": "forever/alliance/human/01-elwynn-forest",
-   "total_s": 367536,
+   "total_s": 367635,
    "level_end": 60,
    "dings": [
     [
@@ -32224,83 +32239,83 @@
     ],
     [
      41,
-     158050
+     158054
     ],
     [
      42,
-     163932
+     163948
     ],
     [
      43,
-     177687
+     177703
     ],
     [
      44,
-     192072
+     192088
     ],
     [
      45,
-     197238
+     197254
     ],
     [
      46,
-     206925
+     207065
     ],
     [
      47,
-     215824
+     215809
     ],
     [
      48,
-     224476
+     224469
     ],
     [
      49,
-     236435
+     236481
     ],
     [
      50,
-     246633
+     246679
     ],
     [
      51,
-     260495
+     260541
     ],
     [
      52,
-     270264
+     270310
     ],
     [
      53,
-     280473
+     280518
     ],
     [
      54,
-     287110
+     287156
     ],
     [
      55,
-     295468
+     295514
     ],
     [
      56,
-     302874
+     302920
     ],
     [
      57,
-     310898
+     310997
     ],
     [
      58,
-     318594
+     318693
     ],
     [
      59,
-     341255
+     341354
     ],
     [
      60,
-     367476
+     367575
     ]
    ]
   },
@@ -32309,7 +32324,7 @@
    "race": "Human",
    "class": "SHAMAN",
    "start": "forever/alliance/human/01-elwynn-forest",
-   "total_s": 376581,
+   "total_s": 376680,
    "level_end": 60,
    "dings": [
     [
@@ -32474,83 +32489,83 @@
     ],
     [
      41,
-     166521
+     166537
     ],
     [
      42,
-     172614
+     172630
     ],
     [
      43,
-     186369
+     186385
     ],
     [
      44,
-     200753
+     200769
     ],
     [
      45,
-     205920
+     205936
     ],
     [
      46,
-     216017
+     216157
     ],
     [
      47,
-     224916
+     224901
     ],
     [
      48,
-     233567
+     233560
     ],
     [
      49,
-     245527
+     245572
     ],
     [
      50,
-     255722
+     255768
     ],
     [
      51,
-     269580
+     269626
     ],
     [
      52,
-     279349
+     279394
     ],
     [
      53,
-     289557
+     289603
     ],
     [
      54,
-     296196
+     296242
     ],
     [
      55,
-     304522
+     304568
     ],
     [
      56,
-     311919
+     311965
     ],
     [
      57,
-     319943
+     320042
     ],
     [
      58,
-     327639
+     327738
     ],
     [
      59,
-     350299
+     350398
     ],
     [
      60,
-     376521
+     376620
     ]
    ]
   },
@@ -32559,7 +32574,7 @@
    "race": "Human",
    "class": "WARLOCK",
    "start": "forever/alliance/human/01-elwynn-forest",
-   "total_s": 347235,
+   "total_s": 347333,
    "level_end": 60,
    "dings": [
     [
@@ -32724,83 +32739,83 @@
     ],
     [
      41,
-     154630
+     154633
     ],
     [
      42,
-     159878
+     159893
     ],
     [
      43,
-     171578
+     171594
     ],
     [
      44,
-     183814
+     183830
     ],
     [
      45,
-     188781
+     188797
     ],
     [
      46,
-     198893
+     198883
     ],
     [
      47,
-     207315
+     207306
     ],
     [
      48,
-     215848
+     215839
     ],
     [
      49,
-     226598
+     226643
     ],
     [
      50,
-     236007
+     236052
     ],
     [
      51,
-     249505
+     249549
     ],
     [
      52,
-     258656
+     258701
     ],
     [
      53,
-     268620
+     268664
     ],
     [
      54,
-     275252
+     275297
     ],
     [
      55,
-     283296
+     283340
     ],
     [
      56,
-     290584
+     290628
     ],
     [
      57,
-     298271
+     298368
     ],
     [
      58,
-     305587
+     305684
     ],
     [
      59,
-     324878
+     324975
     ],
     [
      60,
-     347175
+     347273
     ]
    ]
   },
@@ -32809,7 +32824,7 @@
    "race": "Human",
    "class": "WARRIOR",
    "start": "forever/alliance/human/01-elwynn-forest",
-   "total_s": 390585,
+   "total_s": 390686,
    "level_end": 60,
    "dings": [
     [
@@ -32974,83 +32989,83 @@
     ],
     [
      41,
-     163264
+     163268
     ],
     [
      42,
-     169912
+     169928
     ],
     [
      43,
-     185721
+     185737
     ],
     [
      44,
-     202254
+     202270
     ],
     [
      45,
-     207620
+     207636
     ],
     [
      46,
-     217495
+     217632
     ],
     [
      47,
-     226871
+     226849
     ],
     [
      48,
-     235668
+     235654
     ],
     [
      49,
-     248766
+     248814
     ],
     [
      50,
-     259750
+     259798
     ],
     [
      51,
-     274023
+     274071
     ],
     [
      52,
-     284409
+     284457
     ],
     [
      53,
-     294863
+     294911
     ],
     [
      54,
-     301521
+     301569
     ],
     [
      55,
-     310271
+     310319
     ],
     [
      56,
-     317912
+     317960
     ],
     [
      57,
-     326272
+     326374
     ],
     [
      58,
-     334349
+     334450
     ],
     [
      59,
-     360379
+     360480
     ],
     [
      60,
-     390525
+     390626
     ]
    ]
   },
@@ -33059,7 +33074,7 @@
    "race": "NightElf",
    "class": "DRUID",
    "start": "forever/alliance/nightelf/01-teldrassil",
-   "total_s": 380384,
+   "total_s": 380483,
    "level_end": 60,
    "dings": [
     [
@@ -33228,79 +33243,79 @@
     ],
     [
      42,
-     176602
+     176618
     ],
     [
      43,
-     190357
+     190372
     ],
     [
      44,
-     204741
+     204757
     ],
     [
      45,
-     209907
+     209923
     ],
     [
      46,
-     219692
+     219831
     ],
     [
      47,
-     228591
+     228576
     ],
     [
      48,
-     237219
+     237212
     ],
     [
      49,
-     249179
+     249225
     ],
     [
      50,
-     259365
+     259410
     ],
     [
      51,
-     273184
+     273230
     ],
     [
      52,
-     282953
+     282999
     ],
     [
      53,
-     293168
+     293213
     ],
     [
      54,
-     299773
+     299819
     ],
     [
      55,
-     308198
+     308244
     ],
     [
      56,
-     315722
+     315768
     ],
     [
      57,
-     323746
+     323845
     ],
     [
      58,
-     331442
+     331541
     ],
     [
      59,
-     354103
+     354202
     ],
     [
      60,
-     380324
+     380423
     ]
    ]
   },
@@ -33309,7 +33324,7 @@
    "race": "NightElf",
    "class": "HUNTER",
    "start": "forever/alliance/nightelf/01-teldrassil",
-   "total_s": 338209,
+   "total_s": 338305,
    "level_end": 60,
    "dings": [
     [
@@ -33474,83 +33489,83 @@
     ],
     [
      41,
-     151973
+     151977
     ],
     [
      42,
-     157077
+     157093
     ],
     [
      43,
-     168093
+     168109
     ],
     [
      44,
-     179613
+     179628
     ],
     [
      45,
-     184513
+     184529
     ],
     [
      46,
-     194020
+     194165
     ],
     [
      47,
-     202284
+     202278
     ],
     [
      48,
-     210785
+     210787
     ],
     [
      49,
-     221227
+     221270
     ],
     [
      50,
-     230363
+     230406
     ],
     [
      51,
-     243767
+     243810
     ],
     [
      52,
-     252713
+     252756
     ],
     [
      53,
-     262594
+     262637
     ],
     [
      54,
-     269220
+     269263
     ],
     [
      55,
-     277109
+     277152
     ],
     [
      56,
-     284228
+     284271
     ],
     [
      57,
-     291802
+     291898
     ],
     [
      58,
-     298992
+     299088
     ],
     [
      59,
-     317160
+     317256
     ],
     [
      60,
-     338149
+     338245
     ]
    ]
   },
@@ -33559,7 +33574,7 @@
    "race": "NightElf",
    "class": "MAGE",
    "start": "forever/alliance/nightelf/01-teldrassil",
-   "total_s": 352634,
+   "total_s": 352732,
    "level_end": 60,
    "dings": [
     [
@@ -33724,83 +33739,83 @@
     ],
     [
      41,
-     154223
+     154227
     ],
     [
      42,
-     159936
+     159952
     ],
     [
      43,
-     172321
+     172337
     ],
     [
      44,
-     185273
+     185289
     ],
     [
      45,
-     190307
+     190322
     ],
     [
      46,
-     199935
+     200077
     ],
     [
      47,
-     208517
+     208506
     ],
     [
      48,
-     217091
+     217089
     ],
     [
      49,
-     228292
+     228337
     ],
     [
      50,
-     237961
+     238006
     ],
     [
      51,
-     251568
+     251612
     ],
     [
      52,
-     261126
+     261170
     ],
     [
      53,
-     271171
+     271216
     ],
     [
      54,
-     277815
+     277859
     ],
     [
      55,
-     285955
+     285999
     ],
     [
      56,
-     293313
+     293357
     ],
     [
      57,
-     301112
+     301209
     ],
     [
      58,
-     308555
+     308652
     ],
     [
      59,
-     328969
+     329066
     ],
     [
      60,
-     352574
+     352672
     ]
    ]
   },
@@ -33809,7 +33824,7 @@
    "race": "NightElf",
    "class": "PALADIN",
    "start": "forever/alliance/nightelf/01-teldrassil",
-   "total_s": 403648,
+   "total_s": 403748,
    "level_end": 60,
    "dings": [
     [
@@ -33974,83 +33989,83 @@
     ],
     [
      41,
-     182032
+     182036
     ],
     [
      42,
-     188546
+     188562
     ],
     [
      43,
-     203671
+     203687
     ],
     [
      44,
-     219488
+     219504
     ],
     [
      45,
-     224787
+     224803
     ],
     [
      46,
-     234644
+     234781
     ],
     [
      47,
-     243861
+     243841
     ],
     [
      48,
-     252607
+     252595
     ],
     [
      49,
-     265325
+     265373
     ],
     [
      50,
-     276055
+     276102
     ],
     [
      51,
-     290162
+     290209
     ],
     [
      52,
-     300342
+     300389
     ],
     [
      53,
-     310714
+     310762
     ],
     [
      54,
-     317383
+     317430
     ],
     [
      55,
-     326018
+     326065
     ],
     [
      56,
-     333646
+     333693
     ],
     [
      57,
-     341894
+     341994
     ],
     [
      58,
-     349843
+     349944
     ],
     [
      59,
-     374750
+     374851
     ],
     [
      60,
-     403588
+     403688
     ]
    ]
   },
@@ -34059,7 +34074,7 @@
    "race": "NightElf",
    "class": "PRIEST",
    "start": "forever/alliance/nightelf/01-teldrassil",
-   "total_s": 375614,
+   "total_s": 375714,
    "level_end": 60,
    "dings": [
     [
@@ -34224,83 +34239,83 @@
     ],
     [
      41,
-     160959
+     160963
     ],
     [
      42,
-     167174
+     167190
     ],
     [
      43,
-     181614
+     181630
     ],
     [
      44,
-     196715
+     196731
     ],
     [
      45,
-     201948
+     201964
     ],
     [
      46,
-     211747
+     211885
     ],
     [
      47,
-     220805
+     220787
     ],
     [
      48,
-     229506
+     229496
     ],
     [
      49,
-     241845
+     241891
     ],
     [
      50,
-     252309
+     252356
     ],
     [
      51,
-     266295
+     266342
     ],
     [
      52,
-     275963
+     276009
     ],
     [
      53,
-     286947
+     286993
     ],
     [
      54,
-     293044
+     293090
     ],
     [
      55,
-     301757
+     301803
     ],
     [
      56,
-     309671
+     309717
     ],
     [
      57,
-     317789
+     317889
     ],
     [
      58,
-     325629
+     325729
     ],
     [
      59,
-     348025
+     348125
     ],
     [
      60,
-     375554
+     375654
     ]
    ]
   },
@@ -34309,7 +34324,7 @@
    "race": "NightElf",
    "class": "ROGUE",
    "start": "forever/alliance/nightelf/01-teldrassil",
-   "total_s": 367326,
+   "total_s": 367425,
    "level_end": 60,
    "dings": [
     [
@@ -34478,79 +34493,79 @@
     ],
     [
      42,
-     163722
+     163738
     ],
     [
      43,
-     177477
+     177493
     ],
     [
      44,
-     191862
+     191878
     ],
     [
      45,
-     197028
+     197044
     ],
     [
      46,
-     206715
+     206854
     ],
     [
      47,
-     215614
+     215599
     ],
     [
      48,
-     224266
+     224258
     ],
     [
      49,
-     236225
+     236271
     ],
     [
      50,
-     246423
+     246469
     ],
     [
      51,
-     260285
+     260331
     ],
     [
      52,
-     270054
+     270100
     ],
     [
      53,
-     280262
+     280308
     ],
     [
      54,
-     286900
+     286946
     ],
     [
      55,
-     295258
+     295304
     ],
     [
      56,
-     302664
+     302710
     ],
     [
      57,
-     310688
+     310787
     ],
     [
      58,
-     318384
+     318483
     ],
     [
      59,
-     341045
+     341143
     ],
     [
      60,
-     367266
+     367365
     ]
    ]
   },
@@ -34559,7 +34574,7 @@
    "race": "NightElf",
    "class": "SHAMAN",
    "start": "forever/alliance/nightelf/01-teldrassil",
-   "total_s": 379892,
+   "total_s": 379991,
    "level_end": 60,
    "dings": [
     [
@@ -34724,83 +34739,83 @@
     ],
     [
      41,
-     169811
+     169815
     ],
     [
      42,
-     175925
+     175941
     ],
     [
      43,
-     189680
+     189696
     ],
     [
      44,
-     204064
+     204080
     ],
     [
      45,
-     209231
+     209246
     ],
     [
      46,
-     219327
+     219467
     ],
     [
      47,
-     228227
+     228211
     ],
     [
      48,
-     236877
+     236870
     ],
     [
      49,
-     248837
+     248883
     ],
     [
      50,
-     259033
+     259079
     ],
     [
      51,
-     272891
+     272937
     ],
     [
      52,
-     282659
+     282705
     ],
     [
      53,
-     292868
+     292914
     ],
     [
      54,
-     299506
+     299552
     ],
     [
      55,
-     307833
+     307879
     ],
     [
      56,
-     315230
+     315276
     ],
     [
      57,
-     323253
+     323352
     ],
     [
      58,
-     330949
+     331048
     ],
     [
      59,
-     353610
+     353709
     ],
     [
      60,
-     379832
+     379931
     ]
    ]
   },
@@ -34809,7 +34824,7 @@
    "race": "NightElf",
    "class": "WARLOCK",
    "start": "forever/alliance/nightelf/01-teldrassil",
-   "total_s": 355792,
+   "total_s": 355889,
    "level_end": 60,
    "dings": [
     [
@@ -34974,31 +34989,31 @@
     ],
     [
      41,
-     163114
+     163118
     ],
     [
      42,
-     168626
+     168642
     ],
     [
      43,
-     180327
+     180343
     ],
     [
      44,
-     192563
+     192578
     ],
     [
      45,
-     197529
+     197545
     ],
     [
      46,
-     207378
+     207521
     ],
     [
      47,
-     215801
+     215793
     ],
     [
      48,
@@ -35006,51 +35021,51 @@
     ],
     [
      49,
-     235155
+     235199
     ],
     [
      50,
-     244564
+     244608
     ],
     [
      51,
-     258062
+     258105
     ],
     [
      52,
-     267213
+     267257
     ],
     [
      53,
-     277177
+     277220
     ],
     [
      54,
-     283809
+     283853
     ],
     [
      55,
-     291853
+     291896
     ],
     [
      56,
-     299141
+     299185
     ],
     [
      57,
-     306828
+     306924
     ],
     [
      58,
-     314144
+     314240
     ],
     [
      59,
-     333435
+     333532
     ],
     [
      60,
-     355732
+     355829
     ]
    ]
   },
@@ -35059,7 +35074,7 @@
    "race": "NightElf",
    "class": "WARRIOR",
    "start": "forever/alliance/nightelf/01-teldrassil",
-   "total_s": 390179,
+   "total_s": 390280,
    "level_end": 60,
    "dings": [
     [
@@ -35224,83 +35239,83 @@
     ],
     [
      41,
-     163134
+     163138
     ],
     [
      42,
-     169506
+     169522
     ],
     [
      43,
-     185315
+     185331
     ],
     [
      44,
-     201849
+     201864
     ],
     [
      45,
-     207215
+     207231
     ],
     [
      46,
-     217090
+     217226
     ],
     [
      47,
-     226466
+     226443
     ],
     [
      48,
-     235263
+     235248
     ],
     [
      49,
-     248361
+     248409
     ],
     [
      50,
-     259344
+     259393
     ],
     [
      51,
-     273618
+     273666
     ],
     [
      52,
-     284003
+     284051
     ],
     [
      53,
-     294457
+     294505
     ],
     [
      54,
-     301116
+     301164
     ],
     [
      55,
-     309866
+     309914
     ],
     [
      56,
-     317506
+     317554
     ],
     [
      57,
-     325867
+     325968
     ],
     [
      58,
-     333943
+     334044
     ],
     [
      59,
-     359973
+     360074
     ],
     [
      60,
-     390119
+     390220
     ]
    ]
   },
@@ -35309,7 +35324,7 @@
    "race": "Skyborne",
    "class": "DRUID",
    "start": "forever/alliance/skyborne/01-zephras-isle",
-   "total_s": 373409,
+   "total_s": 373508,
    "level_end": 60,
    "dings": [
     [
@@ -35478,79 +35493,79 @@
     ],
     [
      42,
-     169627
+     169643
     ],
     [
      43,
-     183382
+     183398
     ],
     [
      44,
-     197766
+     197782
     ],
     [
      45,
-     202933
+     202949
     ],
     [
      46,
-     212717
+     212857
     ],
     [
      47,
-     221616
+     221601
     ],
     [
      48,
-     230245
+     230237
     ],
     [
      49,
-     242204
+     242250
     ],
     [
      50,
-     252390
+     252436
     ],
     [
      51,
-     266210
+     266256
     ],
     [
      52,
-     275978
+     276024
     ],
     [
      53,
-     286193
+     286239
     ],
     [
      54,
-     292798
+     292844
     ],
     [
      55,
-     301223
+     301269
     ],
     [
      56,
-     308748
+     308794
     ],
     [
      57,
-     316771
+     316870
     ],
     [
      58,
-     324467
+     324566
     ],
     [
      59,
-     347128
+     347227
     ],
     [
      60,
-     373349
+     373448
     ]
    ]
   },
@@ -35559,7 +35574,7 @@
    "race": "Skyborne",
    "class": "HUNTER",
    "start": "forever/alliance/skyborne/01-zephras-isle",
-   "total_s": 334789,
+   "total_s": 334885,
    "level_end": 60,
    "dings": [
     [
@@ -35728,79 +35743,79 @@
     ],
     [
      42,
-     153658
+     153673
     ],
     [
      43,
-     164673
+     164689
     ],
     [
      44,
-     176193
+     176209
     ],
     [
      45,
-     181093
+     181109
     ],
     [
      46,
-     190601
+     190745
     ],
     [
      47,
-     198865
+     198859
     ],
     [
      48,
-     207365
+     207367
     ],
     [
      49,
-     217807
+     217850
     ],
     [
      50,
-     226944
+     226986
     ],
     [
      51,
-     240347
+     240390
     ],
     [
      52,
-     249293
+     249336
     ],
     [
      53,
-     259175
+     259218
     ],
     [
      54,
-     265800
+     265843
     ],
     [
      55,
-     273689
+     273732
     ],
     [
      56,
-     280808
+     280851
     ],
     [
      57,
-     288383
+     288479
     ],
     [
      58,
-     295572
+     295668
     ],
     [
      59,
-     313740
+     313836
     ],
     [
      60,
-     334729
+     334825
     ]
    ]
   },
@@ -35809,7 +35824,7 @@
    "race": "Skyborne",
    "class": "MAGE",
    "start": "forever/alliance/skyborne/01-zephras-isle",
-   "total_s": 348396,
+   "total_s": 348529,
    "level_end": 60,
    "dings": [
     [
@@ -35978,79 +35993,79 @@
     ],
     [
      42,
-     156629
+     156645
     ],
     [
      43,
-     169015
+     169031
     ],
     [
      44,
-     181967
+     181983
     ],
     [
      45,
-     187000
+     187016
     ],
     [
      46,
-     196629
+     196771
     ],
     [
      47,
-     205210
+     205200
     ],
     [
      48,
-     213785
+     213783
     ],
     [
      49,
-     224986
+     225030
     ],
     [
      50,
-     234655
+     234699
     ],
     [
      51,
-     248267
+     248311
     ],
     [
      52,
-     257372
+     257452
     ],
     [
      53,
-     268110
+     268191
     ],
     [
      54,
-     274192
+     274273
     ],
     [
      55,
-     282536
+     282617
     ],
     [
      56,
-     290262
+     290342
     ],
     [
      57,
-     298043
+     298177
     ],
     [
      58,
-     305503
+     305637
     ],
     [
      59,
-     324731
+     324864
     ],
     [
      60,
-     348336
+     348469
     ]
    ]
   },
@@ -36059,7 +36074,7 @@
    "race": "Skyborne",
    "class": "PALADIN",
    "start": "forever/alliance/skyborne/01-zephras-isle",
-   "total_s": 403943,
+   "total_s": 404043,
    "level_end": 60,
    "dings": [
     [
@@ -36228,79 +36243,79 @@
     ],
     [
      42,
-     188841
+     188857
     ],
     [
      43,
-     203966
+     203981
     ],
     [
      44,
-     219782
+     219798
     ],
     [
      45,
-     225082
+     225098
     ],
     [
      46,
-     234938
+     235076
     ],
     [
      47,
-     244155
+     244135
     ],
     [
      48,
-     252902
+     252890
     ],
     [
      49,
-     265620
+     265668
     ],
     [
      50,
-     276350
+     276397
     ],
     [
      51,
-     290457
+     290504
     ],
     [
      52,
-     300637
+     300684
     ],
     [
      53,
-     311009
+     311056
     ],
     [
      54,
-     317677
+     317725
     ],
     [
      55,
-     326312
+     326360
     ],
     [
      56,
-     333940
+     333988
     ],
     [
      57,
-     342188
+     342289
     ],
     [
      58,
-     350138
+     350239
     ],
     [
      59,
-     375045
+     375145
     ],
     [
      60,
-     403883
+     403983
     ]
    ]
   },
@@ -36309,7 +36324,7 @@
    "race": "Skyborne",
    "class": "PRIEST",
    "start": "forever/alliance/skyborne/01-zephras-isle",
-   "total_s": 397322,
+   "total_s": 397422,
    "level_end": 60,
    "dings": [
     [
@@ -36478,79 +36493,79 @@
     ],
     [
      42,
-     187772
+     187787
     ],
     [
      43,
-     202211
+     202227
     ],
     [
      44,
-     217312
+     217328
     ],
     [
      45,
-     222545
+     222561
     ],
     [
      46,
-     232344
+     232482
     ],
     [
      47,
-     241402
+     241384
     ],
     [
      48,
-     250103
+     250093
     ],
     [
      49,
-     262442
+     262489
     ],
     [
      50,
-     272906
+     272953
     ],
     [
      51,
-     286886
+     286932
     ],
     [
      52,
-     296985
+     297032
     ],
     [
      53,
-     307276
+     307323
     ],
     [
      54,
-     313934
+     313980
     ],
     [
      55,
-     322444
+     322491
     ],
     [
      56,
-     329990
+     330037
     ],
     [
      57,
-     338126
+     338226
     ],
     [
      58,
-     345949
+     346049
     ],
     [
      59,
-     369733
+     369832
     ],
     [
      60,
-     397262
+     397362
     ]
    ]
   },
@@ -36559,7 +36574,7 @@
    "race": "Skyborne",
    "class": "ROGUE",
    "start": "forever/alliance/skyborne/01-zephras-isle",
-   "total_s": 364258,
+   "total_s": 364357,
    "level_end": 60,
    "dings": [
     [
@@ -36728,79 +36743,79 @@
     ],
     [
      42,
-     160654
+     160670
     ],
     [
      43,
-     174409
+     174425
     ],
     [
      44,
-     188793
+     188809
     ],
     [
      45,
-     193960
+     193976
     ],
     [
      46,
-     203646
+     203786
     ],
     [
      47,
-     212545
+     212530
     ],
     [
      48,
-     221197
+     221190
     ],
     [
      49,
-     233157
+     233203
     ],
     [
      50,
-     243354
+     243400
     ],
     [
      51,
-     257217
+     257263
     ],
     [
      52,
-     266985
+     267031
     ],
     [
      53,
-     277194
+     277240
     ],
     [
      54,
-     283831
+     283877
     ],
     [
      55,
-     292190
+     292235
     ],
     [
      56,
-     299596
+     299642
     ],
     [
      57,
-     307619
+     307718
     ],
     [
      58,
-     315315
+     315414
     ],
     [
      59,
-     337976
+     338075
     ],
     [
      60,
-     364198
+     364297
     ]
    ]
   },
@@ -36809,7 +36824,7 @@
    "race": "Skyborne",
    "class": "SHAMAN",
    "start": "forever/alliance/skyborne/01-zephras-isle",
-   "total_s": 390210,
+   "total_s": 390309,
    "level_end": 60,
    "dings": [
     [
@@ -36978,79 +36993,79 @@
     ],
     [
      42,
-     186244
+     186259
     ],
     [
      43,
-     199998
+     200014
     ],
     [
      44,
-     214383
+     214399
     ],
     [
      45,
-     219549
+     219565
     ],
     [
      46,
-     229646
+     229786
     ],
     [
      47,
-     238546
+     238530
     ],
     [
      48,
-     247196
+     247189
     ],
     [
      49,
-     259156
+     259202
     ],
     [
      50,
-     269351
+     269397
     ],
     [
      51,
-     283209
+     283255
     ],
     [
      52,
-     292978
+     293024
     ],
     [
      53,
-     303187
+     303233
     ],
     [
      54,
-     309825
+     309871
     ],
     [
      55,
-     318152
+     318198
     ],
     [
      56,
-     325549
+     325594
     ],
     [
      57,
-     333572
+     333671
     ],
     [
      58,
-     341268
+     341367
     ],
     [
      59,
-     363929
+     364028
     ],
     [
      60,
-     390150
+     390249
     ]
    ]
   },
@@ -37059,7 +37074,7 @@
    "race": "Skyborne",
    "class": "WARLOCK",
    "start": "forever/alliance/skyborne/01-zephras-isle",
-   "total_s": 367554,
+   "total_s": 367651,
    "level_end": 60,
    "dings": [
     [
@@ -37228,27 +37243,27 @@
     ],
     [
      42,
-     180388
+     180404
     ],
     [
      43,
-     192089
+     192105
     ],
     [
      44,
-     204325
+     204341
     ],
     [
      45,
-     209292
+     209307
     ],
     [
      46,
-     219140
+     219284
     ],
     [
      47,
-     227563
+     227555
     ],
     [
      48,
@@ -37256,51 +37271,51 @@
     ],
     [
      49,
-     246918
+     246961
     ],
     [
      50,
-     256327
+     256370
     ],
     [
      51,
-     269824
+     269868
     ],
     [
      52,
-     278975
+     279019
     ],
     [
      53,
-     288939
+     288982
     ],
     [
      54,
-     295571
+     295615
     ],
     [
      55,
-     303615
+     303658
     ],
     [
      56,
-     310903
+     310947
     ],
     [
      57,
-     318590
+     318686
     ],
     [
      58,
-     325906
+     326002
     ],
     [
      59,
-     345197
+     345294
     ],
     [
      60,
-     367494
+     367591
     ]
    ]
   },
@@ -37309,7 +37324,7 @@
    "race": "Skyborne",
    "class": "WARRIOR",
    "start": "forever/alliance/skyborne/01-zephras-isle",
-   "total_s": 386795,
+   "total_s": 386896,
    "level_end": 60,
    "dings": [
     [
@@ -37478,79 +37493,79 @@
     ],
     [
      42,
-     166122
+     166138
     ],
     [
      43,
-     181931
+     181947
     ],
     [
      44,
-     198464
+     198480
     ],
     [
      45,
-     203830
+     203846
     ],
     [
      46,
-     213706
+     213842
     ],
     [
      47,
-     223081
+     223059
     ],
     [
      48,
-     231878
+     231864
     ],
     [
      49,
-     244976
+     245024
     ],
     [
      50,
-     255960
+     256008
     ],
     [
      51,
-     270233
+     270282
     ],
     [
      52,
-     280619
+     280667
     ],
     [
      53,
-     291073
+     291121
     ],
     [
      54,
-     297731
+     297779
     ],
     [
      55,
-     306481
+     306530
     ],
     [
      56,
-     314122
+     314170
     ],
     [
      57,
-     322483
+     322584
     ],
     [
      58,
-     330559
+     330660
     ],
     [
      59,
-     356589
+     356690
     ],
     [
      60,
-     386735
+     386836
     ]
    ]
   },
@@ -37559,7 +37574,7 @@
    "race": "Orc",
    "class": "DRUID",
    "start": "forever/horde/orc/01-durotar",
-   "total_s": 368806,
+   "total_s": 368997,
    "level_end": 60,
    "dings": [
     [
@@ -37728,79 +37743,79 @@
     ],
     [
      42,
-     183907
+     183906
     ],
     [
      43,
-     191106
+     191105
     ],
     [
      44,
-     201064
+     201063
     ],
     [
      45,
-     210083
+     210101
     ],
     [
      46,
-     217611
+     217640
     ],
     [
      47,
-     226545
+     226563
     ],
     [
      48,
-     233046
+     233080
     ],
     [
      49,
-     250804
+     250838
     ],
     [
      50,
-     259526
+     259560
     ],
     [
      51,
-     266790
+     266824
     ],
     [
      52,
-     276803
+     276869
     ],
     [
      53,
-     287841
+     287907
     ],
     [
      54,
-     295640
+     295706
     ],
     [
      55,
-     305009
+     305075
     ],
     [
      56,
-     313220
+     313286
     ],
     [
      57,
-     319409
+     319600
     ],
     [
      58,
-     326861
+     327051
     ],
     [
      59,
-     346395
+     346586
     ],
     [
      60,
-     368548
+     368738
     ]
    ]
   },
@@ -37809,7 +37824,7 @@
    "race": "Orc",
    "class": "HUNTER",
    "start": "forever/horde/orc/01-durotar",
-   "total_s": 334003,
+   "total_s": 334189,
    "level_end": 60,
    "dings": [
     [
@@ -37974,7 +37989,7 @@
     ],
     [
      41,
-     159035
+     159034
     ],
     [
      42,
@@ -37982,75 +37997,75 @@
     ],
     [
      43,
-     171966
+     171965
     ],
     [
      44,
-     181313
+     181312
     ],
     [
      45,
-     189933
+     189952
     ],
     [
      46,
-     196925
+     196953
     ],
     [
      47,
-     205202
+     205222
     ],
     [
      48,
-     210795
+     210825
     ],
     [
      49,
-     225014
+     225044
     ],
     [
      50,
-     233713
+     233743
     ],
     [
      51,
-     240508
+     240538
     ],
     [
      52,
-     250720
+     250782
     ],
     [
      53,
-     259716
+     259778
     ],
     [
      54,
-     267525
+     267587
     ],
     [
      55,
-     278595
+     278657
     ],
     [
      56,
-     286336
+     286398
     ],
     [
      57,
-     292138
+     292325
     ],
     [
      58,
-     299110
+     299297
     ],
     [
      59,
-     315581
+     315768
     ],
     [
      60,
-     333744
+     333931
     ]
    ]
   },
@@ -38059,7 +38074,7 @@
    "race": "Orc",
    "class": "MAGE",
    "start": "forever/horde/orc/01-durotar",
-   "total_s": 346675,
+   "total_s": 346862,
    "level_end": 60,
    "dings": [
     [
@@ -38228,79 +38243,79 @@
     ],
     [
      42,
-     170867
+     170866
     ],
     [
      43,
-     178141
+     178140
     ],
     [
      44,
-     187861
+     187860
     ],
     [
      45,
-     196379
+     196422
     ],
     [
      46,
-     203525
+     203569
     ],
     [
      47,
-     211422
+     211399
     ],
     [
      48,
-     218273
+     218249
     ],
     [
      49,
-     234138
+     234168
     ],
     [
      50,
-     242906
+     242936
     ],
     [
      51,
-     249936
+     249966
     ],
     [
      52,
-     259614
+     259676
     ],
     [
      53,
-     269097
+     269160
     ],
     [
      54,
-     276873
+     276935
     ],
     [
      55,
-     287062
+     287124
     ],
     [
      56,
-     295038
+     295100
     ],
     [
      57,
-     301034
+     301220
     ],
     [
      58,
-     308245
+     308432
     ],
     [
      59,
-     326259
+     326446
     ],
     [
      60,
-     346417
+     346604
     ]
    ]
   },
@@ -38309,7 +38324,7 @@
    "race": "Orc",
    "class": "PALADIN",
    "start": "forever/horde/orc/01-durotar",
-   "total_s": 389376,
+   "total_s": 389566,
    "level_end": 60,
    "dings": [
     [
@@ -38474,7 +38489,7 @@
     ],
     [
      41,
-     187343
+     187342
     ],
     [
      42,
@@ -38482,75 +38497,75 @@
     ],
     [
      43,
-     201457
+     201456
     ],
     [
      44,
-     211814
+     211813
     ],
     [
      45,
-     220673
+     220719
     ],
     [
      46,
-     228374
+     228421
     ],
     [
      47,
-     236936
+     236904
     ],
     [
      48,
-     244706
+     244674
     ],
     [
      49,
-     264074
+     264108
     ],
     [
      50,
-     272955
+     272989
     ],
     [
      51,
-     280453
+     280487
     ],
     [
      52,
-     290920
+     290986
     ],
     [
      53,
-     301308
+     301374
     ],
     [
      54,
-     310463
+     310529
     ],
     [
      55,
-     320151
+     320217
     ],
     [
      56,
-     328597
+     328663
     ],
     [
      57,
-     334980
+     335171
     ],
     [
      58,
-     342671
+     342862
     ],
     [
      59,
-     364969
+     365160
     ],
     [
      60,
-     389117
+     389308
     ]
    ]
   },
@@ -38559,7 +38574,7 @@
    "race": "Orc",
    "class": "PRIEST",
    "start": "forever/horde/orc/01-durotar",
-   "total_s": 371007,
+   "total_s": 371197,
    "level_end": 60,
    "dings": [
     [
@@ -38728,79 +38743,79 @@
     ],
     [
      42,
-     181264
+     181263
     ],
     [
      43,
-     188811
+     188810
     ],
     [
      44,
-     199122
+     199121
     ],
     [
      45,
-     207896
+     207941
     ],
     [
      46,
-     215308
+     215354
     ],
     [
      47,
-     223704
+     223674
     ],
     [
      48,
-     231244
+     231213
     ],
     [
      49,
-     249736
+     249769
     ],
     [
      50,
-     258662
+     258695
     ],
     [
      51,
-     266044
+     266077
     ],
     [
      52,
-     276280
+     276345
     ],
     [
      53,
-     286493
+     286558
     ],
     [
      54,
-     294346
+     294411
     ],
     [
      55,
-     305055
+     305120
     ],
     [
      56,
-     313383
+     313448
     ],
     [
      57,
-     319670
+     319860
     ],
     [
      58,
-     327241
+     327431
     ],
     [
      59,
-     347598
+     347788
     ],
     [
      60,
-     370749
+     370938
     ]
    ]
   },
@@ -38809,7 +38824,7 @@
    "race": "Orc",
    "class": "ROGUE",
    "start": "forever/horde/orc/01-durotar",
-   "total_s": 362701,
+   "total_s": 362889,
    "level_end": 60,
    "dings": [
     [
@@ -38982,75 +38997,75 @@
     ],
     [
      43,
-     185226
+     185225
     ],
     [
      44,
-     195388
+     195387
     ],
     [
      45,
-     204077
+     204121
     ],
     [
      46,
-     211403
+     211448
     ],
     [
      47,
-     219632
+     219604
     ],
     [
      48,
-     226942
+     226914
     ],
     [
      49,
-     244559
+     244591
     ],
     [
      50,
-     253323
+     253355
     ],
     [
      51,
-     260587
+     260619
     ],
     [
      52,
-     270608
+     270672
     ],
     [
      53,
-     280527
+     280591
     ],
     [
      54,
-     288358
+     288422
     ],
     [
      55,
-     298913
+     298977
     ],
     [
      56,
-     307124
+     307188
     ],
     [
      57,
-     313313
+     313502
     ],
     [
      58,
-     320765
+     320953
     ],
     [
      59,
-     340289
+     340478
     ],
     [
      60,
-     362442
+     362631
     ]
    ]
   },
@@ -39059,7 +39074,7 @@
    "race": "Orc",
    "class": "SHAMAN",
    "start": "forever/horde/orc/01-durotar",
-   "total_s": 365535,
+   "total_s": 365726,
    "level_end": 60,
    "dings": [
     [
@@ -39224,7 +39239,7 @@
     ],
     [
      41,
-     171843
+     171842
     ],
     [
      42,
@@ -39232,75 +39247,75 @@
     ],
     [
      43,
-     185561
+     185560
     ],
     [
      44,
-     195712
+     195711
     ],
     [
      45,
-     204732
+     204750
     ],
     [
      46,
-     212074
+     212103
     ],
     [
      47,
-     221008
+     221026
     ],
     [
      48,
-     227509
+     227543
     ],
     [
      49,
-     245267
+     245301
     ],
     [
      50,
-     254060
+     254094
     ],
     [
      51,
-     261324
+     261358
     ],
     [
      52,
-     272193
+     272259
     ],
     [
      53,
-     282129
+     282195
     ],
     [
      54,
-     290002
+     290068
     ],
     [
      55,
-     301718
+     301784
     ],
     [
      56,
-     309928
+     309994
     ],
     [
      57,
-     316118
+     316309
     ],
     [
      58,
-     323569
+     323760
     ],
     [
      59,
-     343124
+     343314
     ],
     [
      60,
-     365276
+     365467
     ]
    ]
   },
@@ -39309,7 +39324,7 @@
    "race": "Orc",
    "class": "WARLOCK",
    "start": "forever/horde/orc/01-durotar",
-   "total_s": 339393,
+   "total_s": 339580,
    "level_end": 60,
    "dings": [
     [
@@ -39474,83 +39489,83 @@
     ],
     [
      41,
-     162623
+     162622
     ],
     [
      42,
-     168571
+     168570
     ],
     [
      43,
-     175754
+     175753
     ],
     [
      44,
-     185143
+     185142
     ],
     [
      45,
-     193530
+     193548
     ],
     [
      46,
-     200575
+     200617
     ],
     [
      47,
-     208372
+     208349
     ],
     [
      48,
-     214992
+     214969
     ],
     [
      49,
-     229914
+     229944
     ],
     [
      50,
-     238544
+     238574
     ],
     [
      51,
-     245457
+     245487
     ],
     [
      52,
-     254956
+     255018
     ],
     [
      53,
-     264148
+     264209
     ],
     [
      54,
-     271910
+     271972
     ],
     [
      55,
-     281937
+     281999
     ],
     [
      56,
-     289795
+     289857
     ],
     [
      57,
-     295694
+     295881
     ],
     [
      58,
-     302786
+     302972
     ],
     [
      59,
-     319975
+     320161
     ],
     [
      60,
-     339135
+     339321
     ]
    ]
   },
@@ -39559,7 +39574,7 @@
    "race": "Orc",
    "class": "WARRIOR",
    "start": "forever/horde/orc/01-durotar",
-   "total_s": 386752,
+   "total_s": 386943,
    "level_end": 60,
    "dings": [
     [
@@ -39732,75 +39747,75 @@
     ],
     [
      43,
-     195699
+     195698
     ],
     [
      44,
-     206408
+     206407
     ],
     [
      45,
-     215019
+     215047
     ],
     [
      46,
-     222312
+     222630
     ],
     [
      47,
-     231641
+     231603
     ],
     [
      48,
-     239641
+     239603
     ],
     [
      49,
-     259533
+     259567
     ],
     [
      50,
-     268616
+     268651
     ],
     [
      51,
-     276232
+     276267
     ],
     [
      52,
-     286827
+     286893
     ],
     [
      53,
-     297532
+     297598
     ],
     [
      54,
-     305536
+     305602
     ],
     [
      55,
-     316558
+     316624
     ],
     [
      56,
-     325121
+     325187
     ],
     [
      57,
-     331601
+     331792
     ],
     [
      58,
-     339412
+     339603
     ],
     [
      59,
-     361348
+     361539
     ],
     [
      60,
-     386494
+     386685
     ]
    ]
   },
@@ -39809,7 +39824,7 @@
    "race": "Tauren",
    "class": "DRUID",
    "start": "forever/horde/tauren/01-mulgore",
-   "total_s": 380059,
+   "total_s": 380250,
    "level_end": 60,
    "dings": [
     [
@@ -39982,75 +39997,75 @@
     ],
     [
      43,
-     202121
+     202120
     ],
     [
      44,
-     212317
+     212316
     ],
     [
      45,
-     221337
+     221354
     ],
     [
      46,
-     228864
+     228893
     ],
     [
      47,
-     237798
+     237816
     ],
     [
      48,
-     244299
+     244333
     ],
     [
      49,
-     262057
+     262091
     ],
     [
      50,
-     270779
+     270813
     ],
     [
      51,
-     278043
+     278077
     ],
     [
      52,
-     288056
+     288122
     ],
     [
      53,
-     299094
+     299160
     ],
     [
      54,
-     306893
+     306959
     ],
     [
      55,
-     316262
+     316328
     ],
     [
      56,
-     324473
+     324539
     ],
     [
      57,
-     330662
+     330853
     ],
     [
      58,
-     338114
+     338304
     ],
     [
      59,
-     357648
+     357839
     ],
     [
      60,
-     379801
+     379991
     ]
    ]
   },
@@ -40059,7 +40074,7 @@
    "race": "Tauren",
    "class": "HUNTER",
    "start": "forever/horde/tauren/01-mulgore",
-   "total_s": 338394,
+   "total_s": 338581,
    "level_end": 60,
    "dings": [
     [
@@ -40228,79 +40243,79 @@
     ],
     [
      42,
-     166880
+     166879
     ],
     [
      43,
-     173723
+     173722
     ],
     [
      44,
-     185704
+     185703
     ],
     [
      45,
-     194325
+     194343
     ],
     [
      46,
-     201317
+     201345
     ],
     [
      47,
-     209594
+     209614
     ],
     [
      48,
-     215187
+     215217
     ],
     [
      49,
-     229406
+     229436
     ],
     [
      50,
-     238104
+     238134
     ],
     [
      51,
-     244899
+     244929
     ],
     [
      52,
-     255111
+     255173
     ],
     [
      53,
-     264108
+     264170
     ],
     [
      54,
-     271916
+     271978
     ],
     [
      55,
-     282987
+     283049
     ],
     [
      56,
-     290728
+     290790
     ],
     [
      57,
-     296530
+     296716
     ],
     [
      58,
-     303502
+     303688
     ],
     [
      59,
-     319973
+     320160
     ],
     [
      60,
-     338136
+     338322
     ]
    ]
   },
@@ -40309,7 +40324,7 @@
    "race": "Tauren",
    "class": "MAGE",
    "start": "forever/horde/tauren/01-mulgore",
-   "total_s": 353821,
+   "total_s": 354008,
    "level_end": 60,
    "dings": [
     [
@@ -40478,79 +40493,79 @@
     ],
     [
      42,
-     175379
+     175378
     ],
     [
      43,
-     182653
+     182652
     ],
     [
      44,
-     195007
+     195006
     ],
     [
      45,
-     203525
+     203568
     ],
     [
      46,
-     210671
+     210715
     ],
     [
      47,
-     218568
+     218545
     ],
     [
      48,
-     225419
+     225395
     ],
     [
      49,
-     241284
+     241314
     ],
     [
      50,
-     250052
+     250082
     ],
     [
      51,
-     257082
+     257112
     ],
     [
      52,
-     266760
+     266822
     ],
     [
      53,
-     276243
+     276306
     ],
     [
      54,
-     284019
+     284081
     ],
     [
      55,
-     294208
+     294270
     ],
     [
      56,
-     302184
+     302246
     ],
     [
      57,
-     308179
+     308366
     ],
     [
      58,
-     315391
+     315578
     ],
     [
      59,
-     333405
+     333592
     ],
     [
      60,
-     353563
+     353750
     ]
    ]
   },
@@ -40559,7 +40574,7 @@
    "race": "Tauren",
    "class": "PALADIN",
    "start": "forever/horde/tauren/01-mulgore",
-   "total_s": 389189,
+   "total_s": 389380,
    "level_end": 60,
    "dings": [
     [
@@ -40724,83 +40739,83 @@
     ],
     [
      41,
-     186889
+     186888
     ],
     [
      42,
-     193365
+     193364
     ],
     [
      43,
-     201003
+     201002
     ],
     [
      44,
-     211628
+     211627
     ],
     [
      45,
-     220487
+     220533
     ],
     [
      46,
-     228188
+     228235
     ],
     [
      47,
-     236750
+     236718
     ],
     [
      48,
-     244519
+     244487
     ],
     [
      49,
-     263887
+     263921
     ],
     [
      50,
-     272768
+     272802
     ],
     [
      51,
-     280267
+     280301
     ],
     [
      52,
-     290733
+     290799
     ],
     [
      53,
-     301122
+     301188
     ],
     [
      54,
-     310276
+     310342
     ],
     [
      55,
-     319965
+     320031
     ],
     [
      56,
-     328410
+     328476
     ],
     [
      57,
-     334794
+     334984
     ],
     [
      58,
-     342485
+     342675
     ],
     [
      59,
-     364783
+     364973
     ],
     [
      60,
-     388931
+     389121
     ]
    ]
   },
@@ -40809,7 +40824,7 @@
    "race": "Tauren",
    "class": "PRIEST",
    "start": "forever/horde/tauren/01-mulgore",
-   "total_s": 378231,
+   "total_s": 378421,
    "level_end": 60,
    "dings": [
     [
@@ -40978,79 +40993,79 @@
     ],
     [
      42,
-     185854
+     185853
     ],
     [
      43,
-     193401
+     193400
     ],
     [
      44,
-     206346
+     206345
     ],
     [
      45,
-     215120
+     215165
     ],
     [
      46,
-     222532
+     222578
     ],
     [
      47,
-     230928
+     230898
     ],
     [
      48,
-     238468
+     238438
     ],
     [
      49,
-     256960
+     256993
     ],
     [
      50,
-     265886
+     265919
     ],
     [
      51,
-     273268
+     273301
     ],
     [
      52,
-     283504
+     283569
     ],
     [
      53,
-     293717
+     293782
     ],
     [
      54,
-     301570
+     301635
     ],
     [
      55,
-     312279
+     312344
     ],
     [
      56,
-     320607
+     320672
     ],
     [
      57,
-     326894
+     327084
     ],
     [
      58,
-     334465
+     334655
     ],
     [
      59,
-     354823
+     355012
     ],
     [
      60,
-     377973
+     378162
     ]
    ]
   },
@@ -41059,7 +41074,7 @@
    "race": "Tauren",
    "class": "ROGUE",
    "start": "forever/horde/tauren/01-mulgore",
-   "total_s": 375017,
+   "total_s": 375206,
    "level_end": 60,
    "dings": [
     [
@@ -41232,75 +41247,75 @@
     ],
     [
      43,
-     194909
+     194908
     ],
     [
      44,
-     207705
+     207704
     ],
     [
      45,
-     216394
+     216438
     ],
     [
      46,
-     223719
+     223765
     ],
     [
      47,
-     231949
+     231921
     ],
     [
      48,
-     239259
+     239231
     ],
     [
      49,
-     256876
+     256908
     ],
     [
      50,
-     265640
+     265672
     ],
     [
      51,
-     272904
+     272936
     ],
     [
      52,
-     282925
+     282989
     ],
     [
      53,
-     292844
+     292908
     ],
     [
      54,
-     300675
+     300739
     ],
     [
      55,
-     311230
+     311294
     ],
     [
      56,
-     319441
+     319505
     ],
     [
      57,
-     325630
+     325819
     ],
     [
      58,
-     333081
+     333270
     ],
     [
      59,
-     352606
+     352795
     ],
     [
      60,
-     374759
+     374948
     ]
    ]
   },
@@ -41309,7 +41324,7 @@
    "race": "Tauren",
    "class": "SHAMAN",
    "start": "forever/horde/tauren/01-mulgore",
-   "total_s": 370118,
+   "total_s": 370309,
    "level_end": 60,
    "dings": [
     [
@@ -41474,7 +41489,7 @@
     ],
     [
      41,
-     173792
+     173791
     ],
     [
      42,
@@ -41482,75 +41497,75 @@
     ],
     [
      43,
-     187510
+     187509
     ],
     [
      44,
-     200295
+     200294
     ],
     [
      45,
-     209315
+     209333
     ],
     [
      46,
-     216657
+     216686
     ],
     [
      47,
-     225591
+     225609
     ],
     [
      48,
-     232092
+     232126
     ],
     [
      49,
-     249850
+     249884
     ],
     [
      50,
-     258643
+     258677
     ],
     [
      51,
-     265907
+     265941
     ],
     [
      52,
-     276776
+     276842
     ],
     [
      53,
-     286712
+     286778
     ],
     [
      54,
-     294585
+     294651
     ],
     [
      55,
-     306301
+     306367
     ],
     [
      56,
-     314512
+     314577
     ],
     [
      57,
-     320701
+     320892
     ],
     [
      58,
-     328152
+     328343
     ],
     [
      59,
-     347707
+     347897
     ],
     [
      60,
-     369859
+     370050
     ]
    ]
   },
@@ -41559,7 +41574,7 @@
    "race": "Tauren",
    "class": "WARLOCK",
    "start": "forever/horde/tauren/01-mulgore",
-   "total_s": 352490,
+   "total_s": 352676,
    "level_end": 60,
    "dings": [
     [
@@ -41732,75 +41747,75 @@
     ],
     [
      43,
-     186210
+     186209
     ],
     [
      44,
-     198168
+     198167
     ],
     [
      45,
-     206601
+     206642
     ],
     [
      46,
-     213670
+     213713
     ],
     [
      47,
-     221402
+     221380
     ],
     [
      48,
-     228022
+     228000
     ],
     [
      49,
-     243011
+     243041
     ],
     [
      50,
-     251641
+     251671
     ],
     [
      51,
-     258554
+     258583
     ],
     [
      52,
-     268053
+     268114
     ],
     [
      53,
-     277244
+     277306
     ],
     [
      54,
-     285007
+     285069
     ],
     [
      55,
-     295033
+     295095
     ],
     [
      56,
-     302892
+     302954
     ],
     [
      57,
-     308791
+     308977
     ],
     [
      58,
-     315883
+     316069
     ],
     [
      59,
-     333072
+     333258
     ],
     [
      60,
-     352232
+     352418
     ]
    ]
   },
@@ -41809,7 +41824,7 @@
    "race": "Tauren",
    "class": "WARRIOR",
    "start": "forever/horde/tauren/01-mulgore",
-   "total_s": 391264,
+   "total_s": 391454,
    "level_end": 60,
    "dings": [
     [
@@ -41982,75 +41997,75 @@
     ],
     [
      43,
-     197576
+     197575
     ],
     [
      44,
-     210920
+     210919
     ],
     [
      45,
-     219530
+     219558
     ],
     [
      46,
-     226823
+     227141
     ],
     [
      47,
-     236153
+     236115
     ],
     [
      48,
-     244152
+     244114
     ],
     [
      49,
-     264044
+     264078
     ],
     [
      50,
-     273128
+     273162
     ],
     [
      51,
-     280744
+     280778
     ],
     [
      52,
-     291338
+     291405
     ],
     [
      53,
-     302043
+     302109
     ],
     [
      54,
-     310047
+     310113
     ],
     [
      55,
-     321069
+     321135
     ],
     [
      56,
-     329632
+     329698
     ],
     [
      57,
-     336112
+     336303
     ],
     [
      58,
-     343923
+     344114
     ],
     [
      59,
-     365860
+     366051
     ],
     [
      60,
-     391005
+     391196
     ]
    ]
   },
@@ -42059,7 +42074,7 @@
    "race": "Troll",
    "class": "DRUID",
    "start": "forever/horde/troll/01-durotar",
-   "total_s": 369308,
+   "total_s": 369499,
    "level_end": 60,
    "dings": [
     [
@@ -42232,75 +42247,75 @@
     ],
     [
      43,
-     191608
+     191607
     ],
     [
      44,
-     201565
+     201564
     ],
     [
      45,
-     210585
+     210603
     ],
     [
      46,
-     218112
+     218142
     ],
     [
      47,
-     227046
+     227064
     ],
     [
      48,
-     233547
+     233581
     ],
     [
      49,
-     251306
+     251340
     ],
     [
      50,
-     260028
+     260062
     ],
     [
      51,
-     267292
+     267326
     ],
     [
      52,
-     277305
+     277371
     ],
     [
      53,
-     288342
+     288408
     ],
     [
      54,
-     296142
+     296208
     ],
     [
      55,
-     305510
+     305576
     ],
     [
      56,
-     313721
+     313787
     ],
     [
      57,
-     319911
+     320102
     ],
     [
      58,
-     327362
+     327553
     ],
     [
      59,
-     346897
+     347087
     ],
     [
      60,
-     369049
+     369240
     ]
    ]
   },
@@ -42309,7 +42324,7 @@
    "race": "Troll",
    "class": "HUNTER",
    "start": "forever/horde/troll/01-durotar",
-   "total_s": 334488,
+   "total_s": 334675,
    "level_end": 60,
    "dings": [
     [
@@ -42478,79 +42493,79 @@
     ],
     [
      42,
-     165608
+     165607
     ],
     [
      43,
-     172451
+     172450
     ],
     [
      44,
-     181798
+     181797
     ],
     [
      45,
-     190419
+     190437
     ],
     [
      46,
-     197411
+     197439
     ],
     [
      47,
-     205688
+     205707
     ],
     [
      48,
-     211281
+     211311
     ],
     [
      49,
-     225500
+     225530
     ],
     [
      50,
-     234198
+     234228
     ],
     [
      51,
-     240993
+     241023
     ],
     [
      52,
-     251205
+     251267
     ],
     [
      53,
-     260202
+     260264
     ],
     [
      54,
-     268010
+     268072
     ],
     [
      55,
-     279080
+     279143
     ],
     [
      56,
-     286822
+     286884
     ],
     [
      57,
-     292624
+     292810
     ],
     [
      58,
-     299596
+     299782
     ],
     [
      59,
-     316067
+     316254
     ],
     [
      60,
-     334230
+     334416
     ]
    ]
   },
@@ -42559,7 +42574,7 @@
    "race": "Troll",
    "class": "MAGE",
    "start": "forever/horde/troll/01-durotar",
-   "total_s": 347154,
+   "total_s": 347341,
    "level_end": 60,
    "dings": [
     [
@@ -42728,79 +42743,79 @@
     ],
     [
      42,
-     171346
+     171345
     ],
     [
      43,
-     178620
+     178619
     ],
     [
      44,
-     188340
+     188339
     ],
     [
      45,
-     196858
+     196901
     ],
     [
      46,
-     204003
+     204047
     ],
     [
      47,
-     211901
+     211877
     ],
     [
      48,
-     218751
+     218728
     ],
     [
      49,
-     234616
+     234647
     ],
     [
      50,
-     243385
+     243415
     ],
     [
      51,
-     250414
+     250445
     ],
     [
      52,
-     260093
+     260155
     ],
     [
      53,
-     269576
+     269638
     ],
     [
      54,
-     277352
+     277414
     ],
     [
      55,
-     287540
+     287603
     ],
     [
      56,
-     295516
+     295579
     ],
     [
      57,
-     301512
+     301699
     ],
     [
      58,
-     308724
+     308911
     ],
     [
      59,
-     326738
+     326925
     ],
     [
      60,
-     346895
+     347082
     ]
    ]
   },
@@ -42809,7 +42824,7 @@
    "race": "Troll",
    "class": "PALADIN",
    "start": "forever/horde/troll/01-durotar",
-   "total_s": 389879,
+   "total_s": 390070,
    "level_end": 60,
    "dings": [
     [
@@ -42982,75 +42997,75 @@
     ],
     [
      43,
-     201961
+     201959
     ],
     [
      44,
-     212317
+     212316
     ],
     [
      45,
-     221176
+     221222
     ],
     [
      46,
-     228878
+     228925
     ],
     [
      47,
-     237440
+     237407
     ],
     [
      48,
-     245209
+     245177
     ],
     [
      49,
-     264577
+     264611
     ],
     [
      50,
-     273458
+     273492
     ],
     [
      51,
-     280957
+     280991
     ],
     [
      52,
-     291423
+     291489
     ],
     [
      53,
-     301812
+     301878
     ],
     [
      54,
-     310966
+     311032
     ],
     [
      55,
-     320655
+     320721
     ],
     [
      56,
-     329100
+     329166
     ],
     [
      57,
-     335484
+     335674
     ],
     [
      58,
-     343175
+     343365
     ],
     [
      59,
-     365473
+     365663
     ],
     [
      60,
-     389620
+     389811
     ]
    ]
   },
@@ -43059,7 +43074,7 @@
    "race": "Troll",
    "class": "PRIEST",
    "start": "forever/horde/troll/01-durotar",
-   "total_s": 371422,
+   "total_s": 371611,
    "level_end": 60,
    "dings": [
     [
@@ -43224,7 +43239,7 @@
     ],
     [
      41,
-     175308
+     175307
     ],
     [
      42,
@@ -43232,75 +43247,75 @@
     ],
     [
      43,
-     189225
+     189224
     ],
     [
      44,
-     199536
+     199535
     ],
     [
      45,
-     208310
+     208355
     ],
     [
      46,
-     215723
+     215769
     ],
     [
      47,
-     224118
+     224088
     ],
     [
      48,
-     231658
+     231628
     ],
     [
      49,
-     250150
+     250183
     ],
     [
      50,
-     259077
+     259110
     ],
     [
      51,
-     266458
+     266491
     ],
     [
      52,
-     276694
+     276759
     ],
     [
      53,
-     286907
+     286972
     ],
     [
      54,
-     294760
+     294825
     ],
     [
      55,
-     305470
+     305535
     ],
     [
      56,
-     313798
+     313863
     ],
     [
      57,
-     320084
+     320274
     ],
     [
      58,
-     327655
+     327845
     ],
     [
      59,
-     348013
+     348203
     ],
     [
      60,
-     371163
+     371353
     ]
    ]
   },
@@ -43309,7 +43324,7 @@
    "race": "Troll",
    "class": "ROGUE",
    "start": "forever/horde/troll/01-durotar",
-   "total_s": 363173,
+   "total_s": 363362,
    "level_end": 60,
    "dings": [
     [
@@ -43482,75 +43497,75 @@
     ],
     [
      43,
-     185699
+     185698
     ],
     [
      44,
-     195860
+     195859
     ],
     [
      45,
-     204549
+     204593
     ],
     [
      46,
-     211875
+     211920
     ],
     [
      47,
-     220105
+     220077
     ],
     [
      48,
-     227415
+     227387
     ],
     [
      49,
-     245031
+     245063
     ],
     [
      50,
-     253795
+     253827
     ],
     [
      51,
-     261059
+     261092
     ],
     [
      52,
-     271080
+     271144
     ],
     [
      53,
-     280999
+     281063
     ],
     [
      54,
-     288830
+     288894
     ],
     [
      55,
-     299385
+     299449
     ],
     [
      56,
-     307596
+     307660
     ],
     [
      57,
-     313786
+     313974
     ],
     [
      58,
-     321237
+     321426
     ],
     [
      59,
-     340762
+     340950
     ],
     [
      60,
-     362914
+     363103
     ]
    ]
   },
@@ -43559,7 +43574,7 @@
    "race": "Troll",
    "class": "SHAMAN",
    "start": "forever/horde/troll/01-durotar",
-   "total_s": 366001,
+   "total_s": 366192,
    "level_end": 60,
    "dings": [
     [
@@ -43732,75 +43747,75 @@
     ],
     [
      43,
-     186027
+     186026
     ],
     [
      44,
-     196179
+     196178
     ],
     [
      45,
-     205198
+     205216
     ],
     [
      46,
-     212540
+     212569
     ],
     [
      47,
-     221474
+     221492
     ],
     [
      48,
-     227975
+     228009
     ],
     [
      49,
-     245734
+     245768
     ],
     [
      50,
-     254526
+     254560
     ],
     [
      51,
-     261790
+     261824
     ],
     [
      52,
-     272660
+     272726
     ],
     [
      53,
-     282595
+     282661
     ],
     [
      54,
-     290468
+     290534
     ],
     [
      55,
-     302184
+     302250
     ],
     [
      56,
-     310395
+     310461
     ],
     [
      57,
-     316585
+     316775
     ],
     [
      58,
-     324036
+     324226
     ],
     [
      59,
-     343590
+     343781
     ],
     [
      60,
-     365743
+     365933
     ]
    ]
   },
@@ -43809,7 +43824,7 @@
    "race": "Troll",
    "class": "WARLOCK",
    "start": "forever/horde/troll/01-durotar",
-   "total_s": 339340,
+   "total_s": 339526,
    "level_end": 60,
    "dings": [
     [
@@ -43974,7 +43989,7 @@
     ],
     [
      41,
-     162569
+     162568
     ],
     [
      42,
@@ -43982,75 +43997,75 @@
     ],
     [
      43,
-     175700
+     175699
     ],
     [
      44,
-     185089
+     185088
     ],
     [
      45,
-     193476
+     193494
     ],
     [
      46,
-     200521
+     200564
     ],
     [
      47,
-     208318
+     208295
     ],
     [
      48,
-     214938
+     214916
     ],
     [
      49,
-     229861
+     229891
     ],
     [
      50,
-     238491
+     238521
     ],
     [
      51,
-     245403
+     245433
     ],
     [
      52,
-     254902
+     254964
     ],
     [
      53,
-     264094
+     264156
     ],
     [
      54,
-     271857
+     271919
     ],
     [
      55,
-     281883
+     281945
     ],
     [
      56,
-     289741
+     289803
     ],
     [
      57,
-     295640
+     295827
     ],
     [
      58,
-     302732
+     302919
     ],
     [
      59,
-     319921
+     320107
     ],
     [
      60,
-     339081
+     339267
     ]
    ]
   },
@@ -44059,7 +44074,7 @@
    "race": "Troll",
    "class": "WARRIOR",
    "start": "forever/horde/troll/01-durotar",
-   "total_s": 387240,
+   "total_s": 387431,
    "level_end": 60,
    "dings": [
     [
@@ -44224,7 +44239,7 @@
     ],
     [
      41,
-     181792
+     181791
     ],
     [
      42,
@@ -44232,75 +44247,75 @@
     ],
     [
      43,
-     196187
+     196186
     ],
     [
      44,
-     206896
+     206895
     ],
     [
      45,
-     215506
+     215535
     ],
     [
      46,
-     222799
+     223118
     ],
     [
      47,
-     232129
+     232091
     ],
     [
      48,
-     240129
+     240091
     ],
     [
      49,
-     260020
+     260055
     ],
     [
      50,
-     269104
+     269139
     ],
     [
      51,
-     276720
+     276755
     ],
     [
      52,
-     287315
+     287381
     ],
     [
      53,
-     298020
+     298086
     ],
     [
      54,
-     306023
+     306090
     ],
     [
      55,
-     317045
+     317112
     ],
     [
      56,
-     325608
+     325675
     ],
     [
      57,
-     332089
+     332280
     ],
     [
      58,
-     339900
+     340090
     ],
     [
      59,
-     361836
+     362027
     ],
     [
      60,
-     386981
+     387172
     ]
    ]
   },
@@ -44309,7 +44324,7 @@
    "race": "Scourge",
    "class": "DRUID",
    "start": "forever/horde/undead/01-tirisfal-glades",
-   "total_s": 381317,
+   "total_s": 381508,
    "level_end": 60,
    "dings": [
     [
@@ -44478,79 +44493,79 @@
     ],
     [
      42,
-     196418
+     196417
     ],
     [
      43,
-     203617
+     203616
     ],
     [
      44,
-     213575
+     213573
     ],
     [
      45,
-     222594
+     222612
     ],
     [
      46,
-     230122
+     230151
     ],
     [
      47,
-     239056
+     239074
     ],
     [
      48,
-     245557
+     245591
     ],
     [
      49,
-     263315
+     263349
     ],
     [
      50,
-     272037
+     272071
     ],
     [
      51,
-     279301
+     279335
     ],
     [
      52,
-     289314
+     289380
     ],
     [
      53,
-     300352
+     300418
     ],
     [
      54,
-     308151
+     308217
     ],
     [
      55,
-     317520
+     317586
     ],
     [
      56,
-     325731
+     325797
     ],
     [
      57,
-     331920
+     332111
     ],
     [
      58,
-     339372
+     339562
     ],
     [
      59,
-     358906
+     359097
     ],
     [
      60,
-     381059
+     381249
     ]
    ]
   },
@@ -44559,7 +44574,7 @@
    "race": "Scourge",
    "class": "HUNTER",
    "start": "forever/horde/undead/01-tirisfal-glades",
-   "total_s": 348416,
+   "total_s": 348603,
    "level_end": 60,
    "dings": [
     [
@@ -44724,83 +44739,83 @@
     ],
     [
      41,
-     173449
+     173448
     ],
     [
      42,
-     179536
+     179535
     ],
     [
      43,
-     186380
+     186379
     ],
     [
      44,
-     195726
+     195725
     ],
     [
      45,
-     204347
+     204366
     ],
     [
      46,
-     211339
+     211367
     ],
     [
      47,
-     219616
+     219636
     ],
     [
      48,
-     225209
+     225239
     ],
     [
      49,
-     239428
+     239458
     ],
     [
      50,
-     248126
+     248156
     ],
     [
      51,
-     254922
+     254952
     ],
     [
      52,
-     265134
+     265196
     ],
     [
      53,
-     274130
+     274192
     ],
     [
      54,
-     281938
+     282001
     ],
     [
      55,
-     293009
+     293071
     ],
     [
      56,
-     300750
+     300812
     ],
     [
      57,
-     306552
+     306739
     ],
     [
      58,
-     313524
+     313710
     ],
     [
      59,
-     329995
+     330182
     ],
     [
      60,
-     348158
+     348344
     ]
    ]
   },
@@ -44809,7 +44824,7 @@
    "race": "Scourge",
    "class": "MAGE",
    "start": "forever/horde/undead/01-tirisfal-glades",
-   "total_s": 345454,
+   "total_s": 345641,
    "level_end": 60,
    "dings": [
     [
@@ -44982,75 +44997,75 @@
     ],
     [
      43,
-     176920
+     176919
     ],
     [
      44,
-     186641
+     186640
     ],
     [
      45,
-     195159
+     195201
     ],
     [
      46,
-     202304
+     202348
     ],
     [
      47,
-     210202
+     210178
     ],
     [
      48,
-     217052
+     217028
     ],
     [
      49,
-     232917
+     232947
     ],
     [
      50,
-     241685
+     241716
     ],
     [
      51,
-     248715
+     248745
     ],
     [
      52,
-     258393
+     258456
     ],
     [
      53,
-     267876
+     267939
     ],
     [
      54,
-     275652
+     275715
     ],
     [
      55,
-     285841
+     285903
     ],
     [
      56,
-     293817
+     293879
     ],
     [
      57,
-     299813
+     300000
     ],
     [
      58,
-     307024
+     307211
     ],
     [
      59,
-     325038
+     325225
     ],
     [
      60,
-     345196
+     345383
     ]
    ]
   },
@@ -45059,7 +45074,7 @@
    "race": "Scourge",
    "class": "PALADIN",
    "start": "forever/horde/undead/01-tirisfal-glades",
-   "total_s": 381366,
+   "total_s": 381556,
    "level_end": 60,
    "dings": [
     [
@@ -45224,7 +45239,7 @@
     ],
     [
      41,
-     179333
+     179332
     ],
     [
      42,
@@ -45232,75 +45247,75 @@
     ],
     [
      43,
-     193447
+     193446
     ],
     [
      44,
-     203804
+     203803
     ],
     [
      45,
-     212663
+     212709
     ],
     [
      46,
-     220364
+     220411
     ],
     [
      47,
-     228926
+     228894
     ],
     [
      48,
-     236696
+     236664
     ],
     [
      49,
-     256064
+     256098
     ],
     [
      50,
-     264945
+     264979
     ],
     [
      51,
-     272443
+     272477
     ],
     [
      52,
-     282910
+     282976
     ],
     [
      53,
-     293299
+     293365
     ],
     [
      54,
-     302453
+     302519
     ],
     [
      55,
-     312141
+     312207
     ],
     [
      56,
-     320587
+     320653
     ],
     [
      57,
-     326970
+     327161
     ],
     [
      58,
-     334661
+     334852
     ],
     [
      59,
-     356959
+     357150
     ],
     [
      60,
-     381107
+     381298
     ]
    ]
   },
@@ -45309,7 +45324,7 @@
    "race": "Scourge",
    "class": "PRIEST",
    "start": "forever/horde/undead/01-tirisfal-glades",
-   "total_s": 369708,
+   "total_s": 369897,
    "level_end": 60,
    "dings": [
     [
@@ -45482,75 +45497,75 @@
     ],
     [
      43,
-     187511
+     187510
     ],
     [
      44,
-     197822
+     197821
     ],
     [
      45,
-     206596
+     206641
     ],
     [
      46,
-     214008
+     214055
     ],
     [
      47,
-     222404
+     222374
     ],
     [
      48,
-     229944
+     229914
     ],
     [
      49,
-     248436
+     248469
     ],
     [
      50,
-     257363
+     257396
     ],
     [
      51,
-     264744
+     264777
     ],
     [
      52,
-     274980
+     275045
     ],
     [
      53,
-     285193
+     285258
     ],
     [
      54,
-     293046
+     293111
     ],
     [
      55,
-     303755
+     303821
     ],
     [
      56,
-     312084
+     312149
     ],
     [
      57,
-     318370
+     318560
     ],
     [
      58,
-     325941
+     326131
     ],
     [
      59,
-     346299
+     346489
     ],
     [
      60,
-     369449
+     369639
     ]
    ]
   },
@@ -45559,7 +45574,7 @@
    "race": "Scourge",
    "class": "ROGUE",
    "start": "forever/horde/undead/01-tirisfal-glades",
-   "total_s": 361355,
+   "total_s": 361543,
    "level_end": 60,
    "dings": [
     [
@@ -45732,75 +45747,75 @@
     ],
     [
      43,
-     183880
+     183879
     ],
     [
      44,
-     194042
+     194041
     ],
     [
      45,
-     202731
+     202775
     ],
     [
      46,
-     210057
+     210102
     ],
     [
      47,
-     218286
+     218258
     ],
     [
      48,
-     225596
+     225568
     ],
     [
      49,
-     243213
+     243245
     ],
     [
      50,
-     251977
+     252009
     ],
     [
      51,
-     259241
+     259273
     ],
     [
      52,
-     269262
+     269326
     ],
     [
      53,
-     279181
+     279245
     ],
     [
      54,
-     287012
+     287076
     ],
     [
      55,
-     297567
+     297631
     ],
     [
      56,
-     305778
+     305842
     ],
     [
      57,
-     311967
+     312156
     ],
     [
      58,
-     319419
+     319607
     ],
     [
      59,
-     338943
+     339132
     ],
     [
      60,
-     361096
+     361285
     ]
    ]
   },
@@ -45809,7 +45824,7 @@
    "race": "Scourge",
    "class": "SHAMAN",
    "start": "forever/horde/undead/01-tirisfal-glades",
-   "total_s": 379979,
+   "total_s": 380169,
    "level_end": 60,
    "dings": [
     [
@@ -45978,79 +45993,79 @@
     ],
     [
      42,
-     192805
+     192804
     ],
     [
      43,
-     200004
+     200003
     ],
     [
      44,
-     210156
+     210155
     ],
     [
      45,
-     219176
+     219193
     ],
     [
      46,
-     226517
+     226547
     ],
     [
      47,
-     235451
+     235469
     ],
     [
      48,
-     241952
+     241986
     ],
     [
      49,
-     259711
+     259745
     ],
     [
      50,
-     268503
+     268537
     ],
     [
      51,
-     275767
+     275801
     ],
     [
      52,
-     286637
+     286703
     ],
     [
      53,
-     296573
+     296639
     ],
     [
      54,
-     304446
+     304512
     ],
     [
      55,
-     316161
+     316227
     ],
     [
      56,
-     324372
+     324438
     ],
     [
      57,
-     330562
+     330752
     ],
     [
      58,
-     338013
+     338204
     ],
     [
      59,
-     357567
+     357758
     ],
     [
      60,
-     379720
+     379911
     ]
    ]
   },
@@ -46059,7 +46074,7 @@
    "race": "Scourge",
    "class": "WARLOCK",
    "start": "forever/horde/undead/01-tirisfal-glades",
-   "total_s": 338043,
+   "total_s": 338229,
    "level_end": 60,
    "dings": [
     [
@@ -46232,75 +46247,75 @@
     ],
     [
      43,
-     174404
+     174403
     ],
     [
      44,
-     183793
+     183792
     ],
     [
      45,
-     192179
+     192198
     ],
     [
      46,
-     199224
+     199267
     ],
     [
      47,
-     207021
+     206999
     ],
     [
      48,
-     213641
+     213619
     ],
     [
      49,
-     228564
+     228594
     ],
     [
      50,
-     237194
+     237224
     ],
     [
      51,
-     244106
+     244136
     ],
     [
      52,
-     253605
+     253667
     ],
     [
      53,
-     262797
+     262859
     ],
     [
      54,
-     270560
+     270622
     ],
     [
      55,
-     280586
+     280648
     ],
     [
      56,
-     288445
+     288507
     ],
     [
      57,
-     294344
+     294530
     ],
     [
      58,
-     301436
+     301622
     ],
     [
      59,
-     318624
+     318811
     ],
     [
      60,
-     337784
+     337971
     ]
    ]
   },
@@ -46309,7 +46324,7 @@
    "race": "Scourge",
    "class": "WARRIOR",
    "start": "forever/horde/undead/01-tirisfal-glades",
-   "total_s": 385116,
+   "total_s": 385307,
    "level_end": 60,
    "dings": [
     [
@@ -46482,75 +46497,75 @@
     ],
     [
      43,
-     194063
+     194062
     ],
     [
      44,
-     204772
+     204771
     ],
     [
      45,
-     213382
+     213411
     ],
     [
      46,
-     220675
+     220994
     ],
     [
      47,
-     230005
+     229967
     ],
     [
      48,
-     238005
+     237967
     ],
     [
      49,
-     257897
+     257931
     ],
     [
      50,
-     266980
+     267015
     ],
     [
      51,
-     274596
+     274631
     ],
     [
      52,
-     285191
+     285257
     ],
     [
      53,
-     295896
+     295962
     ],
     [
      54,
-     303900
+     303966
     ],
     [
      55,
-     314922
+     314988
     ],
     [
      56,
-     323485
+     323551
     ],
     [
      57,
-     329965
+     330156
     ],
     [
      58,
-     337776
+     337967
     ],
     [
      59,
-     359712
+     359903
     ],
     [
      60,
-     384858
+     385049
     ]
    ]
   },
@@ -46559,7 +46574,7 @@
    "race": "Skyborne",
    "class": "DRUID",
    "start": "forever/horde/skyborne/01-zephras-isle",
-   "total_s": 373363,
+   "total_s": 373554,
    "level_end": 60,
    "dings": [
     [
@@ -46728,79 +46743,79 @@
     ],
     [
      42,
-     188464
+     188463
     ],
     [
      43,
-     195663
+     195662
     ],
     [
      44,
-     205621
+     205620
     ],
     [
      45,
-     214640
+     214658
     ],
     [
      46,
-     222168
+     222197
     ],
     [
      47,
-     231102
+     231120
     ],
     [
      48,
-     237603
+     237637
     ],
     [
      49,
-     255361
+     255395
     ],
     [
      50,
-     264083
+     264117
     ],
     [
      51,
-     271347
+     271381
     ],
     [
      52,
-     281360
+     281426
     ],
     [
      53,
-     292398
+     292464
     ],
     [
      54,
-     300197
+     300263
     ],
     [
      55,
-     309566
+     309632
     ],
     [
      56,
-     317777
+     317843
     ],
     [
      57,
-     323966
+     324157
     ],
     [
      58,
-     331418
+     331608
     ],
     [
      59,
-     350952
+     351143
     ],
     [
      60,
-     373105
+     373295
     ]
    ]
   },
@@ -46809,7 +46824,7 @@
    "race": "Skyborne",
    "class": "HUNTER",
    "start": "forever/horde/skyborne/01-zephras-isle",
-   "total_s": 334729,
+   "total_s": 334916,
    "level_end": 60,
    "dings": [
     [
@@ -46974,7 +46989,7 @@
     ],
     [
      41,
-     159762
+     159761
     ],
     [
      42,
@@ -46982,75 +46997,75 @@
     ],
     [
      43,
-     172693
+     172692
     ],
     [
      44,
-     182039
+     182038
     ],
     [
      45,
-     190660
+     190679
     ],
     [
      46,
-     197652
+     197680
     ],
     [
      47,
-     205929
+     205949
     ],
     [
      48,
-     211522
+     211552
     ],
     [
      49,
-     225741
+     225771
     ],
     [
      50,
-     234440
+     234470
     ],
     [
      51,
-     241235
+     241265
     ],
     [
      52,
-     251447
+     251509
     ],
     [
      53,
-     260443
+     260505
     ],
     [
      54,
-     268252
+     268314
     ],
     [
      55,
-     279322
+     279384
     ],
     [
      56,
-     287063
+     287125
     ],
     [
      57,
-     292865
+     293052
     ],
     [
      58,
-     299837
+     300024
     ],
     [
      59,
-     316308
+     316495
     ],
     [
      60,
-     334471
+     334657
     ]
    ]
   },
@@ -47059,7 +47074,7 @@
    "race": "Skyborne",
    "class": "MAGE",
    "start": "forever/horde/skyborne/01-zephras-isle",
-   "total_s": 347703,
+   "total_s": 347890,
    "level_end": 60,
    "dings": [
     [
@@ -47232,75 +47247,75 @@
     ],
     [
      43,
-     179169
+     179168
     ],
     [
      44,
-     188890
+     188889
     ],
     [
      45,
-     197408
+     197450
     ],
     [
      46,
-     204553
+     204597
     ],
     [
      47,
-     212451
+     212427
     ],
     [
      48,
-     219301
+     219277
     ],
     [
      49,
-     235166
+     235196
     ],
     [
      50,
-     243934
+     243964
     ],
     [
      51,
-     250964
+     250994
     ],
     [
      52,
-     260642
+     260705
     ],
     [
      53,
-     270125
+     270188
     ],
     [
      54,
-     277901
+     277964
     ],
     [
      55,
-     288090
+     288152
     ],
     [
      56,
-     296066
+     296128
     ],
     [
      57,
-     302062
+     302249
     ],
     [
      58,
-     309273
+     309460
     ],
     [
      59,
-     327287
+     327474
     ],
     [
      60,
-     347445
+     347632
     ]
    ]
   },
@@ -47309,7 +47324,7 @@
    "race": "Skyborne",
    "class": "PALADIN",
    "start": "forever/horde/skyborne/01-zephras-isle",
-   "total_s": 389673,
+   "total_s": 389864,
    "level_end": 60,
    "dings": [
     [
@@ -47474,83 +47489,83 @@
     ],
     [
      41,
-     187641
+     187640
     ],
     [
      42,
-     194117
+     194116
     ],
     [
      43,
-     201755
+     201754
     ],
     [
      44,
-     212112
+     212111
     ],
     [
      45,
-     220971
+     221017
     ],
     [
      46,
-     228672
+     228719
     ],
     [
      47,
-     237234
+     237202
     ],
     [
      48,
-     245004
+     244971
     ],
     [
      49,
-     264372
+     264406
     ],
     [
      50,
-     273253
+     273287
     ],
     [
      51,
-     280751
+     280785
     ],
     [
      52,
-     291217
+     291283
     ],
     [
      53,
-     301606
+     301672
     ],
     [
      54,
-     310761
+     310827
     ],
     [
      55,
-     320449
+     320515
     ],
     [
      56,
-     328895
+     328961
     ],
     [
      57,
-     335278
+     335469
     ],
     [
      58,
-     342969
+     343160
     ],
     [
      59,
-     365267
+     365458
     ],
     [
      60,
-     389415
+     389605
     ]
    ]
   },
@@ -47559,7 +47574,7 @@
    "race": "Skyborne",
    "class": "PRIEST",
    "start": "forever/horde/skyborne/01-zephras-isle",
-   "total_s": 376193,
+   "total_s": 376383,
    "level_end": 60,
    "dings": [
     [
@@ -47728,79 +47743,79 @@
     ],
     [
      42,
-     186450
+     186449
     ],
     [
      43,
-     193997
+     193996
     ],
     [
      44,
-     204308
+     204307
     ],
     [
      45,
-     213082
+     213127
     ],
     [
      46,
-     220494
+     220540
     ],
     [
      47,
-     228890
+     228860
     ],
     [
      48,
-     236430
+     236400
     ],
     [
      49,
-     254922
+     254955
     ],
     [
      50,
-     263849
+     263882
     ],
     [
      51,
-     271230
+     271263
     ],
     [
      52,
-     281466
+     281531
     ],
     [
      53,
-     291679
+     291744
     ],
     [
      54,
-     299532
+     299597
     ],
     [
      55,
-     310241
+     310306
     ],
     [
      56,
-     318570
+     318635
     ],
     [
      57,
-     324856
+     325046
     ],
     [
      58,
-     332427
+     332617
     ],
     [
      59,
-     352785
+     352974
     ],
     [
      60,
-     375935
+     376125
     ]
    ]
   },
@@ -47809,7 +47824,7 @@
    "race": "Skyborne",
    "class": "ROGUE",
    "start": "forever/horde/skyborne/01-zephras-isle",
-   "total_s": 362555,
+   "total_s": 362744,
    "level_end": 60,
    "dings": [
     [
@@ -47974,83 +47989,83 @@
     ],
     [
      41,
-     171360
+     171359
     ],
     [
      42,
-     177625
+     177624
     ],
     [
      43,
-     185081
+     185080
     ],
     [
      44,
-     195243
+     195242
     ],
     [
      45,
-     203931
+     203976
     ],
     [
      46,
-     211257
+     211303
     ],
     [
      47,
-     219487
+     219459
     ],
     [
      48,
-     226797
+     226769
     ],
     [
      49,
-     244413
+     244446
     ],
     [
      50,
-     253178
+     253210
     ],
     [
      51,
-     260442
+     260474
     ],
     [
      52,
-     270463
+     270527
     ],
     [
      53,
-     280381
+     280446
     ],
     [
      54,
-     288212
+     288277
     ],
     [
      55,
-     298768
+     298832
     ],
     [
      56,
-     306978
+     307043
     ],
     [
      57,
-     313168
+     313357
     ],
     [
      58,
-     320619
+     320808
     ],
     [
      59,
-     340144
+     340333
     ],
     [
      60,
-     362297
+     362485
     ]
    ]
   },
@@ -48059,7 +48074,7 @@
    "race": "Skyborne",
    "class": "SHAMAN",
    "start": "forever/horde/skyborne/01-zephras-isle",
-   "total_s": 365628,
+   "total_s": 365818,
    "level_end": 60,
    "dings": [
     [
@@ -48224,83 +48239,83 @@
     ],
     [
      41,
-     171936
+     171935
     ],
     [
      42,
-     178454
+     178453
     ],
     [
      43,
-     185653
+     185652
     ],
     [
      44,
-     195805
+     195804
     ],
     [
      45,
-     204825
+     204843
     ],
     [
      46,
-     212166
+     212196
     ],
     [
      47,
-     221100
+     221119
     ],
     [
      48,
-     227601
+     227635
     ],
     [
      49,
-     245360
+     245394
     ],
     [
      50,
-     254152
+     254186
     ],
     [
      51,
-     261416
+     261450
     ],
     [
      52,
-     272286
+     272352
     ],
     [
      53,
-     282222
+     282288
     ],
     [
      54,
-     290095
+     290161
     ],
     [
      55,
-     301810
+     301876
     ],
     [
      56,
-     310021
+     310087
     ],
     [
      57,
-     316211
+     316402
     ],
     [
      58,
-     323662
+     323853
     ],
     [
      59,
-     343217
+     343407
     ],
     [
      60,
-     365369
+     365560
     ]
    ]
   },
@@ -48309,7 +48324,7 @@
    "race": "Skyborne",
    "class": "WARLOCK",
    "start": "forever/horde/skyborne/01-zephras-isle",
-   "total_s": 340490,
+   "total_s": 340676,
    "level_end": 60,
    "dings": [
     [
@@ -48478,79 +48493,79 @@
     ],
     [
      42,
-     169660
+     169659
     ],
     [
      43,
-     176843
+     176842
     ],
     [
      44,
-     186167
+     186166
     ],
     [
      45,
-     194600
+     194641
     ],
     [
      46,
-     201669
+     201713
     ],
     [
      47,
-     209401
+     209379
     ],
     [
      48,
-     216021
+     216000
     ],
     [
      49,
-     231011
+     231040
     ],
     [
      50,
-     239641
+     239670
     ],
     [
      51,
-     246553
+     246582
     ],
     [
      52,
-     256052
+     256114
     ],
     [
      53,
-     265244
+     265305
     ],
     [
      54,
-     273007
+     273068
     ],
     [
      55,
-     283033
+     283094
     ],
     [
      56,
-     290891
+     290953
     ],
     [
      57,
-     296790
+     296976
     ],
     [
      58,
-     303882
+     304068
     ],
     [
      59,
-     321071
+     321257
     ],
     [
      60,
-     340231
+     340417
     ]
    ]
   },
@@ -48559,7 +48574,7 @@
    "race": "Skyborne",
    "class": "WARRIOR",
    "start": "forever/horde/skyborne/01-zephras-isle",
-   "total_s": 386033,
+   "total_s": 386223,
    "level_end": 60,
    "dings": [
     [
@@ -48728,79 +48743,79 @@
     ],
     [
      42,
-     186835
+     186834
     ],
     [
      43,
-     194979
+     194978
     ],
     [
      44,
-     205689
+     205688
     ],
     [
      45,
-     214299
+     214327
     ],
     [
      46,
-     221592
+     221910
     ],
     [
      47,
-     230922
+     230884
     ],
     [
      48,
-     238921
+     238883
     ],
     [
      49,
-     258813
+     258847
     ],
     [
      50,
-     267897
+     267931
     ],
     [
      51,
-     275513
+     275547
     ],
     [
      52,
-     286107
+     286174
     ],
     [
      53,
-     296812
+     296879
     ],
     [
      54,
-     304816
+     304882
     ],
     [
      55,
-     315838
+     315904
     ],
     [
      56,
-     324401
+     324467
     ],
     [
      57,
-     330881
+     331072
     ],
     [
      58,
-     338692
+     338883
     ],
     [
      59,
-     360629
+     360820
     ],
     [
      60,
-     385774
+     385965
     ]
    ]
   }
@@ -48961,595 +48976,595 @@
    ],
    [
     92959,
-    21,
-    55,
-    0
-   ],
-   [
-    95766,
     22,
     55,
     0
    ],
    [
-    95320,
+    95766,
     23,
     55,
     0
    ],
    [
+    95320,
+    24,
+    55,
+    0
+   ],
+   [
     95318,
-    25,
+    26,
     55,
     0
    ],
    [
     95317,
-    27,
+    28,
     55,
     0
    ],
    [
     95319,
-    29,
+    30,
     55,
     0
    ],
    [
     95378,
-    31,
-    55,
-    0
-   ],
-   [
-    95379,
-    31,
-    55,
-    0
-   ],
-   [
-    96435,
     32,
     55,
     0
    ],
    [
+    95379,
+    32,
+    55,
+    0
+   ],
+   [
+    96435,
+    33,
+    55,
+    0
+   ],
+   [
     96255,
-    35,
+    36,
     55,
     0
    ],
    [
     95380,
-    37,
-    55,
-    0
-   ],
-   [
-    96262,
-    37,
-    55,
-    0
-   ],
-   [
-    96322,
     38,
     55,
     0
    ],
    [
+    96262,
+    38,
+    55,
+    0
+   ],
+   [
+    96322,
+    39,
+    55,
+    0
+   ],
+   [
     95316,
-    40,
+    41,
     55.5,
     0
    ],
    [
     96321,
-    42,
-    55.5,
-    0
-   ],
-   [
-    96131,
     43,
     55.5,
     0
    ],
    [
-    92612,
-    46,
+    96131,
+    44,
     55.5,
     0
    ],
    [
-    96209,
+    92612,
     47,
     55.5,
     0
    ],
    [
-    95006,
+    96209,
     48,
     55.5,
     0
    ],
    [
-    6762,
+    95006,
     49,
     55.5,
     0
    ],
    [
+    6762,
+    50,
+    55.5,
+    0
+   ],
+   [
     92008,
-    52,
+    53,
     55.5,
     0
    ],
    [
     92009,
-    54,
-    55.5,
-    0
-   ],
-   [
-    92594,
-    54,
-    55.5,
-    0
-   ],
-   [
-    93773,
     55,
     55.5,
     0
    ],
    [
-    96930,
+    92594,
+    55,
+    55.5,
+    0
+   ],
+   [
+    93773,
     56,
+    55.5,
+    0
+   ],
+   [
+    96930,
+    57,
     55.5,
     0
    ],
    [
     92702,
-    57,
+    58,
     55.5,
     0
    ],
    [
     92064,
-    57,
+    58,
     55.5,
     0
    ],
    [
     96559,
-    58,
+    59,
     55.5,
     0
    ],
    [
     93383,
-    58,
+    59,
     55.5,
     0
    ],
    [
     93952,
-    61,
+    62,
     55.5,
     0
    ],
    [
     92111,
-    62,
+    63,
     56,
     0
    ],
    [
     93831,
-    64,
-    56,
-    0
-   ],
-   [
-    91697,
-    64,
-    56,
-    0
-   ],
-   [
-    91881,
     65,
     56,
     0
    ],
    [
-    94782,
+    91697,
+    65,
+    56,
+    0
+   ],
+   [
+    91881,
     66,
     56,
     0
    ],
    [
-    96830,
+    94782,
     67,
     56,
     0
    ],
    [
+    96830,
+    68,
+    56,
+    0
+   ],
+   [
     90865,
-    80,
+    81,
     56,
     0
    ],
    [
     95027,
-    82,
-    56,
-    0
-   ],
-   [
-    92449,
-    82,
-    56,
-    0
-   ],
-   [
-    90702,
-    82,
-    56,
-    0
-   ],
-   [
-    92591,
     83,
     56,
     0
    ],
    [
+    92449,
+    83,
+    56,
+    0
+   ],
+   [
+    90702,
+    83,
+    56,
+    0
+   ],
+   [
+    92591,
+    84,
+    56,
+    0
+   ],
+   [
     90750,
-    85,
+    86,
     56,
     0
    ],
    [
     95218,
-    85,
+    86,
     56,
     0
    ],
    [
     94832,
-    85,
+    86,
     56,
     0
    ],
    [
     95026,
-    86,
-    56,
-    0
-   ],
-   [
-    92609,
-    86,
-    56,
-    0
-   ],
-   [
-    96616,
-    86,
-    56,
-    0
-   ],
-   [
-    96622,
     87,
     56,
     0
    ],
    [
+    92609,
+    87,
+    56,
+    0
+   ],
+   [
+    96616,
+    87,
+    56,
+    0
+   ],
+   [
+    96622,
+    88,
+    56,
+    0
+   ],
+   [
     92100,
-    89,
+    90,
     56,
     0
    ],
    [
     96550,
-    89,
+    90,
     56,
     0
    ],
    [
     96931,
-    92,
+    93,
     56,
     0
    ],
    [
     92015,
-    94,
+    95,
     56,
     0
    ],
    [
     92014,
-    97,
-    56,
-    0
-   ],
-   [
-    96978,
     98,
     56,
     0
    ],
    [
-    93617,
-    101,
+    96978,
+    99,
     56,
     0
    ],
    [
-    96939,
+    93617,
     102,
     56,
     0
    ],
    [
+    96939,
+    103,
+    56,
+    0
+   ],
+   [
     96957,
-    107,
+    108,
     56,
     0
    ],
    [
     93615,
-    109,
+    110,
     56,
     0
    ],
    [
     96979,
-    109,
+    110,
     56,
     0
    ],
    [
     92171,
-    111,
-    56,
-    0
-   ],
-   [
-    96145,
     112,
     56,
     0
    ],
    [
-    96296,
+    96145,
     113,
     56,
     0
    ],
    [
+    96296,
+    114,
+    56,
+    0
+   ],
+   [
     91883,
-    115,
+    116,
     56,
     0
    ],
    [
     92147,
-    115,
+    116,
     56,
     0
    ],
    [
     96252,
-    115,
+    116,
     56,
     0
    ],
    [
     93826,
-    118,
+    120,
     56,
     0
    ],
    [
     93825,
-    118,
+    120,
     56,
     0
    ],
    [
     93827,
-    118,
+    120,
     56,
     0
    ],
    [
     96992,
-    121,
+    123,
     56,
     0
    ],
    [
     96964,
-    124,
+    126,
     56,
     0
    ],
    [
     92960,
-    126,
+    128,
     56,
     0
    ],
    [
     95793,
-    126,
+    128,
     56,
     0
    ],
    [
     96959,
-    126,
+    128,
     56,
     0
    ],
    [
     92593,
-    128,
-    56.5,
-    0
-   ],
-   [
-    97009,
     130,
     56.5,
     0
    ],
    [
-    96003,
+    97009,
     132,
     56.5,
     0
    ],
    [
-    96971,
-    133,
-    56.5,
-    0
-   ],
-   [
-    96991,
+    96003,
     134,
     56.5,
     0
    ],
    [
-    91688,
+    96971,
     135,
     56.5,
     0
    ],
    [
-    96025,
+    96991,
     136,
     56.5,
     0
    ],
    [
+    91688,
+    137,
+    56.5,
+    0
+   ],
+   [
+    96025,
+    138,
+    56.5,
+    0
+   ],
+   [
     92011,
-    139,
-    56.5,
-    0
-   ],
-   [
-    92328,
-    139,
-    56.5,
-    0
-   ],
-   [
-    92317,
-    140,
-    56.5,
-    0
-   ],
-   [
-    92335,
     141,
     56.5,
     0
    ],
    [
-    92500,
+    92328,
+    141,
+    56.5,
+    0
+   ],
+   [
+    92317,
     142,
     56.5,
     0
    ],
    [
+    92335,
+    143,
+    56.5,
+    0
+   ],
+   [
+    92500,
+    144,
+    56.5,
+    0
+   ],
+   [
     91794,
-    146,
-    56.5,
-    0
-   ],
-   [
-    96998,
-    146,
-    56.5,
-    0
-   ],
-   [
-    92591,
-    147,
-    56.5,
-    0
-   ],
-   [
-    92592,
     148,
     56.5,
     0
    ],
    [
-    92446,
-    151,
+    96998,
+    148,
     56.5,
     0
    ],
    [
-    90647,
+    92591,
+    149,
+    56.5,
+    0
+   ],
+   [
+    92592,
+    150,
+    56.5,
+    0
+   ],
+   [
+    92446,
     153,
     56.5,
     0
    ],
    [
+    90647,
+    155,
+    56.5,
+    0
+   ],
+   [
     91688,
-    154,
+    156,
     57,
     0
    ],
    [
     95248,
-    154,
+    156,
     57,
     0
    ],
    [
     92169,
-    158,
+    160,
     57,
     1
    ],
    [
     93584,
-    159,
+    161,
     57,
     1
    ],
    [
     92533,
-    159,
+    161,
     57,
     1
    ],
    [
     93407,
-    159,
+    161,
     57,
     1
    ],
    [
     92017,
-    159,
+    161,
     57,
     1
    ],
    [
     93197,
-    161,
+    163,
     57,
     0
    ]
@@ -54822,7 +54837,7 @@
    [
     348,
     30,
-    48,
+    47,
     0
    ],
    [
@@ -55349,25 +55364,25 @@
    ],
    [
     8252,
-    80,
-    51,
-    0
-   ],
-   [
-    8256,
     81,
     51,
     0
    ],
    [
-    3449,
+    8256,
     82,
     51,
     0
    ],
    [
-    88809,
+    3449,
     83,
+    51,
+    0
+   ],
+   [
+    88809,
+    84,
     51,
     0
    ]
@@ -73010,13 +73025,13 @@
     0
    ],
    [
-    8999,
+    84195,
     16,
     null,
     0
    ],
    [
-    9000,
+    84196,
     16,
     null,
     0
@@ -73040,7 +73055,7 @@
     0
    ],
    [
-    9004,
+    84200,
     16,
     null,
     0
@@ -73052,7 +73067,7 @@
     0
    ],
    [
-    9006,
+    84202,
     16,
     null,
     0
@@ -73064,7 +73079,7 @@
     0
    ],
    [
-    9007,
+    84203,
     17,
     null,
     0
@@ -73094,7 +73109,7 @@
     0
    ],
    [
-    9011,
+    84208,
     17,
     null,
     0
@@ -73106,7 +73121,7 @@
     0
    ],
    [
-    9013,
+    84210,
     17,
     null,
     0
@@ -84215,7 +84230,7 @@
    ],
    "8379": [
     1447,
-    29.6,
+    29.3,
     40.3
    ],
    "8390": [
@@ -85819,6 +85834,11 @@
     1452,
     61.3,
     36.9
+   ],
+   "230317": [
+    1454,
+    35,
+    38
    ],
    "235903": [
     1447,

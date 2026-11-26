@@ -124,7 +124,8 @@ def _goal(g: dict, orange: dict) -> dict | None:
     if t == "train":
         # A gathering guide's train goal names the cap only (Fishing, Mining).
         return {"t": "train", **({"rank": g["rank"]} if g.get("rank") else {}),
-                **({"max": g["rankMax"]} if g.get("rankMax") else {})}
+                **({"max": g["rankMax"]} if g.get("rankMax") else {}),
+                **({"optional": True} if g.get("optional") else {})}
     if t in ("buy", "auction", "collect"):
         return {"t": t, "item": g["item"], **({"count": g["count"]} if g.get("count") else {})}
     if t in ("level", "skill"):

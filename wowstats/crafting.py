@@ -384,7 +384,7 @@ def route(line: int, rank: int, target: int, who: Who, led: Ledger | None = None
             break
         goals = st.get("goals") or []
         mains = [x for x in goals if x["t"] == "craft" and x.get("until")]
-        for tr in (x for x in goals if x["t"] == "train"):
+        for tr in (x for x in goals if x["t"] == "train" and not x.get("optional")):
             # A rank opens the bracket (from, max]: needed when the route goes
             # past `from` and the cap (or, unknown, the skill) is still below.
             mx, frm = tr.get("max"), _bracket_from(g, st)

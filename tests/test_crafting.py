@@ -42,6 +42,16 @@ def test_chance_follows_the_colours():
     assert crafting.crafts_between(140, 150, 110, 145) is None  # grey before 150
 
 
+def test_headband_at_200_and_artisan_only_past_225():
+    w = who(ranks={TAILORING: 197}, caps={TAILORING: 225})
+    assert crafting.recipe_state(TAILORING, 12072, w)["trainer_skill"] == 200
+    route = crafting.route(TAILORING, 197, 225, w)
+    assert [(s["spell"], s["from"], s["to"]) for s in route["steps"]] == [(12048, 197, 200), (12072, 200, 225)]
+    assert route["train"] == []
+    artisan, = crafting.route(TAILORING, 197, 226, w)["train"]
+    assert (artisan["from"], artisan["max"]) == (225, 300)
+
+
 def test_four_points_on_polestars_route_with_the_bolts_first():
     w = who()
     led = crafting.Ledger(w)
