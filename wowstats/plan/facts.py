@@ -890,10 +890,11 @@ def dungeon_quests(knowledge, side: str | None, runs: dict) -> dict[str, dict]:
     and why. {area ID: {quests, other_side}}: `other_side` counts the other
     side's quests, so a dungeon with only those (Ragefire Chasm for the
     Alliance) reads as the other side's."""
-    from wowstats import forever
+    from wowstats import dungeonquests, forever
 
     from .estimate import dkey
 
+    outdoor = dungeonquests.data().get("outdoor") or {}
     areas = {aid: a for aid, a in ((forever.data() or {}).get("areas") or {}).items()
              if a.get("instance") == "dungeon"}
     by_key = {dkey(a["name"]): aid for aid, a in areas.items()}
@@ -955,6 +956,8 @@ def dungeon_quests(knowledge, side: str | None, runs: dict) -> dict[str, dict]:
     for aid, qs in want.items():
         rows, other = [], 0
         for qid, note in sorted(qs.items()):
+            if str(qid) in outdoor:
+                continue
             body = docs.get(qid, "")
             sd = QUEST_SIDE.search(body)
             sd = sd.group(1).title() if sd else None

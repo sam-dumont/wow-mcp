@@ -6,6 +6,9 @@
   "client_build": "1.60.1.70888",
   "licence": "GPL-3.0 (forever-db and Polestar's data, THIRD_PARTY.md)"
  },
+ "outdoor": {
+  "93604": "https://us.forums.blizzard.com/en/wow/t/2403040/12"
+ },
  "dungeons": {
   "33": {
    "name": "Shadowfang Keep",
@@ -54,7 +57,7 @@
   },
   "129": {
    "name": "Razorfen Downs",
-   "quests": 10,
+   "quests": 9,
    "area": 722
   },
   "189": {
@@ -3047,14 +3050,6 @@
   "93404": [
    [
     349,
-    [
-     "journal"
-    ]
-   ]
-  ],
-  "93604": [
-   [
-    129,
     [
      "journal"
     ]

@@ -59,6 +59,10 @@ DUNGEON_FLAG = 81  # QuestInfo 81: Dungeon
 # A dungeon with no quest in any source and no reason from Polestar's runs.
 NONE: dict[str, str] = {}
 
+# Agamaggan's Blood moved outside Razorfen Downs on November 17. Keep the
+# official change with the dataset so route and journal consumers agree.
+OUTDOOR = {93604: "https://us.forums.blizzard.com/en/wow/t/2403040/12"}
+
 
 def norm(name: str) -> str:
     """'The Stockade', 'Stormwind Stockade' and 'Stockade' alike."""
@@ -129,7 +133,7 @@ def build(ps: Path, db: Path | None = None) -> dict:
     def add(qid, m, src):
         # A journal row's quest can be newer than forever-db (Alcaz Prison's,
         # Blackmaw Hold's): the row cites Forever's quest data or recordings.
-        if (qid in quests or src == "journal") and m in dungeons:
+        if qid not in OUTDOOR and (qid in quests or src == "journal") and m in dungeons:
             found.setdefault(int(qid), {}).setdefault(int(m), set()).add(src)
 
     for qid, q in quests.items():
@@ -205,6 +209,7 @@ def build(ps: Path, db: Path | None = None) -> dict:
         "source": {"polestar": (ROOT / "tools" / "polestar-tag").read_text().strip(),
                    "forever_db": pkg.get("version"), "client_build": pkg.get("clientBuild"),
                    "licence": "GPL-3.0 (forever-db and Polestar's data, THIRD_PARTY.md)"},
+        "outdoor": OUTDOOR,
         "dungeons": out_d,
         "quests": {str(q): [[m, [s for s in order if s in found[q][m]]] for m in sorted(found[q])]
                    for q in sorted(found)},
