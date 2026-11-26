@@ -94,3 +94,26 @@ def merge(skills: dict[int, dict] | None, book: list[dict] | None, learned: list
     if st["rank"] or st["book_t"] is not None or SKILL in out:
         out[SKILL] = st
     return out
+
+def class_route(skill: int, who: dict, done=(), log=()) -> dict | None:
+    """A mount quest this character can use, including the post-hotfix catch-up."""
+    from wowstats.analysis import kb
+
+    cls, side = (who.get("class") or "").upper(), who.get("faction")
+    if cls not in ("PALADIN", "WARLOCK") or side not in ("Alliance", "Horde"):
+        return None
+    rule = kb.static_rule("riding.class_quests") or {}
+    for row in (rule.get("value") or {}).get("routes", []):
+        if row["cls"] != cls or row["skill"] != skill or row.get("faction", side) != side:
+            continue
+        if row.get("races") and (who.get("race") or "").upper() not in row["races"]:
+            continue
+        qid = row["quest_id"]
+        state = "done" if qid in done else "open" if qid in log else "new"
+        after = row.get("after") or (row.get("after_by_side") or {}).get(side)
+        return {"quest_id": qid, "name": row["name"], "state": state,
+                "action": after if after and state == "done" else row["action"],
+                "fulfilled": state == "done" and after is None,
+                "remaining_copper": 0 if state == "done" else row.get("remaining_copper"),
+                "source_url": row["source"], "riding_source_url": rule["source_url"]}
+    return None

@@ -312,3 +312,88 @@ def test_the_skip_section_says_to_look_before_skipping(priest):
     text = write.fallback(E.estimate(priest, 3))
     assert "### Look at, maybe skip" in text and "Skip or drop" not in text
     assert "skip it only if no later step needs it" in text
+
+
+@pytest.mark.parametrize("pace_xph,minutes", [(None, None), (0, None), (2000, 30)])
+def test_quest_comparison_needs_a_positive_pace(priest, pace_xph, minutes):
+    quest = {"quest_id": 1, "name": "Group errand", "elite": True, "level": 32, "xp_full": 1000, "zone": "Elsewhere"}
+    hist = [] if pace_xph is None else [{"kind": "questing", "planned_s": 3600, "actual_s": 3600, "xp": pace_xph}]
+    inp = {**priest, "route_levels": {}, "levels": [], "step_history": hist, "open_quests": [quest]}
+    plan = E.estimate(inp, 1)
+    row = plan["abandon"][0]
+    assert row["xp_now"] == 1000 and row["minutes_of_your_xp"] == minutes
+    assert ("min of your XP rate" in plan["facts"]["abandon1"]) == (minutes is not None)
+
+
+@pytest.mark.parametrize("gold", [0, None])
+def test_mount_and_session_keep_the_recorded_balance(priest, gold):
+    plan = E.estimate({**priest, "gold_copper": gold, "gold_rate": None}, 1)
+    assert plan["mount"]["gold_copper"] == plan["start"]["gold_copper"] == plan["end"]["gold_copper"] == gold
+    target = plan["mount"]["current"]
+    assert target["need_copper"] == 1_000_000
+    assert target["left_copper"] == (1_000_000 if gold == 0 else None)
+    assert target["eta_played_s"] is None
+
+
+def test_riding_eta_includes_unpaid_earlier_training(priest):
+    inp = {**priest, "gold_copper": 0, "gold_rate": {"copper_per_hour": 10_000}}
+    for rank, hours in ((0, 1100), (75, 1000)):
+        m = E.mounts({**inp, "mount": {**inp["mount"], "riding_skill": rank}}, E.pace(inp))
+        apprentice, epic = m["tiers"]
+        assert apprentice["eta_played_s"] == (0 if rank else 100 * 3600)
+        assert epic["eta_played_s"] == hours * 3600 and epic["target_copper"] == hours * 10_000
+
+
+def test_plan_and_dungeon_drops_use_gears_values(priest, derived):
+    from wowstats.plan import dungeonview
+
+    gear = derived("gear-priest.json.gz")
+    pair = {"Death Speaker Scepter", "Raptor's Gaze"}
+    # Same candidates from Gear through facts.extract and the regular estimate.
+    rows = [u for u in priest["upgrades"] if u["name"] in pair]
+    originals = {u["name"]: u for u in gear["upgrades"] if u["name"] in pair}
+    assert len(rows) == len(originals) == 2
+    for u in rows:
+        assert (u["gain"], u["value"], u["fit"]) == tuple(originals[u["name"]][k] for k in ("gain", "value", "fit"))
+    e = E.estimate({**priest, "upgrades": rows}, 2)
+    assert e["gear_mode"] == gear["mode"] and e["gear_spec"] == gear["spec"]["label"]
+    assert [(u["item"], u["value"]) for u in e["gear_now"]] == sorted(
+        [(n, u["value"]) for n, u in originals.items()], key=lambda pair: -pair[1])
+    drops = [d for b in dungeonview.build(priest)["dungeons"] for d in b["drops"] if d["name"] in pair]
+    assert {d["name"] for d in drops} == pair
+    assert all(d["value"] == originals[d["name"]]["value"] for d in drops)
+
+
+def test_group_schedules_only_whole_trips(priest):
+    inp = {**priest, "sessions": [], "rested_xp": 0}
+    long = E.estimate(inp, 3, "group")
+    trip = next(d for d in long["dungeons"] if d["name"] == long["blocks"][0]["dungeon"])["trip"]
+    for delta in (-1, 1):
+        plan = E.estimate(inp, (trip["time_s"] + delta) / 3600, "group")
+        for b in plan["blocks"]:
+            if b["kind"] == "dungeon":
+                whole = next(d["trip"] for d in plan["dungeons"] if d["name"] == b["dungeon"])
+                assert b["dur_s"] == whole["time_s"] and b["xp"] == whole["xp"]
+        assert (plan["blocks"][0].get("dungeon") == long["blocks"][0]["dungeon"]) == (delta > 0)
+
+
+def test_level_cap_with_empty_route_and_measured_history(priest):
+    from wowstats.plan import dungeonview
+
+    inp = {**priest, "level": 60, "xp": 0, "xp_max": 0, "route_levels": {}, "route_ahead": []}
+    for context in (None, "levelling"):
+        plan = E.estimate(inp, 3, context=context)
+        assert plan["context"] == "max-level-pve" and not plan["supported"]
+    panel = dungeonview.build(inp)
+    assert panel["questing_xp_per_hour"] is None
+    for block in panel["dungeons"]:
+        gain = block["gain"]
+        assert gain["xp"] == gain["xp_quests"] == gain["xp_kills"] == 0
+        assert gain["level_pct"] is None and gain["vs_questing"] is None
+    assert any(b["gain"]["run_s"] and b["quests"] for b in panel["dungeons"])
+    assert any(h["xp_kills"] for b in panel["dungeons"] for h in b["history"])
+    almost = {**inp, "level": 59, "xp": 15_000, "xp_max": 15_100, "xp_table": {"59": 15_100}}
+    plan = E.estimate(almost, 3)
+    assert plan["supported"] and plan["end"]["level"] == 60 and plan["end"]["xp_gained"] == 100
+    gains = [b["gain"] for b in dungeonview.build(almost)["dungeons"]]
+    assert max(g["xp"] or 0 for g in gains) == 100

@@ -44,13 +44,13 @@ import math
 import re
 import urllib.parse
 
-from wowstats import forever
+from wowstats import classguide, forever
 from wowstats.gear import BADGE, badge_of, gain_words
 from wowstats.links import WOWHEAD_BASE, dungeon_guides, dungeon_url, wowhead_url
 
 from . import dungeongain as G
 from . import estimate as E
-from . import kbloot
+from . import kbloot, tripcost
 from . import vsguide as V
 from . import wings as W
 
@@ -258,7 +258,7 @@ def build(inp: dict) -> dict:
     who = inp.get("who") or {}
     p = E.pace(inp)
     m = E.mounts(inp, p)
-    quest_xph = E.rate(p, "questing") or (p["xp_per_hour"]["value"] or 0)
+    quest_xph = E.rate(p, "questing") if level < classguide.MAX_LEVEL else 0
     known = known_areas()
     by_key = {key(a["name"]): aid for aid, a in known.items()}
     trips_by: dict[str, list[dict]] = {}
@@ -331,13 +331,15 @@ def drops_for(inp: dict, aid: str, top: int | None = None, area: dict | None = N
         # Who it's built for (wowstats.gearfit), and the gain the ranking
         # uses: less for an item a group usually hands to someone else.
         fit = adv.get("fit") or it.get("fit")
-        value = gain * (fit or {}).get("factor", 1.0) if gain is not None else None
+        value = adv.get("value")
+        if value is None:
+            value = gain * (fit or {}).get("factor", 1.0) if gain is not None else None
         out.append({**{k: it.get(k) for k in ("item_id", "name", "quality", "item_level", "slot_name", "score",
                                                "gain_pct", "fills_empty")},
                     # The advice's badge when it lists the item (weapons as setups), else the loot's.
                     **badge_of(adv if adv else it),
-                    "gain": round(gain, 1) if gain is not None else None, "level": it.get("level"),
-                    "value": round(value, 1) if value is not None else None, "fit": fit,
+                    "gain": gain, "level": it.get("level"),
+                    "value": value, "fit": fit,
                     "now": (it.get("level") or 0) <= level, "state": "obtained" if where else "missing",
                     "where": where, "url": wowhead_url("item", it["item_id"]),
                     "drops": [{**d, "url": wowhead_url("npc", d["npc_id"]) if d.get("npc_id") else None}
@@ -364,6 +366,10 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
     level = inp["level"]
     done = set(inp.get("quests_done") or [])
     open_ids = {o["quest_id"]: o for o in inp.get("open_quests") or []}
+    player = inp.get("who") or {}
+    side = player.get("faction")
+    bits = (tripcost.SIDE_BIT.get(side, 0), tripcost.race_bit(player.get("race"), side),
+            tripcost.CLASS_BIT.get((player.get("class") or "").upper(), 0))
     rewards: dict[int, list[dict]] = {}
     for d in drops:
         for qid in d["quests"]:
@@ -372,8 +378,12 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
     for q in _dq(inp, aid, area or {}).get("quests") or []:
         # One of a repeatable hand-in's variants (facts._one_per_title): the
         # one in his log, else one he did, stands for the row.
-        vs = q.get("variants") or []
-        qid = next((v for v in vs if v in open_ids), None) or next((v for v in vs if v in done), q["quest_id"])
+        ids = [v for v in q.get("variants") or [q["quest_id"]]
+               if tripcost.eligible(*forever.quest_gates(v), *bits)]
+        if not ids:
+            continue
+        canonical = q["quest_id"] if q["quest_id"] in ids else ids[0]
+        qid = next((v for v in ids if v in open_ids), None) or next((v for v in ids if v in done), canonical)
         state = _qstate(qid, done, open_ids)
         rw = sorted(rewards.get(qid) or [], key=lambda d: (d["state"] != "missing", -(d["gain"] or 0)))
         # A quest Polestar leaves out, for a class or a slow drop, stays out
@@ -390,8 +400,9 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
             at = place(pl, w["kind"], w["id"]) if w.get("kind") in ("npc", "object") else None
             return {**w, "url": _who_url(w), **(at or {})}
 
-        out.append({**{k: q.get(k) for k in ("quest_id", "name", "level", "min_level", "xp", "money_copper",
+        out.append({**{k: q.get(k) for k in ("name", "level", "min_level", "xp", "money_copper",
                                             "route")},
+                    "quest_id": qid, **({"variants": ids} if len(ids) > 1 else {}),
                     "state": state, "complete": bool((open_ids.get(qid) or {}).get("complete")),
                     "xp_now": round((q.get("xp") or 0) * (share if share is not None else 1.0))
                     if q.get("xp") and state != "done" else None,
@@ -531,8 +542,6 @@ def trip_at(name: str, who: dict, level: int, done, log, seen: dict | None, skip
     route data for the dungeon or the wing."""
     from wowstats.mcp import route
 
-    from . import tripcost
-
     ref = route.reference()
     trips = ref.trips if ref.available else {}
     area = next((a for a in areas().values() if key(a["name"]) == key(name.split(":")[0])), None)
@@ -554,8 +563,6 @@ def route_trip(inp: dict, name: str, quests: list[dict], skip=()) -> dict | None
     prerequisite it doesn't). None without route data for the dungeon (a
     Forever dungeon Polestar has no entrance for)."""
     from wowstats.mcp import route
-
-    from . import tripcost
 
     level = inp["level"]
     t = trip_at(name, inp.get("who") or {}, level, inp.get("quests_done") or [],
@@ -638,7 +645,8 @@ def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xp
     wait = [q for q in quests if waits_on_other_wings(q)]
     here = [q for q in quests if not waits_on_other_wings(q)]
     skip = {i for q in wait for i in (q["quest_id"], *(q.get("variants") or []))}
-    g = G.estimate(level=level, xp_max=inp.get("xp_max") or E.xp_need(inp, level)[0], name=name, runs=mine,
+    g = G.estimate(level=level, xp_max=inp.get("xp_max") or E.xp_need(inp, level)[0],
+                   current_xp=inp.get("xp") or 0, name=name, runs=mine,
                    others=inp.get("trips") or [], quests=here, questing_xph=quest_xph, rule=G.kill_rule(),
                    route=route_trip(inp, name, here, skip), drops=drop_odds(drops or []),
                    pace=pace(inp.get("trips") or []))

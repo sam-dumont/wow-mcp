@@ -199,10 +199,12 @@ def test_the_overview_move_puts_polestars_list_first():
     out = insights.dungeon_claims(33, [({**u, "sources": [s]}, s) for u, s in [*lib, *rfk]])
     assert [c["title"] for c in out] == ["Razorfen Kraul", "Scarlet Monastery: Library"]
     assert out[1]["blocker"] == "Polestar lists it from level 36" and out[1]["weight"] == 1.5
-    # Among Polestar's own, the drop chance counts: one sure +20 beats three +30 at 1%.
+    # Three 1% drops do not justify a run. One reachable alternative does.
     sure = [(up("Sure", 20, "a"), src("Gnomeregan", [29, 38], 31.4, 100))]
     rare = [(up(f"Rare {i}", 30, f"r{i}"), src("Razorfen Kraul", [29, 38], 31.1, 1)) for i in range(3)]
     out = insights.dungeon_claims(32, [({**u, "sources": [s]}, s) for u, s in [*rare, *sure]])
+    assert [c["title"] for c in out] == ["Gnomeregan"]
+    out = insights.dungeon_claims(32, [({**u, "sources": [s]}, s) for u, s in [*rare, *rfk, *sure]])
     assert [c["title"] for c in out] == ["Gnomeregan", "Razorfen Kraul"]
 
 

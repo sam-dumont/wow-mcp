@@ -267,7 +267,10 @@ def t_mount_goal(ctx: T.Ctx, args: dict) -> dict:
                       for t in m["tiers"]],
             "current": (m.get("current") or {}).get("name"), "behind": m["behind"], "discount": m.get("discount"),
             "unknown": m.get("unknown"), "gold_options": E.gold_options(inp, m, dl),
-            "note": "need is a tier's whole cost. When comes_with_mount is true the training includes the mount; "
+            "note": "need is the selected route's remaining cost. A class quest has no training fee; unfinished "
+                    "epic quest costs can be unknown. trainer_alternative_copper is the paid alternative. A tier's "
+                    "left and eta_played include earlier unpurchased tiers. When comes_with_mount is true the "
+                    "training includes the mount; "
                     "extra_mount_copper is a second vendor mount, optional and not in need: never quote it as the "
                     "price of riding. Net gold per online hour between logout snapshots (n given). The savings roll "
                     "over to the next tier once one is bought. may_be_trained: the tier counts as not bought, but "
