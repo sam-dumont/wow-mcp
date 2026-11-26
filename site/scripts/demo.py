@@ -19,9 +19,8 @@ them as VM_URL, RENDER_URL and RENDER_TOKEN_FILE. Steps:
    else the made-up gnome. roster3d adds eight synthetic characters and two
    companions, in the formats
    the shipper sends (WDC5 tables, M2, skins, BLP);
-5. wowstats.publish, as `wow-stats publish --force`: item cards and icons
-   from wago.tools, the 3D view from the store, each level's picture from
-   the renderer, and the paperdoll's still too;
+5. wowstats.publish, as `wow-stats publish --force`: item cards from the catalog, original
+   2D symbols, 3D files from the store and portraits from the renderer;
 6. <out>/ the public bundle, <out>/zogzog/ the sealed one, <out>/friends/
    a page that opens it with the demo's key.
 
@@ -147,7 +146,7 @@ def main(argv: list[str]) -> int:
                "RENDER_URL": os.environ.get("RENDER_URL", ""), "RENDER_BUDGET_S": "900"}
         if not env["RENDER_URL"]:
             print("demo: no RENDER_URL, so no picture: the paperdoll and each level show the 3D toggle")
-        res = publish.publish(env, force=True)
+        res = publish.publish(env, force=True, game_icons=False)
         if not res.get("built"):
             raise SystemExit(f"demo: the publisher built nothing: {res}")
         cur = Path(tmp) / "site" / "current"

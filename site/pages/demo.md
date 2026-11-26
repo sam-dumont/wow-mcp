@@ -9,7 +9,7 @@ Nibbet is a Gnome priest on WoW Forever who doesn't exist. A script plays the ch
 
 ## The nine characters
 
-The character selector also opens eight shorter sessions, one for each other Forever class. All nine characters have different races. Flintwick, the Dwarf Beast Mastery hunter, carries a Glass Shooter and travels with a bear. Duskwick, the Undead Affliction warlock, carries a Firebelcher wand and summons a Voidwalker. Each character has their own equipment and spent talent points. [Blizzard’s Forever race and class table](https://worldofwarcraft.blizzard.com/en-us/news/24304075/)
+The character selector also opens eight shorter sessions, one for each other Forever class. All nine characters have different races. Flintwick, the Dwarf Beast Mastery hunter, carries a Glass Shooter and travels with a bear. Duskwick, the Undead Affliction warlock, carries a Firebelcher wand and summons a Voidwalker. Each character has their own equipment and spent talent points. The demo draws its own 2D icons. [Blizzard’s Forever race and class table](https://worldofwarcraft.blizzard.com/en-us/news/24304075/)
 
 The eight new characters and both companions use original block models. The repository generates their meshes, textures and game tables. Your browser draws them through the same viewer that draws a player's own model.
 
@@ -21,14 +21,14 @@ The eight new characters and both companions use original block models. The repo
 
 The Battle.net side is made up too: a profile with a guild, the look, the talents read once a day (a Discipline start, then a respec into Shadow at 30) and one Legacy point. Nibbet's player has WoWSims Exporter, so the talent changes go back to level 22, not only 3 weeks.
 
-The picture and "View in 3D" come from made-up game files: a blocky gnome and its gear, written in the formats the shipper sends (the client's tables, models, textures) by a script in the repository. Nothing in them comes from Blizzard's files. The product draws them the way it draws yours: the 3D view in your browser, the pictures in its renderer.
+Open **View in 3D** to turn Nibbet around. The published demo uses Blizzard's character model and gear from a separate demo archive. The play history is invented. If the archive is unavailable, the build draws a blocky gnome from the test fixtures. [Artwork and credits](../../THIRD_PARTY.md).
 
 ## What the demo can't do
 
 The pages are plain files on GitHub Pages, so anything that needs the server is off:
 
 - no login, no full view (other players, gold over time, the live timeline);
-- no MCP: [a recorded session](mcp-session.md) shows what an assistant gets from the same data.
+- no MCP: [the 0.13.0 recording](mcp-session.md) shows six calls for Nibbet, using the single-character demo.
 
 The dates move: every build shifts the play so the last session is the day before. The auction house only lists what was on sale today or yesterday, so a demo frozen in October would have an empty auction house.
 

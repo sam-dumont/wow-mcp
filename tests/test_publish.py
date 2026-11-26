@@ -1293,7 +1293,7 @@ class GappyCatalog(FakeCatalog):
         return None if name == "inv_not_on_zamimg" else super().icon(name, size)
 
 
-def publish_items(tmp_path, monkeypatch, catalog, store_cls=None):
+def publish_items(tmp_path, monkeypatch, catalog, store_cls=None, **options):
     from wowstats import itemcard
 
     monkeypatch.setattr(itemcard, "shared", lambda: catalog)
@@ -1307,7 +1307,28 @@ def publish_items(tmp_path, monkeypatch, catalog, store_cls=None):
     env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "off",
            "PUBLISH_DIR": str(tmp_path / "site-gap"), "ZOGZOG_KEY_FILE": str(tmp_path / "zz-gap.key")}
     with redirect_stdout(io.StringIO()):
-        return publish.publish(env)
+        return publish.publish(env, **options)
+
+
+def test_hosted_demo_keeps_cards_without_fetching_or_shipping_game_icons(tmp_path, monkeypatch):
+    catalog = FakeCatalog()
+    monkeypatch.setattr(catalog, "icon", lambda *args: pytest.fail(f"demo fetched a game icon: {args}"))
+    monkeypatch.setattr(publish, "copy_icons", lambda *args: pytest.fail("demo fetched talent icons"))
+    writes = []
+    put = publish.Bundle.put
+
+    def capture(bundle, path, body):
+        writes.append((bundle.key is not None, path))
+        return put(bundle, path, body)
+
+    monkeypatch.setattr(publish.Bundle, "put", capture)
+    assert publish_items(tmp_path, monkeypatch, catalog, game_icons=False)["built"]
+    root = tmp_path / "site-gap" / "current"
+    for is_sealed, tier in ((False, "public"), (True, "zogzog")):
+        assert (is_sealed, "data/items.json") in writes
+        assert 'data-icon-art="drawn"' in (root / tier / "index.html").read_text()
+    assert not any(path.startswith("data/icon/") for _, path in writes)
+    assert json.loads((root / "public/data/items.json").read_text())["items"]
 
 
 def test_an_icon_that_cant_be_had_fails_the_publish_with_the_list(tmp_path, monkeypatch):

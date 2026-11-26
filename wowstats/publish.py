@@ -261,7 +261,8 @@ def analytics(env: dict) -> dict | None:
     return {"domain": domain, "script": script, "api": api}
 
 
-def page(app: ui.App, sealed: bool, model3d_on: bool, stats: dict | None = None, path: str = "/") -> str:
+def page(app: ui.App, sealed: bool, model3d_on: bool, stats: dict | None = None, path: str = "/",
+         *, game_icons: bool = True) -> str:
     """index.html for a static bundle: the full-only
     sections kept in zogzog minus the Ask links and the query box. `path`: where
     the bundle is served, the only address the analytics ever send."""
@@ -273,6 +274,8 @@ def page(app: ui.App, sealed: bool, model3d_on: bool, stats: dict | None = None,
     if stats is not None:
         html = html.replace("</head>", ui.stats_tags(stats, "stats.js", path) + "</head>", 1)
     attrs = 'data-static="1"' + (' data-sealed="1"' if sealed else "")
+    if not game_icons:
+        attrs += ' data-icon-art="drawn"'
     return html.replace("<html ", f"<html {attrs} ", 1)
 
 
@@ -334,7 +337,7 @@ def fetch_analysis(env: dict) -> dict | None:
     return {"available": bool(chars), "chars": chars}
 
 
-def put_items(b: Bundle, tier: str, cards_of=None) -> int:
+def put_items(b: Bundle, tier: str, cards_of=None, *, game_icons: bool = True) -> int:
     """The tooltips of every item the bundle's answers name, and their icons
     (both sizes) under data/icon/, sealed in /zogzog/ like every data file:
     which icons a bundle holds would list its loot. Icons come from the
@@ -362,6 +365,8 @@ def put_items(b: Bundle, tier: str, cards_of=None) -> int:
         # bundle, icons and all, stays up until the next try.
         raise PublishError(f"{tier}: the item catalog couldn't be read (wago.tools, no cached copy); the last "
                            f"bundle stays up")
+    if not game_icons:
+        return 0  # The hosted demo draws its own symbols from the card metadata.
     icon_of = {i: (cards.get(str(i)) or {}).get("i") or itemcard.QUESTION for i in ids}
     n, failed = 0, set()
     for name in sorted(set(icon_of.values()) | {itemcard.QUESTION}):
@@ -406,7 +411,7 @@ def check_names(b: Bundle, tier: str, cards_of=None) -> None:
 
 def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_files: dict[str, set[int]],
                stats: dict | None = None, path: str = "/", shared: dict | None = None,
-               canonical: str = "", pics: pictures.Pictures | None = None) -> None:
+               canonical: str = "", pics: pictures.Pictures | None = None, *, game_icons: bool = True) -> None:
     """Every answer the page asks for, saved where api() looks for it.
     `m3d_files` gets each character's 3D file ids (its recipes' needs), for
     copy_3d."""
@@ -443,7 +448,7 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
             head = out("char", app.char(name)).get("header")
         except Exception:  # noqa: BLE001
             head = None
-    shell = page(app, sealed, full_app.model3d is not None, stats, path)
+    shell = page(app, sealed, full_app.model3d is not None, stats, path, game_icons=game_icons)
     html = ui.og_generic(shell) if sealed else ui.og_tags(shell, head)
     if canonical:  # the site's one address, fixed at build time (an alias host serves the same bundle)
         url = canonical.rstrip("/") + path
@@ -469,7 +474,7 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
         put("char", data_path("char", name), lambda: with_still({**app.char(name), "sources": app.store.sources(),
                                                                 "coverage": static_coverage(full_app, tier, name)},
                                                                still))
-        if "char" in files:
+        if "char" in files and game_icons:
             copy_icons(b, talents.icon_names(app.char(name)))
         put("journal", data_path("journal", name), lambda: app.journal(name))
         put("gear", data_path("gear", name), lambda: app.gear(name, None))
@@ -503,7 +508,7 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
                 sn = {**sn, **put_picture(b, pics, name, lv, ans, store_reader(full_app))}
             put("snapshot", data_path("snapshot", name, lv), lambda: sn)
     if "items" in files:
-        put_items(b, tier, full_app.item_cards)
+        put_items(b, tier, full_app.item_cards, game_icons=game_icons)
     check_names(b, tier, full_app.item_cards)
 
 
@@ -715,7 +720,7 @@ def safe_chars(chars: list[dict]) -> list[dict]:
 
 def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | None = None, public: bool = True,
             hide_public: frozenset = frozenset(), hide_zogzog: frozenset = frozenset(), slug: str = "",
-            canonical: str = "") -> dict:
+            canonical: str = "", game_icons: bool = True) -> dict:
     """One site. With several people (publish_all) each person's: their key
     (zz_key), whether the public page is on, the characters they hid from
     each bundle, their slug for the push and their site's address."""
@@ -736,8 +741,8 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
     # The page itself changes with a new version or analytics setting: rebuild
     # then too, not only on new data.
     page_id = hashlib.sha256(json.dumps([dataversions.status(), stats, zz_path, public, sorted(hide_public),
-                                         sorted(hide_zogzog), canonical, pics.on, full_app.model3d is not None,
-                                         env.get("MODEL3D_MODELS", ""),
+                                         sorted(hide_zogzog), canonical, game_icons, pics.on,
+                                         full_app.model3d is not None, env.get("MODEL3D_MODELS", ""),
                                          full_app.settings.weights, env[gearmode.PUBLISHED]],
                                         sort_keys=True).encode()).hexdigest()[:12]
 
@@ -820,7 +825,7 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
         elif public:
             pub_files: dict[str, set[int]] = {}
             build_view(pub_app, full_app, pub, [c for c in chars if c["char"] not in hide_public], pub_files, stats,
-                       "/", canonical=canonical, pics=pics)
+                       "/", canonical=canonical, pics=pics, game_icons=game_icons)
             if full_app.model3d is not None:
                 n3d += copy_3d(full_app, pub, pub_files, last)
         if help_key is not None and public:
@@ -833,7 +838,7 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
             zz_files: dict[str, set[int]] = {}
             visible = [c for c in chars if c["char"] not in hide_zogzog]
             build_view(full_app, full_app, zz, visible, zz_files, stats,
-                       "/" + zz_path.strip("/") + "/", shared, canonical=canonical, pics=pics)
+                       "/" + zz_path.strip("/") + "/", shared, canonical=canonical, pics=pics, game_icons=game_icons)
             if keep_analysis:
                 # Copy only this audience's already-screened, sealed answer
                 # for characters still visible in its new bundle.

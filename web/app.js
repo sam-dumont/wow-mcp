@@ -561,25 +561,6 @@ function renderHero(d) {
 // Small glyphs per slot, drawn for this page (24x24, stroked in the
 // item's quality colour): an empty slot, and the fallback while (or when)
 // an item has no icon. The icons themselves are the game's (web/items.js).
-const GLYPHS = {
-  head: 'M5 15a7 7 0 0 1 14 0v4H5z M5 15h14 M12 8v11',
-  neck: 'M6 3c0 6 2.5 9 6 9s6-3 6-9 M12 12v2.5 M9.5 17.5a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0',
-  shoulder: 'M3 14c2-5 5.5-7.5 9-7.5s7 2.5 9 7.5l-3 2c-1-3-3-4.5-6-4.5s-5 1.5-6 4.5z',
-  back: 'M8 4h8l3.5 16-7.5-3-7.5 3z M8 4l4 4 4-4',
-  chest: 'M8 4l4 3 4-3 4 3-2 5v8H6v-8L4 7z',
-  shirt: 'M8 4l4 2 4-2 5 4-3 3-1-1v10H7V10l-1 1-3-3z',
-  tabard: 'M7 4h10v13l-5 3-5-3z M10 9h4',
-  wrist: 'M7 6h10v12H7z M7 10h10 M7 14h10',
-  hands: 'M8 21v-7l-2.5-3 1-1 2.5 2V6a1 1 0 0 1 2 0v5 M10.5 5.5a1 1 0 0 1 2 0V11 M12.5 6.5a1 1 0 0 1 2 0V11 M14.5 8a1 1 0 0 1 2 0v6c0 4-2 7-5 7H8',
-  waist: 'M3 10h18v4H3z M10 8.5h4v7h-4z',
-  legs: 'M7 4h10l1 16h-4l-2-10-2 10H6z',
-  feet: 'M8 3h5v10l6 3v4H6v-4l2-2z',
-  finger: 'M12 21a6 6 0 1 0 0-12a6 6 0 1 0 0 12z M9.5 9l2.5-5 2.5 5',
-  trinket: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9z',
-  main: 'M19 3l2 2-11 11-2-2z M6 13l5 5 M7.5 16.5l-3.5 3.5 M3 21l1-1',
-  off: 'M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z M12 6v12',
-  ranged: 'M5 19L16 8 M14 4l2 4 4 2-4 2-2 4-2-4-4-2 4-2z',
-};
 const SLOT_GLYPH = { 1: 'head', 2: 'neck', 3: 'shoulder', 4: 'shirt', 5: 'chest', 6: 'waist', 7: 'legs', 8: 'feet',
   9: 'wrist', 10: 'hands', 11: 'finger', 12: 'finger', 13: 'trinket', 14: 'trinket', 15: 'back', 16: 'main', 17: 'off',
   18: 'ranged', 19: 'tabard' };
@@ -590,7 +571,7 @@ const QUALITY = ['Poor', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
 
 function glyph(name) {
   return s('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor',
-    'stroke-width': 1.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, s('path', { d: GLYPHS[name] }));
+    'stroke-width': 1.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, s('path', { d: window.wowGlyphPaths[name] }));
 }
 
 // One equipment slot: the item's icon (56 px, the game's) in a dark frame
