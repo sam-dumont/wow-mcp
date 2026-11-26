@@ -291,10 +291,9 @@ def test_a_recorded_patch_makes_a_schema_valid_lane(state):
 
 def test_the_cost_cap_stops_before_the_next_call(state):
     client = Client({"statements": []}, usage={"input_tokens": 400_000, "output_tokens": 10_000})  # $1.80 a call
-    pages = {p["url"]: PAGE.encode() if p["kind"] == "page" else json.dumps(
-        {"posts_count": 1, "last_posted_at": "x", "post_stream": {"posts": [
-            {"cooked": "<p>" + "a rule " * 50 + "</p>"}]}}).encode() for p in state["official"]}
-    out = refresh.run([p["key"] for p in state["official"]], client, Fetch(pages), cap=3.0)
+    for p in state["official"]:
+        p["known"] = ""
+    out = refresh.run([p["key"] for p in state["official"]], client, Fetch(all_pages(state)), cap=3.0, state=state)
     assert len(client.requests) == 1 and any("would likely cross" in s for s in out["skipped"])
 
 
@@ -371,7 +370,7 @@ def test_the_workflow_holds_no_token_where_it_runs_unlocked_code():
 
 def forum(posts: list[str], start: int = 1) -> bytes:
     return json.dumps({"posts_count": start + len(posts) - 1, "last_posted_at": "2026-11-21T00:00:00.000Z",
-                       "post_stream": {"posts": [{"post_number": n, "cooked": f"<p>{t}</p>"}
+                       "post_stream": {"posts": [{"post_number": n, "staff": True, "cooked": f"<p>{t}</p>"}
                                                  for n, t in enumerate(posts, start)]}}).encode()
 
 
@@ -385,6 +384,19 @@ def all_pages(state, page: bytes | None = None):
 
 def page_calls(client):
     return [r for r in client.requests if r["system"] == refresh.SYSTEM]
+
+
+def test_watched_forum_cites_only_the_staff_reply(state):
+    p = next(p for p in state["official"] if p["key"] == "hotfixes-forum")
+    p["known"] = ""
+    topic = json.loads(forum(["player report", "staff correction"]))
+    topic["post_stream"]["posts"][0]["staff"] = False
+    client = Client({"statements": [{"post_number": 2, "topic": "dungeons", "text": "An updated rule.",
+                                     "confidence": "high", "supersedes": ""}]})
+    result = refresh.run([p["key"]], client, Fetch({p["url"]: json.dumps(topic).encode()}), cap=3, state=state)
+    stmt, = result["doc"]["statements"]
+    assert stmt["source_url"] == p["page"] + "/2" and stmt["source_type"] == "official"
+    assert "player report" not in str(client.requests[0]["messages"])
 
 
 def test_the_cached_prefix_is_the_same_across_pages_and_runs(state):
@@ -495,7 +507,7 @@ def test_posts_past_the_topics_first_twenty_come_one_by_one(state):
     base, topic = thread["url"].split("/t/")
     fetch = Fetch({thread["url"]: json.dumps(body).encode(),
                    f"{base}/posts/by_number/{topic.removesuffix('.json')}/21.json":
-                       json.dumps({"cooked": "<p>" + "Druid travel form is learned at 20. " * 6 + "</p>"}).encode()})
+                       json.dumps({"staff": True, "cooked": "<p>" + "Druid travel form is learned at 20. " * 6 + "</p>"}).encode()})
     client = Client({"statements": []})
     refresh.run([thread["key"]], client, fetch, cap=3.0, state=state)
     sent = client.requests[0]["messages"][0]["content"][-1]["text"]
@@ -620,7 +632,7 @@ def thread_at(state, count: int, posts: dict[int, object], last: str):
 
 
 def post(text: str) -> bytes:
-    return json.dumps({"cooked": f"<p>{(text + ' ') * 6}</p>"}).encode()
+    return json.dumps({"staff": True, "cooked": f"<p>{(text + ' ') * 6}</p>"}).encode()
 
 
 def accept(state, out, tmp_path, monkeypatch, upstream, rc: int = 0):
