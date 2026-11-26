@@ -516,7 +516,7 @@
 			let guard = 0;
 			while (r && (r.flags & 0x40) === 0x40 && guard++ < list.length)
 				r = list[r.aliasNext];
-			if (!r)
+			if (!r || r.id !== a.id || !r.duration || (r.flags & 0x40))
 				return false;
 			if ((r.flags & 0x20) === 0x20)
 				return true;

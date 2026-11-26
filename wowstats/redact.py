@@ -64,7 +64,9 @@ M3D_ITEM = {k: None for k in ("slot", "slot_name", "item_id", "name", "why")}
 # numbers only, game data with nothing of the player's but how they look.
 M3D_GEOSETS = {"set": {}, "groups": {}}
 M3D_RECIPE = {
+    "companion": {"kind": None, "model": None, "textures": {}},
     "v": None, "model": None, "geosets": M3D_GEOSETS, "animation": None, "textures": {},
+    "attack": None, "class_id": None, "level": None, "ranged": {"kind": None, "at_rest": None},
     "materials": [{"type": None, "width": None, "height": None,
                    "layers": [{k: None for k in ("file", "target", "x", "y", "w", "h", "blend")}]}],
     "skinned": [{"model": None, "textures": {}, "geosets": M3D_GEOSETS}],

@@ -23,6 +23,15 @@ both read 100% only when two different items that good are in reach.
 The picture in the middle is your character in that gear. "Picture on its way": it isn't drawn
 yet, and **View in 3D** shows the model meanwhile.
 
+Open **View in 3D** and pick an action under your character. A hunter with a gun can fire
+**Arcane Shot**. A priest can cast **Power Word: Shield**. If you carry both a melee weapon
+and a ranged weapon, you can try each one.
+
+A hunter’s last recorded pet or a warlock’s last summoned demon stands beside the character.
+Untick **Show pet** or **Show demon** to hide it. The shipper reads your combat log and the
+creature appearance saved by your WoW client. If the skin is uncertain, you’ll see just
+your character. Past-level views show the gear recorded for that level.
+
 ## The upgrades list
 
 ![The Upgrades list grouped by where you get them: Tailoring crafts, each with its badge, its slot's share before and after ("42% → 100% on your waist"), its source and how hard it is to get, then two Auction House buys with their prices, then vendors in Ashenvale and Arathi Highlands](../images/upgrades.webp)

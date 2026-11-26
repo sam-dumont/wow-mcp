@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- View in 3D plays class abilities and switches to your ranged weapon when you fire it. Hunters and warlocks can show or hide their last locally recorded companion.
+- The demo has one character per class, with leveling gear and talents for all nine.
+
 ## 0.13.0 (2026-11-26)
 
 The Climb shows your played time beside Polestar’s planned time on all three dashboards. Craft cards break out recipe requirements, materials and auction prices. The dashboard and MCP also show which client build and data sources those recommendations use.

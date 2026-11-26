@@ -7,6 +7,7 @@ tables and files only (tests/model3d_world.py)."""
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -18,7 +19,7 @@ from tests.test_public_view import (
     make,
 )
 from tests.test_tenancy import FRIEND, as_user
-from wowstats import assets, model3d, ui
+from wowstats import assets, character3d, model3d, ui
 
 # A full view loads the MCP module when it is installed: a stand-in here.
 pytestmark = pytest.mark.usefixtures("fake_extras")
@@ -61,6 +62,53 @@ def test_the_answer_is_a_recipe_from_the_persons_tables(m3d):
     assert {"race", "sex", "sex_known", "class", "recipe", "recipe_sd", "no_classic", "items", "missing",
             "appearance"} <= set(d)
     assert not {"model", "model_sd", "stand_in", "source"} & set(d)
+
+
+def test_observed_companion_uses_only_the_current_shipper_sheet(m3d, monkeypatch):
+    tables = w.world()
+    tables["CreatureDisplayInfo"][70001] = {"ModelID": 60411, "TextureVariationFileDataID": [801, 0, 803, 804]}
+    tables["CreatureModelData"][60411] = {"FileDataID": w.FX.CHAR_M2}
+    monkeypatch.setattr(m3d, "tables", lambda: tables)
+    rows = [{"last": "2026-11-01T12:00:00Z", "display_id": "70002"},
+            {"last": "2026-11-01T12:00:00.5Z", "display_id": "70001"}]
+    queries = []
+
+    def read(q, *args):
+        queries.append(q)
+        return rows
+
+    hunter = {**SHEET, "class": "HUNTER"}
+    app = SimpleNamespace(store=SimpleNamespace(stream="feed:wow-*", vl=read),
+                          char=lambda name: {"gear": hunter},
+                          views=SimpleNamespace(char_filter=lambda name: f'char:="{name}"',
+                                                snapshot=lambda name, level: {"gear": hunter}))
+    answer = m3d.for_char(app, "Example")
+    pet = {"kind": 1, "model": w.FX.CHAR_M2, "textures": {"11": 801, "13": 803}}
+    assert answer["recipe"]["companion"] == answer["recipe_sd"]["companion"] == pet
+    assert 'feed:="wow-companion" char:="Example" kind:=hunter' in queries[0]
+    assert {801, 803} <= character3d.needs(answer["recipe"])
+    gear, header, _ = m3d.gear_at(app, "Example", None)
+    assert {801, 803} <= m3d.needs(gear, header, None)
+
+    queries.clear()
+    assert "companion" not in m3d.for_char(app, "Example", level=20)["recipe"]
+    assert queries == []
+    rows.append({"last": "2026-11-01T13:00:00Z", "display_id": "0"})
+    assert "companion" not in m3d.for_char(app, "Example")["recipe"]
+    rows.append({"last": "2026-11-01T13:00:00Z", "display_id": "70001"})
+    assert model3d.companion_display(app, "Example", "WARLOCK") == (2, 70001)
+    assert "kind:=warlock" in queries[-1]
+
+
+def test_current_and_snapshot_actions_use_the_level_being_drawn(m3d, monkeypatch):
+    monkeypatch.setattr(model3d, "find_look", lambda app, name: None)
+    app = SimpleNamespace(char=lambda name: {"gear": SHEET, "header": {"level": 30}},
+                          views=SimpleNamespace(snapshot=lambda name, level: {"gear": SHEET}))
+    for level, expected in [(None, 30), (5, 5)]:
+        answer = m3d.for_char(app, "Example", level=level)
+        for recipe in (answer["recipe"], answer["recipe_sd"]):
+            assert recipe["level"] == expected
+            assert "level" not in character3d.standing_recipe(recipe)
 
 
 def test_the_enchant_reaches_the_weapon(m3d):

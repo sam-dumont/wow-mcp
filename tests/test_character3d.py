@@ -173,7 +173,8 @@ def test_the_bare_character():
     assert r["textures"] == {} and r["skinned"] == r["attachments"] == r["collections"] == []
     assert out["needs"] == [8001, 9001]
     assert set(r) == {"v", "model", "geosets", "materials", "textures", "skinned", "attachments", "collections",
-                      "animation", "attack"}
+                      "animation", "attack", "class_id", "ranged"}
+    assert r["class_id"] == PRIEST and r["ranged"] is None
 
 
 def test_saved_choices_and_the_choice_they_depend_on():
@@ -257,13 +258,13 @@ def test_what_isnt_drawn():
     out = build(items=[(2, 108), (11, 108), (16, 103), (18, 104, {"name": "Gun"}), (5, 555), (7, 110)])
     # A neck is never drawn; a priest holds the sword, the gun stays out quietly; an unknown item and one
     # without an appearance are said.
-    assert [a["slot"] for a in out["recipe"]["attachments"]] == [16]
+    assert [a["slot"] for a in c3.standing_recipe(out["recipe"])["attachments"]] == [16]
     assert out["missing"] == [{"slot": 5, "item_id": 555, "why": "not in Forever's item tables"},
                               {"slot": 7, "item_id": 110, "why": "no appearance in Forever's item tables"}]
 
 
 def held(out):
-    return [(a["slot"], a["attach"]) for a in out["recipe"]["attachments"]]
+    return [(a["slot"], a["attach"]) for a in c3.standing_recipe(out["recipe"])["attachments"]]
 
 
 def test_two_one_handers_and_a_ranged_weapon():
@@ -273,6 +274,9 @@ def test_two_one_handers_and_a_ranged_weapon():
     for cls in (HUNTER, PRIEST):
         out = build(items=[(16, 111), (17, 111), (18, 104)], cls=cls)
         assert held(out) == [(16, 1), (17, 2)]
+        assert [a["slot"] for a in out["recipe"]["attachments"]] == [16, 17, 18]
+        assert out["recipe"]["ranged"] == {"kind": 3, "at_rest": False}
+        assert 9800 in out["needs"] and 9800 not in c3.needs(c3.standing_recipe(out["recipe"]))
         assert out["missing"] == []
         assert held(build(items=[(16, 111), (17, 111), (18, 112)], cls=cls)) == [(16, 1), (17, 2)]
 
@@ -286,8 +290,15 @@ def test_a_ranged_weapon_takes_a_free_hand():
     assert held(out) == [(16, 1)] and out["missing"] == []
     # A two-hander takes both hands: no bow beside it (tools/3dcases c16).
     assert held(build(items=[(16, 113), (18, 112)], cls=HUNTER)) == [(16, 1)]
-    # A wand in the ranged slot is never drawn.
-    assert build(items=[(18, 109)], cls=HUNTER)["recipe"]["attachments"] == []
+    wand = build(items=[(16, 113), (18, 109)])
+    assert held(wand) == [(16, 1)] and wand["recipe"]["ranged"] == {"kind": 19, "at_rest": False}
+    assert wand["recipe"]["attachments"][-1]["model"] == 9910
+
+
+def test_ranged_slot_requires_a_ranged_weapon_subclass_and_inventory_type():
+    for item in (105, 111):
+        out = build(items=[(18, item)])
+        assert out["recipe"]["ranged"] is None and not out["recipe"]["attachments"]
 
 
 def test_a_shield_on_the_shield_point():

@@ -21,6 +21,7 @@
   const RENDER = qs.get('render') === '1' && window.parent === window;
   const status = document.getElementById('status');
   const canvas = document.getElementById('stage');
+  const actions = document.getElementById('actions');
   if (RENDER) document.documentElement.classList.add('render');
   const realFetch = window.fetch.bind(window);
 
@@ -72,7 +73,10 @@
   // ---------------------------------------------------------------- drawing
 
   function fail(text) {
+    drawing++;
+    actions.hidden = true;
     status.hidden = false;
+    companionControl.hidden = true;
     status.className = 'status err';
     status.textContent = text;
     document.documentElement.dataset.state = 'error';
@@ -105,8 +109,32 @@
 
   const why = (e) => String((e && e.message) || e || 'unknown error');
   let handle = null;
+  const companionControl = document.getElementById('companion-control');
+  const companionToggle = document.getElementById('companion');
+  companionToggle.addEventListener('change', () => handle?.showCompanion(companionToggle.checked));
+  let drawing = 0;
+  actions.addEventListener('click', (event) => {
+    const name = event.target.dataset.action;
+    if (name && handle) handle.play(name);
+  });
+
+  async function showActions(generation) {
+    const moves = await handle.actions();
+    if (generation !== drawing) return;
+    actions.replaceChildren(...moves.map(({ name, label }) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.action = name;
+      button.textContent = label;
+      return button;
+    }));
+    actions.hidden = !moves.length;
+  }
 
   async function show(d) {
+    const generation = ++drawing;
+    actions.hidden = true;
+    companionControl.hidden = true;
     const recipe = d && recipeOf(d);
     if (!recipe) return fail(`No model: ${(d && d.why) || 'nothing to draw'}.`);
     await sized();
@@ -118,10 +146,17 @@
     if (handle) await handle.redraw(recipe);
     // Now and then another animation (m3d/draw.js Idle); never in the
     // renderer's pictures, which stay on Stand.
-    else handle = await M3D.draw(canvas, recipe, get, { idle: !RENDER });
+    else handle = await M3D.draw(canvas, recipe, get, {
+      idle: !RENDER, effects: RENDER ? null : document.getElementById('effects')
+    });
+    companionControl.hidden = RENDER || !handle.hasCompanion;
+    if (!companionControl.hidden) {
+      companionControl.querySelector('span').textContent = recipe.companion.kind === 2 ? 'Show demon' : 'Show pet';
+    }
     status.hidden = true;
     document.documentElement.dataset.state = 'drawn';
     tell({ ok: true, missing: handle.missing.length });
+    if (!RENDER) showActions(generation);
   }
 
   // The first answer, then any other the page sends (the level-by-level

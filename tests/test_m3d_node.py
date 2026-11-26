@@ -54,6 +54,9 @@ def test_script_is_frame_safe(name):
     for bad in ("eval(", "new Function", "WebAssembly", "import(", "XMLHttpRequest", "globalThis.fetch"):
         assert bad not in text, (name, bad)
     head = text.split("*/", 1)[0]
+    if name == "actions.js":
+        assert "TrinityCore" in head and "this viewer" in head
+        return
     if name in OWN:
         # written for wow-stats, not a port: say where it comes from
         assert "wowdev.wiki" in head and "wow.export" in head and "not a port" in head
@@ -66,6 +69,34 @@ def test_script_is_frame_safe(name):
 @pytest.mark.parametrize("name", sorted(p.name for p in M3D.glob("*.js")))
 def test_node_check(name):
     subprocess.run([NODE, "--check", str(M3D / name)], check=True, capture_output=True, timeout=60)
+
+
+@needs_node
+def test_actions_start_at_their_first_rank_and_use_the_equipped_weapon_clip():
+    script = """
+    globalThis.M3D = {};
+    require(process.argv[1]);
+    const first = {};
+    for (const cls of [1,2,3,4,5,7,8,9,11])
+        for (let level = 1; level <= 60; level++)
+            for (const m of M3D.moves(17, cls, 2, level))
+                if (m.label && !['attack', 'ranged'].includes(m.name)) first[m.label] ??= level;
+    const releases = [2,3,16,18,19].map(kind => M3D.moves(17,3,kind,60)
+        .find(m => m.name === 'ranged').steps.at(-1)[0]);
+    console.log(JSON.stringify([first, releases]));
+    """
+    out = subprocess.run([NODE, "-e", script, str(M3D / "actions.js")], check=True, capture_output=True, timeout=10)
+    first, releases = json.loads(out.stdout)
+    ref = json.loads((ROOT / "data" / "class-reference.json").read_text())["classes"]
+    # These two are starting spells. The trainer sells rank two first.
+    expected = {"Holy Light": 1, "Lightning Bolt": 1}
+    for cls in ref.values():
+        for level, spells in cls["spells"].items():
+            for spell in spells:
+                if spell["name"] in first and spell["rank"] == 1:
+                    expected[spell["name"]] = int(level)
+    assert len(first) == 10 and first == expected
+    assert releases == [46, 49, 107, 49, 53]
 
 
 NODE_READERS = r"""

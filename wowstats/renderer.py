@@ -187,11 +187,11 @@ def parse_recipe(r) -> dict:
                     "textures": _textures(c.get("textures", {}), "collection.textures"),
                     "geosets": _geosets(c.get("geosets", {}), "collection.geosets")}
                    for c in _list(r.get("collections", []), 32, "collections")]
-    return {"v": character3d.RECIPE_VERSION, "model": _fid(r.get("model"), "model"),
+    return character3d.standing_recipe({"v": character3d.RECIPE_VERSION, "model": _fid(r.get("model"), "model"),
             "geosets": _geosets(r.get("geosets", {}), "geosets"), "materials": mats,
             "textures": _textures(r.get("textures", {}), "textures"), "skinned": skinned,
             "attachments": attachments, "collections": collections,
-            "animation": _int(r.get("animation", 0), 0, 2000, "animation")}
+            "animation": _int(r.get("animation", 0), 0, 2000, "animation"), "ranged": r.get("ranged")})
 
 
 def parse_scope(v) -> str:

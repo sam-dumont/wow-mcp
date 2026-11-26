@@ -68,8 +68,8 @@ TABLE_MAGIC = (b"WDC3", b"WDC4", b"WDC5")
 # the shipper's CASC_ANIMATIONS) equal. A sequence the model carries itself
 # needs nothing; one in its own .anim file (Forever's HD models keep the
 # emotes there) is named by the model's AFID and asked for with it.
-ANIMATIONS = frozenset({0, 15, 16, 17, 18, 19, 25, 26, 27, 28, 51, 52, 53, 54, 55, 60, 64, 65, 66, 68, 70,
-                        124, 125})
+ANIMATIONS = frozenset({0, 15, 16, 17, 18, 19, 25, 26, 27, 28, 29, 46, 48, 49, 51, 52, 53, 54, 55, 60, 64, 65, 66,
+                        68, 70, 95, 107, 108, 124, 125})
 # What the still pictures play (wowstats.renderer): Stand and the closed hands.
 STILL = frozenset({0, 15})
 # The client tables the 3D view reads, with their file ids (the same in

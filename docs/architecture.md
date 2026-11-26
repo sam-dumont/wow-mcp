@@ -138,9 +138,11 @@ own game files: nothing is fetched from anyone else.
   saved look from Battle.net (`find_look`; a choice Forever's tables
   lack becomes the Forever choice showing the same geosets,
   `data/battlenet-look.json`), each drawn item's models,
-  textures and geosets, the enchant's glow. Neck, rings, trinkets, ammo,
-  quivers, relics and wands aren't drawn, like in game; a hunter holds the
-  ranged weapon. Items left out are listed under the model with the
+  textures and geosets, and the enchant’s glow. The viewer swaps the items in the hands
+  when a character fires a bow, gun, crossbow, thrown weapon or wand. Neck, rings, trinkets,
+  ammo, quivers and relics have no geometry here. The current hunter or warlock model can
+  also carry a creature display recorded by the shipper. Its model and skins come from the
+  same local client tables as the character’s. Portraits keep their standing pose. Items left out are listed under the model with the
   reason, each as its icon. No tables yet, or the model's file not here
   yet: no recipe, and `why` says so in one line on the still.
 - **The frame.** `/model3d/view` is a page of its own: our viewer
