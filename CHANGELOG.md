@@ -5,6 +5,7 @@
 ### Fixed
 
 - The Climb shows Polestar's planned time beside the recorded time on the owner, friends and public dashboards. The friends export uses the owner's saved gear settings. A late level record rebuilds the published chart even when the newest event hasn't changed.
+- Switching characters drops late replies for the one you left. The friends dashboard shows the published spec, gear estimates and requirement status. Both static dashboards respect the 3D setting for current and historical equipment.
 - Next Moves checks how the character can get an item. A hard drop needs an easier alternative to make the list. An auction purchase carries its price and scan date. Gear checks faction, race, class, quest and equip-skill requirements even for an item already in the bank.
 - Craft cards separate the recipe, skill-ups, missing materials and the finished item's auction price. Black Slippers uses 150 for the observed trainer requirement and 140 for the pattern. An unknown formula source or expired quote stays visible as a blocker.
 - Plans count dungeon rewards when the session reaches them, stop leveling forecasts at 60 and keep the gear ranking for the chosen spec. Riding savings include unpaid earlier training. Class mount quests and an unread purse each get their own answer.
