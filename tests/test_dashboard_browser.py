@@ -122,6 +122,14 @@ def test_same_climb_and_gear_from_live_public_and_sealed(dashboards, browser, wi
             open_char(page, dashboards, tier)
             chart = page.locator("#levels .climb")
             chart.locator("path.line").wait_for(state="attached")
+            character_sources = page.locator("#foot-status details")
+            if tier == "public":
+                assert character_sources.count() == 0
+            else:
+                character_sources.locator("summary").click()
+                assert "Battle.net" in character_sources.inner_text()
+                assert ("Auctionator scans" in character_sources.inner_text()) == (tier == "owner")
+                character_sources.locator("summary").click()
             values = splits(page)
             assert {v[0]: v[4] for v in values if v[4]} == {"22": "route 10m", "23": "route 15m"}
             assert all(v[1] and v[2] and bool(v[3]) == bool(v[4]) for v in values)

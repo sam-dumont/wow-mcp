@@ -4243,6 +4243,25 @@ function renderSourceVersions(config) {
     rows.length ? h('dl', {}, ...rows) : h('p', { text: 'Source information is unavailable.' })));
 }
 
+function characterSourceTimes(d) {
+  if (PUBLIC || !d?.coverage) return null;
+  const rows = [];
+  const names = { recorder: 'Polestar Recorder', polestar: 'Polestar character sheet', gear: 'Syndicator',
+    quests: 'Quest history', prices: 'Auctionator scans', battlenet: 'Battle.net' };
+  for (const [key, label] of Object.entries(names)) {
+    const source = d.coverage[key];
+    if (!source?.state) continue;
+    rows.push(h('dt', { text: label }), h('dd', { text: [source.state, source.as_of].filter(Boolean).join(' · ') }));
+    if (key === 'gear') {
+      for (const [part, title] of [['items', 'Equipment'], ['bags', 'Bags'], ['bank', 'Bank']]) {
+        if (source.parts?.[part]) rows.push(h('dt', { text: title }), h('dd', { text: source.parts[part] }));
+      }
+    }
+  }
+  return rows.length ? h('details', { class: 'source-versions' },
+    h('summary', { text: 'Character data sources' }), h('dl', {}, ...rows)) : null;
+}
+
 function renderFoot(d, err) {
   const kids = [];
   if (err) kids.push(h('p', { class: 'warn', text: `Couldn’t refresh: ${err}.` }));
@@ -4250,8 +4269,10 @@ function renderFoot(d, err) {
   if (d && d.sources && d.sources.archive === 'unreachable') {
     kids.push(h('p', { class: 'warn', text: `History older than ${d.sources.archive_after_days} days is missing: the archive VictoriaLogs didn’t answer.` }));
   }
-  if (d) kids.push(h('p', { text: STATIC ? `As of ${day(d.generated_at)} ${timeFmt.format(new Date(d.generated_at))}. Rebuilt after each play session.`
+  if (d) kids.push(h('p', { text: STATIC ? `Character view as of ${day(d.generated_at)} ${timeFmt.format(new Date(d.generated_at))}.`
     : `As of ${timeFmt.format(new Date(d.generated_at))}.` }));
+  const sources = characterSourceTimes(d);
+  if (sources) kids.push(sources);
   fill($('#foot-status'), ...kids);
 }
 

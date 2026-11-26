@@ -334,7 +334,9 @@ Polestar tag, the client build of each set of client tables, and the day
 the watch last accepted a change. The weights fetch date, spell hotfix push,
 watched client build and latest available news and community digest weeks
 each describe their own source. `kb_statement_reviews` gives the oldest and
-newest verification dates among dated research statements. The character's event time is separate.
+newest verification dates among dated research statements. The owner can expand **Character data sources** for the times the Recorder,
+Polestar, Syndicator, quest history, Auctionator and Battle.net last supplied
+data. The friends page lists the coverage shared in its snapshot.
 `foreverdb.fingerprint` identifies the source files.
 `checked_addons` lists the Questie and WoWSims Exporter releases checked
 by the watch. `wowsims` identifies the exporter and sim commits behind the
