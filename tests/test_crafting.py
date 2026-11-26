@@ -127,6 +127,13 @@ def test_dated_export_and_recorder_cap_survive_a_zero_and_an_unlearn():
     assert not crafting.route(TAILORING, 143, 190, who)["train"]
     reset = {TAILORING: {"t": "2026-11-26T12:00:00Z", "rank": 1, "max_rank": 75}}
     assert profcaps.cap_of(143, reset[TAILORING], before) == (1, 75, "recorder")
+    # A later return past the old rank must not restore the old Expert cap.
+    readings = profcaps.newest_skills([
+        {"_time": "2026-11-26T12:00:00Z", "skill_id": TAILORING, "rank": 1, "max_rank": 75},
+        {"_time": "2026-11-27T12:00:00Z", "skill_id": TAILORING, "rank": 146, "max_rank": 150},
+    ])
+    assert profcaps.cap_of(143, readings[TAILORING], before) == (146, 150, "recorder")
+    assert profcaps.cap_of(143, readings[TAILORING], sheet["professions"][0]) == (146, 150, "recorder")
 
 
 def test_dated_id_only_bank_preserves_counted_bags_and_marks_unknown_shortage():

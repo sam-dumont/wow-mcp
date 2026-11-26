@@ -680,9 +680,7 @@ class Views:
         advice = advice if advice is not None else res["advice"]
         ds = insights.deaths(self.q, cf, data.get("levels") or [])
         steps_rows = sorted(dedupe(res["steps"]), key=lambda r: parse_t(r.get("_time")))
-        skills = {int(opt_num(r["skill_id"])): {"rank": int(num(r.get("rank"))), "max_rank": int(num(r.get(
-            "max_rank"))), "t": r.get("_time")} for r in sorted(dedupe(res["skills"]), key=lambda r: parse_t(
-                r.get("_time"))) if opt_num(r.get("skill_id")) is not None}
+        skills = profcaps.newest_skills(dedupe(res["skills"]))
         # Riding from the spellbook too: the Recorder misses a training it didn't see.
         skills = riding.merge(skills, res["riding_book"], res["riding_learn"])
         return {"data": data, "advice": advice if (advice or {}).get("available") else None, "deaths": ds,
