@@ -1291,7 +1291,7 @@ def source_effort(s: dict) -> int:
         # The plan weighs the real state: recipe held or not, gold, the
         # auction house the other way (wowstats.crafting.effort).
         if (s.get("plan") or {}).get("effort") is not None:
-            return s["plan"]["effort"]
+            return s["plan"].get("craft_effort", s["plan"]["effort"])
         return EASY if s.get("can_make") else SOME
     if k == "drop":
         if s.get("npc_id") and (not s.get("boss") or s.get("unplaced")) and not s.get("instance"):
@@ -1528,7 +1528,8 @@ def gates(at: int, level: int, sources: list[dict]) -> list[dict]:
     if crafts and len(crafts) == len(sources) and not any(s.get("can_make") for s in crafts):
         s = min(crafts, key=lambda s: (s.get("skill") or 0) - (s.get("your_rank") or 0))
         if s.get("your_rank") is None:
-            out.append({"kind": "buy", "profession": s.get("profession"), "need": s.get("skill"), "have": None})
+            kind = "skill" if (s.get("plan") or {}).get("bind_on_pickup") else "buy"
+            out.append({"kind": kind, "profession": s.get("profession"), "need": s.get("skill"), "have": None})
             return out
         if not s.get("skill_ok", s["your_rank"] >= (s.get("skill") or 0)):
             out.append({"kind": "skill", "profession": s.get("profession"), "need": s.get("skill"),
@@ -1536,7 +1537,11 @@ def gates(at: int, level: int, sources: list[dict]) -> list[dict]:
         # The recipe: learnt from the pattern in the bags, or still to find.
         # Unknown (no recipe list) is no gate, but no "make it now" either.
         if s.get("known") is False:
-            out.append({"kind": "learn" if s.get("pattern_item_id") else "recipe",
+            learn = (s.get("plan") or {}).get("learn") or {}
+            kind = "learn" if s.get("pattern_item_id") else "recipe"
+            if learn.get("kind") == "trainer":
+                kind = "trainer_recipe"
+            out.append({"kind": kind,
                         "profession": s.get("profession"), "need": s.get("pattern_item_id"), "have": None})
     return out
 
@@ -1783,7 +1788,9 @@ def held_items(held: dict | None) -> list[dict]:
             if held.get(k) is None:
                 row[k] = None
             elif c is None:
-                row[k], known = None, False
+                row[k] = None if i in held[k] else 0
+                if row[k] is None:
+                    known = False
             else:
                 # In the list but not in the counts: one (a slot without a count).
                 row[k] = c.get(i, 1 if i in held[k] else 0)
@@ -1881,6 +1888,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     # skill-up on Polestar's route, the mats against the bags and bank, the
     # auction house the other way. Once per recipe and item.
     crafter = crafting.who_from(sheet, held, market)
+    bind_on_pickup = crafting.reference().get("_bop", set())
     plans: dict[tuple, dict | None] = {}
     for item_id, where in holding.items():
         info = item_for(ref, item_id, w)
@@ -1911,12 +1919,17 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                 if k not in plans:
                     plans[k] = crafting.brief(crafting.plan(x, item_id, crafter))
                 if plans[k]:
-                    x["plan"] = plans[k]
+                    plan = plans[k]
+                    need = plan["skill"]["need"]
+                    if plan["learn"]["kind"] == "held":
+                        x["pattern_item_id"] = plan["learn"].get("pattern_id")
+                    x.update(plan=plan, skill=need, can_make=plan["can_make"],
+                             skill_ok=x.get("your_rank") is not None and x["your_rank"] >= need)
         if not (who.pvp or who.pvp_mode) and any(is_pvp(s) for s in srcs):
             # A PvP rank's quartermaster goes with its rank (ForeverDB lists
             # both: Master Sergeant's Insignia, Officer Areyn and rank 3).
             here_srcs = [x for x in here_srcs if x["kind"] != "vendor"]
-        if item_id in sale and buyable(base, level):
+        if item_id in sale and item_id not in bind_on_pickup and buyable(base, level):
             here_srcs.append(_listing(sale[item_id], money))
         if not here_srcs:
             continue
@@ -1942,7 +1955,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     for item_id, s in sale.items():
         info = ref.item(item_id)
         if (not info or item_id in holding or str(item_id) in (ref.data.get("sources") or {})
-                or not buyable(info, level)):
+                or item_id in bind_on_pickup or not buyable(info, level)):
             continue
         usable, _, min_level = usability(ref, info, cls, level, who)
         if usable and min_level <= level + SOON_LEVELS:
@@ -2803,7 +2816,8 @@ def source_text(s: dict, short: bool = False) -> str:
         return f"{s['kind']}: {s.get('name') or s.get('zone') or '?'}"
     p = s.get("plan") or {}
     if short and p.get("action"):
-        gold = f" In all ~{ahsource.price_text(p['craft_copper'])}." if p.get("craft_copper") else ""
+        label = "Total" if p.get("cost_complete") else "Priced part"
+        gold = f" {label} ~{ahsource.price_text(p['craft_copper'])}." if p.get("craft_copper") else ""
         buy = f" Or buy it: {ahsource.price_text(p['buy_copper'])}." if p.get("buy_copper") else ""
         return f"craft: {s.get('profession')} {s.get('skill')}; {p['action']}{gold}{buy}{tail}"
     return f"craft: {s.get('profession')} {s.get('skill')}; {craft_status(s)}{tail}"

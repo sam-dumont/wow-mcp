@@ -152,6 +152,15 @@ supported by Blizzard Entertainment. Names, ids and numbers describe the game fo
 assets are included. The game's own text is limited to names, titles and the quest objective lines
 the corrections carry; that text is Blizzard's and neither of this data set's licences covers it.
 
+## Profession observations
+
+`data/kb/professions/learning.json` records two facts from the project's issue tracker.
+The owner reported the Black Slippers trainer requirement in [#283](https://github.com/sam-dumont/wow-mcp/issues/283).
+[#281](https://github.com/sam-dumont/wow-mcp/issues/281) identifies one reported source for the Twisted Nether Wand
+formula. Its availability on this client build is unverified. Each row links the report and its independent reference.
+Other trainer requirements come from the GPL-licensed Polestar guide listed above. The offline recipe audit reads
+an installed ForeverLevelingBiS table locally. Its table and wowforever.ninja's observations are not distributed.
+
 ## QuestieDB
 
 Polestar's own notice for its guide data (`addon/Polestar_Guides/LICENSE-DATA.txt`, v0.4.1) adds

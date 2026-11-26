@@ -50,13 +50,12 @@ def test_item_side_applies_to_held_and_full_advice():
                 assert all(u["item_id"] != iid for u, s in insights.in_reach(a, 60))
 
 
-def test_flying_tiger_goggles_require_engineering_on_every_route(monkeypatch):
+def test_flying_tiger_goggles_require_engineering_on_every_route():
     iid = 4368
     ref = gear.reference()
     item = ref.item(iid)
-    # The released client data populates these same fields (tools/game_items).
-    monkeypatch.setitem(item, "required_skill", 202)
-    monkeypatch.setitem(item, "required_skill_rank", 100)
+    assert (item["required_skill"], item["required_skill_rank"]) == (202, 100)
+    assert (ref.item(10504)["required_skill"], ref.item(10504)["required_skill_rank"]) == (202, 245)
     market = {"items": {iid: {"price_copper": 50, "seen_days_ago": 0}}}
     sheet = {"class": "PRIEST", "race": "Human", "faction": "Alliance"}
     for prof in (None, [], [{"skill_id": 202, "rank": 99}], [{"name": "Engineering", "rank": 100}]):

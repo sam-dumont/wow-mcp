@@ -53,10 +53,10 @@ def _patterns_held(line: int, who: crafting.Who) -> list[dict]:
         t = (crafting.reference().get("patterns") or {}).get(str(item))
         if not t or (crafting.recipe(t[0]) or {}).get("p") != line:
             continue
-        h = who.holds(item)
+        loc = next((k for k in ("bags", "bank") if who.minimum(k, item)), None)
         out.append({"item_id": item, "name": crafting.name(item), "teaches": (crafting.recipe(t[0]) or {}).get("name"),
                     "spell_id": t[0], "needs_skill": t[1] or None, "learned": who.knows(line, t[0]),
-                    "where": None if h is None else ("bags" if h[0] else "bank")})
+                    "where": loc})
     return out
 
 
@@ -64,7 +64,7 @@ def _mats_out(rows: list[dict]) -> list[dict]:
     out = []
     for r in rows:
         x = {"item_id": r["item_id"], "item": r["name"], "need": r["need"], "in_bags": r["bags"],
-             "in_bank": r["bank"], "to_buy": r["buy"], "unit_copper": r["unit_copper"],
+             "in_bank": r["bank"], "to_buy": r["buy"], "to_buy_up_to": r["buy_up_to"], "unit_copper": r["unit_copper"],
              "cost_copper": r["cost_copper"], "price_from": r["price_from"]}
         if r.get("price_from") == "ah":
             x["price_seen"] = crafting.days_words(r.get("days_ago"))
@@ -146,16 +146,18 @@ def _crafted_gear(ctx: T.Ctx, char: str, g: dict, line: int, rank: int, target: 
 
 
 def _inventory(who: crafting.Who) -> dict:
-    out = {"counts_known": who.held is not None, "bags_at": who.held_at.get("bags"),
-           "bank_at": who.held_at.get("bank")}
-    if who.held is None:
-        out["unlock"] = ("Your bag and bank counts haven't reached us: update the shipper and log out once "
-                         "(Syndicator saves the counts).")
-    elif who.held.get("bank") is None:
-        out["note"] = "The bank hasn't been read: open it once in game with Syndicator on."
+    states = {k: "counted" if (who.held or {}).get(k) is not None
+              else "ids_only" if k in who.ids_by_place else "unobserved" for k in ("bags", "bank")}
+    out = {"counts_known": states["bags"] == "counted" and states["bank"] != "ids_only",
+           "bags_at": who.held_at.get("bags"), "bank_at": who.held_at.get("bank"), "containers": states}
+    if not out["counts_known"]:
+        out["unlock"] = "Update the shipper and upload after logging out to include stack counts."
+    if states["bank"] == "unobserved":
+        out["note"] = "No saved bank contents yet. Open the bank in game with Syndicator on."
+    elif states["bank"] == "ids_only":
+        out["note"] = "The save includes the bank's item IDs. Stack counts are unknown."
     elif (who.bank_days or 0) > crafting.BANK_OLD_DAYS:
-        out["note"] = (f"The bank as of {str(who.held_at.get('bank'))[:10]} ({who.bank_days} days ago): open it in "
-                       "game to refresh.")
+        out["note"] = f"Bank contents last observed in the save on {str(who.held_at.get('bank'))[:10]}."
     return out
 
 
@@ -186,6 +188,8 @@ def t_professions(ctx: T.Ctx, args: dict) -> dict:
                         "why": f"{crafting.NAMES[line]} is already at {rank}: nothing to level up to {target}",
                         "patterns_held": _patterns_held(line, who),
                         "crafted_gear": _crafted_gear(ctx, char, g, line, rank, rank)})
+            if item not in (None, ""):
+                out[-1]["item"] = _item_plan(line, str(item), who)
             continue
         led = crafting.Ledger(who)
         rt = crafting.route(line, rank, target, who, led)
@@ -205,9 +209,11 @@ def t_professions(ctx: T.Ctx, args: dict) -> dict:
              "polestar_guide_step": _guide_step(ctx, char, rt.get("guide")),
              "route": _route_out(rt), "mats": _mats_out(rows),
              "gold": {"mats_copper": mats["cost_copper"], "recipes_copper": learn_c, "training_copper": train_c,
-                      "total_copper": total, "unpriced": unpriced or None,
+                      "total_copper": total, "unpriced": unpriced or None, "quantities_known": mats["counts_known"],
                       "line": f"{crafting.NAMES[line]} {rank} → {target}: {crafting.gold_words(total, who)}"
-                              + (f" (without {', '.join(unpriced[:5])}: no price in our data)" if unpriced else ""),
+                              + (f" (without {', '.join(unpriced[:5])}: no price in our data)" if unpriced else "")
+                              + (" (upper estimate for priced supplies; saved quantities incomplete)"
+                                 if not mats["counts_known"] else ""),
                       "oldest_price_days": mats["oldest_price_days"]},
              "trainer_ranks": _trainers(line, who.side)}
         st = rt["steps"][0] if rt["steps"] else None
@@ -239,27 +245,14 @@ def _item_plan(line: int, item: str, who: crafting.Who) -> dict | None:
     if not hits:
         return {"why": f"no {crafting.NAMES[line]} recipe makes {item!r} in our data"}
     sp, r = hits[0]
-    p = crafting.plan({"profession": crafting.NAMES[line], "spell_id": int(sp),
-                       "skill": _req_skill(int(sp), r)}, r["i"], who)
+    p = crafting.plan({"profession": crafting.NAMES[line], "spell_id": int(sp)}, r["i"], who)
     if not p:
         return None
     return {"item": forever.item_name(r["i"]) or r.get("name"), "item_id": r["i"], "spell_id": int(sp),
-            "needs_skill": p["skill"]["need"], "line": p["line"], "next_step": p["action"],
+            "needs_skill": p["skill"]["need"] or None, "line": p["line"], "next_step": p["action"],
             "effort": gearmod.EFFORT[p["effort"]], "recipe": p["recipe"], "craft_copper": p["craft_copper"],
-            "buy": p["buy"], "bind_on_pickup": p["bind_on_pickup"], "item_mats": _mats_out(p["item_mats"])}
-
-
-def _req_skill(spell: int, r: dict) -> int:
-    """The skill a recipe needs: its pattern's, else the trainer's, else
-    where it turns orange (the client's yellow is the first point it can
-    give a skill-up, the earliest a trainer would teach it)."""
-    for _item, (sp, req) in (crafting.reference().get("patterns") or {}).items():
-        if sp == spell and req:
-            return req
-    tr = (crafting.reference().get("trainer") or {}).get(str(spell))
-    if tr and tr.get("from"):
-        return tr["from"]
-    return r.get("y") or 1
+            "buy": p["buy"], "last_price": p["estimate"], "complete_cost": p["complete_cost"],
+            "unpriced": p["unpriced"], "bind_on_pickup": p["bind_on_pickup"], "item_mats": _mats_out(p["item_mats"])}
 
 
 PROF_TOOLS: tuple[T.Tool, ...] = (

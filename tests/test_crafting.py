@@ -59,7 +59,8 @@ def test_four_points_on_polestars_route_with_the_bolts_first():
 
 
 def test_the_circlet_says_which_pattern_is_held_and_that_it_cant_be_bought():
-    w = who(ids={2997, 2321, 253978}, prices={**who().prices, 253982: {"price_copper": 7500, "days_ago": 2}})
+    w = who(ids={2997, 2321, 253978},
+            listings={253982: {"price_copper": 7500, "seen_day": "2026-11-26", "seen_days_ago": 0}})
     p = crafting.plan(CIRCLET, 253981, w)
     assert p["recipe"]["state"] == "missing"
     assert p["recipe"]["sibling"]["pattern_item_id"] == 253978
@@ -67,7 +68,7 @@ def test_the_circlet_says_which_pattern_is_held_and_that_it_cant_be_bought():
     assert p["bind_on_pickup"] is True and p["buy"] is None
     line = p["line"]
     assert "You don't have Pattern: Filigreed Shadow Circlet." in line
-    assert "75s (2 days ago)" in line
+    assert "75s" in line
     assert "4 Tailoring points to go: ~7 Stylish Red Shirt" in line
     assert "binds when picked up" in line
     assert f"of your {ahsource.price_text(296965)}" in line
@@ -79,21 +80,21 @@ def test_a_pattern_in_the_bank_is_learnt_and_a_known_recipe_is_made():
     p = crafting.plan(CIRCLET, 253981, who(ranks={TAILORING: 125}, ids={253982},
                                            held={"bags": {}, "bank": {253982: 1}}))
     assert p["recipe"]["state"] == "in_bags" and p["recipe"]["pattern_item_id"] == 253982
-    assert p["action"] == "Learn Pattern: Filigreed Shadow Circlet from your bags."
+    assert p["action"] == "Take Pattern: Filigreed Shadow Circlet out of the bank and learn it."
     known = crafting.plan(CIRCLET, 253981, who(ranks={TAILORING: 130}, known={TAILORING: KNOWN | {1257416}}))
-    assert known["can_make"] and known["effort"] == crafting.EASY
+    assert known["can_make"] and known["complete_cost"] and known["effort"] == crafting.EASY
     assert known["action"].startswith("Make it")
 
 
 def test_a_boe_craft_can_be_bought_instead():
-    w = who(prices={**who().prices, 10002: {"price_copper": 45000, "days_ago": 1}})
+    w = who(listings={10002: {"price_copper": 45000, "seen_day": "2026-11-25", "seen_days_ago": 1}})
     p = crafting.plan(PANTS, 10002, w)
     assert p["bind_on_pickup"] is False and p["buy"]["copper"] == 45000
     assert "Or buy it: 4g 50s on the auction house (yesterday)." in p["line"]
     assert p["effort"] == crafting.EASY  # listed and affordable
     # Past 150 the route needs the Expert rank: its price isn't in our data, and it says so.
     assert [t["max"] for t in p["route"]["train"]] == [225]
-    assert "train rank 3" in p["line"] and "4 more" in p["line"]
+    assert "train rank 3" in p["line"] and "incomplete estimate" in p["line"]
 
 
 def test_nothing_known_degrades_to_an_estimate_and_the_action():
@@ -126,3 +127,64 @@ def test_dated_export_and_recorder_cap_survive_a_zero_and_an_unlearn():
     assert not crafting.route(TAILORING, 143, 190, who)["train"]
     reset = {TAILORING: {"t": "2026-11-26T12:00:00Z", "rank": 1, "max_rank": 75}}
     assert profcaps.cap_of(143, reset[TAILORING], before) == (1, 75, "recorder")
+
+
+def test_dated_id_only_bank_preserves_counted_bags_and_marks_unknown_shortage():
+    from wowstats.mcp.proftools import _inventory
+
+    held = {"bags": [2324, 2321], "bank": [2592], "counts": {"bags": {2324: 34, 2321: 27}, "bank": None},
+            "at": {"bank": "2026-11-22T12:00:00Z"}}
+    who = crafting.who_from({}, held, None)
+    inv = _inventory(who)
+    assert inv["containers"] == {"bags": "counted", "bank": "ids_only"} and inv["bank_at"] == held["at"]["bank"]
+    led = crafting.Ledger(who)
+    for i, n in [(2324, 18), (2321, 9), (2592, 12)]:
+        led.add(i, n)
+    bleach, thread, wool = led.rows()
+    assert bleach["buy"] == thread["buy"] == 0
+    assert wool["bank"] is None and wool["bags"] == 0 and wool["buy"] is None and wool["buy_up_to"] == 11
+    assert not crafting.mats_summary(led.rows(), who)["counts_known"]
+
+
+def test_trainer_and_pattern_are_distinct_learning_paths():
+    spell, item, pat = 1257429, 254007, 254008  # Black Slippers
+    s = {"profession": "Tailoring", "spell_id": spell, "skill": 140}
+    for rank, held, listings, kind, need in (
+        (143, {}, {}, "trainer", 150),
+        (143, {pat: 1}, {}, "held", 140),
+        (143, {}, {pat: {"price_copper": 500, "seen_day": "2026-11-26"}}, "ah", 140),
+        (143, {}, {pat: {"price_copper": 5000000, "seen_day": "2026-11-26"}}, "trainer", 150),
+        (150, {}, {}, "trainer", 150),
+    ):
+        w = who(ranks={TAILORING: rank}, held={"bags": held, "bank": {}}, listings=listings)
+        p = crafting.plan(s, item, w)
+        assert p["skill"]["need"] == need and p["recipe"]["selected"]["kind"] == kind
+        assert p["recipe"]["trainer_skill"] == 150 and p["recipe"]["pattern_skill"] == 140
+        assert not p["can_make"]
+        if rank >= need:
+            assert p["route"] is None and p["action"].startswith(("Learn", "Buy"))
+        else:
+            assert p["route"]["to"] == 150
+
+
+def test_only_a_current_finished_listing_can_lower_effort():
+    pattern = 249487
+    spell = crafting.reference()["patterns"][str(pattern)][0]
+    item = crafting.recipe(spell)["i"]
+    src = {"profession": "Enchanting", "spell_id": spell, "skill": 185}
+    latest = {i: {"price_copper": 200, "seen_day": "2026-11-24", "days_ago": 2} for i in (pattern, item)}
+    fake_pat_sale = {pattern: {"price_copper": 99, "seen_day": "2026-11-26", "seen_days_ago": 0}}
+    who = crafting.Who(ranks={333: 185}, known={333: set()}, prices=latest, listings=fake_pat_sale, money=2000)
+    p = crafting.plan(src, item, who)
+    assert p["recipe"]["pattern_bop"] and p["bind_on_pickup"] is False
+    assert p["effort"] == crafting.HARD and p["buy"] is None and p["estimate"]["copper"] == 200
+    assert "Boulderfist Magus" in p["action"] and "auction" not in p["action"]
+    assert "auction" not in crafting._recipe_words(p["recipe"])
+    # Yesterday's historical price can also be absent from a newer full scan.
+    latest[item].update(seen_day="2026-11-25", days_ago=1)
+    assert crafting.plan(src, item, who)["buy"] is None
+    who.listings[item] = {"price_copper": 500, "seen_day": "2026-11-26", "seen_days_ago": 0}
+    p = crafting.plan(src, item, who)
+    assert p["effort"] == crafting.EASY and p["craft_effort"] == crafting.HARD
+    assert p["buy"]["copper"] == 500
+    assert not crafting.brief(p)["cost_complete"]

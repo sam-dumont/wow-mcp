@@ -1,0 +1,17 @@
+{
+  "trainer": {
+    "1257429": {
+      "skill": 150,
+      "source": "https://github.com/sam-dumont/wow-mcp/issues/283",
+      "verification": "https://wowforever.ninja/professions/tailoring/1257429-black-slippers/"
+    }
+  },
+  "pattern_drop": {
+    "249487": {
+      "npc": "Boulderfist Magus",
+      "source": "https://github.com/sam-dumont/wow-mcp/issues/281",
+      "verification": "https://www.wowhead.com/forever/item=249487/formula-twisted-nether-wand",
+      "basis": "reported loot; availability on this client build unverified"
+    }
+  }
+}

@@ -264,7 +264,12 @@ def test_every_upgrade_row_says_how_hard_it_is(site, pw, engine, width):
     it; the page said it only under "Best possible"). Each pill reads the
     upgrade's own effort, and none pushes the row wider than the page."""
     url, gear = site
-    want = {f"{u['slot']}-{u['item_id']}": u["effort"] for u in gear["upgrades"]}
+    want = {}
+    for u in gear["upgrades"]:
+        first = next(iter(u["sources"]), {})
+        e = (first.get("plan") or {}).get("craft_effort") if first.get("kind") == "craft" else None
+        effort = "Craft: " + ("easy", "some effort", "hard")[e] if e is not None else u["effort"]
+        want[f"{u['slot']}-{u['item_id']}"] = effort
     b, pg, _ = open_page(pw, engine, url, width)
     try:
         for view in ("By where you get it", "By slot"):
@@ -357,3 +362,75 @@ def test_weights_copy_for_forever_leveling_bis(site, pw, engine, width):
         assert pg.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth + 1")
     finally:
         b.close()
+
+
+def test_published_and_owner_show_the_same_acquisition_at_phone_width(tmp_path, monkeypatch):
+    from datetime import date, timedelta
+
+    from tests.conftest import Running
+    from wowstats import gear, insights
+
+    day = date.today().isoformat()
+    old_day = (date.today() - timedelta(days=2)).isoformat()
+    sheet = {"class": "PRIEST", "race": "Human", "faction": "Alliance",
+             "professions": [{"name": "Enchanting", "rank": 160}],
+             "recipes": [{"profession": "Enchanting", "known": []}]}
+    market = {"items": {1980: {"price_copper": 245500, "seen_day": day, "seen_days_ago": 0}},
+              "money_copper": 300000, "mount": {"level": 40, "left_copper": 700000},
+              "latest": {249144: {"price_copper": 17000, "days_ago": 2, "seen_day": old_day}}}
+    a = gear.advise(gear.reference(), sheet, level=46, spec="shadow", every=True, market=market)
+    # Four actual candidate records from the level-46 report; two have only hard drops.
+    a.update(available=True, char=CHAR, upgrades=[u for u in a.pop("upgrades_all")
+                                                   if u["item_id"] in (1980, 249144, 2549, 1713)])
+    moves = insights.next_moves(46, a, {}, {}, {}, [], {})["moves"]
+    assert [m["item_id"] for m in moves] == [1980]
+    monkeypatch.setattr(ui, "Store", lambda *args, **kwargs: PoisonStore())
+    monkeypatch.setattr(facts, "store_for", lambda env, like=None: like)
+    monkeypatch.setattr(itemcard, "shared", lambda: Catalog())
+    monkeypatch.setenv("WOW_ITEMS", "off")
+    monkeypatch.setattr(ui.App, "gear", lambda self, name, spec=None, mode=None, pvp=None: a)
+    overview = ui.App.overview
+    monkeypatch.setattr(ui.App, "overview", lambda self, name: {**overview(self, name), "moves": moves})
+    env = {"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": "http://vl.invalid", "MODEL3D": "off",
+           "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_KEY_FILE": str(tmp_path / "friends.key"),
+           "MODEL3D_CACHE_DIR": str(tmp_path / "cache")}
+    with redirect_stdout(io.StringIO()):
+        publish.publish(env)
+    owner = Running(ui.App(env))
+    key = Path(env["ZOGZOG_KEY_FILE"]).read_text().strip()
+    site = static.Site({"SITE_DIR": env["PUBLISH_DIR"], "ZOGZOG_PATH": "/zogzog/", "BIND": "127.0.0.1", "PORT": "0"})
+    friends = static.Server(("127.0.0.1", 0), static.make_handler(site))
+    threading.Thread(target=friends.serve_forever, daemon=True).start()
+    try:
+        with sync_api.sync_playwright() as pw:
+            try:
+                browser = pw.chromium.launch()
+            except Exception as exc:
+                pytest.skip(f"no Chromium: {exc}")
+            for url in (owner.base + f"/?char={CHAR}",
+                        f"http://wow.localhost:{friends.server_address[1]}/zogzog/?char={CHAR}#{key}"):
+                pg = browser.new_page(viewport={"width": 390, "height": 844})
+                pg.goto(url)
+                move = pg.locator(".ovmoves .move", has_text="Underworld Band")
+                move.wait_for()
+                assert "24g 55s" in move.inner_text() and day in move.inner_text()
+                pg.locator(".tabs button", has_text="Character").first.click()
+                wait_count(pg, "#advice .cand")
+                pg.locator("#advice .order button", has_text="By where you get it").click()
+                pg.locator("#advice details.upmore").evaluate_all("els => els.forEach(el => el.open = true)")
+                band = pg.locator("#advice .cand", has_text="Underworld Band").first
+                assert "Auction House" in band.inner_text() and day in band.inner_text()
+                card = pg.locator('#advice .cand[data-up="18-249144"] .craftplan').first
+                assert "Missing Formula" in card.inner_text() and "Priced part" in card.inner_text()
+                assert "No current listing" in card.inner_text() and "Boulderfist Magus" in card.inner_text()
+                details = card.locator("details")
+                assert not details.get_attribute("open")
+                details.locator("summary").click()
+                assert "Riding at level" in details.inner_text() and "×" in details.inner_text()
+                assert pg.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+                pg.close()
+            browser.close()
+    finally:
+        friends.shutdown()
+        friends.server_close()
+        owner.close()
