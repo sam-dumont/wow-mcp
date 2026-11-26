@@ -2124,13 +2124,11 @@ BNET_STEP = 120     # seconds between pushes (the exporter pushes every minute)
 def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] | None = None) -> list[dict]:
     """The Battle.net exporter's series for the demo character
     (wowstats.exporter.poll_profile), as VictoriaMetrics' /api/v1/import
-    takes them: the profile, the look (golden3d's options), the equipment,
+    takes them: the profile, the look (client option and choice IDs), the equipment,
     the item level, the talents and the Legacy achievement, each read once
     a day at BNET_READ_HOUR and pushed every BNET_STEP seconds, over the
     last `days` (the talent history reads them back). `rows`: build_demo's,
     already shifted."""
-    import golden3d
-
     who = {"character": DEMO, "account_id": "0"}
     respec = respec_time(rows)
     info = priest_talents()
@@ -2150,9 +2148,6 @@ def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] |
         s["values"].append(value)
         s["timestamps"].append(t * 1000)
 
-    # The game files' own option and choice ids: golden3d's, or the real
-    # model's (tools/fixtures/demo3d.py look.json) when the demo draws that.
-    look = golden3d.build()["look"] if look is None else look
     recent = now - 3 * day  # the profile's series: last_over_time(...[2d]) needs the last two days
     for t in stamps:
         r = read[t]
@@ -2171,7 +2166,7 @@ def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] |
                                       "guild": GUILD}, t, lv)
         put("wow_character_profile_found", who, t, 1)
         put("wow_character_profile_refreshed_timestamp_seconds", who, t, r)
-        for o in look:
+        for o in look or ():
             put("wow_character_customization", {**who, "option_id": str(o["optionId"])}, t, o["choiceId"])
         sheet = [g for g in gear if _epoch(g["_time"]) <= r]
         items = json.loads(sheet[-1]["items"]) if sheet else []
@@ -2186,10 +2181,11 @@ def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] |
     return [s for _k, s in sorted(series.items())]
 
 
-def demo_series(rows: list[dict], now: float, look: list[dict] | None = None) -> list[dict]:
+def demo_series(rows: list[dict], now: float, looks: dict[str, list[dict]] | None = None) -> list[dict]:
     import roster
 
-    return bnet_series([r for r in rows if r.get("char") == DEMO], now, look=look) + roster.series(rows, now)
+    priest = bnet_series([r for r in rows if r.get("char") == DEMO], now, look=(looks or {}).get(DEMO))
+    return priest + roster.series(rows, now, looks)
 
 
 def shifted(r: dict, secs: int) -> dict:

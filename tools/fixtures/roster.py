@@ -67,7 +67,7 @@ CHARACTERS = (
               "-532300021221121", (16934, 17056, 17002, 16947, 16998, 1238122, 16942, 16972, 1328617, 1328613,
                                    16958, 17007)),
 )
-BEAR_DISPLAY = 1_909_020
+BEAR_DISPLAY = 822  # Brown bear, CreatureDisplayInfo in the Forever client
 
 
 def learned(c: Character) -> list[tuple[str, int, int, str]]:
@@ -125,7 +125,7 @@ def sessions(last: float) -> list[dict]:
     return rows
 
 
-def series(rows: list[dict], now: float) -> list[dict]:
+def series(rows: list[dict], now: float, looks: dict[str, list[dict]] | None = None) -> list[dict]:
     """Two daily armory reads per alt. The public profile and talent history
     query the same metrics the Battle.net exporter writes for a real account."""
     from generate import BNET_SLOTS
@@ -143,6 +143,8 @@ def series(rows: list[dict], now: float) -> list[dict]:
                                    **labels}, "values": [value, value], "timestamps": stamps})
 
         sample("profile", c.level, race_id=str(c.race_id), gender="male" if c.sex == 2 else "female", in_guild="false")
+        for option in (looks or {}).get(c.name, ()):
+            sample("customization", option["choiceId"], option_id=str(option["optionId"]))
         sample("profile_found", 1)
         sample("profile_refreshed_timestamp_seconds", int(now))
         out[-1]["values"] = [t // 1000 for t in stamps]
