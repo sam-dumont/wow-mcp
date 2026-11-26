@@ -59,8 +59,9 @@ def cap_of(rank: int | None, rec: dict | None,
     """Reconcile dated observations within the current learning of a skill."""
     sheet, rec = sheet or {}, rec or {}
     sheet_rank = int(num(sheet.get("rank") or rank))
-    seen = [(_stamp(rec.get("t")), int(num(rec.get("rank"))), int(num(rec.get("max_rank"))), "recorder"),
-            (_stamp(sheet.get("cap_at") or sheet.get("rank_at")), sheet_rank, int(num(sheet.get("cap"))), "game")]
+    readings = rec.get("readings") or [(rec.get("t"), rec.get("rank"), rec.get("max_rank"))]
+    seen = [(_stamp(t), int(num(r)), int(num(c)), "recorder") for t, r, c in readings]
+    seen.append((_stamp(sheet.get("cap_at") or sheet.get("rank_at")), sheet_rank, int(num(sheet.get("cap"))), "game"))
     if _stamp(sheet.get("max_rank_at")):
         seen.append((_stamp(sheet["max_rank_at"]), sheet_rank, int(num(sheet.get("max_rank"))), "export"))
     elif sheet.get("max_rank_from") in ("game", "recorder", "export"):
@@ -89,7 +90,7 @@ def fill(profs: list[dict], skills: dict[int, dict] | None) -> list[dict]:
     for p in profs or []:
         sid = opt_num(p.get("skill_id"))
         rank, cap, src = cap_of(opt_num(p.get("rank")), (skills or {}).get(int(sid)) if sid is not None else None, p)
-        q = {k: v for k, v in p.items() if k != "max_rank_at"}
+        q = {k: v for k, v in p.items() if k != "max_rank_at" or src == "export"}
         out.append({**q, "rank": rank, "max_rank": cap, "max_rank_from": src})
     return out
 
@@ -108,7 +109,11 @@ def newest_skills(rows: list[dict], t_key: str = "_time", until: float | None = 
         prev = out.get(int(sid), {})
         if not rank and not cap:
             continue
+        # Keep each reading for cap_of: the sheet's observation can fall
+        # between two of them, including an unlearn followed by new skill-ups.
+        readings = prev.get("readings", [])
+        readings.append((r.get(t_key), rank, cap))
         if not cap and (not rank or rank >= prev.get("rank", 0)):
             cap = prev.get("max_rank", 0)
-        out[int(sid)] = {"rank": rank or prev.get("rank", 0), "max_rank": cap, "t": r.get(t_key)}
+        out[int(sid)] = {"rank": rank or prev.get("rank", 0), "max_rank": cap, "t": r.get(t_key), "readings": readings}
     return out

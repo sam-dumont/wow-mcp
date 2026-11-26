@@ -183,7 +183,7 @@ def test_a_pattern_in_the_bags_is_learnt_first():
     u, s = craft_src(advise(sh, bags=[SHADOW_CIRCLET_PATTERN]), SHADOW_CIRCLET)
     assert s["known"] is False and s["pattern_item_id"] == SHADOW_CIRCLET_PATTERN and not s["can_make"]
     assert {"kind": "learn", "profession": "Tailoring", "need": SHADOW_CIRCLET_PATTERN, "have": None} in u["gates"]
-    assert gear.craft_status(s).startswith("You have Pattern: Shadow Circlet: learn it.")
+    assert gear.craft_status(s).startswith("You have Pattern: Shadow Circlet.")
     assert s["plan"]["action"] == "Learn Pattern: Shadow Circlet from your bags."
 
 
@@ -204,8 +204,9 @@ def test_known_recipe_and_skill_is_make_it_with_the_materials_priced():
     sh = caster(recipes=[{"profession": "Tailoring", "known": [SHADOW_CIRCLET_SPELL], "seen": 40}])
     u, s = craft_src(advise(sh), SHADOW_CIRCLET)
     assert s["can_make"] and not u["gates"]
-    assert gear.craft_status(s).startswith("You know the recipe. In all ~")
-    assert s["plan"]["action"].startswith("Make it: the materials cost ~")
+    assert gear.craft_status(s).startswith("You know the recipe.")
+    assert "incomplete estimate" in gear.craft_status(s)
+    assert not s["plan"]["cost_complete"] and "prices or counts" in s["plan"]["action"]
 
 
 def test_the_town_stop_crafts_only_what_can_be_made():

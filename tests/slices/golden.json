@@ -52,18 +52,14 @@
    "raids-open-2026-12|1"
   ],
   "moves": [
-   "dungeon|Blackrock Spire",
-   "dungeon|Dire Maul: West",
    "riding|Riding at level # if not trained yet",
-   "upgrade|13162",
-   "upgrade|22411"
+   "upgrade|13209",
+   "upgrade|22659"
   ],
   "next_moves": [
-   "#advice",
    "#gear",
-   "#up-1",
-   "#up-10",
-   "#up-17"
+   "#up-14",
+   "#up-2"
   ],
   "prep": [
    "raids-open-2026-12|prep 1",
@@ -96,21 +92,18 @@
   "effects": [],
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
-   "dungeon|Maraudon: Purple",
    "dungeon|Razorfen Downs",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
    "upgrade|10771",
-   "upgrade|1713",
-   "upgrade|1980",
-   "upgrade|2549"
+   "upgrade|273806"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#levels",
    "#up-12",
-   "#up-14",
+   "#up-17",
    "#up-6"
   ],
   "prep": []
@@ -139,17 +132,17 @@
   ],
   "effects": [],
   "moves": [
-   "dungeon|Maraudon: Orange",
    "dungeon|Razorfen Downs",
    "riding|Riding at level # if not trained yet",
-   "upgrade|2549"
+   "upgrade|10025",
+   "upgrade|2816"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#levels",
+   "#up-1",
    "#up-16",
-   "#up-18",
    "#up-5"
   ],
   "prep": []
@@ -179,21 +172,19 @@
   "effects": [],
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
-   "dungeon|Maraudon: Purple",
    "dungeon|Razorfen Downs",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
-   "upgrade|1713",
-   "upgrade|1980",
-   "upgrade|2549"
+   "upgrade|10028",
+   "upgrade|273806"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#levels",
    "#up-12",
-   "#up-14",
-   "#up-17"
+   "#up-17",
+   "#up-3"
   ],
   "prep": []
  },
@@ -214,12 +205,12 @@
   ],
   "effects": [],
   "moves": [
-   "upgrade|286754",
-   "upgrade|3307",
-   "upgrade|5069"
+   "upgrade|263406",
+   "upgrade|277100",
+   "upgrade|5604"
   ],
   "next_moves": [
-   "#up-16",
+   "#up-10",
    "#up-18",
    "#up-8"
   ],

@@ -1315,15 +1315,16 @@ function feasible(u, level) {
   const sk = gates.find((g) => g.kind === 'skill');
   const buy = gates.find((g) => g.kind === 'buy');
   // The recipe: a pattern in the bags to learn, or one still to find.
-  const rc = gates.find((g) => g.kind === 'learn' || g.kind === 'recipe');
+  const rc = gates.find((g) => ['trainer_recipe', 'learn', 'recipe'].includes(g.kind));
+  const labels = { trainer_recipe: 'Visit trainer', learn: 'Learn pattern', recipe: 'Recipe needed' };
   if (!lv && !sk && !rc) {
     return { now: true, text: 'Now', title: buy ? `Made by ${buy.profession} ${buy.need}: buy it from a crafter or the auction house.` : 'You can get and wear it now.' };
   }
   const text = [lv ? `Level ${lv.need}` : null, sk ? `${sk.profession} ${sk.need}` : null,
-    rc ? (rc.kind === 'learn' ? 'Learn pattern' : 'Recipe needed') : null].filter(Boolean).join(' + ');
+    rc ? labels[rc.kind] : null].filter(Boolean).join(' + ');
   const when = [lv ? `at level ${lv.need}` : null,
-    sk ? `once ${sk.profession} reaches ${sk.need} (you have ${sk.have}, ${sk.need - sk.have} to go)` : null,
-    rc ? (rc.kind === 'learn' ? 'once you learn the pattern in your bags' : `once you find and learn its ${rc.profession} recipe`) : null].filter(Boolean);
+    sk ? (sk.have == null ? `once you have ${sk.profession} ${sk.need}` : `once ${sk.profession} reaches ${sk.need} (you have ${sk.have}, ${sk.need - sk.have} to go)`) : null,
+    rc ? (rc.kind === 'trainer_recipe' ? 'once a trainer teaches you the recipe' : rc.kind === 'learn' ? 'once you learn your pattern' : `once you find and learn its ${rc.profession} recipe`) : null].filter(Boolean);
   return { now: false, text, title: `Opens ${when.join(', ')}.`, level: lv && lv.need, skill: sk };
 }
 function feasEl(u, level) {
@@ -1372,6 +1373,8 @@ const SEEN = ['on sale today', 'on sale yesterday'];
 // The price, its share of your gold, when it was listed, and "cheap" when
 // it costs at most what you net in a level.
 function ahEl(sr) {
+  if (ahAge(sr) > 1) return h('span', { class: 'src', text: 'Last auction price ' + priceText(sr.price_copper) +
+    (sr.seen_day ? ' (' + sr.seen_day + ')' : '') + '. No current listing.' });
   const share = sr.gold_share_pct !== null && sr.gold_share_pct !== undefined
     ? ` (${sr.gold_share_pct < 1 ? '<1' : Math.round(sr.gold_share_pct)}% of your gold)` : '';
   const mount = sr.mount_share_pct ? `${sr.mount_share_pct < 1 ? 'Under 1' : Math.round(sr.mount_share_pct)}% of the gold your riding training still needs` : null;
@@ -1409,6 +1412,32 @@ const chanceText = (sr) => (sr.chance_pct ? `, ${sr.chance_pct}%${sr.kills ? ` o
 
 // One source in words, with its link and the numbers that decide a trip.
 // ah: the item's auction house listing, for "or buy it" after another source.
+function craftPlan(sr) {
+  const p = sr.plan, mats = p.materials || {}, riding = p.riding || {};
+  const buy = p.buy?.copper ? p.buy : null, historical = p.estimate?.copper ? p.estimate : null;
+  const current = buy && ahAge({ seen_day: buy.seen_day, seen_days_ago: buy.days_ago }) <= 1;
+  const quote = buy || historical, steps = p.steps || [], missing = (p.unpriced || []).join(', ');
+  const learn = p.learn || {};
+  return h('div', { class: 'craftplan' },
+    h('strong', {}, 'Craft ', wh('spell', sr.spell_id, sr.profession + ' ' + sr.skill)),
+    p.blocker ? h('span', { text: p.blocker }) : null,
+    h('b', { text: p.action }),
+    h('span', { text: (p.cost_complete ? 'Estimated cost ' : 'Priced part ') + priceText(p.craft_copper) +
+      (missing ? '. No price for ' + missing : '') }),
+    mats.items ? h('span', { text: mats.covered + ' of ' + mats.items + ' materials covered' +
+      (mats.counts_known ? '.' : '. Some saved stack counts are unknown.') }) : null,
+    quote ? h('span', { class: 'craftbuy', text: (current ? 'Buy on the Auction House for ' : 'Last auction price ') +
+      priceText(quote.copper) + (quote.seen_day ? ' (' + quote.seen_day + ')' : '') +
+      (current ? '.' : '. No current listing.') }) : p.bind_on_pickup ? h('span', { text: 'Binds on pickup.' }) : null,
+    steps.length || riding.left_copper || learn.trainer_skill || learn.pattern_skill ? h('details', {},
+      h('summary', { text: 'Recipe and skill-up details' }),
+      learn.trainer_skill ? h('p', { text: 'Trainer requires ' + sr.profession + ' ' + learn.trainer_skill + '.' }) : null,
+      learn.pattern_skill ? h('p', { text: 'Pattern requires ' + sr.profession + ' ' + learn.pattern_skill + '.' }) : null,
+      steps.length ? h('ul', {}, steps.map((s) => h('li', { text: s.crafts + ' × ' + s.name + ' (' + s.from + '–' + s.to + ')' }))) : null,
+      riding.left_copper ? h('p', { text: 'Riding at level ' + riding.level + ' still needs ' + priceText(riding.left_copper) + '.' }) : null) : null,
+    basisEl(sr));
+}
+
 function sourceEl(sr, level, ah) {
   if (HELD[sr.kind]) return h('span', { class: 'src', text: HELD[sr.kind] });
   if (sr.kind === 'ah') return ahAge(sr) <= 1 ? ahEl(sr) : h('span', { class: 'src', text: 'Auction House listing expired' });
@@ -1469,6 +1498,7 @@ function sourceEl(sr, level, ah) {
       chanceText(sr), basisEl(sr));
   }
   if (sr.kind === 'craft') {
+    if (sr.plan?.materials) return craftPlan(sr);
     const own = craftStatus(sr);
     if (sr.plan && sr.plan.line) {
       // The plan says the auction house price itself (craft or buy).
@@ -1956,7 +1986,10 @@ function fitEl(f) {
 // hard, long shot), next to its source on every upgrade row (owner,
 // 2026-11-24). At level 60 a long shot can be the pick: the pill says so.
 function effortEl(u) {
-  return u.effort ? h('span', { class: 'pill effort', text: u.effort, title: 'How hard it is to get, from its easiest source' }) : null;
+  const src = primarySource(u);
+  const craft = src?.kind === 'craft' && src.plan?.craft_effort != null;
+  const text = craft ? 'Craft: ' + ['easy', 'some effort', 'hard'][src.plan.craft_effort] : u.effort;
+  return text ? h('span', { class: 'pill effort', text, title: 'How hard it is to get, from its easiest source' }) : null;
 }
 
 function candRow(u, a, extra) {
@@ -1965,7 +1998,7 @@ function candRow(u, a, extra) {
   li.append(
     h('div', { class: 'candmain' }, itemChip(u), partner, fitEl(u.fit)),
     h('div', { class: 'candmeta' }, h('b', { class: 'gain', text: upText(u) }),
-      feasEl(u, a.level), h('span', { class: 'srcline' }, extra || null, effortEl(u))));
+      feasEl(u, a.level), h('div', { class: 'srcline' }, extra || null, effortEl(u))));
   li.querySelector('.candmain .itm').addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -3560,6 +3593,7 @@ function met(ok) { return ok ? 'met' : 'not yet'; }
 function withText(it) {
   const w = it.with;
   if (!w || !w.name) return '';
+  if (w.price_copper) return `, with ${w.name} (buy for ${priceText(w.price_copper)} on the Auction House, ${w.seen_day})`;
   const where = { worn: ', which you wear', bags: ', in your bags', bank: ', in your bank' }[w.kind] || '';
   return `, with ${w.name} (${(w.slot_name || '').toLowerCase()}${where})`;
 }
@@ -3735,7 +3769,9 @@ function renderOverview(ov, err, an) {
   // actionable): the analysis' pattern lines describe, and stay folded in
   // the full view's "How you play"; its actions are there and, screened,
   // on /zogzog/.
-  const moves = (ov.moves || []).filter((mv) => mv.source?.kind !== 'ah' || ahAge(mv.source) <= 1);
+  const moves = (ov.moves || []).filter((mv) =>
+    (mv.source?.kind !== 'ah' || ahAge(mv.source) <= 1) &&
+    (!mv.item?.with?.price_copper || ahAge(mv.item.with) <= 1));
   const recent = tr.per_level || [];
   const paceHost = h('div', { class: 'pacehost' });
   paceRedraw = null;
@@ -4071,11 +4107,12 @@ async function loadPlan(name) {
   const tiers = (s.tiers || []).filter((t) => !t.bought).slice(0, 2).map((t) => h('div', { class: 'tier' },
     // may_be_trained: no read of the game saw it (the Recorder misses a
     // training it didn't see): a hedge, never "not trained".
-    h('div', { text: `Riding at ${t.level}${t.may_be_trained ? ', if not trained yet' : ''}: ${t.need} needed, ${t.left} to go` +
+    h('div', { text: t.quest ? `${t.quest.name} at level ${t.level}. ${t.quest.action} Paid trainer alternative: ${t.trainer_alternative}.` :
+      `Riding at ${t.level}${t.may_be_trained ? ', if not trained yet' : ''}: ${t.need} needed, ${t.left} to go` +
       (t.eta ? ` (about ${t.eta} of play at ${s.gold_rate}${t.eta_level ? `, level ${t.eta_level}` : ''})` :
         s.gold_rate ? '' : ' (no gold rate measured yet)') + (t.behind ? '. Behind your level pace.' : '.') }),
-    h('div', { class: 'bar', role: 'img', 'aria-label': `${t.pct || 0}% saved` },
-      h('i', { 'width%': Math.max(0, Math.min(100, t.pct || 0)) }))));
+    t.pct != null ? h('div', { class: 'bar', role: 'img', 'aria-label': `${t.pct}% saved` },
+      h('i', { 'width%': Math.max(0, Math.min(100, t.pct)) })) : null));
   const r = s.review;
   const rev = r ? h('p', { text: `Last plan (${r.hours} h): ` + (r.ratio ? `you needed ${r.ratio}× the planned time` :
     'not far enough in to compare') + (r.end_actual != null ? `; level ${r.end_actual} at its end, ${r.end_planned} planned.` :

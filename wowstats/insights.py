@@ -19,7 +19,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
-from . import forever, profcaps, trainers
+from . import forever, profcaps, riding, trainers
 from . import gear as gearmod
 from . import timebounds as tb
 from .analysis import kb
@@ -105,13 +105,16 @@ def item_ref(u: dict) -> dict:
     """An upgrade as the Overview shows it: the item, its slot, its gain,
     its badge (gear.bis_badge)."""
     w = u.get("with") or {}
+    ws = next(iter(w.get("sources") or []), {})
+    sale_keys = ("price_copper", "seen_day", "seen_days_ago")
+    partner_sale = {k: ws.get(k) for k in sale_keys} if ws.get("kind") == "ah" else {}
     return {**{k: u.get(k) for k in ("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct",
                                      *gearmod.BADGE)},
             "url": wowhead_url("item", u["item_id"]) if u.get("item_id") else None,
             # A weapon setup's gain is both hands': the other one goes with it
             # (an off hand alone against a two-hander is no upgrade).
             **({"with": {"item_id": w["item_id"], "name": w.get("name"), "slot_name": w.get("slot_name"),
-                         "kind": _partner_have(w), "url": wowhead_url("item", w["item_id"])}}
+                         "kind": _partner_have(w), "url": wowhead_url("item", w["item_id"]), **partner_sale}}
                if w.get("item_id") else {})}
 
 
@@ -168,8 +171,13 @@ def in_reach(advice: dict | None, level: int | None) -> list[tuple[dict, dict]]:
         s = gearmod.action_source(u.get("sources") or [], level)
         # A weapon setup is in reach when its other hand is too.
         w = u.get("with") or {}
-        if w.get("kind") == "get" and gearmod.action_source(w.get("sources") or [], level) is None:
-            continue
+        if w.get("kind") == "get":
+            sources = w.get("sources") or []
+            other = gearmod.action_source(sources, level)
+            if other is None:
+                continue
+            if other is not sources[0]:
+                u = {**u, "with": {**w, "sources": [other, *(x for x in sources if x is not other)]}}
         if s is not None:
             out.append((u, s))
     return out
@@ -789,7 +797,7 @@ def profession_claims(level: int | None, gear_profs: list[dict], skills: dict[in
     return out
 
 
-def riding_claims(level: int | None, header: dict | None, skills: dict[int, dict]) -> list[dict]:
+def riding_claims(level: int | None, header: dict | None, skills: dict[int, dict], done=()) -> list[dict]:
     """Riding, from RIDING_AHEAD levels before its tier: the race's trainer,
     the level, and the price against the gold the character holds. Riding's
     entry in `skills` is wowstats.riding.merge's (the spellbook, the
@@ -798,7 +806,30 @@ def riding_claims(level: int | None, header: dict | None, skills: dict[int, dict
     see), so the move then says "if not trained yet" and what was read when."""
     hd = header or {}
     rd = (skills or {}).get(RIDING_SKILL) or {}
-    if level is None or rd.get("rank"):
+    if level is None:
+        return []
+    rank = rd.get("rank") or 0
+    for skill, name in ((75, "riding.apprentice"), (150, "riding.journeyman")):
+        if rank >= skill:
+            continue
+        quest = riding.class_route(skill, hd, done)
+        if not quest:
+            break
+        if quest["fulfilled"]:
+            continue
+        rule = kb.static_rule(name)
+        if not rule or level < rule["value"]["level"] - RIDING_AHEAD:
+            return []
+        tier = rule["value"]
+        title = quest["name"]
+        alternative = tier["training_copper"]
+        return [claim(f"{title} at level {tier['level']}. {quest['action']} "
+                      f"The riding trainer is an alternative at {_coins(alternative)}.", "#gear",
+                      quest["source_url"], kind="riding", title=title, weight=2.5,
+                      skill={"name": "Riding", "next": title, "need_level": tier["level"],
+                             "level_ok": level >= tier["level"], "quest": quest, "trainers": [],
+                             "cost_copper": quest["remaining_copper"], "trainer_alternative_copper": alternative})]
+    if rank:
         return []
     r = trainers.riding(hd.get("race"), hd.get("faction"))
     rule = kb.static_rule("riding.apprentice")
@@ -962,7 +993,7 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]]) -> list[di
 
 
 def next_moves(level: int | None, advice: dict | None, header: dict, track: dict, follow: dict,
-               gear_profs: list[dict], skills: dict[int, dict]) -> dict:
+               gear_profs: list[dict], skills: dict[int, dict], *, done=()) -> dict:
     """Besides following Polestar: what pays now."""
     reach = in_reach(advice, level)
     # The best for each slot: two pairs of trousers for the same legs are one
@@ -976,7 +1007,7 @@ def next_moves(level: int | None, advice: dict | None, header: dict, track: dict
              for u, s in list(best.values())[:3]]
     moves += dungeon_claims(level, reach)
     moves += profession_claims(level, gear_profs, skills, header)
-    moves += riding_claims(level, header, skills)
+    moves += riding_claims(level, header, skills, done)
     rested = opt_num(header.get("rested_xp"))
     if rested:
         of = f" ({rested / header['xp_max']:.2f} of level {level})" if header.get("xp_max") else ""
@@ -1123,7 +1154,8 @@ def overview_moves(nm: dict, sc: dict) -> list[dict]:
     lift: dict = defaultdict(float)
     kept = []
     for c in allc:
-        if c.get("kind") == "upgrade" and c.get("item_id") in in_dungeon and (c.get("source") or {}).get("kind") == "drop":
+        if (c.get("kind") == "upgrade" and c.get("item_id") in in_dungeon
+                and (c.get("source") or {}).get("kind") == "drop"):
             z = in_dungeon[c["item_id"]]
             lift[z] = max(lift[z], c.get("weight", 1))
             continue

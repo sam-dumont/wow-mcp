@@ -613,15 +613,16 @@ class Views:
         except SourceError:
             sheet["reps"], sheet["pvp_rank"] = None, None
         done = set(quests.with_battlenet(res["done"], quests.worn_ids(worn)))
+        log = quests.in_log(res["log"], done)
         try:
             sheet["professions"] = profcaps.fill(sheet["professions"], profcaps.newest_skills(ah["skills"].result()))
             market = ahsource.market({k: f.result() for k, f in ah.items()}, faction=sheet.get("faction"),
-                                     money=header.get("money_copper"))
+                                     money=header.get("money_copper"), who=sheet, done=done, log=log)
         except SourceError:
             market = None  # no prices is no reason to lose the advice
         return {"available": True, "base": base, "at": row.get("_time"), "worn_from": worn_from, "sheet": sheet,
                 "level": header.get("level"), "zone": header.get("zone"), "done": done,
-                "log": quests.in_log(res["log"], done), "route": quests.position(res["step"]),
+                "log": log, "route": quests.position(res["step"]),
                 "weights": self.settings.weights.get(char), "held": gearmod.newest_bags(res["held"]),
                 "market": market,
                 # The PvP rewards toggle (wowstats.gearmode): off unless saved.
@@ -679,9 +680,7 @@ class Views:
         advice = advice if advice is not None else res["advice"]
         ds = insights.deaths(self.q, cf, data.get("levels") or [])
         steps_rows = sorted(dedupe(res["steps"]), key=lambda r: parse_t(r.get("_time")))
-        skills = {int(opt_num(r["skill_id"])): {"rank": int(num(r.get("rank"))), "max_rank": int(num(r.get(
-            "max_rank"))), "t": r.get("_time")} for r in sorted(dedupe(res["skills"]), key=lambda r: parse_t(
-                r.get("_time"))) if opt_num(r.get("skill_id")) is not None}
+        skills = profcaps.newest_skills(dedupe(res["skills"]))
         # Riding from the spellbook too: the Recorder misses a training it didn't see.
         skills = riding.merge(skills, res["riding_book"], res["riding_learn"])
         return {"data": data, "advice": advice if (advice or {}).get("available") else None, "deaths": ds,
@@ -719,8 +718,9 @@ class Views:
         ov = insights.overview(data, advice, x["deaths"], ref, who, x["steps_rows"], x["sessions"], ask)
         profs = gear.get("professions") or []
         talents = (advice or {}).get("talents") if advice else None
+        done = self.quests_history(char) if (hd.get("class") or "").upper() in {"PALADIN", "WARLOCK"} else ()
         ov["next_moves"] = insights.next_moves(hd.get("level"), advice, hd, ov["on_track"], ov["guide"], profs,
-                                               x["skills"])
+                                               x["skills"], done=done)
         ov["sanity_check"] = insights.sanity_check(hd.get("level"), x["deaths"], ov["guide"], ov["on_track"],
                                                    advice, profs, x["skills"], talents, gear.get("items"), hd,
                                                    ask=ask)

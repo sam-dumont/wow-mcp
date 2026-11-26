@@ -158,6 +158,7 @@ The public site and the sealed `/zogzog/` site. [Share your page](../self-host/s
 | `PLAUSIBLE_DOMAIN` | publish, ui, compose | domain | empty: no analytics | `wow.example.org` | Your Plausible site: one pageview per page on the static sites and the full view, through your own address, without the `/zogzog/` key. The same value on the publisher and the ui: one Plausible site for every host. |
 | `PLAUSIBLE_SCRIPT` | publish, ui | path | `/js/script.js` | `/js/script.js` | The script path on the site's own address. Route it to your Plausible. |
 | `PUBLISH_DIR` | publish | path | `/data/site` | `/data/site` | Where builds go; `current` points at the live one. |
+| `PUBLISH_GEAR_SETTINGS_DIR` | publish, compose | path | the configured UI state directory | `/ui-state/analysis` | Directory containing the owner's saved gear modes and PvP reward settings. The Compose publisher reads the UI volume here. |
 | `PUBLISH_INTERVAL` | publish, compose | seconds | `600` | `600` | With `--loop`: how often to check for new events. |
 | `PUBLISH_PUSH_TOKEN_FILE` | publish | path | empty | `/run/secrets/upload_token` | The push token, 32+ characters. Same value as the static server's `UPLOAD_TOKEN_FILE`. |
 | `PUBLISH_PUSH_URL` | publish | URL | empty: share a volume | `http://site-upload:8099` | Push each build to a static server's upload port instead of sharing a volume. |

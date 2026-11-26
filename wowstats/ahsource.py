@@ -188,7 +188,7 @@ def gold_per_level(snaps: list[dict], now: float | None = None) -> int | None:
 
 
 def mount_left(money: int | None, skills: list[dict], book: list[dict] | None = None,
-               learned: list[dict] | None = None) -> dict | None:
+               learned: list[dict] | None = None, *, who: dict | None = None, done=(), log=()) -> dict | None:
     """The next riding training not yet known (the knowledge base's
     riding.apprentice / riding.journeyman, with the vendor mount when the
     training doesn't come with one), its price and what is still missing.
@@ -210,8 +210,14 @@ def mount_left(money: int | None, skills: list[dict], book: list[dict] | None = 
         if not v.get("comes_with_mount"):
             vendor = (kb.static_rule("riding.vendor_mounts") or {}).get("value") or {}
             need += vendor.get(str(v["level"])) or 0
-        have = money or 0
-        return {"name": name, "level": v["level"], "need_copper": need, "left_copper": max(0, need - have)}
+        quest = riding.class_route(v["skill"], who or {}, done, log)
+        if quest and quest["fulfilled"]:
+            continue
+        paid = need
+        need = quest["remaining_copper"] if quest else paid
+        left = 0 if need == 0 else max(0, need - money) if money is not None and need is not None else None
+        return {"name": name, "level": v["level"], "need_copper": need, "left_copper": left,
+                **({"quest": quest, "trainer_alternative_copper": paid} if quest else {})}
     return None
 
 
@@ -224,7 +230,7 @@ def queries(cf: str, rec: str) -> dict[str, tuple]:
 
 
 def market(res: dict, *, faction: str | None, money: int | None,
-           now: float | None = None) -> dict:
+           now: float | None = None, who: dict | None = None, done=(), log=()) -> dict:
     """advise()'s `market` from the answers to queries(), with the scans
     (wowstats.views.price_rows, any window from WINDOW_DAYS up) as
     res["items"]."""
@@ -238,7 +244,8 @@ def market(res: dict, *, faction: str | None, money: int | None,
     every = latest(res.get("items") or [], faction, now, ruleset=homes[-1]["realm"] if homes else None)
     return {**sale, "latest": every, "money_copper": money,
             "gold_per_level_copper": gold_per_level(res.get("money") or [], now),
-            "mount": mount_left(money, res.get("skills") or [], res.get("riding_book"), res.get("riding_learn"))}
+            "mount": mount_left(money, res.get("skills") or [], res.get("riding_book"), res.get("riding_learn"),
+                                who=who, done=done, log=log)}
 
 
 def notice_none() -> str:

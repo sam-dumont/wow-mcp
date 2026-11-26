@@ -523,9 +523,10 @@ def scoring_for(advice: dict | None) -> dict:
         return {"spec": None}
     versions = dataversions.versions()
     fdb = versions.get("foreverdb", {})
+    client = versions.get("client_build", {})
     return {"spec": advice["spec"]["key"], "pvp_rewards": advice["pvp_rewards"]["on"],
             "item_sources": fdb.get("data_version"), "weights": fdb.get("weights_data_version"),
-            "client_items": versions.get("client_build", {}).get("items")}
+            "client_items": client.get("items"), "client_crafting": client.get("crafting")}
 
 
 def tables_of(db) -> tuple[list[str], int]:

@@ -39,6 +39,12 @@ def race_bit(race: str | None, side: str | None) -> int:
 # ---------------------------------------------------------------- travel
 
 
+def eligible(side: int, races: int, classes: int, side_bit: int, rb: int, cb: int) -> bool:
+    """Apply the trip's side, race and class masks to one quest."""
+    return not ((side_bit and side and not side & side_bit) or (rb and races and not races & rb)
+                or (classes and not classes & cb))
+
+
 def _dist(a, b) -> float:
     dx = b[1] - a[1]
     dy = b[2] - a[2]
@@ -363,12 +369,8 @@ class Rules:
         return qid in self.p["log"]
 
     def applies(self, q) -> bool:
-        if q.get("side") and not q["side"] & self.bit:
-            return False
-        rb, cb = self.p.get("race_bit"), self.p.get("class_bit")
-        if rb and q.get("races") and not q["races"] & rb:
-            return False
-        return not (q.get("classes") and not (cb and q["classes"] & cb))
+        return eligible(q.get("side", 0), q.get("races", 0), q.get("classes", 0), self.bit,
+                        self.p.get("race_bit") or 0, self.p.get("class_bit") or 0)
 
     def _nearest(self, pts, start):
         best, bt = None, math.inf
