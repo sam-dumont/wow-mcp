@@ -285,11 +285,12 @@ the newer time.
   rescanned at each login and skill-up) and that row's `lastUpdate` (unix
   seconds); a profession only DataStore knows is added. The server takes the
   highest cap that covers the rank, this one or the Recorder's `skill`
-  records (`max_rank`), else the trainer tiers (wowstats/profcaps.py); only
-  `cap` says what the character has now, so a move built on the others
-  hedges. Shippers before 0.7.0 also sent
-  `max_rank` and `max_rank_at` from CharacterExport-Forever: still stored,
-  read by nothing.
+  records (`max_rank`), or a dated CharacterExport-Forever cap
+  (`max_rank`, `max_rank_at`) saved by shippers before 0.7.0. Without a
+  recorded cap it uses the trainer tiers. A later Apprentice reading at
+  rank 1–10 with cap 75 starts a new history if the old one had already
+  passed that tier. Smaller differences between rank readings keep the
+  known cap. A trainer move hedges unless the cap came from DataStore.
 - `wanted`: the upgrades the player tracks in GearQuestForever (the
   character's `GearQuestForeverCharDB.hunts` with status `tracked`):
   `item_id`, `name`, `item_level`, `req_level`, `slot_name`, `level`.

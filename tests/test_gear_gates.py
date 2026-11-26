@@ -50,7 +50,7 @@ def test_shared_class_and_side_specific_quests():
 def test_item_side_applies_to_held_and_full_advice():
     iid = 272603  # Premier High Warlord's War Staff, an unsided vendor
     ref = gear.reference()
-    for side in ("Alliance", "Horde"):
+    for side in ("Alliance", "Horde", None):
         sheet = {"class": "PRIEST", "race": "Skyborne", "faction": side}
         for held in (None, {"bags": [iid]}):
             a = gear.advise(ref, sheet, level=60, spec="shadow", pvp=True, every=True, held=held)

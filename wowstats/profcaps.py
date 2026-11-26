@@ -22,13 +22,18 @@ already read, the highest that still covers the rank winning (caps only go up):
    exactly 150 may have trained Expert already, so a move built on it hedges.
 
 Older shippers stored a dated character export as max_rank/max_rank_at.
-It remains a recorded observation. A later drop in positive skill ranks
-starts a new learning history for the profession.
+It remains a recorded observation. A dated return to the first few points
+of Apprentice can start a new history. A lower rank alone cannot date an
+unlearn: the two addons may have last seen different skill-ups.
 """
 
 from __future__ import annotations
 
 from .stores import num, opt_num, parse_t
+
+# A reset has no event of its own. Accept a fresh Apprentice reading in its
+# first ten points when an earlier reading had already outgrown that tier.
+RELEARN_MAX_RANK = 10
 
 
 def tiers() -> list[dict]:
@@ -69,7 +74,8 @@ def cap_of(rank: int | None, rec: dict | None,
                      int(num(sheet.get("max_rank"))), sheet["max_rank_from"]))
     best_rank, best_cap, best_src, last_at = 0, 0, None, 0
     for at, r, c, src in sorted(seen, key=lambda row: row[0]):
-        if at and last_at and at > last_at and 0 < r < best_rank:
+        if (last_at and at > last_at and 0 < r <= RELEARN_MAX_RANK and c > 0
+                and c < max(best_rank, best_cap) and c == infer(1)):
             best_rank, best_cap, best_src = 0, 0, None
         best_rank = max(best_rank, r)
         if c and c >= best_rank and (c > best_cap or (c == best_cap and src == "game")):
@@ -84,13 +90,18 @@ def cap_of(rank: int | None, rec: dict | None,
 
 def fill(profs: list[dict], skills: dict[int, dict] | None) -> list[dict]:
     """The professions with `max_rank` and `max_rank_from` set (cap_of),
-    whatever cap an old sheet carried (`cap`/`cap_at` stay: fill again
-    reads the same)."""
+    whatever cap an old sheet carried."""
     out = []
     for p in profs or []:
         sid = opt_num(p.get("skill_id"))
         rank, cap, src = cap_of(opt_num(p.get("rank")), (skills or {}).get(int(sid)) if sid is not None else None, p)
         q = {k: v for k, v in p.items() if k != "max_rank_at" or src == "export"}
+        # A reset superseded the game's old cap. Pairing it with the new
+        # rank on this derived sheet would restore it when Next Moves reads
+        # the sheet a second time.
+        if src == "recorder" and cap < num(p.get("cap")):
+            q.pop("cap", None)
+            q.pop("cap_at", None)
         out.append({**q, "rank": rank, "max_rank": cap, "max_rank_from": src})
     return out
 

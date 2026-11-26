@@ -136,6 +136,40 @@ def test_dated_export_and_recorder_cap_survive_a_zero_and_an_unlearn():
     assert profcaps.cap_of(143, readings[TAILORING], sheet["professions"][0]) == (146, 150, "recorder")
 
 
+@pytest.mark.parametrize("source", ["game", "recorder"])
+@pytest.mark.parametrize("later_cap", [0, 150, 225])
+def test_a_later_rank_two_points_behind_does_not_repeat_expert_training(source, later_cap):
+    from wowstats import profcaps
+
+    p = {"skill_id": TAILORING, "name": "Tailoring"}
+    rows = [{"skill_id": TAILORING, "_time": 1, "rank": 143, "max_rank": 225}]
+    if source == "game":
+        p.update(rank=141, cap=later_cap, cap_at=2)
+    else:
+        rows.append({"skill_id": TAILORING, "_time": 2, "rank": 141, "max_rank": later_cap})
+    skills = profcaps.newest_skills(rows)
+    sheet = {"professions": profcaps.fill([p], skills)}
+    w = crafting.who_from(sheet, None, None)
+    assert (w.ranks[TAILORING], w.caps[TAILORING]) == (143, 225)
+    assert not crafting.route(TAILORING, w.ranks[TAILORING], 190, w)["train"]
+
+
+def test_a_new_apprentice_grows_towards_expert_again():
+    from wowstats import insights, profcaps
+
+    p = {"skill_id": TAILORING, "rank": 143, "cap": 225, "cap_at": 1}
+    rows = [{"_time": 2, "skill_id": TAILORING, "rank": 5, "max_rank": 75},
+            {"_time": 3, "skill_id": TAILORING, "rank": 148, "max_rank": 150}]
+    skills = profcaps.newest_skills(rows)
+    apprentice = profcaps.fill([p], profcaps.newest_skills(rows, until=2))[0]
+    assert (apprentice["rank"], apprentice["max_rank"]) == (5, 75)
+    profs = profcaps.fill([p], skills)
+    w = crafting.who_from({"professions": profs}, None, None)
+    assert [t["max"] for t in crafting.route(TAILORING, w.ranks[TAILORING], 190, w)["train"]] == [225]
+    (move,) = insights.profession_claims(32, profs, skills)
+    assert (move["skill"]["rank"], move["skill"]["max_rank"]) == (148, 150)
+
+
 def test_dated_id_only_bank_preserves_counted_bags_and_marks_unknown_shortage():
     from wowstats.mcp.proftools import _inventory
 

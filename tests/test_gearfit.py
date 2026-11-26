@@ -100,6 +100,16 @@ def test_healer_cloth_for_a_mage_is_against_the_class(ref):
     assert label(ref, 9407, "PRIEST", "holy", 37)["for_you"] == "yes"
 
 
+@pytest.mark.parametrize("iid", [272603, 4385, 4393])
+def test_the_horde_war_staff_and_engineering_goggles_keep_their_spec_fit(ref, iid):
+    from wowstats.plan import kbloot
+
+    f = label(ref, iid, "MAGE", "frost", 60)
+    assert (f["built_for"], f["factor"]) == ("healers", gearfit.CLASS)
+    assert kbloot.stat_fit(ref.item(iid), "PRIEST", "holy", 60) is True
+    assert kbloot.stat_fit(ref.item(iid), "MAGE", "frost", 60) is False
+
+
 def test_healer_cloth_for_a_shadow_priest_is_fine_while_levelling(ref):
     """Owner, 2026-11-20: a shadow priest heals himself until Shadowform."""
     at30 = label(ref, 9407, "PRIEST", "shadow", 30)

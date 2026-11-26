@@ -686,16 +686,19 @@ def usability(ref: Reference, info: dict, cls: str, level: int, who: Who | None 
     """Gear.lua usability -> usable, reason, the level it counts from
     (available_level: ForeverDB's rule). Without the client's weapon skills,
     every weapon the class can train counts (knowsWeaponSkill's own
-    fallback); Dual Wield from the level the class trains it."""
+    fallback); Dual Wield from the level the class trains it. With a
+    character, also require its faction and profession rank. Class-level
+    spec fit considers every item the class can wear."""
     g = ref.gear
     prof = (g.get("PROFICIENCY") or {}).get(cls)
     meta = (g.get("CLASSES") or {}).get(cls)
     min_level = available_level(info)
-    if info.get("side") and (who is None or info["side"] != who.side):
-        return False, "faction", min_level
-    skill = info.get("required_skill")
-    if skill and (who is None or who.skill_ranks.get(skill, 0) < max(1, info.get("required_skill_rank") or 0)):
-        return False, "skill", min_level
+    if who is not None:
+        if info.get("side") and info["side"] != who.side:
+            return False, "faction", min_level
+        skill = info.get("required_skill")
+        if skill and who.skill_ranks.get(skill, 0) < max(1, info.get("required_skill_rank") or 0):
+            return False, "skill", min_level
     if not (prof and meta):
         return True, None, min_level
     allow = info.get("allow") or 0
