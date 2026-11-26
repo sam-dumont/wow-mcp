@@ -56,9 +56,10 @@
             ],
             "quest_id": 94971,
             "name": "A Paladin's Steed",
-            "action": "Speak to Danitha Morr at Bandarion Keep. Report to Danitha from Garen Largo is optional.",
+            "action": "Report to Danitha leads to A Paladin's Steed. Danitha Morr at Bandarion Keep offers and completes the mount quest.",
             "remaining_copper": 0,
-            "source": "https://github.com/fitzforge/polestar/blob/v0.4.3/guides/forever/collectibles/mounts/horde/paladin-warhorse.guide"
+            "source": "https://github.com/fitzforge/polestar/releases/tag/data-v2026.11.2",
+            "riding_source": "https://github.com/fitzforge/polestar/blob/v0.4.2.2/guides/forever/collectibles/mounts/alliance/paladin-warhorse.guide"
           },
           {
             "skill": 75,
@@ -70,19 +71,21 @@
             ],
             "quest_id": 1661,
             "name": "The Tome of Nobility",
-            "action": "Speak to Duthorian Rall in Stormwind's Cathedral of Light. The Ironforge introductions are optional.",
+            "action": "Duthorian Rall offers The Tome of Nobility at the Cathedral of Light in Stormwind. You can go directly to him.",
             "remaining_copper": 0,
-            "source": "https://github.com/fitzforge/polestar/blob/v0.4.3/guides/forever/collectibles/mounts/alliance/paladin-warhorse.guide"
+            "source": "https://github.com/fitzforge/polestar/blob/v0.4.2.2/guides/forever/collectibles/mounts/alliance/paladin-warhorse.guide",
+            "riding_source": "https://github.com/fitzforge/polestar/blob/v0.4.2.2/guides/forever/collectibles/mounts/alliance/paladin-warhorse.guide"
           },
           {
             "skill": 75,
             "cls": "WARLOCK",
             "quest_id": 4490,
             "name": "Summon Felsteed",
-            "action": "Take your warlock trainer's introduction to Strahad Farsan in Ratchet.",
-            "after": "Summon your Felsteed once to learn Apprentice Riding if it is missing.",
+            "action": "Your class trainer starts the trip to Ratchet. Strahad Farsan gives the Felsteed quest there.",
+            "after": "If Apprentice Riding is missing, summon your Felsteed to claim the skill.",
             "remaining_copper": 0,
-            "source": "https://github.com/fitzforge/polestar/blob/v0.4.3/guides/forever/collectibles/mounts/neutral/warlock-felsteed.guide"
+            "source": "https://github.com/fitzforge/polestar/blob/v0.4.2.2/guides/forever/collectibles/mounts/neutral/warlock-felsteed.guide",
+            "riding_source": "https://us.forums.blizzard.com/en/wow/t/2403040/5"
           },
           {
             "skill": 150,
@@ -94,9 +97,9 @@
             ],
             "quest_id": 97185,
             "name": "Justice and Retribution",
-            "action": "Finish the Forsaken charger quest chain in Scholomance.",
-            "after": "Speak to Danitha Morr at Bandarion Keep to learn Journeyman Riding for free.",
-            "source": "https://us.forums.blizzard.com/en/wow/t/wow-forever-hotfixes-november-20-2026/2403040/1"
+            "action": "Complete Justice and Retribution to earn the Forsaken charger.",
+            "after": "Danitha Morr grants Journeyman Riding at Bandarion Keep once you have the charger quest credit.",
+            "source": "https://wago.tools/db2/PlayerCondition?build=1.60.1.71091&filter%5BID%5D=157535"
           },
           {
             "skill": 150,
@@ -108,33 +111,36 @@
             ],
             "quest_id": 7647,
             "name": "Judgment and Redemption",
-            "action": "Complete the charger chain through The Divination Scryer, then the Scholomance event. The chain costs gold and materials.",
-            "after": "Speak to Lord Grayson Shadowbreaker in Stormwind Cathedral to learn Journeyman Riding for free.",
-            "source": "https://github.com/fitzforge/polestar/blob/v0.4.3/guides/forever/collectibles/mounts/alliance/paladin-charger.guide"
+            "action": "The Alliance charger chain needs gold and materials. Bring the Divination Scryer to the Great Ossuary in Scholomance for the last fight.",
+            "after": "Ask Lord Grayson Shadowbreaker in Stormwind Cathedral for Journeyman Riding after the charger quest.",
+            "source": "https://github.com/fitzforge/polestar/blob/v0.4.2.2/guides/forever/collectibles/mounts/alliance/paladin-charger.guide"
           },
           {
             "skill": 150,
             "cls": "WARLOCK",
             "quest_id": 7631,
             "name": "Dreadsteed of Xoroth",
-            "action": "Complete Imp Delivery in Scholomance and the Dreadsteed ritual in Dire Maul West. The chain costs gold and materials.",
+            "action": "The Dreadsteed chain needs gold and materials. It visits the alchemy lab in Scholomance before the final ritual in Dire Maul West.",
             "after_by_side": {
-              "Alliance": "Speak to Ursula Deline at the Slaughtered Lamb in Stormwind to learn Journeyman Riding for free.",
-              "Horde": "Speak to Zevrost in the Cleft of Shadow in Orgrimmar to learn Journeyman Riding for free."
+              "Alliance": "After Dreadsteed of Xoroth, Ursula Deline grants Journeyman Riding at the Slaughtered Lamb in Stormwind.",
+              "Horde": "After Dreadsteed of Xoroth, Zevrost grants Journeyman Riding in Orgrimmar’s Cleft of Shadow."
             },
-            "source": "https://github.com/fitzforge/polestar/blob/v0.4.3/guides/forever/collectibles/mounts/neutral/warlock-dreadsteed.guide"
+            "source": "https://github.com/fitzforge/polestar/blob/v0.4.2.2/guides/forever/collectibles/mounts/neutral/warlock-dreadsteed.guide"
           }
         ]
       },
-      "source_url": "https://us.forums.blizzard.com/en/wow/t/wow-forever-hotfixes-november-20-2026/2403040/1",
-      "source_type": "Blizzard hotfixes and Polestar class mount guides",
+      "source_url": "https://us.forums.blizzard.com/en/wow/t/2403040/16",
+      "source_type": "Blizzard hotfixes, Forever client data and pinned Polestar guides",
       "date": "2026-11-26",
       "confidence": "high",
       "scope": "forever",
       "last_verified": "2026-11-26",
       "sources": [
-        "https://us.forums.blizzard.com/en/wow/t/wow-forever-hotfixes-november-20-2026/2403040/1",
-        "https://github.com/fitzforge/polestar/releases/tag/v0.4.3"
+        "https://us.forums.blizzard.com/en/wow/t/2403040/16",
+        "https://us.forums.blizzard.com/en/wow/t/2403040/5",
+        "https://github.com/fitzforge/polestar/releases/tag/data-v2026.11.2",
+        "https://wago.tools/db2/PlayerCondition?build=1.60.1.71091&filter%5BID%5D=157535",
+        "https://github.com/fitzforge/polestar/releases/tag/v0.4.2.2"
       ]
     },
     "riding.vendor_mounts": {

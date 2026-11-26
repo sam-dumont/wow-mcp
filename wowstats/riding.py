@@ -115,5 +115,5 @@ def class_route(skill: int, who: dict, done=(), log=()) -> dict | None:
                 "action": after if after and state == "done" else row["action"],
                 "fulfilled": state == "done" and after is None,
                 "remaining_copper": 0 if state == "done" else row.get("remaining_copper"),
-                "source_url": row["source"], "riding_source_url": rule["source_url"]}
+                "source_url": row["source"], "riding_source_url": row.get("riding_source", rule["source_url"])}
     return None

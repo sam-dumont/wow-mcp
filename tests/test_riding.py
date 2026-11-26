@@ -111,7 +111,7 @@ def test_class_mounts_share_the_quest_and_its_cost_across_advice():
            "gold_copper": 0, "gold_rate": {"copper_per_hour": 10000}, "mount": facts.mount_facts(kb.build({}))}
     tiers = E.mounts(inp, E.pace(inp))["tiers"]
     q = tiers[0]["quest"]
-    assert q["quest_id"] == 94971 and q["state"] == "open" and "optional" in q["action"]
+    assert q["quest_id"] == 94971 and q["state"] == "open" and "Danitha Morr" in q["action"]
     assert tiers[0]["trainer_alternative_copper"] == 1_000_000
     assert tiers[0]["left_copper"] == tiers[0]["eta_played_s"] == tiers[1]["prior_cost_copper"] == 0
     assert tiers[1]["need_copper"] is None and tiers[1]["eta_played_s"] is None
@@ -122,7 +122,8 @@ def test_class_mounts_share_the_quest_and_its_cost_across_advice():
     assert riding.class_route(75, {**who, "race": "Tauren"}) is None
     for side, npc in (("Horde", "Zevrost"), ("Alliance", "Ursula")):
         lock = {"class": "WARLOCK", "faction": side}
-        assert "Felsteed" in riding.class_route(75, lock, done={4490})["action"]
+        apprentice = riding.class_route(75, lock, done={4490})
+        assert "Felsteed" in apprentice["action"] and apprentice["riding_source_url"].endswith("/2403040/5")
         epic = ahsource.mount_left(0, [], BOOK_RIDING, who=lock, done={7631})
         assert epic["need_copper"] == 0 and npc in epic["quest"]["action"]
     done = E.mounts({**inp, "quests_done": [94971, 97185]}, E.pace(inp))
