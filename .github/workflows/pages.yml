@@ -156,9 +156,8 @@ jobs:
       # wago.tools, and the nine characters' client files for the 3D view
       # and pictures. The archive must match site/demo3d-roster.sha256.
       - run: site/scripts/build-demo.sh
-      # Every section of the demo shows data: a fallback fails the build. The
-      # local demo too (dev/seed.py through a ui's /ingest), but for the three
-      # parts the compose kit doesn't run (docs/self-host/demo.md).
+      # Check the two published pages with the verified roster, then the live
+      # dashboard with event data alone. The image job exercises the full Compose kit.
       - name: Check the nine client models, class actions and demo pages
         run: >-
           uv run --frozen --extra render --group browser pytest -q -rA -m browser
