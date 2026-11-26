@@ -184,3 +184,28 @@ def test_back_in_time_says_the_line(site, pw, engine, width):
         assert not errors, errors
     finally:
         b.close()
+
+
+def test_timeline_redraw_keeps_pending_level(site, pw):
+    b, pg, errors = open_page(pw, "chromium", site[0], 390)
+    try:
+        pg.click("#tab-timeline")
+        pg.locator(".snapbody[data-level]").wait_for()
+        slider = pg.get_by_role("slider", name="Level")
+        # Clicking an event filter redraws the same timeline. Do both actions
+        # in one turn so the redraw always lands before the snapshot debounce.
+        index, label = slider.evaluate("""slider => {
+          slider.stepDown();
+          slider.dispatchEvent(new Event('input', {bubbles: true}));
+          const chosen = [slider.value, document.querySelector('.snapctl output').textContent];
+          document.querySelector('#timeline button.chip').click();
+          return chosen;
+        }""")
+        assert slider.input_value() == index
+        assert pg.locator(".snapctl output").inner_text() == label
+        level = label.split()[-1]
+        pg.locator(f".snapbody[data-level='{level}']").wait_for()
+        assert not errors, errors
+    finally:
+        pg.close()
+        b.close()

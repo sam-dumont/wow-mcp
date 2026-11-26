@@ -32,7 +32,7 @@ sync_api = pytest.importorskip("playwright.sync_api")
 
 from tests import degraded as D  # noqa: E402
 from tests.conftest import Running  # noqa: E402
-from tests.test_browser import wait_count  # noqa: E402
+from tests.test_browser import settled, wait_count  # noqa: E402
 from tests.test_coverage_static import Built, gap_rows, stale_read  # noqa: E402
 from wowstats import coverage, static, ui  # noqa: E402
 from wowstats import gear as gearmod  # noqa: E402
@@ -86,6 +86,13 @@ def _page(engine, width, scheme="light"):
             b.close()
 
 
+def _open_live(pg, server, tab):
+    pg.goto(f"{server.base}/?char={D.CHAR}&tab={tab}")
+    # The coverage line can appear while the cold planner and dungeon panel
+    # still hold data-busy. Allow the same 60 s as Running.get for that work.
+    settled(pg, timeout=60)
+
+
 def _shot(pg, sel: str, name: str, until: str | None = None) -> None:
     """`sel` (down to the bottom of `until`, inside it, when given)."""
     if SHOTS:
@@ -107,7 +114,7 @@ def _shot(pg, sel: str, name: str, until: str | None = None) -> None:
 @pytest.mark.parametrize("scheme", ["light", "dark"] if SHOTS else ["light"])
 def test_the_lines_where_they_change_the_meaning(gap, engine, width, scheme):
     for pg in _page(engine, width, scheme):
-        pg.goto(f"{gap.base}/?char={D.CHAR}&tab=overview")
+        _open_live(pg, gap, "overview")
         wait_count(pg, "#deaths p.covnote", 1)
         assert pg.locator("#deaths p.covnote").inner_text().startswith("The Recorder missed about 1h 1")
         assert "(level 28)" in pg.locator("#deaths p.covnote").inner_text()
@@ -121,7 +128,7 @@ def test_the_lines_where_they_change_the_meaning(gap, engine, width, scheme):
         tag = f"{engine}-{width}-{scheme}"
         _shot(pg, "#deaths", f"deaths-{tag}")
         _shot(pg, "#gear", f"equipment-{tag}", until="#gear .dollfoot")
-        pg.goto(f"{gap.base}/?char={D.CHAR}&tab=journal")
+        _open_live(pg, gap, "journal")
         wait_count(pg, "#journal .jentry", None)
         # The journal is drawn twice on a load (the tab, then the character):
         # open a session only once both are in, or the second closes it.
@@ -138,11 +145,11 @@ def test_the_lines_where_they_change_the_meaning(gap, engine, width, scheme):
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])
 def test_no_line_with_nothing_missed(full, engine):
     for pg in _page(engine, 1280):
-        pg.goto(f"{full.base}/?char={D.CHAR}&tab=overview")
+        _open_live(pg, full, "overview")
         wait_count(pg, "#deaths .body > *")
         wait_count(pg, "#gear .dollfoot")  # and settled: nothing more to draw
         assert pg.locator("p.covnote").count() == 0
-        pg.goto(f"{full.base}/?char={D.CHAR}&tab=journal")
+        _open_live(pg, full, "journal")
         wait_count(pg, "#journal .jentry")
         assert pg.locator("#journal p.covnote").count() == 0
 
@@ -175,7 +182,7 @@ def _lines(pg) -> dict[str, str]:
 @pytest.mark.parametrize("scheme", ["light", "dark"] if SHOTS else ["light"])
 def test_zogzog_says_the_full_views_lines(gap, sites, engine, width, scheme):
     for pg in _page(engine, width, scheme):
-        pg.goto(f"{gap.base}/?char={D.CHAR}&tab=overview")
+        _open_live(pg, gap, "overview")
         full = _lines(pg)
         # One page per address: WebKit's driver crashes when a page swaps
         # its process (another origin, or another query before the same #key).
