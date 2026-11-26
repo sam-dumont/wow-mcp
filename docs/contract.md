@@ -349,8 +349,10 @@ bank they saw. An event with the ID lists and no `*_n` comes from an older
 shipper: its counts are unknown, never 0, and readers take each list's counts
 from the event that list came from only. A character whose
 bags Syndicator hasn't scanned yet sends nothing; one that holds nothing
-sends empty lists, so an older list doesn't stay the newest. `_time` is
-`Syndicator.lua`'s modification time. The newest one is what the character
+sends empty lists, so an older list doesn't stay the newest. A change to
+one container sends only that container and its counts. Its observation
+time is when the game wrote the save containing those contents. The save
+gives no date for a banker visit. The latest observation per container is what the character
 has: the gear advice lists a held upgrade with its bag or bank as its only
 source ("equip it"), and so do the Overview, the plans and the MCP; the
 Dungeons panel marks a drop obtained (worn, in the bags or in the bank). The
@@ -437,7 +439,10 @@ the standard prefix. A name is your own character's or a creature's;
 any other player is `another player`, with no name, realm or GUID. `_msg`
 is built from those (`SPELL_DAMAGE Testchar Demo-Realm > Young Wolf`),
 `_time` from the line's own timestamp (the PC's local time, converted to
-UTC). No page reads this feed yet; the players it saw go out as `wow-player`
+UTC). A player flagged as the client's own character sets the active
+character for subsequent records. The source ID hashes the original line
+and counts identical lines within its timestamp, so appends and rotated
+copies keep their record IDs. The players it saw go out as `wow-player`
 events. Shippers before 0.7.0 sent the raw line: `/ingest` parses it again
 the same way and stores only these fields (`wowstats/otherplayers.py`).
 

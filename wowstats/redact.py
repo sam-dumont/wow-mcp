@@ -388,6 +388,7 @@ ZOGZOG: dict[str, dict] = {
                 "soon_levels", "upgrades_total", "generated_at", "stale", "gear_score"),
         # The weights' mode and whose they are: the page credits ForeverDB.net.
         "mode": {**_keys("key", "label"), "choices": [_keys("key", "label")]},
+        "pvp_rewards": _keys("on", "forced"),
         "scoring": _keys("mode", "label", "note", "source", "style"),
         "source": _keys("name", "url", "text"),
         "spec": SPEC, "weights": {}, "talents": [{}],

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import time
 from types import SimpleNamespace
 
@@ -120,7 +121,7 @@ def test_public_profile_marker_uses_the_profile_store_without_market_access(monk
     assert first == store.profile_fingerprint()
     assert store.character_armory(SHARED)["item_level"] == 21
     rows = [(n, lab, 29 if n == "wow_character_item_level" else value) for n, lab, value in VM]
-    monkeypatch.setattr(__import__("sys").modules[__name__], "VM", rows)
+    monkeypatch.setattr(sys.modules[__name__], "VM", rows)
     assert store.character_armory(SHARED)["item_level"] == 29
     assert store.profile_fingerprint() != first
 

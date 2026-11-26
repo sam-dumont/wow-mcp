@@ -144,6 +144,27 @@ def test_market_on_its_own_clock_and_a_daily_rebuild(full):
     assert app.prebuilt.check(now=1000.0 + prebuilt.MAX_AGE_S) == "daily rebuild"
 
 
+def test_profile_only_change_updates_the_prebuilt_public_card(monkeypatch, run_app):
+    from tests import test_bnet_scoping as profiles
+
+    store = CountingStore()
+    store.vm_url = ""
+    monkeypatch.setattr(store, "profile_query", profiles.FakeVM(0).profile_query)
+    rows = profiles._series("0", CHAR, 21, 1101, "Holy")
+    monkeypatch.setattr(profiles, "VM", rows)
+    app = ui.App({"VIEW": "public", "BIND": "127.0.0.1", "MODEL3D": "off"}, store=store)
+    srv = run_app(app)
+    path = f"/api/char?name={CHAR}"
+    assert app.prebuilt.check() == "first build"
+    assert body_of(srv, path)["gear"]["armory_item_level"] == 21
+    n, labels, _ = rows[0]
+    assert n == "wow_character_item_level"
+    rows[0] = n, labels, 29
+    assert app.prebuilt.check() == "new data"
+    assert body_of(srv, path)["gear"]["armory_item_level"] == 29
+    assert app.prebuilt.check() is None
+
+
 def test_a_store_down_keeps_the_last_answers_marked_stale(full, run_app):
     app, store = full
     app.prebuilt.check()

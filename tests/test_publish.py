@@ -244,6 +244,56 @@ def test_rebuilds_only_on_new_events(site):
     assert publish.publish(env)["built"] is False
 
 
+def test_late_level_refreshes_both_published_timelines(tmp_path):
+    from wowstats import eventstore
+
+    where = f"sqlite:{tmp_path / 'events'}"
+    name = "Hero-Test"
+    env = {"EVENTS_STORE": where, "PUBLISH_DIR": str(tmp_path / "site"), "MODEL3D": "off", "WOW_ITEMS": "off"}
+    es = eventstore.get(where)
+    def ding(day, level):
+        return {"_time": f"2026-11-{day}T12:00:00Z", "char": name, "feed": "wow-recorder", "kind": "level",
+                "level": str(level), "source_id": f"ding:{level}"}
+
+    def levels():
+        rel = publish.data_path("timeline", name)
+        root = tmp_path / "site" / "current"
+        key = publish.read_key(tmp_path / "zogzog.key")
+        enc = (root / "zogzog" / publish.sealed_name(key, rel)).read_bytes()
+        return json.loads((root / "public" / rel).read_bytes())["levels"], json.loads(publish.unseal(key, rel, enc))["levels"]
+
+    es.append(0, [ding(17, 12)])
+    assert publish.publish(env)["built"] and levels() == ([12], [12])
+    # The UI receives the upload in a different process from the publisher.
+    import subprocess
+    import sys
+
+    subprocess.run([sys.executable, "-c", "import json,sys; from wowstats import eventstore; "
+                    "eventstore.get(sys.argv[1]).append(0,[json.load(sys.stdin)])", where],
+                   input=json.dumps(ding(16, 11)), text=True, check=True)
+    assert publish.publish(env)["why"] == "new events" and levels() == ([11, 12], [11, 12])
+    assert not publish.publish(env)["built"]
+
+
+def test_settings_only_edit_rebuilds_sealed_gear(site, tmp_path):
+    from wowstats import gearmode
+
+    env, _, key, cur = site
+    owner = {"ANALYSIS_STATE_DIR": str(tmp_path / "analysis")}
+    env = {**env, "WEIGHTS": "Hero-Test:holy", "PUBLISH_GEAR_SETTINGS_DIR": owner["ANALYSIS_STATE_DIR"]}
+    gearmode.save(owner, "Hero-Test", "pve")
+    rel = publish.data_path("gear", "Hero-Test")
+    def gear():
+        return json.loads(opened(key, files(cur / "zogzog"))[rel])
+
+    assert publish.publish(env)["built"]
+    g = gear()
+    assert (g["spec"]["key"], g["mode"]["key"], g["pvp_rewards"]["on"]) == ("holy", "pve", False)
+    gearmode.save_pvp(owner, "Hero-Test", True)
+    assert publish.publish(env)["built"] and gear()["pvp_rewards"]["on"]
+    assert not publish.publish(env)["built"]
+
+
 # The public bundle, key by key: Sam's list of 2026-11-18 (the card, the
 # climb, the dungeons, the level snapshots; the doll's BiS badges since
 # 2026-11-23), written out here on its own
@@ -1098,7 +1148,7 @@ def share_server(answer: dict):
     class H(BaseHTTPRequestHandler):
         def do_GET(self):  # noqa: N802
             body = json.dumps(answer["now"]).encode()
-            self.send_response(200)
+            self.send_response(answer.get("status", 200))
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -1143,9 +1193,24 @@ def test_zogzog_gets_the_screened_analysis_actions(site):
                                        "dead_s": None, "afk_s": None, "planned_s": None}]
         assert SECRET_MONEY not in zz[rel].decode()
         assert publish.publish(env)["built"] is False
-        # The full view down: no rebuild for it, and the next build keeps going.
-        answer["now"] = {"available": False}
-        assert publish.publish(env)["built"] is False
+        answer["status"] = 503
+        assert not publish.publish(env)["built"]
+        assert publish.publish(env, force=True)["built"]
+        assert json.loads(opened(key, files(cur / "zogzog"))[rel]) == got
+        # Hiding then revealing a character during the outage cannot bring
+        # back the old analysis from a previous, more permissive build.
+        assert publish.publish(env, hide_zogzog=frozenset({name}))["built"]
+        assert rel not in opened(key, files(cur / "zogzog"))
+        assert publish.publish(env)["built"]
+        assert not json.loads(opened(key, files(cur / "zogzog"))[rel])["available"]
+        answer["status"] = 200
+        # Identical upstream data must reappear when the source recovers.
+        publish.publish(env)
+        assert json.loads(opened(key, files(cur / "zogzog"))[rel]) == got
+        answer["now"] = {"available": False, "chars": {}}
+        assert publish.publish(env)["why"] == "analysis changed"
+        assert not json.loads(opened(key, files(cur / "zogzog"))[rel])["available"]
+        assert not publish.publish(env)["built"]
     finally:
         srv.shutdown()
 

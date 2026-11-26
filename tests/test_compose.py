@@ -45,6 +45,17 @@ def test_download_switches_reach_ui_and_publisher():
         assert s[name]["environment"]["MODEL3D"] == "on" and s[name]["environment"]["WOW_ITEMS"] == "on", name
 
 
+def test_publisher_reads_the_owners_gear_settings_from_the_same_volume():
+    s = config(WEIGHTS="Hero-Test:holy")
+    ui, publish = s["ui"], s["publish"]
+    assert ui["environment"]["WEIGHTS"] == publish["environment"]["WEIGHTS"] == "Hero-Test:holy"
+    ui_disk = next(v for v in ui["volumes"] if v["target"] == "/data")
+    shared = next(v for v in publish["volumes"] if v["source"] == ui_disk["source"])
+    assert shared["read_only"]
+    relative = Path(ui["environment"]["ANALYSIS_STATE_DIR"]).relative_to(ui_disk["target"])
+    assert Path(shared["target"]) / relative == Path(publish["environment"]["PUBLISH_GEAR_SETTINGS_DIR"])
+
+
 def test_an_empty_zogzog_path_turns_the_friends_site_off():
     for env, want in (({}, "/zogzog/"), ({"ZOGZOG_PATH": ""}, "")):
         s = config(**env)
