@@ -465,12 +465,18 @@ def check(path: Path) -> list[str]:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
         return [f"{path}: {e}"]
+    return problems(doc)
+
+
+def problems(doc: dict) -> list[str]:
     bad = []
     src = doc.get("source") or {}
     if doc.get("schema") != 1 or not src.get("build") or not isinstance(doc.get("items"), dict):
         return ["not a game-items file (schema 1, source.build, items)"]
     hc = src.get("hotfix_cache") or {}
-    if hc and str(hc.get("build")) != src["build"].rsplit(".", 1)[-1]:
+    if not hc.get("items"):
+        bad.append("no equipped items from a client hotfix cache")
+    if str(hc.get("build")) != src["build"].rsplit(".", 1)[-1]:
         bad.append(f"hotfix cache build {hc.get('build')} isn't the files' {src['build']}")
     for k, e in doc["items"].items():
         if not k.isdigit() or not isinstance(e.get("stats"), dict) or not e.get("name") \
@@ -508,12 +514,12 @@ def main(argv: list[str]) -> int:
         return 1 if bad else 0
     from wowstats.upstream import PRODUCT, WAGO_URL, build_of, builds_url, fetch
 
+    if not a.dbcache:
+        ap.error("--dbcache is required to build the item reference")
     build = a.build or build_of(fetch(builds_url(WAGO_URL, PRODUCT)))
-    hot_build, hot_sparse, hot_item = (None, {}, {})
-    if a.dbcache:
-        hot_build, hot_sparse, hot_item = hotfix_rows(a.dbcache)
-        if str(hot_build) != build.rsplit(".", 1)[-1]:
-            raise SystemExit(f"{a.dbcache} is build {hot_build}, the files are {build}: log in with that client first")
+    hot_build, hot_sparse, hot_item = hotfix_rows(a.dbcache)
+    if str(hot_build) != build.rsplit(".", 1)[-1]:
+        raise SystemExit(f"{a.dbcache} is build {hot_build}, the files are {build}: log in with that client first")
     t = {name: wago(name, build) for name in FILE_TABLES}
     era = {name: wago(name, a.era) for name in ERA_TABLES} if a.era else None
     items, era_n = build_items(t, hot_sparse, hot_item, era)
@@ -523,8 +529,7 @@ def main(argv: list[str]) -> int:
         "source": {
             "via": "wago.tools", "product": PRODUCT, "build": build, "tables": list(FILE_TABLES),
             "hotfix_cache": {"build": hot_build, "items": n_hot,
-                             "note": "ItemSparse and Item rows of a Forever client's DBCache.bin, same build"}
-            if a.dbcache else None,
+                             "note": "ItemSparse and Item rows of a Forever client's DBCache.bin, same build"},
             "era": {"product": "wow_classic_era", "build": a.era, "items": era_n, "tables": list(ERA_TABLES),
                     "note": "items Forever has in neither its files nor the hotfix cache"} if a.era else None,
             "note": "Game data (c) Blizzard Entertainment, used as facts",
@@ -533,12 +538,14 @@ def main(argv: list[str]) -> int:
     }
     # indent 1 (one key per line, like data/dungeons/wings.json): git merges disjoint changes, where the
     # one-line file conflicted on every PR that touched it (2026-11-25).
+    bad = problems(doc)
+    if bad:
+        for b in bad:
+            print(b, file=sys.stderr)
+        return 1
     a.out.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"{a.out}: {len(items)} items ({n_hot} from the hotfix cache, {era_n} from Classic Era), build {build}")
-    bad = check(a.out)
-    for b in bad:
-        print(b, file=sys.stderr)
-    return 1 if bad else 0
+    return 0
 
 
 if __name__ == "__main__":

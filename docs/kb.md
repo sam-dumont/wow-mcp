@@ -312,7 +312,13 @@ candidate series is open; the data rides the next candidate then.
 carry `data_versions` (`wowstats/dataversions.py`): ForeverDB.net's data
 version and build, the forever-db release and its client build, the
 Polestar tag, the client build of each set of client tables, and the day
-the watch last landed, all read from the shipped files.
+the watch last landed, all read from the shipped files. The craft build
+comes from `craft-reference.json`. Advancing items requires a same-build
+Forever `DBCache.bin`. Pass that file and its build to
+`tools/game_items/export.py`, then run `tools/craft_reference/export.py` at
+the Polestar pin. Compare equipment restrictions, trainer and pattern skill
+requirements, and item binding before committing both exports. A newer
+client-build watch can land while items and crafts await that cache.
 
 A release is read from the addon's repository at both tags through
 GitHub's API (files and blob hashes); its release notes are untrusted text
