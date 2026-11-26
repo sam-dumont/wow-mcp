@@ -10,7 +10,7 @@
   "client_tables": {
    "via": "wago.tools",
    "product": "wowf",
-   "build": "1.60.1.71091",
+   "build": "1.60.1.71139",
    "tables": [
     "AreaTable",
     "Map",
