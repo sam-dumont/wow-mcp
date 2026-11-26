@@ -18,7 +18,7 @@ watch state: a value here is what the server actually serves.
 - `client_build`: the Forever client build each set of client tables was
   read at (`zones`: zones, dungeons and factions; `spells`: spells, trainers
   and talents; `items`: the item table, rebuilt by hand with a client's
-  hotfix cache);
+  hotfix cache; `crafting`: recipes, patterns and bindings);
 - `checked`: the day the refresh job last landed a watch change.
 
 A file that is missing or unreadable leaves its field out.
@@ -56,7 +56,7 @@ def _get(d: dict, *keys: str):
 
 
 FILES = ("foreverdb/item-sources.json", "foreverdb-weights.json", "forever-reference.json", "route-reference.json",
-         "class-reference.json", "game-items.json", "kb/watch.json")
+         "class-reference.json", "game-items.json", "craft-reference.json", "kb/watch.json")
 
 
 def build(data: Path) -> dict:
@@ -67,6 +67,7 @@ def build(data: Path) -> dict:
     route = _read(data / "route-reference.json")
     cref = _read(data / "class-reference.json").get("source") or {}
     items = _read(data / "game-items.json").get("source") or {}
+    craft = _read(data / "craft-reference.json").get("source") or {}
     watch = _read(data / "kb" / "watch.json")
     out: dict = {}
     fdb = {k: v for k, v in (("data_version", _get(src, "data_version")), ("build", _get(src, "build")),
@@ -81,7 +82,8 @@ def build(data: Path) -> dict:
     if tag:
         out["polestar"] = tag
     builds = {k: v for k, v in (("zones", _get(fref, "client_tables", "build")),
-                                ("spells", _get(cref, "client", "build")), ("items", _get(items, "build"))) if v}
+                                ("spells", _get(cref, "client", "build")), ("items", _get(items, "build")),
+                                ("crafting", _get(craft, "client_tables", "build"))) if v}
     if builds:
         out["client_build"] = builds
     if _get(watch, "checked"):

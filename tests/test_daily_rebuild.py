@@ -254,7 +254,9 @@ def test_the_server_says_what_its_data_was_built_from():
     assert v["foreverdb"]["data_version"] == src["data_version"]
     assert v["forever_db"]["version"] == fref["forever_db"]["version"]
     assert re.fullmatch(r"v\d+(\.\d+)+", v["polestar"])
-    assert set(v["client_build"]) == {"zones", "spells", "items"}
+    assert set(v["client_build"]) == {"zones", "spells", "items", "crafting"}
+    craft = json.loads((ROOT / "data/craft-reference.json").read_text())
+    assert v["client_build"]["crafting"] == craft["source"]["client_tables"]["build"]
     assert v["checked"] == state()["checked"]
     pub = redact.public("config", {"view": "public", "debug": True, "data_versions": v})
     assert pub["data_versions"] == v and "debug" not in pub
