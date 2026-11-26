@@ -120,6 +120,33 @@ def opened(key: str, zz: dict) -> dict:
             for p, b in zz.items() if p.startswith("data/") and not p.startswith("data/icon/")}
 
 
+def test_the_three_dashboard_paths_agree_on_the_climb_and_worn_items(site, run_app):
+    env, _, key, current = site
+    name = json.loads((current / "public/data/chars.json").read_bytes())["chars"][0]["char"]
+    path = publish.data_path("char", name)
+    public = json.loads((current / "public" / path).read_bytes())
+    friends = json.loads(opened(key, files(current / "zogzog"))[path])
+    owner = run_app(ui.App({**env, "VIEW": "full", "BIND": "127.0.0.1", "AUTH": "none"}))
+    status, _, body = owner.get("/api/char?" + urllib.parse.urlencode({"name": name}))
+    assert status == 200
+    full = json.loads(body)
+
+    def splits(answer):
+        return [(row["level"], row["seconds"], row["partial"], row.get("route_s")) for row in answer["levels"]]
+
+    def worn(answer):
+        return [(row["slot"], row["item_id"]) for row in answer["gear"]["items"]]
+
+    assert any(row.get("route_s") for row in public["levels"])
+    assert public["route_source"] and worn(public)
+    for answer in (friends, full):
+        assert splits(answer) == splits(public)
+        assert answer["route_source"] == public["route_source"]
+        assert worn(answer) == worn(public)
+    assert "money_copper" not in public["header"]
+    assert "players" not in friends
+
+
 def test_zogzog_bundle_is_sealed_full_content(site):
     _, res, key, cur = site
     zz = files(cur / "zogzog")

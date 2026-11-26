@@ -514,7 +514,7 @@ class App:
             # standing from the gear advice, cut to rank, percent and label
             # (redact.worn_standing). The advice itself stays full-view only.
             d = {**d, "gear": {**d["gear"], "standing": self.worn_standing(name)}}
-        return redact.char(d, *self.views.route_levels(d))
+        return redact.char(d)
 
     def worn_standing(self, name: str) -> list[dict]:
         """The worn slots' standing for the public doll; none when the gear
