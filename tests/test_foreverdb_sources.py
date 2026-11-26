@@ -97,6 +97,8 @@ def test_the_committed_file_holds():
     assert fdb.check() == 0
     assert d["_notice"][1] == "Data from ForeverDB.net (https://foreverdb.net)"
     assert list(d)[0] == "_notice"
+    weights = json.loads((ROOT / "data" / "foreverdb-weights.json").read_text(encoding="utf-8"))
+    assert weights["_notice"] == d["_notice"][:2]
     assert set(d["source"]["licence"]) == {"LICENSE.txt", "NOTICE.txt", "COPYING.txt"}
 
 

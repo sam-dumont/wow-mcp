@@ -66,7 +66,7 @@ read: it had Classic's numbers for items Forever re-itemised (Staff of the
 Shade: +21 Shadow damage in Classic, 37 in Forever) and no row at all for
 1,186 of the items ForeverDB ranks.
 
-- **Tables** (wago.tools CSV exports at the pinned build, `1.60.1.71037`):
+- **Tables** (wago.tools CSV exports at `source.build` in `data/game-items.json`):
   ItemSparse and Item (the rows), RandPropPoints (the stat budget per item
   level), the seven ItemDamage tables (weapon DPS per item level and
   quality), ItemArmorTotal, ArmorLocation, ItemArmorQuality and
@@ -77,7 +77,7 @@ Shade: +21 Shadow damage in Classic, 37 in Forever) and no row at all for
   server hotfixes, which wago.tools doesn't have. The exporter reads them
   from a Forever client's hotfix cache (`--dbcache`, the maintainer's
   `_forever_/Cache/ADB/enUS/DBCache.bin` at the same build, parsed by the
-  shipper's own code): 6,411 items. `source.hotfix_cache` records it.
+  shipper's own code). `source.hotfix_cache` records the build and item count.
 - **Classic Era** (1.15.9.70576) fills 4,867 items Forever has nowhere in
   its files or the cache (old PvP and raid gear). Those carry `from: "era"`
   and stay out of the "where: unknown" list below: they may not exist in
@@ -104,7 +104,7 @@ the likely-suffix estimate below stays) and equip spells that add spell
 power (Briarwood Reed), which ForeverDB doesn't count either.
 
 ```sh
-uv run python tools/game_items/export.py --build 1.60.1.71037 --dbcache <DBCache.bin>
+uv run python tools/game_items/export.py --build 1.60.1.71091 --dbcache <DBCache.bin>
 uv run python tools/game_items/export.py --check   # offline: shape, build, five known items
 ```
 

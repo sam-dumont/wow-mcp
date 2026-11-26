@@ -143,6 +143,6 @@ carry the license and the source they were built from.
 The page's fonts (Cinzel, Alegreya, Alegreya Sans) are under the SIL Open
 Font License, their license files in `web/fonts/`.
 
-World of Warcraft is a trademark of Blizzard Entertainment. Item names,
-icons and models the server fetches stay Blizzard's: this kit doesn't
-bundle them.
+World of Warcraft is a trademark of Blizzard Entertainment. The reference
+files include game names and numbers. Blizzard owns the icons and models
+the server reads at run time and the artwork in the separate 3D demo.

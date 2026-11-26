@@ -176,7 +176,7 @@ def extra_sets(gf_extra: dict) -> dict:
 def build(src: Path) -> dict:
     """The weights file from a verified download (tools/foreverdb_sources)."""
     man, parsed, _ = fdb.read_files(src)
-    _, build_id, _ = fdb.notice_and_contract(parsed)
+    notice, build_id, _ = fdb.notice_and_contract(parsed)
     gf = gearfinder(parsed["Data/GearFinder.lua"][0]["gfClass"])
     sets = extra_sets(parsed["Data/GearSources.lua"][0].get("gfExtra") or {})
     specs: dict = {}
@@ -197,6 +197,7 @@ def build(src: Path) -> dict:
     entries = fdb.manifest_entries(man)
     version = (man.get("data") or {}).get("version") or ""
     return {
+        "_notice": [notice, fdb.CREDIT],
         "schema": 1,
         "source": {"name": "ForeverDB.net", "url": SITE, "credit": "Weights: ForeverDB.net", "build": build_id,
                    "fetched": version[:10], "data_version": version,

@@ -195,6 +195,9 @@ def test_a_forever_db_release_needs_a_person_when_its_terms_move(tmp_path):
     tp = (ROOT / "THIRD_PARTY.md").read_text(encoding="utf-8")
     approved = bump.approved_notice(tp)
     assert "independent sources" in approved and "Polestar's own notice" not in approved
+    # A neighbouring component's credit is outside forever-db's notice.
+    extra = tp.replace("## QuestieDB", "## Another component\n\nAnother copyright holder.\n\n## QuestieDB")
+    assert bump.approved_notice(extra) == approved
     old, new = tmp_path / "old", tmp_path / "new"
     for d in (old, new):
         d.mkdir()
