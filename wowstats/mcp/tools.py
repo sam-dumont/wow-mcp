@@ -1243,6 +1243,9 @@ def _gear_inputs(ctx: Ctx, char: str) -> dict:
         # was more than one read may return: the store refused it, and the
         # gear advice lost the auction house (live, 2026-11-24).
         res = {k: st.logs(q) for k, (q, _k, _o) in ahsource.queries(cf(char), rec(char)).items()}
+        from wowstats import profcaps
+
+        sheet["professions"] = profcaps.fill(sheet["professions"], profcaps.newest_skills(res.get("skills", [])))
         res["items"] = _views(ctx).price_rows()
         market = ahsource.market(res, faction=sheet.get("faction"), money=opt_num(s.get("money_copper")))
     except SourceError:

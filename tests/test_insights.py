@@ -117,10 +117,10 @@ def test_profession_capped_at_its_tier():
 def test_profession_cap_from_the_tiers_hedges():
     """No Recorder record of the skill: the cap is the trainer tier over the
     rank, a floor (at 150 the character may have trained Expert already), so
-    the move says "if" and how the real cap shows up. An old sheet's cap
-    (CharacterExport-Forever's, dropped 2026-11-20) is not read."""
+    the move says "if" and how the real cap shows up. An undated cap
+    cannot tell us which learning of the profession it belongs to."""
     p = {"skill_id": 164, "name": "Blacksmithing", "rank": 148, "max_rank": 300,
-         "max_rank_at": "2026-01-02T10:00:00.000Z"}
+         "max_rank_at": None}
     c = insights.profession_claims(30, [p], {}, {"faction": "Horde"})
     assert c[0]["title"] == "Train Expert Blacksmithing, if not done yet" and c[0]["skill"]["may_be_stale"]
     assert c[0]["skill"]["max_rank"] == 150

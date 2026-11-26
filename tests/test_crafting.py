@@ -112,3 +112,17 @@ def test_the_gear_advice_carries_the_plan_and_its_effort():
     # No price nor vendor for the pattern in this data: where it comes from is
     # unknown, so hard (with the auction house price above, some effort).
     assert gearmod.source_effort(s) == gearmod.HARD == crafting.HARD
+
+
+def test_dated_export_and_recorder_cap_survive_a_zero_and_an_unlearn():
+    from wowstats import profcaps
+
+    before = {"skill_id": TAILORING, "name": "Tailoring", "rank": 143,
+              "max_rank": 225, "max_rank_at": "2026-11-25T12:00:00Z", "cap": 0}
+    empty = {TAILORING: {"t": "2026-11-26T12:00:00Z", "rank": 0, "max_rank": 0}}
+    sheet = {"professions": profcaps.fill([before], empty)}
+    who = crafting.who_from(sheet, None, None)
+    assert who.ranks[TAILORING] == 143 and who.caps[TAILORING] == 225
+    assert not crafting.route(TAILORING, 143, 190, who)["train"]
+    reset = {TAILORING: {"t": "2026-11-26T12:00:00Z", "rank": 1, "max_rank": 75}}
+    assert profcaps.cap_of(143, reset[TAILORING], before) == (1, 75, "recorder")

@@ -607,6 +607,7 @@ class Views:
             sheet["reps"], sheet["pvp_rank"] = None, None
         done = set(quests.with_battlenet(res["done"], quests.worn_ids(worn)))
         try:
+            sheet["professions"] = profcaps.fill(sheet["professions"], profcaps.newest_skills(ah["skills"].result()))
             market = ahsource.market({k: f.result() for k, f in ah.items()}, faction=sheet.get("faction"),
                                      money=header.get("money_copper"))
         except SourceError:
@@ -1231,10 +1232,10 @@ def build_gear(row: dict) -> dict | None:
     for i in items:
         i["enchant"] = itemcard.shared().enchant(i["enchant_id"]) if i.get("enchant_id") else None
     # The rank, and the cap DataStore_Crafts read in game (`cap`, `cap_at`);
-    # an old sheet's `max_rank` came from CharacterExport-Forever (dropped
-    # 2026-11-20) and isn't read. Views.char sets the cap (wowstats.profcaps).
+    # preserve an older shipper's dated cap for reconciliation in profcaps.
     profs = [{**clean(p, ("skill_id", "rank"), ("name",)),
-              **{k: opt_num(p[k]) for k in ("cap", "cap_at") if p.get(k) is not None}}
+              **{k: opt_num(p[k]) for k in ("cap", "cap_at", "max_rank") if p.get(k) is not None},
+              **({"max_rank_at": p["max_rank_at"]} if p.get("max_rank_at") else {})}
              for p in jlist(row.get("professions")) if isinstance(p, dict)]
     wanted = [clean(w, ("item_id", "item_level", "req_level", "level"), ("slot_name", "name"))
               for w in jlist(row.get("wanted")) if isinstance(w, dict)]
