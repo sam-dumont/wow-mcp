@@ -1227,13 +1227,13 @@ def _partner(w: dict) -> dict:
 
 
 def instance_limit() -> dict | None:
-    """The instances a character may enter per hour, from the KB's
+    """Resets and re-entries per hour for each dungeon, from the KB's
     instance.entries_per_hour, with its source; None: unknown, never assumed."""
     from wowstats.analysis.kb import static_rule
 
     r = static_rule("instance.entries_per_hour")
     n = ((r or {}).get("value") or {}).get("per_hour")
-    return {"per_hour": int(n), "source": cite(r)} if n else None
+    return {**r["value"], "per_hour": int(n), "source": cite(r)} if n else None
 
 
 def median(xs):

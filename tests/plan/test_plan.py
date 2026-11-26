@@ -115,7 +115,10 @@ def test_stockade_trip_inside_time_and_loot(priest):
 def test_instance_limit_from_the_kb_caps_a_loop(priest):
     """instance.entries_per_hour: five entries an hour make a 12-minute
     floor under a loop's run, so a fast clear doesn't promise more."""
-    assert facts.instance_limit()["per_hour"] == 5
+    limit = facts.instance_limit()
+    assert (limit["per_hour"], limit["applies_to"]) == (5, "each dungeon")
+    assert (limit["source"]["date"], limit["source"]["confidence"]) == ("2026-11-20", "high")
+    assert limit["source"]["source_url"].endswith("/2403040/14")
     inp = {**priest, "instance_limit": {"per_hour": 2, "source": {}}}  # 30 minutes a run at best
     st = next(d for d in E.estimate(inp, 3)["dungeons"] if d["name"] == "The Stockade")
     assert st["redo"]["loop"]["run_s"] == 1800 and "at most 2 entries an hour" in st["redo"]["loop"]["note"]
