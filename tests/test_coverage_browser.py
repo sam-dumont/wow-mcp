@@ -61,6 +61,7 @@ def gap(tmp_path_factory):
     r, vl, mp = _serve(tmp_path_factory.mktemp("cov"), rows,
                        lambda: {"as_of": time.time() - 5 * 3600, "fallback": True})
     yield r
+    r.close()
     vl.close()
     mp.undo()
 
@@ -70,6 +71,7 @@ def full(tmp_path_factory):
     rows = [r for r in D.base_rows() if r["feed"] not in ("wow-gear", "wow-bags")]
     r, vl, mp = _serve(tmp_path_factory.mktemp("full"), rows, lambda: {"as_of": time.time() - 1800, "fallback": False})
     yield r
+    r.close()
     vl.close()
     mp.undo()
 
@@ -87,7 +89,7 @@ def _page(engine, width, scheme="light"):
 
 
 def _open_live(pg, server, tab):
-    pg.goto(f"{server.base}/?char={D.CHAR}&tab={tab}")
+    pg.goto(f"{server.base}/?char={D.CHAR}&tab={tab}", wait_until="domcontentloaded")
     # The coverage line can appear while the cold planner and dungeon panel
     # still hold data-busy. Allow the same 60 s as Running.get for that work.
     settled(pg, timeout=60)
@@ -165,9 +167,10 @@ def sites(tmp_path_factory):
     site = static.Site({"SITE_DIR": b.env["PUBLISH_DIR"], "ZOGZOG_PATH": "/zogzog/", "BIND": "127.0.0.1", "PORT": "0"})
     srv = static.Server(("127.0.0.1", 0), static.make_handler(site))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    base = f"http://wow.localhost:{srv.server_address[1]}"
+    base = f"http://127.0.0.1:{srv.server_port}"
     yield {"public": f"{base}/?char={D.CHAR}", "zogzog": f"{base}/zogzog/?char={D.CHAR}&tab=overview#{b.key}"}
     srv.shutdown()
+    srv.server_close()
     b.close()
 
 
@@ -187,7 +190,7 @@ def test_zogzog_says_the_full_views_lines(gap, sites, engine, width, scheme):
         # One page per address: WebKit's driver crashes when a page swaps
         # its process (another origin, or another query before the same #key).
         pg = pg.context.browser.new_page(viewport={"width": width, "height": 1000}, color_scheme=scheme)
-        pg.goto(sites["zogzog"])
+        pg.goto(sites["zogzog"], wait_until="domcontentloaded")
         zz = _lines(pg)
         assert zz == full and "(level 28)" in zz["#deaths"] and "5 h ago" in zz["#gear"], zz
         assert pg.evaluate("() => document.documentElement.scrollWidth - window.innerWidth") <= 0
@@ -196,7 +199,7 @@ def test_zogzog_says_the_full_views_lines(gap, sites, engine, width, scheme):
         _shot(pg, "#gear", f"zogzog-equipment-{tag}", until="#gear .dollfoot")
         # The journal's line, on the same session as the full view's.
         pg = pg.context.browser.new_page(viewport={"width": width, "height": 1000}, color_scheme=scheme)
-        pg.goto(sites["zogzog"].replace("tab=overview", "tab=journal"))
+        pg.goto(sites["zogzog"].replace("tab=overview", "tab=journal"), wait_until="domcontentloaded")
         wait_count(pg, "#journal .jentry details:has(p.covnote)")  # and the page settled: no second draw to come
         pg.locator("#journal .jentry details:has(p.covnote) summary").first.click()
         wait_count(pg, "#journal p.covnote:visible", 1)
@@ -209,7 +212,8 @@ def test_zogzog_says_the_full_views_lines(gap, sites, engine, width, scheme):
 @pytest.mark.parametrize("scheme", ["light", "dark"] if SHOTS else ["light"])
 def test_public_says_it_without_a_time(sites, engine, width, scheme):
     for pg in _page(engine, width, scheme):
-        pg.goto(sites["public"])
+        # wait_count waits for the gear and the app's final draw, including fonts.
+        pg.goto(sites["public"], wait_until="domcontentloaded")
         wait_count(pg, "#gear p.covnote", 1)
         assert pg.locator("p.covnote").all_inner_texts() == ["Equipment may be out of date."]
         assert pg.locator("#deaths").count() == 0 and pg.locator("#journal").count() == 0
