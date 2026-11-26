@@ -81,6 +81,9 @@ NO_ICON = 5820  # the client tables have no icon for it: the game's question mar
 class Catalog:
     """Every item gets a full card and a real (tiny) JPEG icon, but one."""
 
+    def card(self, item_id):
+        return self.many([item_id]).get(str(item_id))
+
     def many(self, ids):
         out = {str(i): {"n": f"Item {i}", "q": 3, "i": f"inv_test_{i % 7}", "b": "Binds when equipped",
                         "s": "Chest", "t": "Cloth", "ar": 41, "w": ["+5 Stamina", "+4 Intellect"], "rl": 20,
@@ -559,7 +562,7 @@ def test_without_our_still_the_paperdoll_shows_no_image(served, browser, case):
     wait_count(pg, ".stage .still .figure", 1)
     if case == "pending":
         wait_count(pg, ".stage .still.pending .stillnote", 1)
-        assert "View it in 3D" in pg.locator(".stage .stillnote").inner_text()
+        assert pg.locator(".stage .stillnote").inner_text() == "Picture on its way."
         assert not [u for u in seen if "/data/render/" in u], seen
     else:
         pg.wait_for_timeout(500)

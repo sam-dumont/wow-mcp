@@ -391,7 +391,7 @@ ZOGZOG: dict[str, dict] = {
         "dungeons": [_keys("name", "level", "seconds", "xp", "t")]}]},
     "gear": {
         **_keys("char", "name", "polestar", "available", "why", "at", "class", "level", "min_upgrade_pct",
-                "soon_levels", "upgrades_total", "generated_at", "stale", "gear_score"),
+                "soon_levels", "upgrades_total", "generated_at", "stale", "gear_score", "estimated", "unlock"),
         # The weights' mode and whose they are: the page credits ForeverDB.net.
         "mode": {**_keys("key", "label"), "choices": [_keys("key", "label")]},
         "pvp_rewards": _keys("on", "forced"),
