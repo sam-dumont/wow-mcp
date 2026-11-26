@@ -123,6 +123,11 @@ def test_forum_authorship_matches_the_post_number(allow):
     player = "https://us.forums.blizzard.com/en/wow/t/wow-forever-exp-eliminator/2406791"
     mixed = "https://eu.forums.blizzard.com/en/wow/t/643840"
     assert kbschema.source_type(player, allow) == kbschema.source_type(mixed, allow) == "community"
+    # Even in a staff-started thread, the claim might come from a later reply.
+    for topic in ("2403040", "wow-forever-hotfixes/2403040"):
+        thread = "https://us.forums.blizzard.com/en/wow/t/" + topic
+        assert kbschema.source_type(thread, allow) == "community"
+        assert kbschema.source_type(thread + "/1", allow) == "official"
     assert kbschema.source_type(mixed + "/233", allow) == "official"
     assert kbschema.source_type(mixed + "/234", allow) == "community"
     assert kbschema.best_cap({"source_url": player}, allow) == "medium"
