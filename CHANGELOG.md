@@ -12,7 +12,9 @@
 - Plans count dungeon rewards when the session reaches them, stop leveling forecasts at 60 and keep the gear ranking for the chosen spec. Riding savings include unpaid earlier training. Class mount quests and an unread purse each get their own answer.
 - Auctionator trends, dungeon loot and planner valuations use one auction house. The MCP `prices` tool also takes an explicit ruleset and faction. Saved gear findings flag a change of PvP setting, stat weights or source data for revalidation.
 - Bags and bank keep separate observation dates. Combat records follow character changes and log rotation. An appearance failure for one character allows the next character's refresh to run, and a missing portrait layer can be picked up on a later build.
-- Item and craft data now identify client build 71091. The route exporter reads both Polestar race-pack layouts. The dungeon checklist accounts for the Agamaggan quest moving outdoors, and the reset rule cites Blizzard's November 20 update. Forum evidence distinguishes a player's report from a staff reply.
+- Gear, recipes, zones and spells now identify client build 71139. Don Julio's Band and Don Rodrigo's Band share a unique-equipped limit. The gear scorer checks the pair. The route exporter reads both Polestar race-pack layouts and its v0.4.3 deferred guides. The dungeon checklist accounts for the Agamaggan quest moving outdoors, and the reset rule cites Blizzard's November 20 update. Forum evidence distinguishes a player's report from a staff reply.
+- A two-point difference between profession readings keeps a trained Expert cap. Gear still shows which specs suit faction- or profession-gated items, while checking those requirements for a particular character.
+- The knowledge base includes Blizzard's November 23 and 25 hotfixes. News for a character with an unknown role includes changes affecting tanks and healers.
 - The scheduled reference refresh reports test progress and identifies timed-out tests in the job log.
 
 ### Upgrading

@@ -86,12 +86,14 @@ def test_what_the_player_did_or_carries_changes_the_trip(trips):
     # Everything done: nothing to pick up or hand in.
     gone = tc.trip(trips, 34, side="Alliance", level=dg["min"], done=set(dg["page"]))
     assert gone["quests"] == [] and gone["pickup_s"] == 0 and gone["handin_s"] == 0
-    # The trip starts where the player stands: from a far city it costs more.
-    ent = tuple(dg["entrance"])
-    far = tc.trip(trips, 34, side="Alliance", level=dg["min"], at=tc.to_world(trips, 1453, 50.0, 50.0))
-    here = tc.trip(trips, 34, side="Alliance", level=dg["min"], at=ent)
-    assert here["from"] == "you" and base["from"] == "entrance"
-    assert far["pickup_s"] + far["travel_to_s"] >= here["pickup_s"] + here["travel_to_s"]
+    # With every quest done, the only outward leg is from the player's
+    # position to the entrance. Pickups can make a city start the shorter tour.
+    entrance = tuple(dg["entrance"])
+    city = tc.to_world(trips, 1453, 50.0, 50.0)
+    direct = tc.trip(trips, 34, side="Alliance", level=dg["min"], done=set(dg["page"]), at=city)
+    assert direct["from"] == "you" and gone["from"] == "entrance"
+    assert gone["travel_to_s"] == 0 < direct["travel_to_s"]
+    assert direct["travel_to_s"] == pytest.approx(tc.travel_for(trips, "Alliance").cost(city, entrance))
 
 
 # ------------------------------------------------- Polestar's own SFK fixture
