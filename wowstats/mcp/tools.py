@@ -927,6 +927,7 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
                            "item_id": "max", "t": "maxtime"}, start, end, identify_houses=True)
     from wowstats import storemodels
 
+    char = None
     explicit = "ruleset" in args or "faction" in args
     if explicit:
         faction = str(args.get("faction") or "").title()
@@ -935,7 +936,9 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
             raise ToolError("Select a character, or give both ruleset and faction for an auction house.")
         home = (ruleset, faction)
     else:
-        home = ahshared.character_house(ctx.store.events, resolve_char(ctx, args)) if rows else None
+        if rows or args.get("char") or ctx.default_char:
+            char = resolve_char(ctx, args)
+        home = ahshared.character_house(ctx.store.events, char) if rows and char else None
     house, rows = ahshared.one_house(rows, home, exact=explicit)
     out = []
     for key, d in storemodels.prices([{**r, "_time": r.get("t")} for r in rows]).items():
@@ -952,7 +955,7 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
                     else None})
     out.sort(key=lambda d: d["item"])
     note = None if out else "No matching Auctionator prices. Select a ruleset and faction to query a specific house."
-    return {"items": out[:limit], "total": len(out), "note": note, "house": house or None,
+    return {"char": char, "items": out[:limit], "total": len(out), "note": note, "house": house or None,
             "prices": "lowest minimum buyout seen that day, per unit"}
 
 
@@ -1701,7 +1704,8 @@ TOOLS: tuple[Tool, ...] = (
          "Prices from Auctionator scans of the character's ruleset and faction (the player's own, or on a shared "
          "server anyone's): latest, min and max over the range, change since the first scan.",
          schema({"char": CHAR, "ruleset": {"type": "string", "description": "Auction ruleset for an explicit house."},
-                 "faction": {"type": "string", "enum": ["Alliance", "Horde", "Neutral"]},
+                 "faction": {"type": "string", "enum": ["Alliance", "Horde", "Neutral"],
+                             "description": "Auction house on the selected ruleset."},
                  "item": {"type": "string", "description": "Part of an item name, or an item id."},
                  "since": SINCE, "until": UNTIL, "limit": lim(20, 100)}), t_prices),
     Tool("inventory", "Bags and bank",
@@ -2082,7 +2086,7 @@ def missing_for(ctx: Ctx, tool: Tool, args: dict, out: dict) -> list[dict] | Non
 
     try:
         snap = _snapshot(ctx)
-        if "char" in tool.input_schema["properties"]:
+        if "char" in tool.input_schema["properties"] and (tool.name != "prices" or out.get("char")):
             char = out.get("char") if isinstance(out.get("char"), str) else resolve_char(ctx, args)
             gap = missing.for_char(snap, char)
         else:

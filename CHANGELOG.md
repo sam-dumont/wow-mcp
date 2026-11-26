@@ -12,6 +12,7 @@
 - Auctionator trends, dungeon loot and planner valuations use one auction house. The MCP `prices` tool also takes an explicit ruleset and faction. Saved gear findings flag a change of PvP setting, stat weights or source data for revalidation.
 - Bags and bank keep separate observation dates. Combat records follow character changes and log rotation. An appearance failure for one character allows the next character's refresh to run, and a missing portrait layer can be picked up on a later build.
 - Item and craft data now identify client build 71091. The route exporter reads both Polestar race-pack layouts. The dungeon checklist accounts for the Agamaggan quest moving outdoors, and the reset rule cites Blizzard's November 20 update. Forum evidence distinguishes a player's report from a staff reply.
+- The scheduled reference refresh has 120 minutes for source preparation and verification. It reports test progress and identifies a timed-out test in the job log.
 
 ### Upgrading
 

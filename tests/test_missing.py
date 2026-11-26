@@ -222,8 +222,11 @@ def test_mcp_answers_say_what_they_cant_see(ctx):
     assert [m["id"] for m in out["missing"]] == ["gear", "quests", "prices"]
     assert out["missing"][0] == {"id": "gear", "what": "your gear and your bags", "fix": "Add Syndicator.",
                                  "line": "Missing: your gear and your bags. Add Syndicator."}
-    # An account-wide tool: the account's gaps, each with the characters it concerns.
     out = tools.call(ctx, "prices", {})
+    assert out["char"] == fakes.CHAR and all("chars" not in m for m in out["missing"])
+    # An explicit auction house carries the account's gaps even with a default character.
+    out = tools.call(ctx, "prices", {"ruleset": "Normal", "faction": "Alliance"})
+    assert out["char"] is None
     assert {m["id"] for m in out["missing"]} >= {"prices"} and all("chars" in m for m in out["missing"])
 
 
