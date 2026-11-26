@@ -47,6 +47,17 @@ def test_shared_class_and_side_specific_quests():
             assert gear._source_level(source(971)) == 18
 
 
+def test_wolfsbane_keeps_its_confirmed_quest_and_drops_the_unidentified_chain():
+    ref = gear.reference()
+    sources = ref.data["sources"]["267369"]
+    assert {s["quest"] for s in sources if s["kind"] == "quest"} == {95140}
+    assert "0" not in ref.data["quests"]
+    for side, race in (("Alliance", "Human"), ("Horde", "Undead")):
+        sheet = {"class": "PALADIN", "race": race, "faction": side}
+        who = gear._context(ref, sheet, 30, None, None, "holy", None).who
+        assert any(gear._source(ref, s, who, ref.item(267369)) for s in sources) == (side == "Horde")
+
+
 def test_placeholder_and_withdrawn_quests_offer_no_gear_or_completion_credit():
     ref = gear.reference()
     withdrawn = ref.data["quests"]["88758"]  # The historical Codex record keeps its Alliance race mask.

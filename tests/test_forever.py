@@ -13,6 +13,12 @@ def test_quests_forever_only_ids_included():
     assert forever.quest(0) is None and forever.quest("x") is None and forever.quest(None) is None
 
 
+def test_shared_quest_lookup_keeps_the_library_guides_faction_requirements():
+    assert forever.quest_gates(78150) == (0, 0, 0)
+    for quest_id in (79536, 82208):
+        assert forever.quest_gates(quest_id) == (1, 0, 0)
+
+
 def test_spyglass_has_a_recorded_dungeon_source_without_a_measured_percentage():
     ref = gear.reference()
     who = gear.Who(cls="PRIEST", level=24, side=1, race_id=7, professions={}, done=set(), zone=None)

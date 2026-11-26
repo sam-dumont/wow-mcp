@@ -350,7 +350,10 @@ def foreverdb_sources(items: dict, quests: dict, gear_quests: dict, data: dict |
         for x in sorted(e.get("sources") or [], key=lambda x: LABEL_ORDER.get(x.get("label"), 9)):
             k, base = x.get("kind"), {"via": "foreverdb", "label": x.get("label")}
             if k == "quest":
-                q = str(x["quest"])
+                quest_id = int(x.get("quest") or 0)
+                if quest_id <= 0:  # ForeverDB also includes unverified chain notes with ID 0.
+                    continue
+                q = str(quest_id)
                 if q not in quests:
                     gq = gear_quests.get(q)
                     if gq:
@@ -365,7 +368,7 @@ def foreverdb_sources(items: dict, quests: dict, gear_quests: dict, data: dict |
                                      "side": _SIDE.get(x.get("side"), 3),
                                      "zone_name": forever.quest_zone(q, (x.get("giver") or {}).get("map")),
                                      "dungeon": forever.quest_dungeon(q) is not None, "from": "foreverdb"}
-                raw.append({**base, "kind": "quest", "quest": int(q)})
+                raw.append({**base, "kind": "quest", "quest": quest_id})
             elif k == "drop" and not x.get("boss"):
                 # Seen dropping in an instance, from no boss: a random drop
                 # players saw there (Gloom Reaper in Scarlet Monastery), not

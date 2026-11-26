@@ -62,7 +62,8 @@ def quest_gates(qid) -> tuple[int, int, int]:
     """Side, race mask and class mask for a gear or dungeon quest."""
     d = data()
     q = str(qid)
-    row = (d.get("gear_quests") or {}).get(q) or (d.get("quest_gates") or {}).get(q)
+    row = ((d.get("gear_quests") or {}).get(q) or (d.get("guide_quests") or {}).get(q)
+           or (d.get("quest_gates") or {}).get(q))
     if not row:
         from . import dungeonquests
 
