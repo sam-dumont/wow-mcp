@@ -28,13 +28,15 @@ yet, and **View in 3D** shows the model meanwhile.
 ![The auction house list starts with Shadoweave Shoulders, Shadoweave Mask and Underworld Band. Dungeon and world drops appear in their own groups below.](../images/upgrades.webp)
 
 Every item has the same badge and says what it does to its slot: "70% → 91% on your chest"
-("empty → 91%" for an empty slot). The slot furthest from its best comes first.
+("empty → 91%" for an empty slot).
 
 - **By where you get it** (the default) groups them by trip: a dungeon, the quests of a zone, a
   profession, the auction house. Each group says what the trip holds: "31% chance one of your 3
   upgrades drops" for a dungeon, "2 upgrades you can take now" for quests or crafts, "2
-  upgrades for 4g 10s in all" at the auction house.
-- **By slot** shows your pick per slot: **Now** (you can wear it), **Level 35** (not yet),
+  upgrades for 4g 10s in all" at the auction house. Auction listings put the most gain per
+  gold first.
+- **By slot** starts with the slot furthest from its best and shows your pick for each slot:
+  **Now** (you can wear it), **Level 35** (not yet),
   **cheap** (on the auction house for at most what you earn in a level). Under it, the slot's
   **BiS**: see below.
 
@@ -47,8 +49,9 @@ to make about seven Stylish Red Shirts to reach 125. If the pattern is already i
 and you have the skill, it tells you to take it out and learn it.
 
 The card counts the materials in your bags and bank. **Estimated cost** covers the whole
-craft. **Priced part** means at least one price is missing. A finished item on the auction
-house gets its own price and scan date. An older scan says **Last auction price**. The
+craft. **Priced part** gives the subtotal the page can work out. A price or bag count can be
+missing, or the skill-up route can stop short of the required rank. A finished item on the
+auction house gets its own price and scan date. An older scan says **Last auction price**. The
 circlet binds on pickup. You can buy its pattern and make it yourself.
 
 Open **Recipe and skill-up details** for the crafts along the way and the gold you still need

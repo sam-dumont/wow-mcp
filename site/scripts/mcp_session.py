@@ -106,6 +106,8 @@ async def record(vl: str) -> str:
                 got = answer(res)
                 if tool == "character_summary":
                     last_seen = got["last_seen"][:10]
+                    count = 1 + len(got["other_characters"])
+                    roster = "one character" if count == 1 else f"{count} characters"
                 # A plan comes with its own Markdown draft: shown as the page
                 # would, not as one long JSON string.
                 md = got.pop("markdown", None) if isinstance(got, dict) else None
@@ -120,8 +122,8 @@ async def record(vl: str) -> str:
     return f"""# An MCP session, recorded
 
 This recording uses `wow-stats mcp-stdio` {version} and the play history of
-[Nibbet, the demo priest](demo.md), through {last_seen}. Each question shows
-the tool call and the reply an assistant gets. Long lists stop after {LIST_MAX} items.
+[Nibbet, the demo priest](demo.md), through {last_seen}. The demo had {roster}. Each question
+shows the tool call and the reply an assistant gets. Long lists stop after {LIST_MAX} items.
 
 <details>
 <summary>All {len(tools)} tools the server listed</summary>

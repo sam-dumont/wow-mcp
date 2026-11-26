@@ -22,7 +22,7 @@ Open **View in 3D** to turn Nibbet around. The published demo uses Blizzard's ch
 The pages are plain files on GitHub Pages, so anything that needs the server is off:
 
 - no login, no full view (other players, gold over time, the live timeline);
-- no MCP: [a recorded session](mcp-session.md) shows what an assistant gets from the same data.
+- no MCP: [the 0.13.0 recording](mcp-session.md) shows six calls for Nibbet, using the single-character demo.
 
 The dates move: every build shifts the play so the last session is the day before. The auction house only lists what was on sale today or yesterday, so a demo frozen in October would have an empty auction house.
 

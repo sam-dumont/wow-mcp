@@ -57,7 +57,7 @@ const tour = (mode: Mode): Scene[] => {
 			{at: m.moves, text: 'Next moves: what to do now, where, and what blocks it'},
 			{at: m.moves + 2.8, text: 'Each item says how close it takes the slot to its best, before and after'},
 			{at: m.character, text: 'Character: your gear, and how close each slot is to its BiS'},
-			{at: m.upgrades, text: 'Upgrades: where each one drops, slots furthest from their best first'},
+			{at: m.upgrades, text: 'Upgrades: compare auction prices, dungeon drops and world drops'},
 			{at: m.dungeons, text: 'Dungeons: the drops you would wear, and your runs'},
 			{at: m.plan, text: 'Plan your next hours: pick 1 to 6, click Plan it'},
 			{at: m.planned, text: 'The plan follows your guide at your own pace'},

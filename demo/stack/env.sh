@@ -19,7 +19,10 @@ publish_sites() {
 # list gives them (stack/up.sh) and their main: the docs site's decoy
 # character in both themes (tools/fixtures/generate.py --demo).
 friend_of() {
-  if [[ $1 == dark ]]; then port=$PROXY_DARK name=frostbolt
-  else port=$PROXY_LIGHT name=moonfire; fi
+  case "$1" in
+    dark) port=$PROXY_DARK name=frostbolt ;;
+    light) port=$PROXY_LIGHT name=moonfire ;;
+    *) echo "demo mode must be dark or light" >&2; return 1 ;;
+  esac
   char=Nibbet-Gearholt
 }

@@ -108,7 +108,7 @@ How the pieces fit: [How it works](../../docs/explanation/how-it-works.md). Ques
 Why a levelling log grew an MCP server and signed releases in six days:
 [How this was built](../../docs/how-this-was-built.md).
 
-<p class="fineprint">The software is licensed under GPL-3.0.
+<p class="fineprint">The software is licensed under GPL-3.0-only.
 <a href="https://github.com/fitzforge/polestar">Polestar</a> supplies the route times.
 Gear weights and additional item sources: Data from <a href="https://foreverdb.net">ForeverDB.net</a>.
 Blizzard Entertainment owns the artwork in the separate 3D demo. World of Warcraft is its trademark.

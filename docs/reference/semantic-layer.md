@@ -298,9 +298,9 @@ whole level), else the Recorder's records at that level. `in_play` picks the pop
 
 | Population | Filter | Demo (Nibbet, level 46) |
 |---|---|---|
-| The completed levels | `in_play = 0` | 2,255 kills, 141 quests (levels 22-45) |
-| The current level so far | `in_play = 1` | 101 kills, 5 quests |
-| Including the current level | none | 2,356 kills, 146 quests |
+| The completed levels | `in_play = 0` | 2,215 kills, 155 quests (levels 22-45) |
+| The current level so far | `in_play = 1` | 109 kills, 5 quests |
+| Including the current level | none | 2,324 kills, 160 quests |
 
 The page's climb says "over the completed levels" and puts the current level's so far beside
 it. The MCP's `character_summary` returns all three under `counts`: `completed_levels`,

@@ -204,8 +204,8 @@ See the [third-party notices](../THIRD_PARTY.md).
 For a build with invented artwork, set `DEMO_3D=golden`. The build also takes this path
 when it can't verify the archive. `tools/fixtures/golden3d.py` generates a blocky gnome,
 its gear and about 200 kB of client-format data. The 3D tests use the same fixture.
-The portrait is the renderer's still of that model, left in the armory cache under the address
-the Battle.net series names, so the publisher's usual path finds it.
+The publisher sends the model recipe to the renderer and caches the portrait by character
+and recipe. A gear change gets a new picture.
 
 `tests/test_demo_complete_browser.py` opens every tab of both pages at 390 px and 1280 px in
 Chromium and WebKit and fails on any empty section, fallback line or silhouette, and on a 3D

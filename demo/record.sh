@@ -5,7 +5,7 @@
 #
 #   VL_BIN=... demo/record.sh            # demo/video/public/<take>-{dark,light}.{mp4,webm} + marks
 #   MODES=dark VL_BIN=... demo/record.sh # one theme
-#   KEEP=1 ...                           # leave the lab running afterwards
+#   KEEP=1 ...                           # leave the lab running after a successful recording
 #
 # Needs: uv, vhs, ffprobe, the Inconsolata font, and a VictoriaLogs binary
 # (VL_BIN, v1.54.0: the release tarball's victoria-logs-prod). Run it on an
@@ -23,32 +23,21 @@
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
+if [[ ${1:-} != --session ]]; then
+  python=$(uv python find '>=3.11')
+  exec "$python" "$here/stack/record_session.py" "$here/record.sh"
+fi
+state=$2
+# Keep the shell (and its children) parented until the supervisor collects
+# them, including when set -e exits in the middle of the wizard.
+trap 'printf "%s\n" "$?" > "$state/record.exit"; IFS= read -r _ || true' EXIT
 out="$here/video/public"
-# Short on purpose: the installer and ls print these paths in the takes
-# (macOS's $TMPDIR is 50 characters of /var/folders). Deleted on exit.
-state=$(mktemp -d /tmp/wow.XXXXXX)
 mkdir -p "$out"
 cd "$here/.."
-
-pids=()
-tape_pid=
-finish() {
-  # VHS drives a terminal in another process. Let its last command exit
-  # before removing the fake HOME and setup script, even after Ctrl+C.
-  trap '' INT TERM
-  if [[ -n $tape_pid ]]; then wait "$tape_pid" 2>/dev/null || true; fi
-  if [[ ${KEEP:-0} == 1 ]]; then echo "KEEP=1: lab left running, state in $state"; return; fi
-  for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
-  rm -rf "$state" "$here/tapes/.settings.tape"
-}
-trap finish EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
 
 echo "== the lab"
 SITES=1 source "$here/stack/up.sh"
 source "$here/stack/friend.sh"
-shim="$here/stack/shims"
 
 theme() {
   if [[ $1 == dark ]]; then
@@ -61,7 +50,8 @@ theme() {
 # tape <name> <mode> [@KEY@=value ...]: one VHS take into $out/<name>-<mode>.mp4.
 tape() {
   local name=$1 mode=$2; shift 2
-  uv run --no-project python - "$here/tapes/$name.tape" "$state/$name.tape" "$out/$name-$mode.mp4" "$@" <<'PY'
+  uv run --no-project python - "$here/tapes/$name.tape" "$state/$name.tape" "$out/$name-$mode.mp4" \
+    "@SETTINGS@=$state/settings.tape" "$@" <<'PY'
 import sys
 src, dst, mp4, *subs = sys.argv[1:]
 text = open(src, encoding="utf-8").read()
@@ -70,16 +60,7 @@ for kv in subs:
     text = text.replace(k, v)
 open(dst, "w", encoding="utf-8").write(f'Output "{mp4}"\n' + text)
 PY
-  # The terminal inherits the fake HOME and the repository's shim even
-  # before the tape types anything, or if its setup file disappears.
-  (
-    source "$state/shell.sh" || exit 1
-    cd "$repo"
-    exec vhs "$state/$name.tape"
-  ) >/dev/null &
-  tape_pid=$!
-  wait "$tape_pid"
-  tape_pid=
+  as_friend "$home" "$wow" vhs "$state/$name.tape" >/dev/null
   echo "  $name-$mode.mp4 ($(ffprobe -v error -show_entries format=duration -of csv=p=0 "$out/$name-$mode.mp4" | cut -c1-5) s)"
 }
 
@@ -87,7 +68,8 @@ PY
 # run it in a take whose config doesn't point into this lab.
 guard() {
   # The installer writes TOML basic strings (double quotes) since 0.7.0; 0.6.x wrote single.
-  grep -Eq "^wow_dir = [\"']$state/" "$1" || { echo "the take's config has no lab wow_dir: $1" >&2; exit 1; }
+  grep -Fxq -e "wow_dir = \"$wow\"" -e "wow_dir = '$wow'" "$1" \
+    || { echo "the take's config has no lab wow_dir: $1" >&2; exit 1; }
 }
 
 browser() {  # browser <scene> <mode> [ENV=value ...]: one Playwright take
@@ -104,16 +86,8 @@ for mode in ${MODES:-dark light}; do
   home="$state/Users/$name"; wow="$state/$mode/World of Warcraft/_forever_"; conf="$home/.config/wow-stats/config.toml"
   mkdir -p "$home"
   uv run --frozen python demo/stack/fake_wow.py "$wow" "$char" "Pellwick-${char#*-}"
-  cat > "$state/shell.sh" <<SH
-export HOME='$home' WOW_STATS_WOW_DIR='$wow' PATH='$shim':"\$PATH"
-export UV_CACHE_DIR='$(uv cache dir)' UV_PYTHON_INSTALL_DIR='$(uv python dir)'
-[ "\$(command -v launchctl)" = '$shim/launchctl' ] || exit 1  # never the real launchd
-cd "\$HOME"
-SH
-  [[ $(bash -c "source '$state/shell.sh' >/dev/null && command -v launchctl") == "$shim/launchctl" ]] \
-    || { echo "the takes' launchctl isn't the shim: stopping before any take" >&2; exit 1; }
-  sed -e "s|@THEME@|$(theme "$mode")|" -e "s|@STATE@|$state|" -e "s|@MODE@|$mode|" \
-    "$here/tapes/settings.tape.in" > "$here/tapes/.settings.tape"
+  sed -e "s|@THEME@|$(theme "$mode")|" -e "s|@MODE@|$mode|" \
+    "$here/tapes/settings.tape.in" > "$state/settings.tape"
 
   # The start page and the install, side by side; the first evening arrives
   # once the installer wrote the config.
@@ -127,7 +101,7 @@ SH
   # (launchd is a shim here): the shipper's own setup report, with its version.
   # Without it the start page reads the decoy's older report and asks for the
   # update command (0.7.0's update_once).
-  bash -c "source '$state/shell.sh' >/dev/null && uv run --script ~/.local/share/wow-stats/wow_stats.py" >/dev/null 2>&1
+  as_friend "$home" "$wow" uv run --script "$home/.local/share/wow-stats/wow_stats.py" >/dev/null 2>&1
   uv run --no-project python "$here/stack/seed_friend.py" "$conf" first
   wait "$wiz"
 

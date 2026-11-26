@@ -1,8 +1,8 @@
 # An MCP session, recorded
 
 This recording uses `wow-stats mcp-stdio` 0.13.0 and the play history of
-[Nibbet, the demo priest](demo.md), through 2026-11-25. Each question shows
-the tool call and the reply an assistant gets. Long lists stop after 3 items.
+[Nibbet, the demo priest](demo.md), through 2026-11-25. The demo had one character. Each question
+shows the tool call and the reply an assistant gets. Long lists stop after 3 items.
 
 <details>
 <summary>All 41 tools the server listed</summary>

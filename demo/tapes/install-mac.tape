@@ -2,7 +2,7 @@
 # finds WoW, writes the config and sets up the background job. Then the
 # config, password left out. record.sh fills @INSTALL_URL@ with the line the
 # wizard handed out in the browser take.
-Source demo/tapes/.settings.tape
+Source @SETTINGS@
 Sleep 700ms
 Type@35ms "curl -fsSL @INSTALL_URL@ | bash"
 Sleep 600ms
