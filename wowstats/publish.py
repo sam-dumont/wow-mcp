@@ -94,7 +94,6 @@ KEEP = 2  # builds kept besides current, for a request in flight during the swap
 # minutes. Another publisher's build on the same folder is younger and stays.
 STALE_BUILD_S = 3600
 ENC = ".enc"
-FULL_BLOCK = ui.FULL_BLOCK
 ASK = re.compile(r'\s*<section id="askbox".*?</section>', re.S)
 DEBUG = re.compile(r'\s*<details id="debug".*?</details>', re.S)
 
@@ -261,21 +260,19 @@ def analytics(env: dict) -> dict | None:
     return {"domain": domain, "script": script, "api": api}
 
 
-def page(app: ui.App, sealed: bool, stats: dict | None = None, path: str = "/") -> bytes:
-    """index.html for a static bundle: the 3D kept in both, the full-only
+def page(app: ui.App, sealed: bool, model3d_on: bool, stats: dict | None = None, path: str = "/") -> str:
+    """index.html for a static bundle: the full-only
     sections kept in zogzog minus the Ask links and the query box. `path`: where
     the bundle is served, the only address the analytics ever send."""
-    html = (app.static / "index.html").read_text(encoding="utf-8")
-    if app.view == "public":
-        html = FULL_BLOCK.sub("", html)
-    else:
+    html = app.dashboard_html(model3d_on=model3d_on)
+    if app.view == "full":
         html = DEBUG.sub("", ASK.sub("", html))
     # Home is the bundle's own page; no link to anything behind the login.
     html = bar.fill(html, "./")
     if stats is not None:
         html = html.replace("</head>", ui.stats_tags(stats, "stats.js", path) + "</head>", 1)
     attrs = 'data-static="1"' + (' data-sealed="1"' if sealed else "")
-    return html.replace("@VIEW@", app.view).replace("<html ", f"<html {attrs} ", 1).encode()
+    return html.replace("<html ", f"<html {attrs} ", 1)
 
 
 def copy_static(app: ui.App, b: Bundle, stats: dict | None = None) -> None:
@@ -449,8 +446,8 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
             head = out("char", app.char(name)).get("header")
         except Exception:  # noqa: BLE001
             head = None
-    html = ui.og_tags(page(app, sealed, stats, path).decode(), head) if not sealed else \
-        ui.og_generic(page(app, sealed, stats, path).decode())
+    shell = page(app, sealed, full_app.model3d is not None, stats, path)
+    html = ui.og_generic(shell) if sealed else ui.og_tags(shell, head)
     if canonical:  # the site's one address, fixed at build time (an alias host serves the same bundle)
         url = canonical.rstrip("/") + path
         html = html.replace("</head>", f'<link rel="canonical" href="{url}">\n'
@@ -742,7 +739,8 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
     # The page itself changes with a new version or analytics setting: rebuild
     # then too, not only on new data.
     page_id = hashlib.sha256(json.dumps([__version__, stats, zz_path, public, sorted(hide_public),
-                                         sorted(hide_zogzog), canonical, pics.on, env.get("MODEL3D_MODELS", ""),
+                                         sorted(hide_zogzog), canonical, pics.on, full_app.model3d is not None,
+                                         env.get("MODEL3D_MODELS", ""),
                                          full_app.settings.weights, env[gearmode.PUBLISHED]],
                                         sort_keys=True).encode()).hexdigest()[:12]
 

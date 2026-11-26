@@ -239,8 +239,8 @@ VS_GUIDE = {**_keys("agrees", "we_say", "reason", "under_floor", "text"), "guide
 MOVE = {**_keys("text", "link", "cite", "kind", "title", "detail", "action", "blocker", "item_id", "skill_id",
                 "weight"),
         "item": MOVE_ITEM, "items": [MOVE_ITEM], "zone": PLACE, "quest_rewards": [QUEST_REWARD],
-        "source": {**_keys("kind", "boss", "profession", "blocker", "price_copper", "seen_day", "seen_days_ago"), "quest": _keys("id", "name", "url"),
-                   "zone": PLACE},
+        "source": {**_keys("kind", "boss", "profession", "blocker", "price_copper", "seen_day", "seen_days_ago"),
+                   "quest": _keys("id", "name", "url"), "zone": PLACE},
         "skill": {**_keys("skill_id", "name", "rank", "max_rank", "next", "need_level", "level_ok", "need_skill",
                           "skill_ok", "cost_copper", "cost_scope", "money_copper", "search_url"),
                   "trainers": [TRAINER]},
@@ -385,7 +385,7 @@ ZOGZOG: dict[str, dict] = {
         "dungeons": [_keys("name", "level", "seconds", "xp", "t")]}]},
     "gear": {
         **_keys("char", "name", "polestar", "available", "why", "at", "class", "level", "min_upgrade_pct",
-                "soon_levels", "upgrades_total", "generated_at", "stale", "gear_score"),
+                "soon_levels", "upgrades_total", "generated_at", "stale", "gear_score", "estimated", "unlock"),
         # The weights' mode and whose they are: the page credits ForeverDB.net.
         "mode": {**_keys("key", "label"), "choices": [_keys("key", "label")]},
         "pvp_rewards": _keys("on", "forced"),

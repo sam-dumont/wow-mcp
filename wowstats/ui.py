@@ -835,16 +835,21 @@ class App:
         if self.view != "full":
             raise FullOnly
 
-    def index_html(self, nav: str = "") -> bytes:
-        """The character pages; `nav`: the reader's pages in the bar (bar.links)."""
+    def dashboard_html(self, *, model3d_on: bool) -> str:
+        """The common dashboard shell, with only the sections its data source serves."""
         html = (self.static / "index.html").read_text(encoding="utf-8")
         if self.view == "public":
             html = FULL_BLOCK.sub("", html)
-        if self.model3d is None:
+        if not model3d_on:
             html = MODEL3D_BLOCK.sub("", html)
+        return html.replace("@VIEW@", self.view)
+
+    def index_html(self, nav: str = "") -> bytes:
+        """The character pages; `nav`: the reader's pages in the bar (bar.links)."""
+        html = self.dashboard_html(model3d_on=self.model3d is not None)
         # The tab icon from where no login stands in the way (bar.ICON).
         html = bar.fill(html, "./", nav).replace('rel="icon" href="favicon.svg"', f'rel="icon" href="{bar.ICON}"', 1)
-        return og_tags(html, self.default_header()).replace("@VIEW@", self.view).encode()
+        return og_tags(html, self.default_header()).encode()
 
     def default_header(self) -> dict | None:
         """The page's own character's header (as this view may show it), for

@@ -146,6 +146,24 @@ def test_the_three_dashboard_paths_agree_on_the_climb_and_worn_items(site, run_a
     assert "money_copper" not in public["header"]
     assert "players" not in friends
 
+    gear_path = publish.data_path("gear", name)
+    assert not (current / "public" / gear_path).exists()
+    friends_gear = json.loads(opened(key, files(current / "zogzog"))[gear_path])
+    code, _, body = owner.get("/api/gear?" + urllib.parse.urlencode({"name": name}))
+    assert code == 200
+    owner_gear = json.loads(body)
+    assert friends_gear["available"] and owner_gear["available"]
+    assert friends_gear["spec"]["key"] == owner_gear["spec"]["key"]
+    assert friends_gear["mode"]["key"] == owner_gear["mode"]["key"]
+    assert friends_gear["pvp_rewards"] == owner_gear["pvp_rewards"]
+
+    def upgrade_facts(answer):
+        return {(u["slot"], u["item_id"]): (u["name"], u["gain"], [(src["kind"], src.get("price_copper"))
+                                                                   for src in u["sources"]])
+                for u in answer["upgrades"]}
+
+    assert friends_gear["upgrades"] and upgrade_facts(friends_gear) == upgrade_facts(owner_gear)
+
 
 def test_zogzog_bundle_is_sealed_full_content(site):
     _, res, key, cur = site
@@ -824,6 +842,24 @@ def look_world(tmp_path, monkeypatch, fill=True):
     return {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "on",
             "MODEL3D_CACHE_DIR": str(tmp_path / "cache"), "MODEL3D_ASSETS_DIR": str(tmp_path / "assets"),
             "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key")}
+
+
+def test_disabling_3d_rebuilds_both_dashboard_shells(tmp_path, monkeypatch):
+    env = look_world(tmp_path, monkeypatch)
+    assert publish.publish(env)["built"]
+    current = tmp_path / "site" / "current"
+    key = publish.unb64u((tmp_path / "zogzog.key").read_text().strip())
+    for enabled in (True, False):
+        if not enabled:
+            assert publish.publish({**env, "MODEL3D": "off"})["built"]
+        for tier in ("public", "zogzog"):
+            root = current / tier
+            html = (root / "index.html").read_text()
+            assert ('src="model3d/model3d.js"' in html) == enabled
+            for args in (("Hero-Test",), ("Hero-Test", 12)):
+                path = publish.data_path("model3d", *args)
+                file = root / (publish.sealed_name(key, path) if tier == "zogzog" else path)
+                assert file.is_file() == enabled
 
 
 def test_public_bundle_has_the_battle_net_look_but_no_market(tmp_path, monkeypatch):
