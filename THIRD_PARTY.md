@@ -145,6 +145,12 @@ would have to agree to one. wow-stats ships forever-db as Polestar distributes i
 lineage included (the maintainer's call): Polestar puts the same data in front of a much
 larger audience, and can build without QuestieDB (`--no-questie`) should that be needed.
 
+## Expose Armor in Blackrock Spire
+
+The rogue guide cites one Gizrul the Slavener kill on Normal-EU, November 26, 2026, from 11:30:31 to 11:31:02 UTC. Chronicle records client 1.60.1. Blizzard’s EU manifest listed 1.60.1.71139, published November 25. The report gives no numeric build suffix. [Chronicle report](https://forever.chronicleclassic.com/instances/H4lYrO8i0CfsxFft) · [Report metadata](https://forever.chronicleclassic.com/api/external/v1/raidlogs/instances/H4lYrO8i0CfsxFft) · [Blizzard build manifest](https://eu.version.battle.net/v2/products/wowf/versions) · [Build history](https://wago.tools/builds)
+
+At 11:30:44.178 UTC, Expose Armor (11198) took the boss from 3,566 to 1,316 armor. It was the only armor debuff on the boss and lasted 18.029 seconds, until the kill. From 11:30:38.132 to 11:30:49.990 UTC, the rogue had 1,473 attack power, Slice and Dice and Adrenaline Rush. Normal Sinister Strikes (11294) averaged 240.5 damage before Expose Armor (4 hits) and 315.7 during it (3 hits), a 31.3% increase. At 1,597 attack power, the same warrior’s normal Bloodthirst (23894) hit for 295 at 11:30:38.555 and 392 at 11:30:46.457. [Aura events](https://forever.chronicleclassic.com/api/external/v1/raidlogs/instances/H4lYrO8i0CfsxFft/events/aura) · [Damage events](https://forever.chronicleclassic.com/api/external/v1/raidlogs/instances/H4lYrO8i0CfsxFft/events/damage) · [Armor and attack power](https://forever.chronicleclassic.com/api/external/v1/raidlogs/instances/H4lYrO8i0CfsxFft/events/unit_resources) · [Chronicle event format](https://github.com/Emyrk/chronicle/blob/main/docs/external-api-event-streams.md)
+
 ## Profession observations
 
 The [learning evidence](data/kb/professions/learning.json) ships selected spell ranks, pattern drops and vendor offers from EG Link's player captures. Each record links the source file at commit `f25e0efde0c8490e4e6f356a68f7a81a703fa21c`. Data from Efficient Games (https://efficient.games), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). [EG Link output for Forever](https://github.com/JIVESCORP/eg-link-output-wowf)

@@ -50,6 +50,7 @@
     "wowforever.judgehype.com": {"type": "press", "max_confidence": "medium", "corroboration_only": true},
 
     "warcraft.wiki.gg": {"type": "community", "max_confidence": "high"},
+    "forever.chronicleclassic.com": {"type": "community", "max_confidence": "medium"},
     "www.reddit.com": {"type": "community", "max_confidence": "medium"},
     "devtrackers.gg": {"type": "community", "max_confidence": "medium"},
     "www.curseforge.com": {"type": "community", "max_confidence": "medium"},
