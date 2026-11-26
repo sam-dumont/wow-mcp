@@ -18,7 +18,9 @@
     "forg.gg": {"type": "datamined", "max_confidence": "medium"},
     "classicdb.ch": {"type": "datamined", "max_confidence": "high"},
     "wow.allakhazam.com": {"type": "datamined", "max_confidence": "medium"},
-    "github.com": {"type": "datamined", "max_confidence": "medium"},
+    "github.com": {"type": "datamined", "max_confidence": "medium", "paths": [
+      {"match": "^/ClassicWoWCommunity/forever-bugs/issues/[0-9]+/?$", "type": "community"}
+    ]},
 
     "www.warcrafttavern.com": {"type": "guide", "max_confidence": "high"},
     "warcrafttavern.com": {"type": "guide", "max_confidence": "high"},
