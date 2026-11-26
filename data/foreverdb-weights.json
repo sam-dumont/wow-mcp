@@ -10,10 +10,10 @@
   "credit": "Weights: ForeverDB.net",
   "build": "1.60.1.71139",
   "fetched": "2026-11-26",
-  "data_version": "2026-11-26.0a0b3351",
+  "data_version": "2026-11-26.75cf354c",
   "urls": [
-   "https://foreverdb.net/downloads/addon-data/GearFinder.lua?v=eb40a88e56",
-   "https://foreverdb.net/downloads/addon-data/GearSources.lua?v=b23c515e4f"
+   "https://foreverdb.net/downloads/addon-data/GearFinder.lua?v=2545db6c79",
+   "https://foreverdb.net/downloads/addon-data/GearSources.lua?v=b26d06c982"
   ],
   "licence": "GPL-3.0 with an attribution term (data/foreverdb/LICENSE.txt)",
   "note": "ForeverDB's addon weights (GearFinder.lua) and set shares (GearSources.lua gfExtra); Leveling is computed by tools/foreverdb_weights/export.py from PvE by their rule."

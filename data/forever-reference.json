@@ -120569,13 +120569,6 @@
    1,
    null
   ],
-  "819": [
-   "Servant of Ilgalar",
-   24,
-   25,
-   0,
-   null
-  ],
   "822": [
    "Young Forest Bear",
    8,
@@ -126421,6 +126414,13 @@
    2,
    null
   ],
+  "9045": [
+   "Scarshield Acolyte",
+   54,
+   55,
+   1,
+   null
+  ],
   "9056": [
    "Fineous Darkvire",
    54,
@@ -126575,6 +126575,13 @@
    1,
    null
   ],
+  "9416": [
+   "Scarshield Worg",
+   53,
+   54,
+   0,
+   null
+  ],
   "9448": [
    "Scarlet Praetorian",
    56,
@@ -126628,13 +126635,6 @@
    "Ribbly Screwspigot",
    53,
    53,
-   1,
-   null
-  ],
-  "9554": [
-   "Hammered Patron",
-   48,
-   52,
    1,
    null
   ],
