@@ -4259,10 +4259,12 @@ function renderSourceVersions(config) {
   for (const [name, release] of Object.entries(v.checked_addons || {})) add(name + ' · watched release', release);
   for (const [name, revision] of Object.entries(v.wowsims || {})) add('WoWSims ' + name + ' revision', revision);
   const summary = version ? `wow-stats ${version} · Data sources` : 'Version and data sources';
-  fill($('#foot-sources'), h('details', { class: 'source-versions' }, h('summary', { text: summary }),
+  const disclosure = h('details', { class: 'source-versions' }, h('summary', { text: summary }),
     rows.length ? h('dl', {}, ...rows) : h('p', { text: 'Source information is unavailable.' }),
     v.observations ? h('p', {}, 'EG Link data from ', h('a', { href: 'https://efficient.games', text: 'Efficient Games' }),
-      ', licensed under ', h('a', { href: 'https://creativecommons.org/licenses/by/4.0/', text: 'CC BY 4.0' }), '.') : null));
+      ', licensed under ', h('a', { href: 'https://creativecommons.org/licenses/by/4.0/', text: 'CC BY 4.0' }), '.') : null);
+  // Older published HTML has only the footer. Mount both sections on startup.
+  fill($('#foot'), h('div', { id: 'foot-status' }), h('div', { id: 'foot-sources' }, disclosure));
 }
 
 function characterSourceTimes(d) {
@@ -4458,7 +4460,7 @@ function selectChar(name) {
   for (const el of document.querySelectorAll('#gear, #talents, #classguide, #meta, #analysis, #nudgebox, #askbox, #planbox, #loot')) {
     el.hidden = true;
   }
-  for (const el of document.querySelectorAll('#main .body, #journal-list, #planout, #foot')) el.replaceChildren();
+  for (const el of document.querySelectorAll('#main .body, #journal-list, #planout, #foot-status')) el.replaceChildren();
   for (const el of document.querySelectorAll('#hero, #home, #timeline, #journal-lede')) {
     fill(el, h('span', { class: 'loading', text: `Reading the logs for ${name.split('-')[0]}` }));
   }

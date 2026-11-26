@@ -129,6 +129,7 @@ def test_same_climb_and_gear_from_live_public_and_sealed(dashboards, browser, wi
                 character_sources.locator("summary").click()
                 assert "Battle.net" in character_sources.inner_text()
                 assert ("Auctionator scans" in character_sources.inner_text()) == (tier == "owner")
+                main_coverage = character_sources.locator("dl").inner_text()
                 character_sources.locator("summary").click()
             values = splits(page)
             assert {v[0]: v[4] for v in values if v[4]} == {"22": "route 10m", "23": "route 15m"}
@@ -171,8 +172,15 @@ def test_same_climb_and_gear_from_live_public_and_sealed(dashboards, browser, wi
                     rel = publish.data_path("model3d", *args)
                     assert "/zogzog/" + publish.sealed_name(key, rel) not in paths
             page.locator("#tab-overview").click()
+            page.locator("#foot-sources summary").click()
             page.locator("#char").select_option(ESTIMATE)
             settled(page, 60)
+            assert page.locator("#foot-sources details[open]").count() == 1
+            if tier == "public":
+                assert character_sources.count() == 0
+            else:
+                character_sources.locator("summary").click()
+                assert character_sources.locator("dl").inner_text() != main_coverage
             no_route = splits(page)
             assert len(no_route) == 2 and all(v[2] and not v[3] and not v[4] for v in no_route)
             assert not chart.locator("path.route, .routekey").count()
@@ -186,6 +194,35 @@ def test_same_climb_and_gear_from_live_public_and_sealed(dashboards, browser, wi
                 assert gear.locator(".adv-h").inner_text() == "Gear advice"
                 assert gear.locator(".empty").count() and not gear.locator(".cand").count()
             assert not errors
+
+
+def test_published_footer_with_an_older_page_and_no_character_data(dashboards, browser):
+    # The HTML and script are separate requests during a publication.
+    def old_page(route):
+        response = route.fetch()
+        html = re.sub(r'<footer\b.*?</footer>', '<footer id="foot" class="foot"></footer>', response.text(), flags=re.S)
+        route.fulfill(response=response, body=html)
+
+    with browser.new_context() as ctx:
+        page = ctx.new_page()
+        page.route("**/index.html*", old_page)
+        page.route("**/data/chars.json", lambda r: r.fulfill(json={"chars": []}), times=1)
+        page.goto(dashboards["public"] + "index.html?char=" + ESTIMATE)
+        assert page.locator("#hero .nochars h1").inner_text() == "No character yet"
+        assert "Data sources" in page.locator("#foot-sources summary").inner_text()
+        assert page.locator("#foot-status").inner_text() == ""
+
+        page.route("**/" + publish.data_path("char", ESTIMATE), lambda r: r.fulfill(status=503, json={"error": "offline"}))
+        page.reload()
+        assert ESTIMATE in page.locator("#hero .err").inner_text()
+        assert "offline" in page.locator("#foot-status .warn").inner_text()
+        page.locator("#foot-sources summary").click()
+        page.locator("#char").select_option(D.CHAR)
+        page.locator("#levels .climb path.line").wait_for(state="attached")
+        settled(page, 60)
+        assert "Character view as of" in page.locator("#foot-status").inner_text()
+        assert not page.locator("#foot-status .warn").count()
+        assert page.locator("#foot-sources details[open]").count() == 1
 
 
 def test_a_stale_listing_is_absent_on_both_gear_cards(dashboards, browser):
