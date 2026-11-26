@@ -294,10 +294,11 @@ def test_phone_tap_opens_the_tooltip_as_a_bottom_panel(served, browser):
     c, pg, _, _ = page_with_plausible(browser, viewport={"width": 390, "height": 844}, has_touch=True,
                                       is_mobile=True, device_scale_factor=3)
     pg.goto(f"{base}/zogzog/#{key}")
-    wait_count(pg, ".slotitm .ifr.has-icon")
+    wait_count(pg, ".slotitm")
     to_gear(pg)
     first = pg.locator(".slotitm").first
     first.scroll_into_view_if_needed()
+    first.locator(".ifr.has-icon").wait_for(state="visible")
     first.tap()
     tip = pg.locator("#wowtip")
     sync_api.expect(tip).to_be_visible()
