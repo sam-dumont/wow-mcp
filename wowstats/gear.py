@@ -1189,16 +1189,16 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
     if s["kind"] == "craft":
         prof = s.get("profession")
         rank = who.professions.get(str(prof).lower()) if prof else None
-        skill_ok = rank is not None and rank >= (s.get("skill") or 0)
         known = recipe_known(who, prof, s.get("spell"))
         name = (ref.data.get("names") or {}).get(str(item_id)) or forever.item_name(item_id) if item_id else None
         pattern = pattern_in_bags(who, name) if known is not True else None
         # "Make it now" needs the recipe as well as the skill: a pattern in
         # the bags is learnt first, an unknown one is a find, and with no
         # recipe list (no DataStore_Crafts) it is never claimed.
-        return {"kind": "craft", "profession": prof, "skill": s.get("skill"), "spell_id": s.get("spell"),
-                "your_rank": rank, "skill_ok": skill_ok, "known": known, "pattern_item_id": pattern,
-                "can_make": bool(skill_ok and known is True), **_basis(s)}
+        return {"kind": "craft", "profession": prof, "skill": None, "spell_id": s.get("spell"),
+                "your_rank": rank, "skill_ok": True if rank is not None and known else None,
+                "known": known, "pattern_item_id": pattern,
+                "can_make": rank is not None and known is True, **_basis(s)}
     # ForeverDB's other kinds: a vendor, a reputation's quartermaster, a PvP
     # rank's, a container. The other side's are left out.
     if s.get("side") and who.side and _SIDE.get(s["side"]) not in (None, who.side):
@@ -1473,9 +1473,9 @@ def craft_status(s: dict) -> str:
         return s["plan"]["line"]
     prof, need, rank = s.get("profession") or "the profession", s.get("skill"), s.get("your_rank")
     if rank is None:
-        return f"a {prof} crafter makes it ({prof} {need}): buy it or ask one"
+        return f"a {prof} crafter makes it: buy it or ask one"
     steps = []
-    if not s.get("skill_ok", rank >= (need or 0)):
+    if need is not None and rank < need:
         steps.append(f"reach {prof} {need} (you have {rank})")
     pattern = s.get("pattern_item_id")
     if s.get("known") is False:
@@ -1585,11 +1585,11 @@ def gates(at: int, level: int, sources: list[dict]) -> list[dict]:
             kind = "skill" if (s.get("plan") or {}).get("bind_on_pickup") else "buy"
             out.append({"kind": kind, "profession": s.get("profession"), "need": s.get("skill"), "have": None})
             return out
-        if not s.get("skill_ok", s["your_rank"] >= (s.get("skill") or 0)):
+        if s.get("skill") is not None and s["your_rank"] < s["skill"]:
             out.append({"kind": "skill", "profession": s.get("profession"), "need": s.get("skill"),
                         "have": s["your_rank"]})
         # The recipe: learnt from the pattern in the bags, or still to find.
-        # Unknown (no recipe list) is no gate, but no "make it now" either.
+        # Without a recipe list or a verified rank, ask the player to check.
         if s.get("known") is False:
             learn = (s.get("plan") or {}).get("learn") or {}
             kind = "learn" if s.get("pattern_item_id") else "recipe"
@@ -1597,6 +1597,8 @@ def gates(at: int, level: int, sources: list[dict]) -> list[dict]:
                 kind = "trainer_recipe"
             out.append({"kind": kind,
                         "profession": s.get("profession"), "need": s.get("pattern_item_id"), "have": None})
+        elif s.get("known") is None and s.get("skill") is None:
+            out.append({"kind": "check_recipe", "profession": s.get("profession"), "need": None, "have": None})
     return out
 
 
@@ -1979,10 +1981,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                 if plans[k]:
                     plan = plans[k]
                     need = plan["skill"]["need"]
-                    if plan["learn"]["kind"] == "held":
-                        x["pattern_item_id"] = plan["learn"].get("pattern_id")
+                    x["pattern_item_id"] = plan["learn"]["pattern_id"] if plan["learn"]["kind"] == "held" else None
+                    rank = x.get("your_rank")
                     x.update(plan=plan, skill=need, can_make=plan["can_make"],
-                             skill_ok=x.get("your_rank") is not None and x["your_rank"] >= need)
+                             skill_ok=(rank >= need if rank is not None and need is not None else
+                                       True if plan["can_make"] else None))
         if not (who.pvp or who.pvp_mode) and any(is_pvp(s) for s in srcs):
             # A PvP rank's quartermaster goes with its rank (ForeverDB lists
             # both: Master Sergeant's Insignia, Officer Areyn and rank 3).
@@ -2886,12 +2889,15 @@ def source_text(s: dict, short: bool = False) -> str:
     if s["kind"] != "craft":  # a kind the gear data names that has no words here
         return f"{s['kind']}: {s.get('name') or s.get('zone') or '?'}"
     p = s.get("plan") or {}
+    profession = s.get("profession") or "profession"
+    if s.get("skill") is not None:
+        profession += f" {s['skill']}"
     if short and p.get("action"):
         label = "Total" if p.get("cost_complete") else "Priced part"
         gold = f" {label} ~{ahsource.price_text(p['craft_copper'])}." if p.get("craft_copper") else ""
         buy = f" Or buy it: {ahsource.price_text(p['buy_copper'])}." if p.get("buy_copper") else ""
-        return f"craft: {s.get('profession')} {s.get('skill')}; {p['action']}{gold}{buy}{tail}"
-    return f"craft: {s.get('profession')} {s.get('skill')}; {craft_status(s)}{tail}"
+        return f"craft: {profession}; {p['action']}{gold}{buy}{tail}"
+    return f"craft: {profession}; {craft_status(s)}{tail}"
 
 
 def rep_words(s: dict) -> str:

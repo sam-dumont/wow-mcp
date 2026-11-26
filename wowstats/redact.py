@@ -283,7 +283,7 @@ SOURCE = _keys("kind", "quest_id", "name", "zone", "level", "req_level", "dungeo
              "materials": _keys("covered", "items", "counts_known"),
              "buy": _keys("copper", "seen_day", "days_ago"), "estimate": _keys("copper", "seen_day", "days_ago"),
              "steps": [_keys("name", "crafts", "from", "to")], "riding": _keys("level", "left_copper"),
-             "learn": _keys("kind", "trainer_skill", "pattern_skill", "pattern_bop")}}
+             "learn": _keys("kind", "trainer_skill", "pattern_skill", "pattern_bop", "via")}}
 
 AH = {**_keys("available", "scan_day", "scan_days_ago", "on_sale", "upgrades_on_sale", "money_copper",
               "cheap_under_copper", "notice"), "mount": _keys("name", "level", "need_copper", "left_copper")}

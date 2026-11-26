@@ -92,9 +92,10 @@ def test_a_boe_craft_can_be_bought_instead():
     assert p["bind_on_pickup"] is False and p["buy"]["copper"] == 45000
     assert "Or buy it: 4g 50s on the auction house (yesterday)." in p["line"]
     assert p["effort"] == crafting.EASY  # listed and affordable
-    # Past 150 the route needs the Expert rank: its price isn't in our data, and it says so.
-    assert [t["max"] for t in p["route"]["train"]] == [225]
-    assert "train rank 3" in p["line"] and "incomplete estimate" in p["line"]
+    # The generic gear record's 190 is this recipe's yellow rank. No verified learning path.
+    assert p["skill"]["need"] is None and p["route"] is None
+    assert "unverified" in p["line"] and "incomplete estimate" in p["line"]
+    assert p["craft_effort"] == crafting.HARD and not p["can_make"]
 
 
 def test_nothing_known_degrades_to_an_estimate_and_the_action():
@@ -206,6 +207,39 @@ def test_trainer_and_pattern_are_distinct_learning_paths():
             assert p["route"] is None and p["action"].startswith(("Learn", "Buy"))
         else:
             assert p["route"]["to"] == 150
+
+
+def test_known_recipe_needs_no_acquisition_and_observed_trainer_beats_gear_rank():
+    src = {"profession": "Blacksmithing", "spell_id": 2662, "skill": 40}
+    w = crafting.Who(ranks={164: 15}, known={164: set()})
+    p = crafting.plan(src, 2852, w)
+    assert p["skill"]["need"] == 15 and p["recipe"]["selected"]["kind"] == "trainer"
+    w.known[164].add(2662)
+    p = crafting.plan(src, 2852, w)
+    assert p["can_make"] and p["skill"]["need"] is None and p["route"] is None
+
+
+def test_recorded_pattern_drop_and_currency_price_remain_separate_from_gold():
+    src = {"profession": "Blacksmithing", "spell_id": 1252250}
+    w = crafting.Who(side="Horde", ranks={164: 250}, known={164: set()})
+    p = crafting.plan(src, None, w)
+    assert p["recipe"]["selected"]["kind"] == "drop" and "Charlga Razorflank" in p["action"]
+    src["spell_id"] = 1252323
+    p = crafting.plan(src, None, w)
+    assert p["recipe"]["selected"]["price"] == "90 Merchant's Favor" and "Gor'mak" in p["action"]
+    assert not p["complete_cost"] and p["pattern_copper"] is None
+    w.side = "Alliance"
+    p = crafting.plan(src, None, w)
+    assert "Gor'mak" not in p["line"] and "Stondry Darkhammer" in p["action"]
+    assert crafting.brief(p)["learn"]["via"] == "foreverdb"
+
+
+def test_trainer_visit_without_a_recorded_rank_does_not_supply_a_gate():
+    w = crafting.Who(ranks={TAILORING: 275}, known={TAILORING: set()})
+    p = crafting.plan({"profession": "Tailoring", "spell_id": 12073, "skill": 245}, None, w)
+    assert p["recipe"]["selected"]["kind"] == "trainer" and p["skill"]["need"] is None
+    assert not p["route"] and p["action"] == "Check the skill requirement at a Tailoring trainer."
+    assert crafting.brief(p)["learn"]["via"] == "foreverdb"
 
 
 def test_only_a_current_finished_listing_can_lower_effort():

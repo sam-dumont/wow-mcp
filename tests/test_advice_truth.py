@@ -173,7 +173,8 @@ def test_the_mcp_gear_tool_scores_off_hands_with_the_main_hand_worn():
 
 def test_no_recipe_list_never_says_make_it_now():
     u, s = craft_src(advise(caster()), SHADOW_CIRCLET)
-    assert s["skill_ok"] and s["known"] is None and not s["can_make"]
+    assert s["skill_ok"] is None and s["known"] is None and not s["can_make"]
+    assert any(g["kind"] == "check_recipe" for g in u["gates"])
     assert "check you know the recipe (no recipe list" in gear.craft_status(s).lower()
     assert "make it" not in gear.craft_status(s).lower()
 
@@ -187,7 +188,7 @@ def test_a_pattern_in_the_bags_is_learnt_first():
     assert s["plan"]["action"] == "Learn Pattern: Shadow Circlet from your bags."
 
 
-def test_an_unknown_recipe_is_a_find_and_the_skill_comes_first():
+def test_a_missing_pattern_has_a_reading_rank_and_no_confirmed_skill_up_route():
     sh = caster(recipes=[{"profession": "Enchanting", "known": [], "seen": 30}])
     u, s = craft_src(advise(sh), MYSTIC_ORB)
     assert s["known"] is False and s["pattern_item_id"] is None and not s["can_make"]
@@ -195,9 +196,9 @@ def test_an_unknown_recipe_is_a_find_and_the_skill_comes_first():
     low = caster(professions=[{"name": "Tailoring", "rank": 90}],
                  recipes=[{"profession": "Tailoring", "known": [], "seen": 40}])
     _, s = craft_src(advise(low), SHADOW_CIRCLET)
-    # The recipe first (where to get it), then the skill-ups on Polestar's route.
     line = gear.craft_status(s)
-    assert line.startswith("You don't have Pattern: Shadow Circlet.") and "10 Tailoring points to go" in line
+    assert line.startswith("You don't have Pattern: Shadow Circlet.") and "Reading the pattern takes Tailoring 100" in line
+    assert s["skill"] is None and not s["plan"]["steps"]
 
 
 def test_known_recipe_and_skill_is_make_it_with_the_materials_priced():

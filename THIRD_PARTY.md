@@ -147,14 +147,11 @@ larger audience, and can build without QuestieDB (`--no-questie`) should that be
 
 ## Profession observations
 
-`data/kb/professions/learning.json` records two reports. Black Slippers requires Tailoring 150 at a trainer.
-Boulderfist Magus was reported to drop the Twisted Nether Wand formula. That drop is unverified on the
-current client build. Each row links its issue and the external reference cited there.
-[Black Slippers report](https://github.com/sam-dumont/wow-mcp/issues/283) ·
-[Wand formula report](https://github.com/sam-dumont/wow-mcp/issues/281)
+The [learning evidence](data/kb/professions/learning.json) ships selected spell ranks, pattern drops and vendor offers from EG Link's player captures. Each record links the source file at commit `f25e0efde0c8490e4e6f356a68f7a81a703fa21c`. Data from Efficient Games (https://efficient.games), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). [EG Link output for Forever](https://github.com/JIVESCORP/eg-link-output-wowf)
 
-Other trainer requirements come from Polestar's profession guide. The offline recipe audit can compare
-those requirements with a locally installed ForeverLevelingBiS table.
+Four trainer sightings, additional pattern drops and the Alliance Merchant's Favor price come from ForeverDB's GPL-3.0 addon data. The evidence file retains the notice line, snapshot version, full SHA-256 and URL for each input. See the [shipped notice](data/foreverdb/NOTICE.txt). [Data from ForeverDB.net](https://foreverdb.net)
+
+Polestar's guide supplies other trainer ranks. The original Black Slippers report and the reported Boulderfist Magus drop for the Twisted Nether Wand formula remain linked from their records. The [per-spell audit](docs/recipe-acquisition-audit.md) covers all 119 differences from the offline comparison with an installed ForeverLevelingBiS table. [Black Slippers report](https://github.com/sam-dumont/wow-mcp/issues/283) · [Wand formula report](https://github.com/sam-dumont/wow-mcp/issues/281)
 
 ## wow.export
 

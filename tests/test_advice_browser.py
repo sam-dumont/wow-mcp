@@ -155,33 +155,27 @@ def test_slot_click_opens_the_comparison(site, pw, engine, width):
         b.close()
 
 
-def crafted_gated(gear: dict) -> dict:
-    """A slot's next piece gated by both a level and a crafting skill (Icy
-    Cloak until the #208 regen, Black Handwraps after it): taken from the
-    fixture, so a regenerated answer keeps the test on the same shape."""
-    return next(s["next"] for s in gear["slots"]
-                if s.get("next") and sorted(g["kind"] for g in s["next"]["gates"]) == ["level", "skill"])
-
-
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])
 def test_a_crafted_piece_shows_its_real_gate(site, pw, engine):
     url, gear = site
-    item = crafted_gated(gear)
-    lv = next(g for g in item["gates"] if g["kind"] == "level")
-    sk = next(g for g in item["gates"] if g["kind"] == "skill")
+    slippers = next(u for u in gear["upgrades"] if u["name"] == "Black Slippers")
+    sk = next(g for g in slippers["gates"] if g["kind"] == "skill")
+    assert sk["need"] == 150
     b, pg, _ = open_page(pw, engine, url, 1920)
     try:
         pg.locator("#advice .order button", has_text="By where you get it").click()
         pg.evaluate("() => document.querySelectorAll('#advice details').forEach((d) => { d.open = true; })")
-        row = pg.locator("#advice .cand", has_text=item["name"])
+        row = pg.locator("#advice .cand", has_text=slippers["name"])
         assert row.count() == 1
         pill = row.locator(".pill:not(.effort)")
-        assert pill.inner_text() == f"Level {lv['need']} + {sk['profession']} {sk['need']}"
+        assert pill.inner_text() == "Tailoring 150"
         # The skill the fixture seeds moves with the generated data (105, then 109
         # after the Polestar 0.4.2.1 regen): the title must agree with itself.
         m = re.search(rf"{sk['profession']} reaches {sk['need']} \(you have (\d+), (\d+) to go\)", pill.get_attribute("title"))
         assert m, pill.get_attribute("title")
         assert 0 < int(m[1]) < sk["need"] and int(m[1]) + int(m[2]) == sk["need"]
+        handwraps = pg.locator("#advice .cand", has_text="Black Handwraps")
+        assert handwraps.locator(".pill:not(.effort)").inner_text() == "Level 35 + Check recipe"
     finally:
         b.close()
 
@@ -236,7 +230,7 @@ def test_each_upgrade_says_who_it_is_built_for(site, pw, engine, scheme):
         pg.locator("#advice details.upmore").evaluate_all("els => els.forEach(e => e.open = true)")
         rows = pg.locator("#advice li.cand")
         assert rows.count() and rows.count() == pg.locator("#advice li.cand .fit").count()
-        shroud = pg.locator("#advice li.cand", has_text=off["name"]).first
+        shroud = pg.locator(f"#advice li.cand[data-up='{off['slot']}-{off['item_id']}']").first
         line = shroud.locator(".fit").inner_text()
         assert line.startswith("Not made for your spec. Fine while levelling") and "don't roll Need" in line, line
         assert pg.locator("#advice li.cand .fit.yes", has_text="Built for your spec").count() >= 10

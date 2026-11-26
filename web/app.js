@@ -1309,22 +1309,27 @@ const wh = (kind, id, text, cls) => window.wowLink(kind, id, text, cls);
 // What stands between the character and an item (wowstats/gear.py gates):
 // the level, the profession's skill; "buy" (a crafter or the AH) is not a
 // wait. An older answer without gates: its level.
+function professionRank(profession, rank) {
+  return rank == null ? profession : `${profession} ${rank}`;
+}
+
 function feasible(u, level) {
   const gates = u.gates || (u.now ? [] : [{ kind: 'level', need: u.level, have: level }]);
   const lv = gates.find((g) => g.kind === 'level');
   const sk = gates.find((g) => g.kind === 'skill');
   const buy = gates.find((g) => g.kind === 'buy');
   // The recipe: a pattern in the bags to learn, or one still to find.
-  const rc = gates.find((g) => ['trainer_recipe', 'learn', 'recipe'].includes(g.kind));
-  const labels = { trainer_recipe: 'Visit trainer', learn: 'Learn pattern', recipe: 'Recipe needed' };
+  const rc = gates.find((g) => ['trainer_recipe', 'learn', 'recipe', 'check_recipe'].includes(g.kind));
+  const labels = { trainer_recipe: 'Visit trainer', learn: 'Learn pattern', recipe: 'Recipe needed', check_recipe: 'Check recipe' };
   if (!lv && !sk && !rc) {
-    return { now: true, text: 'Now', title: buy ? `Made by ${buy.profession} ${buy.need}: buy it from a crafter or the auction house.` : 'You can get and wear it now.' };
+    return { now: true, text: 'Now', title: buy ? `Made by ${professionRank(buy.profession, buy.need)}: buy it from a crafter or the auction house.` : 'You can get and wear it now.' };
   }
-  const text = [lv ? `Level ${lv.need}` : null, sk ? `${sk.profession} ${sk.need}` : null,
+  const text = [lv ? `Level ${lv.need}` : null, sk ? professionRank(sk.profession, sk.need) : null,
     rc ? labels[rc.kind] : null].filter(Boolean).join(' + ');
   const when = [lv ? `at level ${lv.need}` : null,
-    sk ? (sk.have == null ? `once you have ${sk.profession} ${sk.need}` : `once ${sk.profession} reaches ${sk.need} (you have ${sk.have}, ${sk.need - sk.have} to go)`) : null,
-    rc ? (rc.kind === 'trainer_recipe' ? 'once a trainer teaches you the recipe' : rc.kind === 'learn' ? 'once you learn your pattern' : `once you find and learn its ${rc.profession} recipe`) : null].filter(Boolean);
+    sk ? (sk.have == null ? `once you have ${professionRank(sk.profession, sk.need)}` : `once ${sk.profession} reaches ${sk.need} (you have ${sk.have}, ${sk.need - sk.have} to go)`) : null,
+    rc ? ({ trainer_recipe: 'once a trainer teaches you the recipe', learn: 'once you learn your pattern',
+      check_recipe: 'once you confirm you know the recipe', recipe: `once you find and learn its ${rc.profession} recipe` })[rc.kind] : null].filter(Boolean);
   return { now: false, text, title: `Opens ${when.join(', ')}.`, level: lv && lv.need, skill: sk };
 }
 function feasEl(u, level) {
@@ -1403,10 +1408,12 @@ function craftStatus(sr) {
 // link wherever the data shows (GPL-3.0 section 7(b)).
 const SOURCE_CREDIT = { text: 'Source: ForeverDB.net', url: 'https://foreverdb.net' };
 function basisEl(sr) {
-  if (['polestar-recording', 'eg-link', 'reviewed-loot'].includes(sr.via) && !sr.placement) {
-    return h('span', { class: 'sub basis', text: ` (${sr.basis})` });
+  if (![sr.via, sr.placement, sr.plan?.learn?.via].includes('foreverdb')) {
+    if (['polestar-recording', 'eg-link', 'reviewed-loot'].includes(sr.via) && !sr.placement) {
+      return h('span', { class: 'sub basis', text: ` (${sr.basis})` });
+    }
+    return null;
   }
-  if (sr.via !== 'foreverdb' && sr.placement !== 'foreverdb') return null;
   return h('span', { class: 'sub basis' }, sr.basis ? ` (${sr.basis}) · ` : ' · ',
     h('a', { href: SOURCE_CREDIT.url, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer', text: SOURCE_CREDIT.text }));
 }
@@ -1422,7 +1429,7 @@ function craftPlan(sr) {
   const quote = buy || historical, steps = p.steps || [], missing = (p.unpriced || []).join(', ');
   const learn = p.learn || {};
   return h('div', { class: 'craftplan' },
-    h('strong', {}, 'Craft ', wh('spell', sr.spell_id, sr.profession + ' ' + sr.skill)),
+    h('strong', {}, 'Craft ', wh('spell', sr.spell_id, professionRank(sr.profession, sr.skill))),
     p.blocker ? h('span', { text: p.blocker }) : null,
     h('b', { text: p.action }),
     h('span', { text: (p.cost_complete ? 'Estimated cost ' : 'Priced part ') + priceText(p.craft_copper) +
@@ -1506,9 +1513,9 @@ function sourceEl(sr, level, ah) {
     const own = craftStatus(sr);
     if (sr.plan && sr.plan.line) {
       // The plan says the auction house price itself (craft or buy).
-      return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, `${sr.profession} ${sr.skill}`), `: ${own}`, basisEl(sr));
+      return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, professionRank(sr.profession, sr.skill)), `: ${own}`, basisEl(sr));
     }
-    return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, `${sr.profession} ${sr.skill}`), ` (${own})`,
+    return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, professionRank(sr.profession, sr.skill)), ` (${own})`,
       ah ? h('span', {}, ', or ', h('b', { class: 'ahprice', text: priceText(ah.price_copper) }), ' on the Auction House') : '', basisEl(sr));
   }
   return h('span', { class: 'src', text: '?' });

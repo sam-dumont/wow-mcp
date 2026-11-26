@@ -129,7 +129,8 @@ def _crafted_gear(ctx: T.Ctx, char: str, g: dict, line: int, rank: int, target: 
     out, seen = [], set()
     for u in sorted(a.get("upgrades_all") or a.get("upgrades") or [], key=lambda u: -(u.get("gain") or 0)):
         src = next((s for s in u.get("sources") or [] if s["kind"] == "craft"
-                    and crafting.line_of(s.get("profession")) == line and (s.get("skill") or 0) <= target), None)
+                    and crafting.line_of(s.get("profession")) == line
+                    and (s.get("can_make") or (s.get("skill") is not None and s["skill"] <= target))), None)
         if not src or u["item_id"] in seen:
             continue
         seen.add(u["item_id"])
@@ -140,6 +141,8 @@ def _crafted_gear(ctx: T.Ctx, char: str, g: dict, line: int, rank: int, target: 
                     "effort": gearmod.EFFORT[p["effort"]] if p.get("effort") is not None else None,
                     "craft_copper": p.get("craft_copper"), "buy_copper": p.get("buy_copper"),
                     "bind_on_pickup": p.get("bind_on_pickup")})
+        if (p.get("learn") or {}).get("via") == "foreverdb":
+            out[-1]["via"] = "foreverdb"
         if len(out) >= MAX_GEAR:
             break
     return out
