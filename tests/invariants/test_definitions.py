@@ -200,13 +200,42 @@ def test_the_manifest_holds_the_resolved_scoring(rows, knowledge):
 
     def scoring(env):
         ref = route.reference()
-        db = prep.build([dict(r) for r in rows], CHAR, ref, advice=analysis.advice_for(rows, CHAR, env))
-        return manifest.build(db, rows, knowledge, ref, scoring=analysis.scoring_for(rows, CHAR, env))["settings"]
+        advice = analysis.advice_for(rows, CHAR, env)
+        db = prep.build([dict(r) for r in rows], CHAR, ref, advice=advice)
+        return manifest.build(db, rows, knowledge, ref, scoring=analysis.scoring_for(advice))["settings"]
 
     picked = scoring({})  # the fixture's add-on picked Shadow
     assert picked["scoring"]["spec"] == "shadow"
     assert scoring({"WEIGHTS": f"{CHAR}:Shadow"}) == picked
     assert scoring(HOLY)["scoring"]["spec"] == "holy"
+
+
+def test_scored_findings_track_effective_pvp_and_the_independent_gear_releases(rows, tmp_path, monkeypatch):
+    from wowstats import dataversions, gearmode
+
+    env = {"ANALYSIS_STATE_DIR": str(tmp_path)}
+    before = analysis.advice_for(rows, CHAR, env)
+    gearmode.save_pvp(env, CHAR, True)
+    after = analysis.advice_for(rows, CHAR, env)
+    assert len(after["upgrades_all"]) > len(before["upgrades_all"])
+
+    def build(advice):
+        return {"settings": {"scoring": analysis.scoring_for(advice)}, "reference": {},
+                "prep_version": prep.PREP_VERSION, "semantic_hash": manifest.semantic_hash()}
+
+    base, pvp = build(before), build(after)
+    scored = upgrades_finding(1)
+    assert manifest.changed(base, pvp, scored) == ["scoring pvp_rewards False -> True"]
+    assert manifest.changed(base, pvp, finding()) == []
+    del base["settings"]["scoring"]["pvp_rewards"]
+    assert manifest.changed(base, pvp, scored) == ["scoring pvp_rewards None -> True"]
+    versions = dataversions.versions()
+    for key, label in (("data_version", "item_sources"), ("weights_data_version", "weights")):
+        revision = {**versions, "foreverdb": {**versions["foreverdb"], key: "next"}}
+        monkeypatch.setattr(dataversions, "versions", lambda revision=revision: revision)
+        updated = build(after)
+        assert manifest.changed(pvp, updated, scored) == [f"scoring {label} {versions['foreverdb'][key]} -> next"]
+        assert manifest.changed(pvp, updated, finding()) == []
 
 
 @pytest.mark.parametrize("what", ["prep", "semantic", "settings"])
