@@ -95,6 +95,7 @@ UPSTREAMS = {
     "devtrackers.gg", "boostroom.com", "wowforevertalents.com", "wowisclassic.com", "pcgames.de", "engadget.com",
     "mobalytics.gg", "kotaku.com", "dotesports.com", "reddit.com", "ezg.com", "seemeta.com", "efficient.games",
     "judgehype.com",  # corroboration only (data/kb/sources.json)
+    "forever.chronicleclassic.com",  # Public combat reports cited by the rogue guide.
     # Public sightings and quest references cited by the item-by-item acquisition audits.
     "foreverchanges.pro", "questing.wiki", "azeroth.wiki",
     # Gear tables the fit model is checked against (tests/data/gearfit-refs.json:

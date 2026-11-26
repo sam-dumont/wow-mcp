@@ -26,7 +26,7 @@ spawns, GPL-2.0, used as facts); nothing here comes from a website.
 
 Python and Lua, the same file byte for byte on every run:
 
-    git clone --depth 1 --branch v0.4.3 https://github.com/fitzforge/polestar /tmp/polestar
+    git clone --depth 1 --branch v0.4.3.1 https://github.com/fitzforge/polestar /tmp/polestar
     uv run python tools/trainers/export.py --polestar /tmp/polestar
 """
 

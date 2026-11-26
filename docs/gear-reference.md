@@ -403,7 +403,7 @@ it goes next to ForeverDB in the file and here.
 Under 3 seconds, the same file byte for byte on every run:
 
 ```sh
-git clone --depth 1 --branch v0.4.3 https://github.com/fitzforge/polestar /tmp/polestar
+git clone --depth 1 --branch v0.4.3.1 https://github.com/fitzforge/polestar /tmp/polestar
 node tools/gear_reference/export.mjs --polestar /tmp/polestar
 ```
 

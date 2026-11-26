@@ -2,8 +2,8 @@
  "schema": 1,
  "source": {
   "polestar": {
-   "tag": "v0.4.3",
-   "commit": "3cf9e32bb38b8d73164acea249039d010e03d2c5",
+   "tag": "v0.4.3.1",
+   "commit": "efccd3c027327537746819a6e60ec689ca2e6a71",
    "licence": "GPL-3.0",
    "files": [
     "addon/Polestar/Core/ClassTrainers.lua",

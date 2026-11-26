@@ -271,11 +271,11 @@
    },
    {
     "level": 44,
-    "t": "2026-11-15T19:58:31.000Z"
+    "t": "2026-11-15T19:25:51.600Z"
    },
    {
     "level": 45,
-    "t": "2026-11-15T20:57:39.800Z"
+    "t": "2026-11-15T20:56:36.300Z"
    },
    {
     "level": 46,
@@ -452,7 +452,7 @@
     },
     {
      "level": null,
-     "t": "2026-11-15T19:10:54.500Z",
+     "t": "2026-11-15T19:11:10.100Z",
      "zone": "Feralas"
     },
     {
@@ -711,15 +711,15 @@
    "total_s": 5270
   },
   "header": {
-   "avg_level_s": 7112,
+   "avg_level_s": 7111,
    "avg_levels": 5,
    "char": "Nibbet-Gearholt",
    "class": "Priest",
    "counts": {
     "completed_levels": {
      "from_level": 22,
-     "kills": 2211,
-     "quests": 156,
+     "kills": 2215,
+     "quests": 155,
      "to_level": 45
     },
     "current_level": {
@@ -728,11 +728,11 @@
      "quests": 5
     },
     "including_current_level": {
-     "kills": 2320,
-     "quests": 161
+     "kills": 2324,
+     "quests": 160
     }
    },
-   "eta_s": 6308,
+   "eta_s": 6307,
    "faction": "Alliance",
    "first_level": 22,
    "first_partial": true,
@@ -741,9 +741,9 @@
    "guild_known": false,
    "level": 46,
    "money_at": "2026-11-18T20:50:14.900Z",
-   "money_copper": 231452,
+   "money_copper": 226833,
    "name": "Nibbet",
-   "played_s": 226462,
+   "played_s": 226461,
    "polestar": true,
    "race": "Gnome",
    "rested_xp": 5306,
@@ -756,7 +756,7 @@
    "title": "Priest",
    "xp": 45000,
    "xp_max": 123200,
-   "xp_per_hour": 44629,
+   "xp_per_hour": 44631,
    "zone": "Stormwind City"
   },
   "legacy": {
@@ -983,7 +983,7 @@
     "level": 41,
     "partial": false,
     "quests": 1,
-    "route_s": 5067,
+    "route_s": 5083,
     "seconds": 3552,
     "xp": 95800,
     "xp_per_hour": 97095
@@ -1000,37 +1000,37 @@
     "xp_per_hour": 73648
    },
    {
-    "at": "2026-11-15T19:58:31.000Z",
+    "at": "2026-11-15T19:25:51.600Z",
     "kills": 74,
     "level": 43,
     "partial": false,
     "quests": 4,
     "route_s": 15101,
-    "seconds": 11200,
+    "seconds": 9240,
     "xp": 106300,
-    "xp_per_hour": 34168
+    "xp_per_hour": 41416
    },
    {
-    "at": "2026-11-15T20:57:39.800Z",
-    "kills": 53,
+    "at": "2026-11-15T20:56:36.300Z",
+    "kills": 56,
     "level": 44,
     "partial": false,
-    "quests": 2,
+    "quests": 1,
     "route_s": 5233,
-    "seconds": 3549,
+    "seconds": 5445,
     "xp": 111800,
-    "xp_per_hour": 113407
+    "xp_per_hour": 73917
    },
    {
     "at": "2026-11-17T18:51:07.700Z",
-    "kills": 140,
+    "kills": 141,
     "level": 45,
     "partial": false,
     "quests": 3,
-    "route_s": 9799,
-    "seconds": 12322,
+    "route_s": 9921,
+    "seconds": 12385,
     "xp": 117500,
-    "xp_per_hour": 34329
+    "xp_per_hour": 34154
    }
   ],
   "meta": {
@@ -1544,7 +1544,7 @@
    ],
    "total": 15
   },
-  "route_source": "Polestar 0.4.3 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
+  "route_source": "Polestar 0.4.3.1 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
   "sources": {
    "archive": "off",
    "archive_after_days": 89
@@ -1830,7 +1830,7 @@
      "guide": "forever/alliance/40-50/03-feralas",
      "guide_title": "Feralas",
      "n": 1,
-     "secs": 2153,
+     "secs": 2158,
      "step": 21,
      "title": "Jer'kai Moonweaver",
      "zone": null
@@ -2289,16 +2289,16 @@
     "dings": [
      {
       "level": 44,
-      "t": "2026-11-15T19:58:31.000Z"
+      "t": "2026-11-15T19:25:51.600Z"
      },
      {
       "level": 45,
-      "t": "2026-11-15T20:57:39.800Z"
+      "t": "2026-11-15T20:56:36.300Z"
      }
     ],
     "dungeons": [],
     "end": "2026-11-15T21:07:42Z",
-    "gold_delta_copper": 12638,
+    "gold_delta_copper": 8019,
     "level_end": 45,
     "level_start": 43,
     "levels_gained": 2,
@@ -2320,14 +2320,14 @@
       "level": 45,
       "name": "Find OOX-22/FE!",
       "quest_id": 2766,
-      "t": "2026-11-15T18:30:45.000Z",
+      "t": "2026-11-15T18:30:47.800Z",
       "zone": "Feralas"
      },
      {
       "level": 45,
       "name": "Rescue OOX-22/FE!",
       "quest_id": 2767,
-      "t": "2026-11-15T18:44:51.500Z",
+      "t": "2026-11-15T18:44:56.400Z",
       "zone": "Feralas"
      },
      {
@@ -2338,21 +2338,14 @@
        2
       ],
       "quest_id": 3130,
-      "t": "2026-11-15T19:14:55.200Z",
-      "zone": "Feralas"
-     },
-     {
-      "level": 45,
-      "name": "Against Lord Shalzaru",
-      "quest_id": 2870,
-      "t": "2026-11-15T20:01:02.600Z",
+      "t": "2026-11-15T19:15:10.800Z",
       "zone": "Feralas"
      },
      {
       "level": 44,
       "name": "The Knife Revealed",
       "quest_id": 4129,
-      "t": "2026-11-15T20:54:33.400Z",
+      "t": "2026-11-15T19:59:10.600Z",
       "zone": "Feralas"
      }
     ],
@@ -5377,7 +5370,7 @@
     },
     "level": 43,
     "level_gap": -2,
-    "t": "2026-11-15T19:10:54.500Z",
+    "t": "2026-11-15T19:11:10.100Z",
     "zone": "Feralas"
    },
    {
@@ -5679,20 +5672,20 @@
      "zone": null
     }
    ],
-   "over_plan_s": 34112,
+   "over_plan_s": 34117,
    "skipped": 0,
    "total": 478
   },
   "header": {
-   "avg_level_s": 7112,
+   "avg_level_s": 7111,
    "avg_levels": 5,
    "char": "Nibbet-Gearholt",
    "class": "Priest",
    "counts": {
     "completed_levels": {
      "from_level": 22,
-     "kills": 2211,
-     "quests": 156,
+     "kills": 2215,
+     "quests": 155,
      "to_level": 45
     },
     "current_level": {
@@ -5701,11 +5694,11 @@
      "quests": 5
     },
     "including_current_level": {
-     "kills": 2320,
-     "quests": 161
+     "kills": 2324,
+     "quests": 160
     }
    },
-   "eta_s": 6308,
+   "eta_s": 6307,
    "faction": "Alliance",
    "first_level": 22,
    "first_partial": true,
@@ -5714,9 +5707,9 @@
    "guild_known": false,
    "level": 46,
    "money_at": "2026-11-18T20:50:14.900Z",
-   "money_copper": 231452,
+   "money_copper": 226833,
    "name": "Nibbet",
-   "played_s": 226462,
+   "played_s": 226461,
    "polestar": true,
    "race": "Gnome",
    "rested_xp": 5306,
@@ -5729,7 +5722,7 @@
    "title": "Priest",
    "xp": 45000,
    "xp_max": 123200,
-   "xp_per_hour": 44629,
+   "xp_per_hour": 44631,
    "zone": "Stormwind City"
   },
   "levels_seen": 24,
@@ -5760,34 +5753,34 @@
     {
      "cite": "wow-level splits vs data/route-reference.json",
      "link": "#levels",
-     "text": "The last 5 levels (levels 41-45) took 9h 52m; Polestar's route plans 13h 47m for them (0.7×)."
+     "text": "The last 5 levels (levels 41-45) took 9h 52m; Polestar's route plans 13h 49m for them (0.7×)."
     },
     {
      "cite": "wow-level splits",
-     "detail": "3h 25m, against a median of 1h 22m over the 5 levels before.",
+     "detail": "3h 26m, against a median of 1h 30m over the 5 levels before.",
      "kind": "slow_level",
      "link": "#levels",
-     "text": "Level 45 took 3h 25m, slower than your median of the 5 before (1h 22m).",
+     "text": "Level 45 took 3h 26m, slower than your median of the 5 before (1h 30m).",
      "title": "Level 45 went slower than your own pace"
     },
     {
      "cite": "XP left / XP an hour, last 3 levels",
      "kind": "eta",
      "link": "#levels",
-     "text": "Level 47 in about 1h 45m of play at your recent pace (44,629 XP an hour)."
+     "text": "Level 47 in about 1h 45m of play at your recent pace (44,631 XP an hour)."
     },
     {
      "cite": "Polestar_Recorder logged-in time since the ding",
      "link": "#levels",
-     "text": "2h 28m played at level 46 so far, 37% of the way; the route plans 2h 30m for the whole level."
+     "text": "2h 28m played at level 46 so far, 37% of the way; the route plans 2h 28m for the whole level."
     }
    ],
-   "eta_s": 6308,
+   "eta_s": 6307,
    "last_level": 45,
-   "last_s": 12322,
+   "last_s": 12385,
    "level_played_s": 8903,
-   "own_median_s": 4937,
-   "own_ratio": 2.5,
+   "own_median_s": 5445,
+   "own_ratio": 2.27,
    "per_level": [
     {
      "level": 36,
@@ -5816,7 +5809,7 @@
     },
     {
      "level": 41,
-     "route_s": 5067,
+     "route_s": 5083,
      "seconds": 3552
     },
     {
@@ -5827,20 +5820,20 @@
     {
      "level": 43,
      "route_s": 15101,
-     "seconds": 11200
+     "seconds": 9240
     },
     {
      "level": 44,
      "route_s": 5233,
-     "seconds": 3549
+     "seconds": 5445
     },
     {
      "level": 45,
-     "route_s": 9799,
-     "seconds": 12322
+     "route_s": 9921,
+     "seconds": 12385
     }
    ],
-   "played_s": 35560,
+   "played_s": 35559,
    "route_levels": [
     41,
     42,
@@ -5848,12 +5841,12 @@
     44,
     45
    ],
-   "route_ratio": 0.72,
-   "route_s": 49640,
+   "route_ratio": 0.71,
+   "route_s": 49778,
    "verdict": "on track"
   },
   "roster_note": "Who was in the group comes from ForeverDB_Helper (optional, from ForeverDB.net), whose journal names each groupmate once a day, and from the combat log when it was on. Without either, no addon the kit reads saves names: Polestar_Recorder keeps the party size, Polestar's instance runs the dungeon and the time. \"N of M names known\": the Recorder counted more players than were named.",
-  "route_source": "Polestar 0.4.3 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
+  "route_source": "Polestar 0.4.3.1 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
   "runs": [
    {
     "bosses": 7,
@@ -6373,10 +6366,10 @@
     },
     {
      "cite": "wow-level splits",
-     "detail": "3h 25m, against a median of 1h 22m over the 5 levels before.",
+     "detail": "3h 26m, against a median of 1h 30m over the 5 levels before.",
      "kind": "slow_level",
      "link": "#levels",
-     "text": "Level 45 took 3h 25m, slower than your median of the 5 before (1h 22m).",
+     "text": "Level 45 took 3h 26m, slower than your median of the 5 before (1h 30m).",
      "title": "Level 45 went slower than your own pace",
      "weight": 1
     }
@@ -7986,7 +7979,7 @@
    46
   ],
   "partial_time": false,
-  "route_s": 5067,
+  "route_s": 5083,
   "seconds": 3552,
   "to": "2026-11-13T16:00:44Z",
   "zones": [
@@ -8071,7 +8064,7 @@
   "char": "Nibbet-Gearholt",
   "counts": {
    "kill": 75,
-   "loot": 50,
+   "loot": 48,
    "turnin": 4
   },
   "deaths": [
@@ -8108,7 +8101,7 @@
     },
     "level": 43,
     "level_gap": -2,
-    "t": "2026-11-15T19:10:54.500Z",
+    "t": "2026-11-15T19:11:10.100Z",
     "zone": "Feralas"
    }
   ],
@@ -8145,11 +8138,11 @@
   ],
   "partial_time": false,
   "route_s": 15101,
-  "seconds": 11200,
-  "to": "2026-11-15T19:58:31Z",
+  "seconds": 9240,
+  "to": "2026-11-15T19:25:51Z",
   "zones": [
    {
-    "secs": 6669,
+    "secs": 4710,
     "zone": "Feralas"
    },
    {
@@ -8178,12 +8171,12 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 54,
-   "loot": 38,
-   "turnin": 2
+   "kill": 57,
+   "loot": 40,
+   "turnin": 1
   },
   "deaths": [],
-  "from": "2026-11-15T19:58:31Z",
+  "from": "2026-11-15T19:25:51Z",
   "gear_at": "2026-11-14T18:53:14.900Z",
   "gear_partial": false,
   "level": 44,
@@ -8216,11 +8209,11 @@
   ],
   "partial_time": false,
   "route_s": 5233,
-  "seconds": 3549,
-  "to": "2026-11-15T20:57:39Z",
+  "seconds": 5445,
+  "to": "2026-11-15T20:56:36Z",
   "zones": [
    {
-    "secs": 3266,
+    "secs": 5396,
     "zone": "Feralas"
    }
   ]
@@ -8229,12 +8222,12 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 141,
-   "loot": 91,
+   "kill": 142,
+   "loot": 92,
    "turnin": 3
   },
   "deaths": [],
-  "from": "2026-11-15T20:57:39Z",
+  "from": "2026-11-15T20:56:36Z",
   "gear_at": "2026-11-16T20:14:11.600Z",
   "gear_partial": false,
   "level": 45,
@@ -8266,8 +8259,8 @@
    46
   ],
   "partial_time": false,
-  "route_s": 9799,
-  "seconds": 12322,
+  "route_s": 9921,
+  "seconds": 12385,
   "to": "2026-11-17T18:51:07Z",
   "zones": [
    {
@@ -8374,7 +8367,7 @@
    46
   ],
   "partial_time": false,
-  "route_s": 9058,
+  "route_s": 8902,
   "seconds": 8903,
   "so_far": true,
   "to": null,
@@ -8467,19 +8460,19 @@
    },
    {
     "link": "#levels",
-    "t": "2026-11-15T20:57:39.800Z",
+    "t": "2026-11-15T20:56:36.300Z",
     "text": "Level 45",
     "type": "level"
    },
    {
     "link": "#levels",
-    "t": "2026-11-15T19:58:31.000Z",
+    "t": "2026-11-15T19:25:51.600Z",
     "text": "Level 44",
     "type": "level"
    },
    {
     "link": "#deaths",
-    "t": "2026-11-15T19:10:54.500Z",
+    "t": "2026-11-15T19:11:10.100Z",
     "text": "Died in Feralas, likely to Gordunni Ogre",
     "type": "death"
    },
@@ -9439,7 +9432,7 @@
    "first_partial": true,
    "level": 46,
    "name": "Nibbet",
-   "played_s": 226462,
+   "played_s": 226461,
    "played_total_s": null,
    "polestar": true,
    "race": "Gnome",
@@ -9574,7 +9567,7 @@
    {
     "level": 41,
     "partial": false,
-    "route_s": 5067,
+    "route_s": 5083,
     "seconds": 3552
    },
    {
@@ -9587,22 +9580,22 @@
     "level": 43,
     "partial": false,
     "route_s": 15101,
-    "seconds": 11200
+    "seconds": 9240
    },
    {
     "level": 44,
     "partial": false,
     "route_s": 5233,
-    "seconds": 3549
+    "seconds": 5445
    },
    {
     "level": 45,
     "partial": false,
-    "route_s": 9799,
-    "seconds": 12322
+    "route_s": 9921,
+    "seconds": 12385
    }
   ],
-  "route_source": "Polestar 0.4.3 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
+  "route_source": "Polestar 0.4.3.1 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
   "spec": {
    "name": null,
    "points": [],

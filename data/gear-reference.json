@@ -1,10 +1,10 @@
 {
  "schema": 1,
- "source": "Polestar 0.4.3 gear data (addon/Polestar/Gear, addon/Polestar_ItemDB), read by its own ItemDB.lua",
+ "source": "Polestar 0.4.3.1 gear data (addon/Polestar/Gear, addon/Polestar_ItemDB), read by its own ItemDB.lua",
  "polestar": {
-  "version": "0.4.3",
-  "tag": "v0.4.3",
-  "commit": "3cf9e32bb38b8d73164acea249039d010e03d2c5",
+  "version": "0.4.3.1",
+  "tag": "v0.4.3.1",
+  "commit": "efccd3c027327537746819a6e60ec689ca2e6a71",
   "license": "GPL-3.0-only"
  },
  "item_stats": {

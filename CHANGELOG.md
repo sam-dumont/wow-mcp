@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- The Climb uses Polestar 0.4.3.1 for all 90 race and class routes. Tailoring now starts Black Mageweave Headband at 200. A tailor with an Expert cap of 225 only needs Artisan when planning past 225.
+- The rogue guide now cites a November 26 Blackrock Spire kill. On Gizrul the Slavener, the same rogue’s normal Sinister Strikes averaged 31% more damage with Expose Armor active.
 - The daily KB watch run failed every day since 2026-11-23: it minted the App's token once per job, and by the time it pushed or wrote the issues, after an hour or more of gates, the token had expired (an installation token lasts an hour). The rebase and its gates now run before the token is minted, and each step that writes gets a fresh one. The jobs' time limits follow the gates' real length too: the suite takes about 50 minutes in one job, and the 75-minute limit cancelled the 2026-11-26 run during its gates.
 - The Climb shows Polestar's planned time beside the recorded time on the owner, friends and public dashboards. The friends export uses the owner's saved gear settings. A late level record rebuilds the published chart even when the newest event hasn't changed.
 - Switching characters drops late replies for the one you left. The friends dashboard shows the published spec, gear estimates and requirement status. Both static dashboards respect the 3D setting for current and historical equipment.
