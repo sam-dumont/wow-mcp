@@ -53,10 +53,21 @@
 
   const cards = new Map();
   let bundleCards = null;
+  async function readCards(url) {
+    // A reset can lose a whole batch, including the only names for worn
+    // items. getJSON returns null if the response body was cut short.
+    try {
+      const data = await window.wowGetJSON(url);
+      if (data) return data;  // an empty items list is a complete answer
+    } catch (e) {
+      if (!(e instanceof TypeError) && !(e.status >= 500)) throw e;
+    }
+    return window.wowGetJSON(url);
+  }
   async function loadCards(ids) {
     if (STATIC) {
       if (!bundleCards) {
-        bundleCards = window.wowGetJSON(window.wowApi('items'))
+        bundleCards = readCards(window.wowApi('items'))
           .then((d) => { for (const c of d.items || []) cards.set(c.id, c); })
           .catch(() => {});
       }
@@ -64,7 +75,7 @@
     }
     for (let k = 0; k < ids.length; k += 200) {
       try {
-        const d = await window.wowGetJSON('/api/items?ids=' + ids.slice(k, k + 200).join(','));
+        const d = await readCards('/api/items?ids=' + ids.slice(k, k + 200).join(','));
         for (const c of d.items || []) cards.set(c.id, c);
       } catch (e) { /* no catalog: glyphs and plain names stay */ }
     }
@@ -79,11 +90,12 @@
     const p = new Promise((res) => queue.push([id, res]));
     asked.set(id, p);
     if (queue.length === 1) {
-      setTimeout(() => {
+      // Start the lookup before the page's next task can mark it drawn.
+      queueMicrotask(() => {
         const batch = queue;
         queue = [];
         loadCards(batch.map(([i]) => i)).finally(() => batch.forEach(([i, res]) => res(cards.get(i) || null)));
-      }, 0);
+      });
     }
     return p;
   }

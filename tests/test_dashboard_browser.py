@@ -5,6 +5,7 @@ import re
 import threading
 from contextlib import ExitStack
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -119,7 +120,18 @@ def test_same_climb_and_gear_from_live_public_and_sealed(dashboards, browser, wi
             errors = []
             page.on("request", lambda r: paths.append(urlsplit(r.url).path))
             page.on("pageerror", lambda e: errors.append(str(e)))
-            open_char(page, dashboards, tier)
+            # The shirt and tabard are named only by the catalog. Interrupt
+            # the worn-item batch or the tier's bundle once during first paint.
+            if tier == "owner":
+                items = re.compile(r"/api/items\?ids=[\d,]*\b2576\b")
+            else:
+                rel = publish.data_path("items")
+                if tier == "friends":
+                    rel = publish.sealed_name(publish.unb64u(dashboards["key"]), rel)
+                items = dashboards[tier] + rel
+            page.route(items, lambda route: route.abort("connectionreset"), times=1)
+            with page.expect_request(items, timeout=90000):
+                open_char(page, dashboards, tier)
             chart = page.locator("#levels .climb")
             chart.locator("path.line").wait_for(state="attached")
             character_sources = page.locator("#foot-status details")
@@ -138,6 +150,7 @@ def test_same_climb_and_gear_from_live_public_and_sealed(dashboards, browser, wi
             assert "Dashed" in chart.locator(".routekey").inner_text()
             worn = page.locator("#gear li.slot:has(.slotitm) .iname").all_text_contents()
             assert "Whitemane's Chapeau" in worn
+            assert {Catalog().card(i)["n"] for i in (2576, 5976)} <= set(worn)
             gear = page.locator("#advice")
             if tier == "owner":
                 common.update(splits=values, worn=worn)
@@ -194,6 +207,35 @@ def test_same_climb_and_gear_from_live_public_and_sealed(dashboards, browser, wi
                 assert gear.locator(".adv-h").inner_text() == "Gear advice"
                 assert gear.locator(".empty").count() and not gear.locator(".cand").count()
             assert not errors
+
+
+def test_unavailable_item_cards_settle_on_the_slot_name(dashboards, browser):
+    with browser.new_context() as ctx:
+        page = ctx.new_page()
+        open_char(page, dashboards, "owner")
+        requests = []
+
+        def unavailable(route, *, status):
+            requests.append(route.request.url)
+            if status is None:
+                route.abort("connectionreset")
+            else:
+                route.fulfill(status=status, json={"items": []})
+
+        for item_id, status, attempts in ((900001, None, 2), (900002, 200, 1), (900003, 403, 1)):
+            page.route(f"**/api/items?ids={item_id}", partial(unavailable, status=status))
+            requests.clear()
+            busy = page.evaluate("""async id => {
+              const chip = window.wowItem({item_id: id, slot_name: 'Head'});
+              chip.id = 'test-item-' + id;
+              document.body.append(chip);
+              await Promise.resolve();
+              return document.documentElement.hasAttribute('data-busy');
+            }""", item_id)
+            assert busy
+            settled(page)
+            assert len(requests) == attempts
+            assert page.locator(f"#test-item-{item_id} .iname").inner_text() == "Head item, see on Wowhead"
 
 
 def test_published_footer_with_an_older_page_and_no_character_data(dashboards, browser):
