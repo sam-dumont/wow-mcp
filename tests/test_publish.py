@@ -29,7 +29,7 @@ from tests.test_public_view import (
     SECRETS,
     PoisonStore,
 )
-from wowstats import bar, publish, static, ui
+from wowstats import bar, dataversions, publish, static, ui
 from wowstats.redact import ZOGZOG_MOVE_KINDS
 
 pytest.importorskip("cryptography")
@@ -110,7 +110,7 @@ def test_public_bundle_has_no_full_data(site):
     page = pub["index.html"].decode()
     assert 'data-static="1"' in page and 'id="people"' not in page and 'data-sealed' not in page
     cfg = json.loads(pub["data/config.json"])
-    assert cfg == {"view": "public", "static": True}
+    assert cfg == {"view": "public", "static": True, **dataversions.status()}
 
 
 def opened(key: str, zz: dict) -> dict:
@@ -118,6 +118,51 @@ def opened(key: str, zz: dict) -> dict:
     k = publish.unb64u(key)
     return {p.removesuffix(".enc"): publish.unseal(k, p.removesuffix(".enc"), b)
             for p, b in zz.items() if p.startswith("data/") and not p.startswith("data/icon/")}
+
+
+def test_the_three_dashboard_paths_agree_on_the_climb_and_worn_items(site, run_app):
+    env, _, key, current = site
+    name = json.loads((current / "public/data/chars.json").read_bytes())["chars"][0]["char"]
+    path = publish.data_path("char", name)
+    public = json.loads((current / "public" / path).read_bytes())
+    friends = json.loads(opened(key, files(current / "zogzog"))[path])
+    owner = run_app(ui.App({**env, "VIEW": "full", "BIND": "127.0.0.1", "AUTH": "none"}))
+    status, _, body = owner.get("/api/char?" + urllib.parse.urlencode({"name": name}))
+    assert status == 200
+    full = json.loads(body)
+
+    def splits(answer):
+        return [(row["level"], row["seconds"], row["partial"], row.get("route_s")) for row in answer["levels"]]
+
+    def worn(answer):
+        return [(row["slot"], row["item_id"]) for row in answer["gear"]["items"]]
+
+    assert any(row.get("route_s") for row in public["levels"])
+    assert public["route_source"] and worn(public)
+    for answer in (friends, full):
+        assert splits(answer) == splits(public)
+        assert answer["route_source"] == public["route_source"]
+        assert worn(answer) == worn(public)
+    assert "money_copper" not in public["header"]
+    assert "players" not in friends
+
+    gear_path = publish.data_path("gear", name)
+    assert not (current / "public" / gear_path).exists()
+    friends_gear = json.loads(opened(key, files(current / "zogzog"))[gear_path])
+    code, _, body = owner.get("/api/gear?" + urllib.parse.urlencode({"name": name}))
+    assert code == 200
+    owner_gear = json.loads(body)
+    assert friends_gear["available"] and owner_gear["available"]
+    assert friends_gear["spec"]["key"] == owner_gear["spec"]["key"]
+    assert friends_gear["mode"]["key"] == owner_gear["mode"]["key"]
+    assert friends_gear["pvp_rewards"] == owner_gear["pvp_rewards"]
+
+    def upgrade_facts(answer):
+        return {(u["slot"], u["item_id"]): (u["name"], u["gain"], [(src["kind"], src.get("price_copper"))
+                                                                   for src in u["sources"]])
+                for u in answer["upgrades"]}
+
+    assert friends_gear["upgrades"] and upgrade_facts(friends_gear) == upgrade_facts(owner_gear)
 
 
 def test_zogzog_bundle_is_sealed_full_content(site):
@@ -143,6 +188,7 @@ def test_zogzog_bundle_is_sealed_full_content(site):
     cfg = json.loads(publish.unseal(k, "data/config.json", data["data/config.json.enc"]))
     assert cfg["view"] == "full" and "coach" not in cfg and not cfg["mcp"] and not cfg["debug"]
     assert not cfg["people"] and cfg["loot"]
+    assert {k: cfg[k] for k in ("version", "data_versions")} == dataversions.status()
     page = zz["index.html"].decode()
     assert 'data-sealed="1"' in page and 'id="askbox"' not in page and 'id="debug"' not in page
 
@@ -217,6 +263,66 @@ def test_rebuilds_only_on_new_events(site):
     assert publish.publish(env)["built"] is False
 
 
+def test_new_source_revision_republishes_without_a_new_character_event(site, monkeypatch):
+    env, _, _, current = site
+    previous = dataversions.versions()
+    monkeypatch.setattr(dataversions, "versions", lambda: {**previous, "polestar": "v0.0.1-example"})
+    assert publish.publish(env)["why"] == "new version or page settings"
+    cfg = json.loads((current / "public/data/config.json").read_text())
+    assert cfg["data_versions"]["polestar"] == "v0.0.1-example"
+    assert publish.publish(env)["built"] is False
+
+
+def test_late_level_refreshes_both_published_timelines(tmp_path):
+    from wowstats import eventstore
+
+    where = f"sqlite:{tmp_path / 'events'}"
+    name = "Hero-Test"
+    env = {"EVENTS_STORE": where, "PUBLISH_DIR": str(tmp_path / "site"), "MODEL3D": "off", "WOW_ITEMS": "off"}
+    es = eventstore.get(where)
+    def ding(day, level):
+        return {"_time": f"2026-11-{day}T12:00:00Z", "char": name, "feed": "wow-recorder", "kind": "level",
+                "level": str(level), "source_id": f"ding:{level}"}
+
+    def levels():
+        rel = publish.data_path("timeline", name)
+        root = tmp_path / "site" / "current"
+        key = publish.read_key(tmp_path / "zogzog.key")
+        enc = (root / "zogzog" / publish.sealed_name(key, rel)).read_bytes()
+        return json.loads((root / "public" / rel).read_bytes())["levels"], json.loads(publish.unseal(key, rel, enc))["levels"]
+
+    es.append(0, [ding(17, 12)])
+    assert publish.publish(env)["built"] and levels() == ([12], [12])
+    # The UI receives the upload in a different process from the publisher.
+    import subprocess
+    import sys
+
+    subprocess.run([sys.executable, "-c", "import json,sys; from wowstats import eventstore; "
+                    "eventstore.get(sys.argv[1]).append(0,[json.load(sys.stdin)])", where],
+                   input=json.dumps(ding(16, 11)), text=True, check=True)
+    assert publish.publish(env)["why"] == "new events" and levels() == ([11, 12], [11, 12])
+    assert not publish.publish(env)["built"]
+
+
+def test_settings_only_edit_rebuilds_sealed_gear(site, tmp_path):
+    from wowstats import gearmode
+
+    env, _, key, cur = site
+    owner = {"ANALYSIS_STATE_DIR": str(tmp_path / "analysis")}
+    env = {**env, "WEIGHTS": "Hero-Test:holy", "PUBLISH_GEAR_SETTINGS_DIR": owner["ANALYSIS_STATE_DIR"]}
+    gearmode.save(owner, "Hero-Test", "pve")
+    rel = publish.data_path("gear", "Hero-Test")
+    def gear():
+        return json.loads(opened(key, files(cur / "zogzog"))[rel])
+
+    assert publish.publish(env)["built"]
+    g = gear()
+    assert (g["spec"]["key"], g["mode"]["key"], g["pvp_rewards"]["on"]) == ("holy", "pve", False)
+    gearmode.save_pvp(owner, "Hero-Test", True)
+    assert publish.publish(env)["built"] and gear()["pvp_rewards"]["on"]
+    assert not publish.publish(env)["built"]
+
+
 # The public bundle, key by key: Sam's list of 2026-11-18 (the card, the
 # climb, the dungeons, the level snapshots; the doll's BiS badges since
 # 2026-11-23), written out here on its own
@@ -263,7 +369,22 @@ CLASS_GUIDE_KEYS = {
 
 
 ALLOWED = {
-    "config": {"view", "static"},
+    "config": {"view", "static", "version", "data_versions",
+               *keys("data_versions.", ("foreverdb", "forever_db", "polestar", "client_build", "wowsims",
+                                       "checked_addons", "checked", "watched_client_build", "spell_hotfix_push",
+                                       "kb_digest_week", "kb_statement_reviews", "observations", "profession_file_versions")),
+               *keys("data_versions.profession_file_versions.", ("Recipes", "Loot", "Favor", "Items")),
+               *keys("data_versions.observations.", ("dungeon_xp_as_of", "dungeon_eg_link_commit", "gear_reviewed",
+                                                     "gear_eg_link_commit", "profession_reviewed",
+                                                     "profession_latest_capture_build", "profession_eg_link_commit")),
+               *keys("data_versions.kb_statement_reviews.", ("oldest", "newest")),
+               *keys("data_versions.foreverdb.", ("data_version", "build", "weights_data_version", "addon_version",
+                                                 "fingerprint", "weights_fetched")),
+               *keys("data_versions.forever_db.", ("version", "client_build")),
+               *keys("data_versions.client_build.", ("zones", "spells", "items", "crafting")),
+               *keys("data_versions.wowsims.", ("sim", "exporter")),
+               *keys("data_versions.checked_addons.", ("Questie", "WoWSims Exporter")),
+               *keys("data_versions.kb_digest_week.", ("news", "community"))},
     "chars": {"chars", *keys("chars[].", ("char", "level", "demo"))},
     "char": {"char", "generated_at", "stale", "route_source", "header", "levels", "dungeons", "gear",
              *keys("header.", ("char", "name", "race", "class", "faction", "level", "xp", "xp_max", "polestar",
@@ -390,7 +511,7 @@ class VmWow(PoisonStore):
 
     choice = "12"
 
-    def vm_query(self, q):
+    def profile_query(self, q):
         if "wow_character_customization" in q:
             return [{"metric": {"character": "Hero-Test", "option_id": "1"}, "value": [1, VmWow.choice]}]
         return []
@@ -749,6 +870,24 @@ def look_world(tmp_path, monkeypatch, fill=True):
             "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key")}
 
 
+def test_disabling_3d_rebuilds_both_dashboard_shells(tmp_path, monkeypatch):
+    env = look_world(tmp_path, monkeypatch)
+    assert publish.publish(env)["built"]
+    current = tmp_path / "site" / "current"
+    key = publish.unb64u((tmp_path / "zogzog.key").read_text().strip())
+    for enabled in (True, False):
+        if not enabled:
+            assert publish.publish({**env, "MODEL3D": "off"})["built"]
+        for tier in ("public", "zogzog"):
+            root = current / tier
+            html = (root / "index.html").read_text()
+            assert ('src="model3d/model3d.js"' in html) == enabled
+            for args in (("Hero-Test",), ("Hero-Test", 12)):
+                path = publish.data_path("model3d", *args)
+                file = root / (publish.sealed_name(key, path) if tier == "zogzog" else path)
+                assert file.is_file() == enabled
+
+
 def test_public_bundle_has_the_battle_net_look_but_no_market(tmp_path, monkeypatch):
     """Owner's call (2026-11-18): the character's look from Battle.net's
     profile API may be public, in the 3D view too; market data (prices,
@@ -1071,7 +1210,7 @@ def share_server(answer: dict):
     class H(BaseHTTPRequestHandler):
         def do_GET(self):  # noqa: N802
             body = json.dumps(answer["now"]).encode()
-            self.send_response(200)
+            self.send_response(answer.get("status", 200))
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -1116,9 +1255,24 @@ def test_zogzog_gets_the_screened_analysis_actions(site):
                                        "dead_s": None, "afk_s": None, "planned_s": None}]
         assert SECRET_MONEY not in zz[rel].decode()
         assert publish.publish(env)["built"] is False
-        # The full view down: no rebuild for it, and the next build keeps going.
-        answer["now"] = {"available": False}
-        assert publish.publish(env)["built"] is False
+        answer["status"] = 503
+        assert not publish.publish(env)["built"]
+        assert publish.publish(env, force=True)["built"]
+        assert json.loads(opened(key, files(cur / "zogzog"))[rel]) == got
+        # Hiding then revealing a character during the outage cannot bring
+        # back the old analysis from a previous, more permissive build.
+        assert publish.publish(env, hide_zogzog=frozenset({name}))["built"]
+        assert rel not in opened(key, files(cur / "zogzog"))
+        assert publish.publish(env)["built"]
+        assert not json.loads(opened(key, files(cur / "zogzog"))[rel])["available"]
+        answer["status"] = 200
+        # Identical upstream data must reappear when the source recovers.
+        publish.publish(env)
+        assert json.loads(opened(key, files(cur / "zogzog"))[rel]) == got
+        answer["now"] = {"available": False, "chars": {}}
+        assert publish.publish(env)["why"] == "analysis changed"
+        assert not json.loads(opened(key, files(cur / "zogzog"))[rel])["available"]
+        assert not publish.publish(env)["built"]
     finally:
         srv.shutdown()
 
@@ -1253,22 +1407,6 @@ def test_a_stored_crafted_name_is_skipped_never_written(tmp_path, monkeypatch, c
     assert not any("victim" in p.as_posix().lower() for p in written)
 
 
-class EmptyStore(PoisonStore):
-    """A new account: the store answers, with nothing in it yet."""
-
-    def vl(self, query, keys=(), ops=None, limit=0):
-        return []
-
-    def vl_raw(self, base, query, start, end, limit=0):
-        return []
-
-    def vm_query(self, q):
-        return []
-
-    def vm_range(self, q, start, end, step):
-        return []
-
-
 def multi_get(site_dir: Path):
     """A several-people static server on site_dir; get(path, host)."""
     s = static.Site({"SITE_DIR": str(site_dir), "ZOGZOG_PATH": "/zogzog/", "SITE_DOMAIN": "m.example"})
@@ -1288,18 +1426,16 @@ def multi_get(site_dir: Path):
 
 
 @pytest.mark.parametrize("public_on", [False, True])
-def test_a_person_without_characters_gets_the_empty_page(tmp_path, monkeypatch, public_on):
+def test_a_person_without_characters_gets_the_empty_page(tmp_path, public_on):
     """A new account had a bare "Not found" at its own address until its
     first character arrived (samwow, 2026-11-19). Now the empty page, public
     page on or off, naming nobody; an unknown slug still gets a 404; the
     build that brings the first character replaces it with the real page."""
-    from wowstats.plan import facts
+    from wowstats import eventstore
 
-    store = {"cls": EmptyStore}
-    monkeypatch.setattr(ui, "Store", lambda *a, **k: store["cls"]())
-    monkeypatch.setattr(facts, "store_for", lambda env, like=None: like)
     site_dir = tmp_path / "site"
-    env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "off",
+    where = f"sqlite:{tmp_path / 'events'}"
+    env = {"EVENTS_STORE": where, "MODEL3D": "off",
            "PUBLISH_DIR": str(site_dir / "newbie"), "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key")}
     with redirect_stdout(io.StringIO()):
         res = publish.publish(env, public=public_on, slug="newbie")
@@ -1326,10 +1462,11 @@ def test_a_person_without_characters_gets_the_empty_page(tmp_path, monkeypatch, 
             assert get(path, "nobody-wow.m.example")[0] == 404, path
 
         # The first character arrives: the next build is the normal one.
-        store["cls"] = PoisonStore
+        eventstore.get(where).append(0, [{"_time": "2026-11-19T12:00:00Z", "char": "Hero-Test",
+                                          "feed": "wow-recorder", "kind": "level", "level": 12, "source_id": "ding:12"}])
         with redirect_stdout(io.StringIO()):
             res = publish.publish(env, public=public_on, slug="newbie")
-        assert res["built"] and res["chars"] == 1
+        assert res["built"] and res["why"] == "new events" and res["chars"] == 1
         code, _, body = get("/", "newbie-wow.m.example")
         if public_on:
             assert code == 200 and b'data-static="1"' in body and b"No character yet" not in body

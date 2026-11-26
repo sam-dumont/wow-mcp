@@ -36,6 +36,7 @@ for _p in (ROOT, HERE):
 import probes as P  # noqa: E402
 
 from tests import degraded as D  # noqa: E402
+from wowstats import __version__  # noqa: E402
 from wowstats.stores import parse_t  # noqa: E402
 
 ARMOR = ("Head", "Shoulder", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands")
@@ -459,6 +460,7 @@ class Ctx:
 
 
 MAKERS: dict[str, Callable[[Ctx], object]] = {
+    "wow_stats_version": lambda c: __version__,
     "level_now": lambda c: int(newest(c.rows, "wow-character")["level"]),
     "gold_now": lambda c: int(newest(c.rows, "wow-character")["money_copper"]) // 10000,
     "zone_now": lambda c: newest(c.rows, "wow-character")["zone"],

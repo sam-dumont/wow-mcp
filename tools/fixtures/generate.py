@@ -1743,6 +1743,9 @@ class DemoPlayer(Player):
 
     sold: set[int] = frozenset()  # sold to a vendor: out of the bags
 
+    def snapshot(self, **extra) -> None:
+        super().snapshot(realm=DEMO_REALM, **extra)
+
     def gear_sheet(self) -> None:
         key = (tuple(sorted(self.worn.items())), tuple((s, r) for s, (r, _c) in sorted(self.skills.items())))
         if key == getattr(self, "_sheet", None):
@@ -2015,13 +2018,15 @@ def in_forever(rows: list[dict]) -> None:
     """Every item the demo character ever wears comes from something live in
     Forever today, by our data: a ForeverDB source labelled LIVE_LABELS, or,
     for an item ForeverDB doesn't list, Polestar's own Forever drop tables
-    (gear-reference's `sources`). The Gurubashi Arena's Arena Master (its
+    (gear-reference's `sources` or a trusted recorded dungeon drop). The Gurubashi Arena's Arena Master (its
     chest event isn't open in Forever, ForeverDB has Classic's data only)
     once sat in his trinket slot (owner, 2026-11-24)."""
-    from wowstats import gear
+    from wowstats import forever, gear
 
     fdb = (gear.sources_data() or {}).get("items") or {}
     polestar = json.loads((ROOT / "data" / "gear-reference.json").read_text(encoding="utf-8"))["sources"]
+    polestar.update({iid: drops for iid, drops in (forever.data().get("dungeon_drops") or {}).items()
+                     if any(d["via"] == "polestar-recording" for d in drops)})
     bad = {}
     for r in rows:
         if r.get("feed") != "wow-gear" or not r.get("items"):

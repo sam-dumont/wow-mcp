@@ -85,7 +85,7 @@ def last_seen(store) -> str:
     return max(rows, key=lambda r: r.get("last_seen") or "")["char"].replace(" ", "-")
 
 
-def prices(store, days: int = 30, shared: str = "") -> dict[int, dict]:
+def prices(store, days: int = 30, shared: str = "", *, char: str | None = None) -> dict[int, dict]:
     """The Auctionator scans (the player's own, or the install's shared
     scans of their houses: wowstats.ahshared): per item, the newest day's
     lowest buyout (copper), and the day."""
@@ -95,6 +95,7 @@ def prices(store, days: int = 30, shared: str = "") -> dict[int, dict]:
                           "max(item_id) as item_id, max(_time) as t",
                           {"price_copper": "min", "item_name": "max", "item_id": "max", "t": "maxtime"},
                           start=datetime.now(UTC) - timedelta(days=days))
+    _, rows = ahshared.for_character(store, char, rows) if char else ahshared.one_house(rows, None)
     got = storemodels.prices([{**r, "_time": r.get("t")} for r in rows if _i(r.get("item_id")) is not None])
     return {_i(d["item_id"]): {"t": d["price_latest_t"], "copper": _i(d["price_latest_copper"]),
                                "name": d["price_item"]} for d in got.values()}
@@ -142,14 +143,14 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
 
             advice = gear.advise(gear.reference(), gi["sheet"], every=True, mode=mode, **gear_args(gi))
             loot = gear.instance_loot(gear.reference(), gi["sheet"], level=gi["level"], weights=gi["weights"],
-                                      bis=advice.get("bis_by_slot"), mode=mode)
+                                      bis=advice.get("bis_by_slot"), mode=mode, held=gi.get("held"))
         else:
             advice = gear.advise_rows(rows, analysis.weights_for(env, char), battlenet=battlenet, mode=mode,
                                       pvp=pvp)
             loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char),
                                            (advice or {}).get("bis_by_slot"), mode=mode)
     try:
-        scans = prices(store, shared=ahshared.location(env))
+        scans = prices(store, shared=ahshared.location(env), char=char)
     except Exception:  # noqa: BLE001 - the scans are a bonus, never a reason to fail
         scans = {}
     # The character's one analytical copy (wowstats.analysis.copies), the
@@ -890,10 +891,11 @@ def dungeon_quests(knowledge, side: str | None, runs: dict) -> dict[str, dict]:
     and why. {area ID: {quests, other_side}}: `other_side` counts the other
     side's quests, so a dungeon with only those (Ragefire Chasm for the
     Alliance) reads as the other side's."""
-    from wowstats import forever
+    from wowstats import dungeonquests, forever
 
     from .estimate import dkey
 
+    outdoor = dungeonquests.data().get("outdoor") or {}
     areas = {aid: a for aid, a in ((forever.data() or {}).get("areas") or {}).items()
              if a.get("instance") == "dungeon"}
     by_key = {dkey(a["name"]): aid for aid, a in areas.items()}
@@ -955,6 +957,8 @@ def dungeon_quests(knowledge, side: str | None, runs: dict) -> dict[str, dict]:
     for aid, qs in want.items():
         rows, other = [], 0
         for qid, note in sorted(qs.items()):
+            if str(qid) in outdoor:
+                continue
             body = docs.get(qid, "")
             sd = QUEST_SIDE.search(body)
             sd = sd.group(1).title() if sd else None
@@ -1156,10 +1160,12 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
                     "even_ding_t": ding_even},
         "trips": tr, "dungeons": sorted(dungeons, key=lambda d: (d["min"], d["name"])), "dungeon_runs_kb": runs,
         "upgrades": [{k: u.get(k) for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_share_pct",
-                                            "level", "now", "fills_empty", "sources", "ah_copper", *BADGE)} | (
+                                            "level", "now", "fills_empty", "sources", "ah_copper", "value", "fit",
+                                            "effort", *BADGE)} | (
             {"with_item_id": (u.get("with") or {}).get("item_id"), "with": _partner(u["with"])} if u.get("with")
             else {}) for u in ups],
         "gear_spec": ((advice or {}).get("spec") or {}).get("label"),
+        "gear_mode": (advice or {}).get("mode"),
         "worn_ids": worn_ids,
         # The dungeon panel's (wowstats.plan.dungeonview): every item each
         # dungeon gives him, what he has, the quests he handed in.
@@ -1224,13 +1230,13 @@ def _partner(w: dict) -> dict:
 
 
 def instance_limit() -> dict | None:
-    """The instances a character may enter per hour, from the KB's
+    """Resets and re-entries per hour for each dungeon, from the KB's
     instance.entries_per_hour, with its source; None: unknown, never assumed."""
     from wowstats.analysis.kb import static_rule
 
     r = static_rule("instance.entries_per_hour")
     n = ((r or {}).get("value") or {}).get("per_hour")
-    return {"per_hour": int(n), "source": cite(r)} if n else None
+    return {**r["value"], "per_hour": int(n), "source": cite(r)} if n else None
 
 
 def median(xs):

@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import re
 
+from wowstats.classguide import MAX_LEVEL
 from wowstats.rates import per_hour
 
 from .estimate import fdur, seen_mean
@@ -78,7 +79,7 @@ def grey(level: int, rule: dict) -> int:
 
 def kill_xp(level: int, mob: int, elite: bool, rule: dict) -> float:
     """One kill's XP by Classic's formula: the shape of it, not its size."""
-    if mob <= grey(level, rule):
+    if level >= MAX_LEVEL or mob <= grey(level, rule):
         return 0.0
     a, b = rule["base"]
     base = a * level + b
@@ -94,6 +95,8 @@ def kills_now(trip: dict, level: int, rule: dict | None) -> float | None:
     """The run's kill XP inside, as it would pay at `level`: as measured at
     the level it was run, else scaled by the formula over the creatures he
     killed; None when that can't be done (no creature levels, no rule)."""
+    if level >= MAX_LEVEL:
+        return 0.0
     xp = trip.get("xp_inside")
     if xp is None:
         return None
@@ -195,7 +198,7 @@ def _ids(q: dict) -> set[int]:
 def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], others: list[dict],
              quests: list[dict], questing_xph: float | None, rule: dict | None = None,
              clear: float | None = None, route: dict | None = None, drops: dict | None = None,
-             pace: dict | None = None) -> dict:
+             pace: dict | None = None, current_xp: int = 0) -> dict:
     """One more run at `level`. `runs`: his trips of this dungeon
     (facts.trips); `others`: every trip he made (their means stand in for
     the pickups and travel when there is no route); `quests`: the dungeon's
@@ -268,6 +271,14 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     # unknown, and so its XP an hour and the verdict.
     run_s = sum(v for v, _ in parts.values()) if inside and not missing else None
     time = "trip" if run_s else None
+    if level >= MAX_LEVEL:
+        xp_q = xp_k = 0.0
+        questing_xph = None
+    elif level == MAX_LEVEL - 1 and xp_max:
+        # Kills come before the hand-ins. Only the XP still on the bar pays.
+        room = max(0, xp_max - current_xp)
+        xp_k = min(room, xp_k) if xp_k is not None else None
+        xp_q = min(xp_q, room - (xp_k or 0))
     xp = xp_q + xp_k if xp_k is not None else None
     shown = xp if xp is not None else xp_q
     xph = per_hour(shown, run_s) if run_s and shown else None

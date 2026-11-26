@@ -1,0 +1,501 @@
+{
+  "eg_link": {
+    "url": "https://github.com/JIVESCORP/eg-link-output-wowf",
+    "commit": "f25e0efde0c8490e4e6f356a68f7a81a703fa21c",
+    "latest_build": "1.60.1.71091",
+    "reviewed": "2026-11-26",
+    "license": "CC BY 4.0",
+    "credit": "Data from Efficient Games (https://efficient.games), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Selected trainer requirements, pattern drops and vendor observations."
+  },
+  "foreverdb": {
+    "notice": "-- Data: ForeverDB.net (https://foreverdb.net), build 1.60.1.71139. Reuse requires this credit: see NOTICE.txt (GPL-3.0 section 7(b)).",
+    "credit": "Data from ForeverDB.net (https://foreverdb.net)",
+    "version": "2026-11-26.a0032eb5",
+    "build": "1.60.1.71139",
+    "files": {
+      "Recipes": {
+        "version": "2026-11-26.a0032eb5",
+        "url": "https://foreverdb.net/downloads/addon-data/Recipes.lua?v=91d4902752",
+        "sha256": "91d4902752c8a0ea7cb8dddc4a8aa118a97cad9dedfd562c9bbe6a20295bf47b"
+      },
+      "Loot": {
+        "version": "2026-11-26.a0032eb5",
+        "url": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95",
+        "sha256": "d905c2bd95eaf7b5858c232c7901c7804b857cc523a16a90b8478ae140abd950"
+      },
+      "Favor": {
+        "version": "2026-11-26.a0032eb5",
+        "url": "https://foreverdb.net/downloads/addon-data/Favor.lua?v=824a6094ee",
+        "sha256": "824a6094ee7a6430437655104a281d188f883f50802c76281387386759a87263"
+      },
+      "Items": {
+        "version": "2026-11-26.31fdc878",
+        "url": "https://foreverdb.net/downloads/addon-data/Items.lua?v=b5b77c572c",
+        "sha256": "b5b77c572c1201e4f46c0d6df544459119751f685b5c90417dac7721738a3a7c"
+      }
+    }
+  },
+  "trainer": {
+    "2159": {
+      "skill": 50,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "2395": {
+      "skill": 40,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "2662": {
+      "skill": 15,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "2666": {
+      "skill": 45,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "2668": {
+      "skill": 80,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "2675": {
+      "skill": 120,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "2739": {
+      "skill": 25,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "2740": {
+      "skill": 85,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "2741": {
+      "skill": 90,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "2742": {
+      "skill": 95,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "3292": {
+      "skill": 70,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "3491": {
+      "skill": 80,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "3760": {
+      "skill": 125,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "3774": {
+      "skill": 135,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "3776": {
+      "skill": 155,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "3852": {
+      "skill": 105,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "3859": {
+      "skill": 125,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "3861": {
+      "skill": 150,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "6661": {
+      "skill": 165,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "6690": {
+      "skill": 110,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "7147": {
+      "skill": 135,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "7151": {
+      "skill": 150,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "7156": {
+      "skill": 165,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "8758": {
+      "skill": 115,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "8760": {
+      "skill": 120,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "8762": {
+      "skill": 125,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "8766": {
+      "skill": 140,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "8770": {
+      "skill": 155,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "8772": {
+      "skill": 140,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "8774": {
+      "skill": 145,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "8791": {
+      "skill": 150,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "8799": {
+      "skill": 160,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "8804": {
+      "skill": 175,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "9196": {
+      "skill": 150,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "9198": {
+      "skill": 155,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "9201": {
+      "skill": 160,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "9206": {
+      "skill": 170,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "9926": {
+      "skill": 180,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "9928": {
+      "skill": 180,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "9931": {
+      "skill": 185,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "9935": {
+      "skill": 190,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "9959": {
+      "skill": 205,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "9968": {
+      "skill": 210,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "10499": {
+      "skill": 180,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "10507": {
+      "skill": 180,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "10511": {
+      "skill": 185,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "10518": {
+      "skill": 185,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "10548": {
+      "skill": 205,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "10552": {
+      "skill": 205,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "10556": {
+      "skill": 210,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "10558": {
+      "skill": 210,
+      "npc_id": 11098,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "12048": {
+      "skill": 170,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "12049": {
+      "skill": 170,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "12053": {
+      "skill": 180,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "12067": {
+      "skill": 190,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "12069": {
+      "skill": 190,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "12070": {
+      "skill": 190,
+      "npc_id": 4576,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json"
+    },
+    "12073": {
+      "skill": null,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Recipes.lua?v=91d4902752"
+    },
+    "12074": {
+      "skill": null,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Recipes.lua?v=91d4902752"
+    },
+    "12088": {
+      "skill": null,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Recipes.lua?v=91d4902752"
+    },
+    "12092": {
+      "skill": null,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Recipes.lua?v=91d4902752"
+    },
+    "1257426": {
+      "skill": 150,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "1257427": {
+      "skill": 150,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "1257428": {
+      "skill": 150,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "1257429": {
+      "skill": 150,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json",
+      "report": "https://github.com/sam-dumont/wow-mcp/issues/283",
+      "npc_id": 3363
+    },
+    "1257430": {
+      "skill": 150,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    },
+    "1257431": {
+      "skill": 150,
+      "npc_id": 3363,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json"
+    }
+  },
+  "pattern_drop": {
+    "11612": {
+      "npc": "Ribbly Screwspigot",
+      "npc_id": 9543,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "14512": {
+      "npc": "Grand Crusader Dathrohan",
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Items.lua?v=b5b77c572c"
+    },
+    "15768": {
+      "area": "Stratholme",
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "15770": {
+      "area": "Blackrock Depths",
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "249487": {
+      "npc": "Boulderfist Magus",
+      "source": "https://github.com/sam-dumont/wow-mcp/issues/281",
+      "verification": "https://www.wowhead.com/forever/item=249487/formula-twisted-nether-wand",
+      "basis": "reported loot; availability on this client build unverified"
+    },
+    "251340": {
+      "npc": "Rhahk'Zor",
+      "npc_id": 644,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70862/loot.json"
+    },
+    "251342": {
+      "npc": "Oggleflint",
+      "npc_id": 11517,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "251343": {
+      "npc": "Cookie",
+      "npc_id": 645,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "251344": {
+      "npc": "Rethilgore",
+      "npc_id": 3914,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70790/loot.json"
+    },
+    "251345": {
+      "npc": "Lord Pythas",
+      "npc_id": 3670,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "251346": {
+      "npc": "Lady Sarevess",
+      "npc_id": 4831,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "251347": {
+      "npc": "Razorclaw the Butcher",
+      "npc_id": 3886,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "251348": {
+      "npc": "Lord Pythas",
+      "npc_id": 3670,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "251349": {
+      "npc": "Skum",
+      "npc_id": 3674,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70790/loot.json"
+    },
+    "251350": {
+      "npc": "Overlord Ramtusk",
+      "npc_id": 4420,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70888/loot.json"
+    },
+    "251351": {
+      "npc": "Old Serra'kis",
+      "npc_id": 4830,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "251352": {
+      "npc": "Twilight Lord Kelris",
+      "npc_id": 4832,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    },
+    "251353": {
+      "npc": "Charlga Razorflank",
+      "npc_id": 4421,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70938/loot.json"
+    },
+    "251354": {
+      "npc": "Agathelos the Raging",
+      "npc_id": 4422,
+      "via": "foreverdb",
+      "source": "https://foreverdb.net/downloads/addon-data/Loot.lua?v=d905c2bd95"
+    }
+  },
+  "pattern_merchant": {
+    "251426": {
+      "Horde": {
+        "npc": "Gor'mak",
+        "npc_id": 248197,
+        "price": "90 Merchant's Favor",
+        "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/vendors.json"
+      },
+      "Alliance": {
+        "npc": "Stondry Darkhammer",
+        "npc_id": 256730,
+        "price": "90 Merchant's Favor",
+        "via": "foreverdb",
+        "source": "https://foreverdb.net/downloads/addon-data/Favor.lua?v=824a6094ee"
+      }
+    }
+  }
+}

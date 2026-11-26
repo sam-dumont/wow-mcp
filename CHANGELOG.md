@@ -5,6 +5,22 @@
 ### Fixed
 
 - The daily KB watch run failed every day since 2026-11-23: it minted the App's token once per job, and by the time it pushed or wrote the issues, after an hour or more of gates, the token had expired (an installation token lasts an hour). The rebase and its gates now run before the token is minted, and each step that writes gets a fresh one. The jobs' time limits follow the gates' real length too: the suite takes about 50 minutes in one job, and the 75-minute limit cancelled the 2026-11-26 run during its gates.
+- The Climb shows Polestar's planned time beside the recorded time on the owner, friends and public dashboards. The friends export uses the owner's saved gear settings. A late level record rebuilds the published chart even when the newest event hasn't changed.
+- Switching characters drops late replies for the one you left. The friends dashboard shows the published spec, gear estimates and requirement status. Both static dashboards respect the 3D setting for current and historical equipment.
+- Next Moves checks how the character can get an item. A hard drop needs an easier alternative to make the list. An auction purchase carries its price and scan date. Gear checks faction, race, class, quest and equip-skill requirements even for an item already in the bank.
+- Craft cards separate the recipe, skill-ups, missing materials and the finished item's auction price. Black Slippers uses 150 for the observed trainer requirement and 140 for the pattern. The profession tool and gear cards use recorded trainer offers and pattern sources. An unverified learning rank or expired auction quote stays visible as a blocker.
+- Plans count dungeon rewards when the session reaches them, stop leveling forecasts at 60 and keep the gear ranking for the chosen spec. Riding savings include unpaid earlier training. Class mount quests and an unread purse each get their own answer.
+- Auctionator trends, dungeon loot and planner valuations use one auction house. The MCP `prices` tool also takes an explicit ruleset and faction. Saved gear findings flag a change of PvP setting, stat weights or source data for revalidation.
+- Bags and bank keep separate observation dates. Combat records follow character changes and log rotation. An appearance failure for one character allows the next character's refresh to run, and a missing portrait layer can be picked up on a later build.
+- Gear, recipes, zones and spells now identify client build 71139. Don Julio's Band and Don Rodrigo's Band share a unique-equipped limit. The gear scorer checks the pair. The route exporter reads both Polestar race-pack layouts and its v0.4.3 deferred guides. The dungeon checklist accounts for the Agamaggan quest moving outdoors, and the reset rule cites Blizzard's November 20 update. Forum evidence distinguishes a player's report from a staff reply.
+- A two-point difference between profession readings keeps a trained Expert cap. Gear still shows which specs suit faction- or profession-gated items, while checking those requirements for a particular character.
+- The knowledge base includes Blizzard's November 23 and 25 hotfixes. News for a character with an unknown role includes changes affecting tanks and healers.
+- The scheduled reference refresh reports test progress and identifies timed-out tests in the job log.
+- All three dashboard footers show the app version and bundled data sources. MCP exposes the same versions and dates through `data_status` and `character_summary`. Run `wow-stats data-status` for the same JSON locally.
+
+### Upgrading
+
+Compose passes the owner's `WEIGHTS` to the publisher and reads saved gear settings from the existing read-only UI state volume. For a separately configured publisher, set `PUBLISH_GEAR_SETTINGS_DIR` to the directory containing the owner's `gear-modes.json`.
 
 ## 0.12.0 (2026-11-25)
 

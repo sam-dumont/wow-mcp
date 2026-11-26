@@ -41,8 +41,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -79,7 +82,7 @@ class Export:
 EXPORTS: tuple[Export, ...] = (
     Export("forever-reference", (*PY, "tools/forever_reference/export.py", "--polestar", "{latest}",
                                  "--forever-db-cache", "{fdb}"),
-           ("data/forever-reference.json",), ("polestar", "forever-db", "client-build"),
+           ("data/forever-reference.json",), ("polestar", "forever-db", "client-build", "foreverdb"),
            "docs/forever-reference.md", reads=("data/gear-reference.json",)),
     Export("dungeon-quests", (*PY, "tools/dungeon_quests/export.py", "--polestar", "{latest}",
                               "--forever-db-cache", "{fdb}"),
@@ -95,7 +98,7 @@ EXPORTS: tuple[Export, ...] = (
            ("data/kb-reference.json.gz",), ("polestar", "forever-db"), "docs/kb.md"),
     Export("class-reference", (*PY, "tools/class_reference/export.py", "--polestar", "{polestar}"),
            ("data/class-reference.json",), ("polestar", "client-build"), "docs/kb.md"),
-    Export("trainers", (*PY, "tools/trainers/export.py", "--polestar", "{polestar}"),
+    Export("trainers", (*PY, "tools/trainers/export.py", "--polestar", "{polestar}", "--lua", "{lua}"),
            ("data/trainers-reference.json",), ("polestar",), "docs/kb.md"),
     # Polestar's profession guides and the client tables at data/game-items.json's
     # build (#267): it moves with Polestar here, and with the item table by hand.
@@ -185,19 +188,32 @@ def command(e: Export, values: dict[str, str]) -> list[str]:
 PASSES = 4
 
 
-def _digest(paths: tuple[str, ...]) -> tuple[str, ...]:
+def _digest(root: Path, paths: tuple[str, ...]) -> tuple[str, ...]:
     out = []
     for rel in paths:
-        p = ROOT / rel
+        p = root / rel
         out.append(hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() else "")
     return tuple(out)
 
 
 def run(exports: list[Export], polestar: Path, lua: str, work: Path, check: bool = False) -> int:
-    """Run `exports` in order, then again any daily export that reads an
-    output a pass moved, until a pass moves nothing; with `check`, put the
-    committed files back and say which differed. 0 when all ran (and, with
-    check, nothing differed)."""
+    """Check a disposable copy of the working files, including uncommitted inputs."""
+    if not check:
+        return _build(exports, polestar.resolve(), lua, work.resolve(), ROOT)
+    with tempfile.TemporaryDirectory(prefix="wow-rebuild-check-") as tmp:
+        tree = Path(tmp)
+        paths = subprocess.check_output(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+                                        cwd=ROOT)
+        for name in os.fsdecode(paths).split("\0"):
+            src = ROOT / name
+            if name and src.is_file():
+                dest = tree / name
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dest)
+        return _build(exports, polestar.resolve(), lua, work.resolve(), tree, compare=ROOT)
+
+
+def _build(exports: list[Export], polestar: Path, lua: str, work: Path, root: Path, compare: Path | None = None) -> int:
     work.mkdir(parents=True, exist_ok=True)
     # {polestar}: the addon's checkout, for Polestar's own planner and rules;
     # {latest}: the overlay with forever-db's own release (tools/kb/checkout.py).
@@ -212,14 +228,14 @@ def run(exports: list[Export], polestar: Path, lua: str, work: Path, check: bool
             for need in e.needs:
                 if need not in values:
                     values[need] = str(FETCH[need](work))
-            before = _digest(e.outputs)
-            r = subprocess.run(command(e, values), cwd=ROOT, capture_output=True, text=True)
+            before = _digest(root, e.outputs)
+            r = subprocess.run(command(e, values), cwd=root, capture_output=True, text=True)
             if r.returncode:
                 sys.stderr.write((r.stdout or "")[-2000:] + (r.stderr or "")[-2000:])
                 last = ((r.stderr or "").strip() or (r.stdout or "").strip() or f"exit {r.returncode}").splitlines()[-1]
                 print(f"rebuild: {e.name} failed ({last[:200]})", file=sys.stderr)
                 return 1
-            if _digest(e.outputs) != before:
+            if _digest(root, e.outputs) != before:
                 moved |= set(e.outputs)
             ran += [e] if e not in ran else []
         todo = [e for e in select() if moved & set(e.reads)]
@@ -228,17 +244,16 @@ def run(exports: list[Export], polestar: Path, lua: str, work: Path, check: bool
     else:
         print(f"rebuild: still moving after {PASSES} passes: {', '.join(e.name for e in todo)}", file=sys.stderr)
         return 1
-    if not check:
+    if compare is None:
         return 0
-    exports = ran
-    files = [o for e in exports for o in e.outputs]
-    differ = subprocess.run(["git", "diff", "--name-only", "--", *files], cwd=ROOT, capture_output=True,
-                            text=True, check=True).stdout.split()
-    for f in differ:
-        e = next(x for x in exports if f in x.outputs)
-        print(f"::error::{f} is not what {e.name} builds from these inputs: rerun it ({e.doc}) and commit the result")
-    subprocess.run(["git", "checkout", "--", *files], cwd=ROOT, check=True)
-    return 1 if differ else 0
+    differ = False
+    for export in ran:
+        for path in export.outputs:
+            if _digest(root, (path,)) != _digest(compare, (path,)):
+                print(f"::error::{path} is not what {export.name} builds from these inputs: "
+                      f"rerun it ({export.doc}) and commit the result")
+                differ = True
+    return int(differ)
 
 
 def table() -> str:

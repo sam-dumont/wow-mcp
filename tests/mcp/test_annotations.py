@@ -41,7 +41,7 @@ WRITERS = {
 # server and reaches no AI provider.
 LATER: set[str] = set()
 OPEN_WORLD: set[str] = set()
-READ_ONLY = {"list_metrics", "character_summary", "levels", "sessions", "zones", "guide_steps", "deaths", "dungeons", "players",
+READ_ONLY = {"data_status", "list_metrics", "character_summary", "levels", "sessions", "zones", "guide_steps", "deaths", "dungeons", "players",
              "prices", "inventory", "gear", "next_moves", "sanity_check", "route_reference", "market", "play_analysis",
              "check_plan", "how_did_my_plan_go", "next_step", "mount_goal",
              "whats_new", "kb_rule", "kb_topics", "analyse", "analysis_progress", "dashboard_refresh", "class_guide", "class_meta", "news", "talent_changes", "professions"}
@@ -133,7 +133,7 @@ CALLS = [
     ("guide_steps", {}), ("deaths", {}), ("dungeons", {}), ("players", {}), ("prices", {}), ("inventory", {}), ("gear", {}),
     ("professions", {}),
     ("next_moves", {}), ("sanity_check", {}), ("players", {"groups": True}), ("route_reference", {}), ("market", {}),
-    ("dashboard_refresh", {}),
+    ("dashboard_refresh", {}), ("data_status", {}),
 ]
 
 

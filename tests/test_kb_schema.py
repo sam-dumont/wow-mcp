@@ -96,6 +96,8 @@ def test_the_multi_source_rule(allow, rec, why):
     ({"source_url": "http://news.blizzard.com/x"}, "not an https URL"),
     ({"source_url": "https://example.org/x"}, "not on the source allow-list"),
     ({"sources": ["https://example.org/y"]}, "not on the source allow-list"),
+    ({"source_url": 'https://news.blizzard.com/x"'}, "invalid characters"),
+    ({"sources": ["https://news.blizzard.com/a b"]}, "invalid characters"),
     ({"scope": "retail"}, "scope"),
     ({"confidence": "certain"}, "confidence"),
     ({"last_verified": "yesterday"}, "last_verified"),
@@ -112,8 +114,29 @@ def test_a_bad_record_is_refused(allow, rec, why):
     assert any(why in e for e in kbschema.check(bad, allow))
 
 
+def test_encoded_search_parameters_are_valid(allow):
+    rec = rec_(source_url="https://www.wowhead.com/search?q=two%20words&quote=%22", source_type="guide")
+    assert kbschema.check(rec, allow) == []
+
+
+def test_forum_authorship_matches_the_post_number(allow):
+    player = "https://us.forums.blizzard.com/en/wow/t/wow-forever-exp-eliminator/2406791"
+    mixed = "https://eu.forums.blizzard.com/en/wow/t/643840"
+    assert kbschema.source_type(player, allow) == kbschema.source_type(mixed, allow) == "community"
+    # Even in a staff-started thread, the claim might come from a later reply.
+    for topic in ("2403040", "wow-forever-hotfixes/2403040"):
+        thread = "https://us.forums.blizzard.com/en/wow/t/" + topic
+        assert kbschema.source_type(thread, allow) == "community"
+        assert kbschema.source_type(thread + "/1", allow) == "official"
+    assert kbschema.source_type(mixed + "/233", allow) == "official"
+    assert kbschema.source_type(mixed + "/234", allow) == "community"
+    assert kbschema.best_cap({"source_url": player}, allow) == "medium"
+    assert kbschema.multi_source({"source_url": player}, allow)
+    assert kbschema.multi_source({"source_url": mixed + "/233"}, allow) == ""
+
+
 def test_a_booster_backed_by_an_official_source_may_be_high(allow):
-    rec = {"source_url": "https://conquestcapped.com/x", "sources": ["https://us.forums.blizzard.com/t/1"],
+    rec = {"source_url": "https://conquestcapped.com/x", "sources": ["https://us.forums.blizzard.com/en/wow/t/2403040/14"],
            "source_type": "commercial", "date": "2026-11", "confidence": "high", "scope": "forever",
            "last_verified": "2026-11-18"}
     assert kbschema.check(rec, allow) == []

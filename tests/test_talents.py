@@ -490,3 +490,69 @@ def test_a_talents_numbers_follow_its_rank_curve(cat):
         f = talents.frame(cat, cls, {str(k): v for k, v in ranks.items()})
         zero = [n["name"] for s in f["sections"] for n in s["nodes"] if n["rank"] and re.search(r"\b0%", n["desc"])]
         assert not zero, (cls, zero)
+
+
+def test_balance_71139_replays_the_hotfix_for_existing_characters(tmp_path):
+    """An existing client's pre-hotfix catalog can be read without another Wago download."""
+    from wowstats import classguide, talent_hotfixes
+
+    # Only the identities the old format saved. The purchase in Improved Wrath rank 3
+    # uses its Classic rank-specific spell ID, whereas a new reading uses the trait spell.
+    before = [(134384, "16814", "Improved Wrath", ["16814", "16815", "16816"], 5),
+              (134392, "16821", "Improved Moonfire", ["16821", "16822"], 2),
+              (134394, "16850", "Improved Starfire", ["16850", "16923", "16924"], 5),
+              (134397, "16896", "Moonfury", ["16896", "16897"], 5)]
+    nodes = [{"defs": [d], "spells": [s], "ranks": rs, "max": cap, "row": i, "col": 0}
+             for i, (d, s, _, rs, cap) in enumerate(before)]
+    section = {"name": "Balance", "order": 0, "nodes": nodes, "edges": []}
+    cached = {"trees": [{"class": "DRUID", "kind": "class", "sections": [section]}],
+              "spells": {s: {"name": name} for _, s, name, _, _ in before}}
+    (tmp_path / "talent-catalog.json").write_text(json.dumps({"format": 6, "build": talent_hotfixes.BUILD,
+                                                             "checked": time.time(), "catalog": cached}))
+    cat = talents.Catalog("https://wago.tools", "wowf", tmp_path).get()
+    readings = [{"spell": 16816, "rank": 3}, {"name": "Improved Moonfire", "rank": 2},
+                {"spell": 16923, "rank": 2}, {"spell": 16896, "rank": 2}, {"spell": 408258, "rank": 4}]
+    f = talents.frame(cat, "Druid", talents.match_ranks(cat, "Druid", readings))
+    druid = classguide.reference()["classes"]["DRUID"]["talents"]
+    for name, rank, count, number in (("Starlight Wrath", 3, 5, "0.3 seconds"), ("Moon and Stars", 2, 2, "100%"),
+                                      ("Improved Starfire", 2, 2, "15%"), ("Dreamstate", 4, 5, "80%")):
+        _, n = node(f, name)
+        assert (n["rank"], n["max"]) == (rank, count)
+        assert number in n["desc"] and druid[name]["max"] == count
+    assert druid["Dreamstate"]["spell"] == 408258
+    assert druid["Vengeance"]["needs"] == "Moon and Stars"
+    assert f["unmatched"] == 1  # The historical Moonfury purchase cannot establish a Dreamstate rank.
+    before_refund = {"trees": [{"tree": "Balance", "points": 9}],
+                     "ranks": [{"spell": 16924, "rank": 3}, {"name": "Improved Wrath", "rank": 5}]}
+    stale, spec = talents.from_battlenet(cat, "Druid", before_refund)
+    assert not stale["available"] and "refund" in stale["why"] and not stale["points"]
+    assert spec["name"] is None and spec["split"] is None
+    old = {"trees": [], "ranks": {"improved wrath": {"spell": 16816, "rank": 3, "name": "Improved Wrath"}}}
+    new = {"trees": [], "ranks": {"starlight wrath": {"spell": 16814, "rank": 3, "name": "Starlight Wrath"}}}
+    assert talents.history(cat, "Druid", [old, new]) == []
+    del old["ranks"]["improved wrath"]["spell"]
+    assert talents.history(cat, "Druid", [old, new]) == []
+
+
+def test_cached_kb_search_uses_the_current_balance_names_and_ranks(tmp_path):
+    import gzip
+
+    from wowstats import talent_hotfixes
+    from wowstats.analysis.kb import GameTables
+
+    old = [{"id": "talent:784", "kind": "talent", "title": "Improved Starfire", "body": "5 ranks"},
+           {"id": "spell:16896", "kind": "spell", "title": "Moonfury", "body": "5 ranks"},
+           {"id": "spell:16815", "kind": "spell", "title": "Improved Wrath", "body": "old rank 2"},
+           {"id": "spell:436287", "kind": "spell", "title": "Improved Wrath", "body": "a different spell"}]
+    (tmp_path / "kb-game.json.gz").write_bytes(gzip.compress(json.dumps(
+        {"build": talent_hotfixes.BUILD, "checked": time.time(), "docs": old}).encode()))
+    docs, build = GameTables("https://wago.tools", "wowf", tmp_path).docs()
+    rows = {d["id"]: d for d in docs}
+    assert len(rows) == len(docs) and build == "1.60.1.71139"
+    assert rows["spell:16815"]["title"] == "Starlight Wrath" and "20%" in rows["spell:16815"]["body"]
+    assert rows["spell:16924"]["title"] == "Improved Starfire (retired rank)"
+    assert rows["spell:436287"] == old[-1]
+    assert rows["spell:16896"]["title"] == "Moonfury (retired)"
+    assert rows["talent:790"]["title"] == "Dreamstate" and "20/40/60/80/100%" in rows["talent:790"]["body"]
+    assert "2 ranks" in rows["talent:784"]["body"] and "8/15%" in rows["talent:784"]["body"]
+    assert rows["spell:408248"]["url"] == talent_hotfixes.SOURCE

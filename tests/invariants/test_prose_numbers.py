@@ -23,6 +23,7 @@ from datetime import datetime
 
 from tests.analysis import test_auto as AU
 from tests.analysis import test_drive as TD
+from tests.analysis.test_analysis import XP_BY_LEVEL
 from tests.mcp import inmem
 from wowstats import analysis
 from wowstats.analysis import auto, drive, load_state, prep, providers, verify
@@ -420,12 +421,10 @@ def test_the_server_analysis_keeps_rendered_placeholders_and_refuses_typed_numbe
     number: the first are kept as the query renders them, the last refused."""
     findings = [
         AU.FINDINGS[0],
-        {"key": "xp-by-level", "title": "XP at level {level}",
-         "claim": "Your top 2 levels for XP: {level} with {xp:int} XP, then {rows[1].level} with "
+        {**XP_BY_LEVEL,
+         "claim": "Your top 2 completed levels for XP: {level} with {xp:int} XP, then {rows[1].level} with "
                   "{rows[1].xp:int}.",
-         "sql": "SELECT level, xp_gained AS xp FROM agg_level ORDER BY xp_gained DESC LIMIT 2",
-         "expect": {"level": 25, "xp": 32860}, "constants": [{"value": 2, "label": "top-n"}], "relevance": 3,
-         "kb": [], "action": None},
+         "constants": [{"value": 2, "label": "top-n"}]},
         _deaths(key="misread", claim="You died 3 times."),
     ]
     monkeypatch.setattr(AU, "FINDINGS", findings)
@@ -443,9 +442,7 @@ def test_the_server_analysis_keeps_rendered_placeholders_and_refuses_typed_numbe
     assert [x["status"] for x in r["runs"]] == ["done"], r
     kept = load_state(e, CHAR)["findings"]
     assert sorted(kept) == ["sessions-online", "xp-by-level"]
-    top = drive.workspace(e, CHAR).judge.run(findings[1]["sql"], 2)[1]
-    assert kept["xp-by-level"]["text"] == (f"Your top 2 levels for XP: {top[0][0]} with {verify.fmt(top[0][1], 'int')}"
-                                           f" XP, then {top[1][0]} with {verify.fmt(top[1][1], 'int')}.")
+    assert kept["xp-by-level"]["text"] == "Your top 2 completed levels for XP: 25 with 34 000 XP, then 24 with 31 700."
     assert kept["xp-by-level"]["constants"] == [{"value": 2, "label": "top-n"}]
     assert load_state(e, CHAR)["runs"][-1]["refused"] == 1
     assert any("misread: 3 in the claim is neither" in w for w in refused), refused

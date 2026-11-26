@@ -48,7 +48,7 @@ def lab(tmp_path):
     def upload(who, *evs):
         ls = lines(*evs)
         eventstore.get(loc).append(people[who].account_id, ls)
-        return ahshared.share(loc, ls, people[who])
+        return ahshared.share(loc, ls)
 
     return loc, people, upload
 
@@ -61,22 +61,21 @@ def shared_rows(loc) -> list[dict]:
 
 def prices_of(loc, own) -> dict[str, str]:
     rows = ahshared.scans(own, loc, "min(price_copper) as lo, max(_time) as t", {"lo": "min", "t": "maxtime"})
-    return {r["item_key"]: (r["ruleset"], r["faction"], r["lo"]) for r in rows}
+    return {r["item_key"]: (r["ruleset"], r.get("faction"), r["lo"]) for r in rows}
 
 
 def test_a_scan_serves_its_ruleset_and_faction_and_says_nothing_of_who(lab):
     loc, people, upload = lab
-    # Ada's key names the ruleset alone: her side comes from her character record in the same upload.
-    assert upload(ADA, character(ADA, "Normal", "Alliance"), price(ADA, "Normal", 101, 500)) == 1
+    assert upload(ADA, character(ADA, "Normal", "Alliance"), price(ADA, "Normal", 101, 500, "Alliance")) == 1
     assert upload(BRAM, character(BRAM, "Normal", "Horde"), price(BRAM, "Normal", 202, 700, faction="Horde")) == 1
-    assert upload(CLEO, character(CLEO, "Hardcore", "Alliance"), price(CLEO, "Hardcore", 303, 900)) == 1
+    assert upload(CLEO, character(CLEO, "Hardcore", "Alliance"), price(CLEO, "Hardcore", 303, 900, "Alliance")) == 1
     upload(DORA, character(DORA, "Normal", "Alliance"))  # never scans
     upload(EZRA, character(EZRA, "Normal", race="Troll"))  # Horde by race, never scans
 
     stored = shared_rows(loc)
     assert {r["faction"] for r in stored} == {"Alliance", "Horde"}
     for r in stored:  # price fields, the house, nothing about the scanner
-        assert set(r) <= {"_time", "feed", "component", "ruleset", "faction", "_msg", *ahshared.SHARED_FIELDS}
+        assert set(r) <= {"_time", "feed", "component", "ruleset", "faction", "house_from", "_msg", *ahshared.SHARED_FIELDS}
         assert not any(n.split("-")[0] in json.dumps(r) for n in (ADA, BRAM, CLEO))
 
     # Dora (Alliance, Normal) gets Ada's scan: not Bram's Horde house, not Cleo's other ruleset.
@@ -91,7 +90,7 @@ def test_a_character_record_names_the_realm_the_long_way_and_still_gets_its_rule
     """Forever's client realm name is "<cluster> Realm <n> <ruleset>"; Auctionator's key is the
     ruleset alone (wowstats.ahsource.ruleset_key). Dora never scans and gets Ada's scan."""
     loc, people, upload = lab
-    upload(ADA, character(ADA, "Fixture Realm 1 Normal", "Alliance"), price(ADA, "Normal", 505, 400))
+    upload(ADA, character(ADA, "Fixture Realm 1 Normal", "Alliance"), price(ADA, "Normal", 505, 400, "Alliance"))
     upload(DORA, character(DORA, "Fixture Realm 1 Normal", "Alliance"))
     upload(CLEO, character(CLEO, "Fixture Realm 1 Hardcore", "Alliance"))
     assert prices_of(loc, people[DORA]) == {"505": ("Normal", "Alliance", "400")}
@@ -107,29 +106,161 @@ def test_the_neutral_house_serves_both_sides_of_its_ruleset(lab):
     assert prices_of(loc, people[CLEO]) == {}
 
 
-def test_the_side_comes_from_the_store_or_the_race_else_it_stays_home(lab):
+@pytest.mark.parametrize("shared", [False, True])
+def test_market_trends_and_planned_loot_stay_in_one_house(lab, shared):
+    from types import SimpleNamespace
+
+    from wowstats.mcp import tools
+    from wowstats.plan import facts
+
     loc, people, upload = lab
-    upload(BRAM, character(BRAM, "Normal", race="Orc"))  # an earlier upload: race only
-    assert upload(BRAM, price(BRAM, "Normal", 505, 50)) == 1  # read back from his own store
-    assert shared_rows(loc)[-1]["faction"] == "Horde"
-    # Nothing says Dora's side: her scan stays in her own store only.
-    assert upload(DORA, character(DORA, "Normal", race="Skyborne"), price(DORA, "Normal", 606, 60)) == 0
-    assert all(r.get("item_key") != "606" for r in shared_rows(loc))
+    own = people[ADA]
+    upload(ADA, character(ADA, "Normal", "Alliance"), character(CLEO, "Hardcore", "Horde"),
+           price(ADA, "Normal", 505, 10000, "Alliance"), price(CLEO, "Hardcore", 505, 99000, "Horde"))
+    loc = loc if shared else ""
+    ctx = tools.Ctx(store=SimpleNamespace(events=own), default_char=ADA, env={"AH_SHARED_STORE": loc})
+
+    def trend(**kwargs):
+        return tools.t_prices(ctx, {"item": "505", **kwargs})
+
+    answer = trend()
+    assert answer["house"] == {"ruleset": "Normal", "faction": "Alliance"}
+    assert [(r["latest_copper"], r["scan_days"], r["change_vs_first"]) for r in answer["items"]] == [(10000, 1, None)]
+    assert trend(ruleset="Hardcore", faction="Horde")["items"][0]["latest_copper"] == 99000
+    assert trend(ruleset="Normal", faction="Neutral")["items"] == []
+    scans = facts.prices(own, shared=loc, char=ADA)
+    assert facts.run_loot({"loot_inside": [(505, 2)]}, None, scans)["ah_copper"] == 20000
+    assert facts.prices(own, shared=loc, char=CLEO)[505]["copper"] == 99000
+    assert facts.prices(own, shared=loc, char="Unknown-Fixture") == {}
+
+
+@pytest.mark.parametrize("shared", [False, True])
+@pytest.mark.parametrize("alias", [False, True], ids=["same-spelling", "spaced-and-dashed"])
+@pytest.mark.parametrize("side_fields", [{"race": "Gnome"}, {"faction": "Alliance"}], ids=["race", "faction"])
+@pytest.mark.parametrize("scan_faction", [None, "Alliance"], ids=["ruleset-key", "faction-key"])
+def test_scanning_another_house_cannot_change_the_characters_side(lab, shared, alias, side_fields, scan_faction):
+    from types import SimpleNamespace
+
+    from wowstats.mcp import tools
+    from wowstats.plan import facts
+
+    loc, people, upload = lab
+    name = ADA.replace("-", " ") if alias else ADA
+    upload(ADA, character(ADA, "Fixture Realm 1 Normal"),
+           {"_time": (DAY + timedelta(minutes=30)).isoformat(), "char": ADA, "feed": "wow-player", "race": "Orc"},
+           {"_time": T, "char": name, "feed": "wow-recorder", "kind": "session", **side_fields},
+           price(ADA, "Hardcore", 505, 99000, "Horde") | {"_time": (DAY + timedelta(hours=1)).isoformat()})
+    if shared:
+        scanner = DORA.replace("-", " ") if alias else DORA
+        upload(DORA, {"_time": T, "char": DORA, "feed": "wow-player", "race": "Orc"},
+               character(scanner, "Normal", **side_fields), price(DORA, "Normal", 505, 10000, scan_faction))
+        assert ahshared.homes(people[ADA]) == {("Normal", "Alliance"), ("Hardcore", "Horde")}
+    else:
+        upload(ADA, price(ADA, "Normal", 505, 10000, scan_faction))
+    own = people[ADA]
+    loc = loc if shared else ""
+    ctx = tools.Ctx(store=SimpleNamespace(events=own), default_char=ADA, env={"AH_SHARED_STORE": loc})
+    result = tools.t_prices(ctx, {"item": "505", "char": name})
+    if shared and not scan_faction:
+        assert result["house"] is None and result["items"] == []
+        assert facts.prices(own, shared=loc, char=name) == {}
+    else:
+        assert result["house"] == {"ruleset": "Normal", "faction": scan_faction}
+        assert result["items"][0]["latest_copper"] == facts.prices(own, shared=loc, char=name)[505]["copper"] == 10000
+    hardcore = tools.t_prices(ctx, {"item": "505", "ruleset": "Hardcore", "faction": "Horde"})
+    assert hardcore["items"][0]["latest_copper"] == 99000
+
+
+def test_neutral_market_is_a_fallback_and_never_merged_with_a_side():
+    rows = [{"ruleset": "Normal", "faction": s} for s in ("Alliance", "Neutral")]
+    assert ahshared.one_house(rows, ("Normal", "Alliance"))[1] == rows[:1]
+    assert ahshared.one_house(rows, ("Normal", "Horde"))[1] == rows[1:]
+    assert ahshared.one_house(rows, None)[1] == []
+
+
+@pytest.mark.parametrize("shared", [False, True])
+def test_an_unknown_side_still_has_a_known_ruleset(lab, shared):
+    from wowstats.plan import facts
+
+    loc, people, upload = lab
+    own = people[ADA]
+    loc = loc if shared else ""
+    upload(ADA, character(ADA, "Fixture Realm 1 Normal", race="Skyborne"),
+           price(ADA, "Hardcore", 505, 99000))
+    assert facts.prices(own, shared=loc, char=ADA) == {}
+    scanner = DORA if shared else ADA
+    upload(scanner, price(scanner, "Normal", 505, 3000, faction="Neutral"))
+    assert facts.prices(own, shared=loc, char=ADA)[505]["copper"] == 3000
+
+    legacy = [{"ruleset": "Normal"}]
+    assert ahshared.one_house(legacy, ("Normal", None))[1] == legacy
+    assert ahshared.one_house(legacy, None)[1] == legacy
+
+
+def test_realm_only_prices_stay_private_even_with_a_known_race(lab):
+    loc, people, upload = lab
+    upload(BRAM, character(BRAM, "Normal", race="Orc"))
+    assert upload(BRAM, price(BRAM, "Normal", 505, 50)) == 0
+    upload(EZRA, character(EZRA, "Normal", "Horde"))
+    assert prices_of(loc, people[BRAM]) == {"505": ("Normal", None, "50")}
+    assert prices_of(loc, people[EZRA]) == {}
+
+
+@pytest.mark.parametrize("shared", [False, True])
+@pytest.mark.parametrize("label", ["Horde", None])
+def test_only_one_of_the_selected_characters_own_keys_sets_the_default(lab, shared, label):
+    from types import SimpleNamespace
+
+    from wowstats import analysis
+    from wowstats.mcp import tools
+    from wowstats.plan import facts
+
+    loc, people, upload = lab
+    own = people[BRAM]
+    upload(BRAM, price(BRAM.replace("-", " "), "Normal", 505, 55, label),
+           price(CLEO, "Hardcore", 505, 777, "Alliance"))
+    loc = loc if shared else ""
+    env = {"AH_SHARED_STORE": loc}
+    ctx = tools.Ctx(store=SimpleNamespace(events=own), default_char=BRAM, env=env)
+    trend = tools.t_prices(ctx, {"item": "505"})
+    assert trend["house"] == {"ruleset": "Normal", "faction": label} and trend["items"][0]["latest_copper"] == 55
+    assert facts.prices(own, shared=loc, char=BRAM)[505]["copper"] == 55
+    rows = analysis.prices_for(own, env, BRAM)
+    assert ahsource.market({"items": rows}, faction=None, money=None)["items"][505]["price_copper"] == 55
+    assert facts.prices(own, shared=loc, char="No-Data") == {}
+
+    upload(BRAM, price(BRAM, "Normal", 505, 75, "Neutral"))
+    assert tools.t_prices(ctx, {"item": "505"})["items"] == []
+    assert analysis.prices_for(own, env, BRAM) == [] and facts.prices(own, shared=loc, char=BRAM) == {}
+    def explicit(faction):
+        return tools.t_prices(ctx, {"item": "505", "ruleset": "Normal", "faction": faction})
+    assert explicit("Neutral")["items"][0]["latest_copper"] == 75
+    selected = explicit(label or "Unknown")
+    assert selected["items"][0]["latest_copper"] == 55 and selected["house"]["faction"] == label
 
 
 def test_backfill_copies_older_scans_once(lab):
     loc, people, _ = lab
     # Scans stored before the shared space existed: in Ada's own store only.
-    eventstore.get(loc).append(0, lines(character(ADA, "Normal", "Alliance"), price(ADA, "Normal", 707, 70),
-                                        {**price(ADA, "Normal", 707, 90), "rev": 2, "price_copper": 65}))
+    eventstore.get(loc).append(0, lines(character(ADA, "Normal", "Alliance"), price(ADA, "Normal", 707, 70, "Alliance"),
+                                        {**price(ADA, "Normal", 707, 90, "Alliance"), "rev": 2, "price_copper": 65},
+                                        price(ADA, "Normal", 606, 60)))
     eventstore.get(loc).append(3, lines(character(DORA, "Normal", "Alliance")))
+    # Earlier shared rows discarded the scanner and whether the faction was inferred.
+    legacy = ahshared.shared_event(price(ADA, "Normal", 606, 60, "Alliance"))
+    legacy.pop("house_from")
+    eventstore.get(loc).append(ahshared.ACCOUNT, lines(legacy))
     assert prices_of(loc, people[DORA]) == {}
     out = ahshared.backfill(loc, [("ada", people[ADA])], out=open("/dev/null", "w"))  # noqa: SIM115
-    assert out["ada"] == {"scans": 1, "shared": 1}
+    assert out["ada"] == {"scans": 2, "shared": 1}
     assert prices_of(loc, people[DORA]) == {"707": ("Normal", "Alliance", "65")}
     ahshared.backfill(loc, [("ada", people[ADA])], out=open("/dev/null", "w"))  # noqa: SIM115
-    assert len(shared_rows(loc)) == 1  # the same row again: kept once
+    assert len(shared_rows(loc)) == 2  # the unverified row and one confirmed row
     assert "Ada" not in json.dumps(shared_rows(loc))
+
+    # Only Alliance and Horde could be inferred. Legacy Neutral was explicit.
+    eventstore.get(loc).append(ahshared.ACCOUNT, lines({**legacy, "faction": "Neutral"}))
+    assert prices_of(loc, people[DORA])["606"] == ("Normal", "Neutral", "60")
 
 
 def test_one_person_reads_their_own_scans_as_rulesets():

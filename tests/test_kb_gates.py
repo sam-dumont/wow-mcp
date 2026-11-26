@@ -192,7 +192,8 @@ def test_the_instructions_gate_runs_in_the_job(tmp_path, monkeypatch):
     assert not res["ok"] and any(r.startswith("instructions: `community.json`") for r in res["refused"])
 
 
-def test_the_suite_runs_as_ci_runs_it_without_the_jobs_variables(monkeypatch):
+@pytest.mark.parametrize("pytest_status", [0, 1])
+def test_the_suite_runs_as_ci_runs_it_without_the_jobs_variables(monkeypatch, capsys, pytest_status):
     """2026-11-22: the job's KB_ISSUES_OUT reached the suite, every issue test
     got "deferred", and the gates refused every watch PR (#99) for tests CI
     passes. The suite now runs with CI's flags and without the job's own
@@ -202,14 +203,22 @@ def test_the_suite_runs_as_ci_runs_it_without_the_jobs_variables(monkeypatch):
         monkeypatch.setenv(k, v)
     seen = []
 
+    popen = subprocess.Popen
+
     def run(cmd, **kw):
         seen.append((cmd, kw.get("env")))
-        return subprocess.CompletedProcess(cmd, 0, "", "")
+        script = "print('passed')"
+        if "pytest" in cmd and pytest_status:
+            script = "print('FAILED tests/test_example.py::test_example - AssertionError'); raise SystemExit(1)"
+        return popen([sys.executable, "-c", script], **kw)
 
-    monkeypatch.setattr(gates.subprocess, "run", run)
-    assert gates.test_gate() == []
+    monkeypatch.setattr(gates.subprocess, "Popen", run)
+    assert gates.test_gate() == (["tests: pytest failed: `tests/test_example.py::test_example`"] if pytest_status else [])
+    log = capsys.readouterr().err
+    assert "Running pytest" in log and "Running fixtures" in log and "passed" in log
     pytest_cmd, env = next((c, e) for c, e in seen if "pytest" in c)
     assert "-n" in pytest_cmd and "not browser" in pytest_cmd
+    assert pytest_cmd[pytest_cmd.index("--timeout") + 1] == "300"
     for _, env in seen:
         assert env is not None and env.get("POLESTAR_CHECKOUT") == "/p"
         assert not {"KB_ISSUES_OUT", "KB_SOURCES", "WHY", "GH_TOKEN", "GITHUB_OUTPUT"} & set(env)

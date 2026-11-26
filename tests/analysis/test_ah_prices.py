@@ -90,7 +90,13 @@ def test_one_query_answers_the_cheapest_upgrade_on_the_ah(demo):
     out = semantic.rows(demo["layer"], demo["ro"], drive.AH_QUERY)
     assert [(r["item"], r["ah_upgrade_price_copper"]) for r in out] == [
         ("Shadoweave Shoulders", 38500), ("Shadoweave Mask", 42500), ("Underworld Band", 245500)]
-    assert out[0]["slot"] == "Shoulder" and out[0]["effort_elsewhere"] == "some effort"
+    shoulder = out[0]
+    assert shoulder["slot"] == "Shoulder" and shoulder["effort_elsewhere"] == "hard"
+    # The demo tailor has 195 skill, no recipe list and no verified route to
+    # learn Shadoweave Shoulders (12076). The auction price buys the finished item.
+    craft = demo["db"].execute("SELECT source_kind, profession, skill, can_make FROM upgrade_candidates "
+                               "WHERE item_id = ?", (shoulder["item_id"],)).fetchall()
+    assert craft == [("craft", "Tailoring", None, 0)]
     # And a price over time, by item: two scan days give a change.
     p = semantic.rows(demo["layer"], demo["ro"], {"metrics": ["ah_price_latest_copper", "ah_price_change_copper"],
                                                   "group_by": ["item_id"],
@@ -115,7 +121,7 @@ def test_the_brief_says_it_in_one_line(demo, tmp_path, monkeypatch):
     rows, prices = _mine(demo["rows"]), demo["prices"]
     monkeypatch.setattr(prep, "query", lambda store, stream, char: [dict(r) for r in rows])
     monkeypatch.setattr(analysis, "other_players", lambda store, stream, char: set())
-    monkeypatch.setattr(analysis, "prices_for", lambda store, env: prices)
+    monkeypatch.setattr(analysis, "prices_for", lambda store, env, char: prices)
     drive._WS.clear()
     with D.clock():
         b = drive.brief({**env_for(tmp_path), "DEFAULT_CHAR": D.CHAR}, D.CHAR)

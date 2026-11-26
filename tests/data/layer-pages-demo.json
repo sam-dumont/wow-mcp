@@ -187,7 +187,7 @@
   "climb": [
    {
     "level": 23,
-    "t": "2026-10-17T17:21:23.300Z"
+    "t": "2026-10-17T17:51:24.700Z"
    },
    {
     "level": 24,
@@ -195,31 +195,31 @@
    },
    {
     "level": 25,
-    "t": "2026-10-20T17:46:42.500Z"
+    "t": "2026-10-20T17:46:37.300Z"
    },
    {
     "level": 26,
-    "t": "2026-10-20T19:11:17.800Z"
+    "t": "2026-10-20T19:19:05.800Z"
    },
    {
     "level": 27,
-    "t": "2026-10-21T18:12:02.700Z"
+    "t": "2026-10-21T17:58:35.700Z"
    },
    {
     "level": 28,
-    "t": "2026-10-22T14:50:43.700Z"
+    "t": "2026-10-22T14:45:42.300Z"
    },
    {
     "level": 29,
-    "t": "2026-10-23T18:46:39.600Z"
+    "t": "2026-10-23T18:36:40.300Z"
    },
    {
     "level": 30,
-    "t": "2026-10-24T18:29:47.100Z"
+    "t": "2026-10-24T18:30:48.400Z"
    },
    {
     "level": 31,
-    "t": "2026-10-25T17:47:38.200Z"
+    "t": "2026-10-25T17:35:23.100Z"
    },
    {
     "level": 32,
@@ -227,15 +227,15 @@
    },
    {
     "level": 33,
-    "t": "2026-11-02T17:29:38.600Z"
+    "t": "2026-11-02T17:32:04.600Z"
    },
    {
     "level": 34,
-    "t": "2026-11-04T16:56:12.700Z"
+    "t": "2026-11-04T17:04:51.600Z"
    },
    {
     "level": 35,
-    "t": "2026-11-05T18:45:16.800Z"
+    "t": "2026-11-05T18:46:12.100Z"
    },
    {
     "level": 36,
@@ -247,35 +247,35 @@
    },
    {
     "level": 38,
-    "t": "2026-11-08T20:03:21.700Z"
+    "t": "2026-11-08T19:57:32.500Z"
    },
    {
     "level": 39,
-    "t": "2026-11-10T18:46:53.200Z"
+    "t": "2026-11-10T18:48:24.500Z"
    },
    {
     "level": 40,
-    "t": "2026-11-10T20:22:15.700Z"
+    "t": "2026-11-10T20:23:43.500Z"
    },
    {
     "level": 41,
-    "t": "2026-11-13T14:55:08.600Z"
+    "t": "2026-11-13T15:01:33.000Z"
    },
    {
     "level": 42,
-    "t": "2026-11-13T15:57:56.800Z"
+    "t": "2026-11-13T16:00:44.700Z"
    },
    {
     "level": 43,
-    "t": "2026-11-13T17:22:57.000Z"
+    "t": "2026-11-13T17:23:01.200Z"
    },
    {
     "level": 44,
-    "t": "2026-11-15T19:58:07.800Z"
+    "t": "2026-11-15T19:58:31.000Z"
    },
    {
     "level": 45,
-    "t": "2026-11-15T20:56:29.100Z"
+    "t": "2026-11-15T20:57:39.800Z"
    },
    {
     "level": 46,
@@ -319,7 +319,7 @@
     "22": 1,
     "23": 3,
     "24": 1,
-    "26": 1,
+    "27": 1,
     "28": 1,
     "29": 1,
     "32": 2,
@@ -442,7 +442,7 @@
    "recent": [
     {
      "level": null,
-     "t": "2026-11-18T19:23:55.300Z",
+     "t": "2026-11-18T19:13:08.300Z",
      "zone": "Tanaris"
     },
     {
@@ -452,7 +452,7 @@
     },
     {
      "level": null,
-     "t": "2026-11-15T19:09:25.100Z",
+     "t": "2026-11-15T19:10:54.500Z",
      "zone": "Feralas"
     },
     {
@@ -462,17 +462,17 @@
     },
     {
      "level": null,
-     "t": "2026-11-13T16:34:57.500Z",
+     "t": "2026-11-13T16:35:50.200Z",
      "zone": "Stranglethorn Vale"
     },
     {
      "level": null,
-     "t": "2026-11-13T15:36:15.300Z",
+     "t": "2026-11-13T15:34:56.300Z",
      "zone": "Stranglethorn Vale"
     },
     {
      "level": null,
-     "t": "2026-11-13T14:30:26.000Z",
+     "t": "2026-11-13T14:30:22.800Z",
      "zone": "Stranglethorn Vale"
     },
     {
@@ -482,7 +482,7 @@
     },
     {
      "level": null,
-     "t": "2026-11-10T19:21:26.800Z",
+     "t": "2026-11-10T19:19:59.400Z",
      "zone": "Dustwallow Marsh"
     },
     {
@@ -492,7 +492,7 @@
     },
     {
      "level": null,
-     "t": "2026-11-08T20:05:21.800Z",
+     "t": "2026-11-08T20:06:13.900Z",
      "zone": "Stranglethorn Vale"
     },
     {
@@ -507,7 +507,7 @@
     },
     {
      "level": null,
-     "t": "2026-11-04T17:54:58.000Z",
+     "t": "2026-11-04T17:56:50.800Z",
      "zone": "Arathi Highlands"
     },
     {
@@ -708,28 +708,28 @@
      "to_zone": "Wetlands"
     }
    ],
-   "total_s": 5328
+   "total_s": 5270
   },
   "header": {
-   "avg_level_s": 7188,
+   "avg_level_s": 7112,
    "avg_levels": 5,
    "char": "Nibbet-Gearholt",
    "class": "Priest",
    "counts": {
     "completed_levels": {
      "from_level": 22,
-     "kills": 2255,
-     "quests": 141,
+     "kills": 2211,
+     "quests": 156,
      "to_level": 45
     },
     "current_level": {
-     "kills": 101,
+     "kills": 109,
      "level": 46,
-     "quests": 6
+     "quests": 5
     },
     "including_current_level": {
-     "kills": 2356,
-     "quests": 147
+     "kills": 2320,
+     "quests": 161
     }
    },
    "eta_s": 6308,
@@ -741,12 +741,12 @@
    "guild_known": false,
    "level": 46,
    "money_at": "2026-11-18T20:50:14.900Z",
-   "money_copper": 230570,
+   "money_copper": 231452,
    "name": "Nibbet",
-   "played_s": 226461,
+   "played_s": 226462,
    "polestar": true,
    "race": "Gnome",
-   "rested_xp": 7558,
+   "rested_xp": 5306,
    "resting": true,
    "seen": "2026-11-18T20:50:14.900Z",
    "sex": null,
@@ -756,7 +756,7 @@
    "title": "Priest",
    "xp": 45000,
    "xp_max": 123200,
-   "xp_per_hour": 44624,
+   "xp_per_hour": 44629,
    "zone": "Stormwind City"
   },
   "legacy": {
@@ -769,144 +769,158 @@
   },
   "levels": [
    {
-    "at": "2026-10-17T17:21:23.300Z",
-    "kills": 33,
+    "at": "2026-10-17T17:51:24.700Z",
+    "kills": 48,
     "level": 22,
     "partial": true,
-    "quests": 3,
-    "seconds": 2963,
+    "quests": 1,
+    "route_s": 3282,
+    "seconds": 4765,
     "xp": 11745,
-    "xp_per_hour": 14270
+    "xp_per_hour": 8873
    },
    {
     "at": "2026-10-19T17:49:57.500Z",
-    "kills": 127,
+    "kills": 116,
     "level": 23,
     "partial": false,
-    "quests": 8,
-    "seconds": 14229,
+    "quests": 6,
+    "route_s": 4747,
+    "seconds": 12427,
     "xp": 29400,
-    "xp_per_hour": 7438
+    "xp_per_hour": 8517
    },
    {
-    "at": "2026-10-20T17:46:42.500Z",
-    "kills": 23,
+    "at": "2026-10-20T17:46:37.300Z",
+    "kills": 22,
     "level": 24,
     "partial": false,
     "quests": 5,
-    "seconds": 6379,
+    "route_s": 5523,
+    "seconds": 6374,
     "xp": 31700,
-    "xp_per_hour": 17890
+    "xp_per_hour": 17904
    },
    {
-    "at": "2026-10-20T19:11:17.800Z",
+    "at": "2026-10-20T19:19:05.800Z",
     "kills": 53,
     "level": 25,
     "partial": false,
-    "quests": 6,
-    "seconds": 5075,
+    "quests": 8,
+    "route_s": 2618,
+    "seconds": 5548,
     "xp": 34000,
-    "xp_per_hour": 24118
+    "xp_per_hour": 22062
    },
    {
-    "at": "2026-10-21T18:12:02.700Z",
-    "kills": 93,
+    "at": "2026-10-21T17:58:35.700Z",
+    "kills": 82,
     "level": 26,
     "partial": false,
-    "quests": 6,
-    "seconds": 8156,
+    "quests": 7,
+    "route_s": 4609,
+    "seconds": 6881,
     "xp": 36400,
-    "xp_per_hour": 16067
+    "xp_per_hour": 19044
    },
    {
-    "at": "2026-10-22T14:50:43.700Z",
-    "kills": 103,
+    "at": "2026-10-22T14:45:42.300Z",
+    "kills": 112,
     "level": 27,
     "partial": false,
-    "quests": 11,
-    "seconds": 9805,
+    "quests": 12,
+    "route_s": 3810,
+    "seconds": 10311,
     "xp": 38900,
-    "xp_per_hour": 14283
+    "xp_per_hour": 13582
    },
    {
-    "at": "2026-10-23T18:46:39.600Z",
-    "kills": 95,
+    "at": "2026-10-23T18:36:40.300Z",
+    "kills": 89,
     "level": 28,
     "partial": false,
-    "quests": 5,
-    "seconds": 9156,
+    "quests": 7,
+    "route_s": 5373,
+    "seconds": 8858,
     "xp": 41400,
-    "xp_per_hour": 16278
+    "xp_per_hour": 16825
    },
    {
-    "at": "2026-10-24T18:29:47.100Z",
-    "kills": 71,
+    "at": "2026-10-24T18:30:48.400Z",
+    "kills": 78,
     "level": 29,
     "partial": false,
-    "quests": 11,
-    "seconds": 6783,
+    "quests": 16,
+    "route_s": 5081,
+    "seconds": 7443,
     "xp": 44300,
-    "xp_per_hour": 23512
+    "xp_per_hour": 21427
    },
    {
-    "at": "2026-10-25T17:47:38.200Z",
-    "kills": 111,
+    "at": "2026-10-25T17:35:23.100Z",
+    "kills": 99,
     "level": 30,
     "partial": false,
-    "quests": 11,
-    "seconds": 9749,
+    "quests": 14,
+    "route_s": 5073,
+    "seconds": 8953,
     "xp": 47400,
-    "xp_per_hour": 17503
+    "xp_per_hour": 19060
    },
    {
     "at": "2026-10-26T17:43:39.200Z",
-    "kills": 96,
+    "kills": 107,
     "level": 31,
     "partial": false,
     "quests": 8,
-    "seconds": 9632,
+    "route_s": 6971,
+    "seconds": 10367,
     "xp": 50800,
-    "xp_per_hour": 18987
+    "xp_per_hour": 17641
    },
    {
-    "at": "2026-11-02T17:29:38.600Z",
-    "kills": 358,
+    "at": "2026-11-02T17:32:04.600Z",
+    "kills": 313,
     "level": 32,
     "partial": false,
-    "quests": 8,
-    "seconds": 32452,
+    "quests": 14,
+    "route_s": 8829,
+    "seconds": 32598,
     "xp": 54500,
-    "xp_per_hour": 6046
+    "xp_per_hour": 6019
    },
    {
-    "at": "2026-11-04T16:56:12.700Z",
-    "kills": 62,
+    "at": "2026-11-04T17:04:51.600Z",
+    "kills": 69,
     "level": 33,
     "partial": false,
-    "quests": 6,
-    "seconds": 6784,
+    "quests": 5,
+    "route_s": 7354,
+    "seconds": 7156,
     "xp": 58600,
-    "xp_per_hour": 31097
+    "xp_per_hour": 29480
    },
    {
-    "at": "2026-11-05T18:45:16.800Z",
-    "kills": 175,
+    "at": "2026-11-05T18:46:12.100Z",
+    "kills": 170,
     "level": 34,
     "partial": false,
-    "quests": 7,
-    "seconds": 13923,
+    "quests": 8,
+    "route_s": 8430,
+    "seconds": 13459,
     "xp": 62800,
-    "xp_per_hour": 16238
+    "xp_per_hour": 16798
    },
    {
     "at": "2026-11-07T18:41:33.600Z",
-    "kills": 107,
+    "kills": 106,
     "level": 35,
     "partial": false,
     "quests": 5,
-    "seconds": 9514,
+    "route_s": 5806,
+    "seconds": 9458,
     "xp": 67100,
-    "xp_per_hour": 25390
+    "xp_per_hour": 25540
    },
    {
     "at": "2026-11-07T19:52:34.300Z",
@@ -914,99 +928,109 @@
     "level": 36,
     "partial": false,
     "quests": 7,
+    "route_s": 7022,
     "seconds": 4261,
     "xp": 71600,
     "xp_per_hour": 60493
    },
    {
-    "at": "2026-11-08T20:03:21.700Z",
-    "kills": 88,
+    "at": "2026-11-08T19:57:32.500Z",
+    "kills": 83,
     "level": 37,
     "partial": false,
-    "quests": 3,
-    "seconds": 8787,
+    "quests": 4,
+    "route_s": 5177,
+    "seconds": 8438,
     "xp": 76100,
-    "xp_per_hour": 31178
+    "xp_per_hour": 32467
    },
    {
-    "at": "2026-11-10T18:46:53.200Z",
-    "kills": 102,
+    "at": "2026-11-10T18:48:24.500Z",
+    "kills": 111,
     "level": 38,
     "partial": false,
     "quests": 4,
-    "seconds": 9953,
+    "route_s": 8389,
+    "seconds": 10394,
     "xp": 80800,
-    "xp_per_hour": 29225
+    "xp_per_hour": 27985
    },
    {
-    "at": "2026-11-10T20:22:15.700Z",
-    "kills": 63,
+    "at": "2026-11-10T20:23:43.500Z",
+    "kills": 64,
     "level": 39,
     "partial": false,
-    "quests": 5,
-    "seconds": 5723,
+    "quests": 3,
+    "route_s": 6962,
+    "seconds": 5719,
     "xp": 85700,
-    "xp_per_hour": 53909
+    "xp_per_hour": 53946
    },
    {
-    "at": "2026-11-13T14:55:08.600Z",
-    "kills": 59,
+    "at": "2026-11-13T15:01:33.000Z",
+    "kills": 60,
     "level": 40,
     "partial": false,
-    "quests": 8,
-    "seconds": 8292,
+    "quests": 7,
+    "route_s": 7403,
+    "seconds": 8589,
     "xp": 90700,
-    "xp_per_hour": 39378
+    "xp_per_hour": 38016
    },
    {
-    "at": "2026-11-13T15:57:56.800Z",
-    "kills": 57,
+    "at": "2026-11-13T16:00:44.700Z",
+    "kills": 52,
     "level": 41,
     "partial": false,
-    "quests": 0,
-    "seconds": 3768,
+    "quests": 1,
+    "route_s": 5067,
+    "seconds": 3552,
     "xp": 95800,
-    "xp_per_hour": 91529
+    "xp_per_hour": 97095
    },
    {
-    "at": "2026-11-13T17:22:57.000Z",
-    "kills": 52,
+    "at": "2026-11-13T17:23:01.200Z",
+    "kills": 51,
     "level": 42,
     "partial": false,
-    "quests": 7,
-    "seconds": 5100,
+    "quests": 5,
+    "route_s": 14440,
+    "seconds": 4937,
     "xp": 101000,
-    "xp_per_hour": 71294
+    "xp_per_hour": 73648
    },
    {
-    "at": "2026-11-15T19:58:07.800Z",
-    "kills": 75,
+    "at": "2026-11-15T19:58:31.000Z",
+    "kills": 74,
     "level": 43,
     "partial": false,
-    "quests": 3,
-    "seconds": 11181,
+    "quests": 4,
+    "route_s": 15101,
+    "seconds": 11200,
     "xp": 106300,
-    "xp_per_hour": 34226
+    "xp_per_hour": 34168
    },
    {
-    "at": "2026-11-15T20:56:29.100Z",
-    "kills": 55,
+    "at": "2026-11-15T20:57:39.800Z",
+    "kills": 53,
     "level": 44,
     "partial": false,
-    "quests": 1,
-    "seconds": 3501,
+    "quests": 2,
+    "route_s": 5233,
+    "seconds": 3549,
     "xp": 111800,
-    "xp_per_hour": 114961
+    "xp_per_hour": 113407
    },
    {
     "at": "2026-11-17T18:51:07.700Z",
-    "kills": 138,
+    "kills": 140,
     "level": 45,
     "partial": false,
     "quests": 3,
-    "seconds": 12392,
+    "route_s": 9799,
+    "seconds": 12322,
     "xp": 117500,
-    "xp_per_hour": 34135
+    "xp_per_hour": 34329
    }
   ],
   "meta": {
@@ -1520,6 +1544,7 @@
    ],
    "total": 15
   },
+  "route_source": "Polestar 0.4.3 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
   "sources": {
    "archive": "off",
    "archive_after_days": 89
@@ -1556,7 +1581,7 @@
     "lookup/pickup/blackfathom-deeps",
     "lookup/pickup/stormwind-stockade"
    ],
-   "median_s": 242,
+   "median_s": 228,
    "picks": [
     {
      "guide": "forever/professions/tailoring",
@@ -1657,7 +1682,7 @@
     },
     {
      "guide": "forever/alliance/40-50/01-stranglethorn-vale",
-     "guide_title": "Stranglethorn Vale, Dustwallow Marsh & Swamp of Sorrows",
+     "guide_title": "Dustwallow Marsh, Stranglethorn Vale & Swamp of Sorrows",
      "how": "jumped",
      "steps": [
       16,
@@ -1713,7 +1738,7 @@
     },
     {
      "guide": "forever/alliance/06-ashenvale",
-     "guide_title": "Ashenvale, Wetlands & Stonetalon Mountains",
+     "guide_title": "Ashenvale, Stonetalon Mountains & Wetlands",
      "how": "jumped",
      "steps": [
       25,
@@ -1733,9 +1758,9 @@
      "guide": "forever/alliance/30-40/01-hillsbrad-foothills",
      "guide_title": "Wetlands & Hillsbrad Foothills",
      "n": 1,
-     "secs": 5521,
-     "step": 18,
-     "title": "Direforge Hill",
+     "secs": 5515,
+     "step": 31,
+     "title": "Howin Kindfeather",
      "zone": null
     },
     {
@@ -1751,90 +1776,90 @@
      "guide": "forever/alliance/30-40/01-hillsbrad-foothills",
      "guide_title": "Wetlands & Hillsbrad Foothills",
      "n": 1,
-     "secs": 4084,
-     "step": 31,
-     "title": "Howin Kindfeather",
+     "secs": 4897,
+     "step": 18,
+     "title": "Direforge Hill",
      "zone": null
     },
     {
      "guide": "forever/alliance/40-50/04-tanaris",
      "guide_title": "Tanaris",
      "n": 1,
-     "secs": 3420,
-     "step": 27,
+     "secs": 4327,
+     "step": 28,
      "title": "Steamwheedle Port",
      "zone": null
     },
     {
+     "guide": "forever/alliance/30-40/01-hillsbrad-foothills",
+     "guide_title": "Wetlands & Hillsbrad Foothills",
+     "n": 1,
+     "secs": 4028,
+     "step": 36,
+     "title": "Menethil Harbor",
+     "zone": null
+    },
+    {
      "guide": "forever/alliance/40-50/04-tanaris",
      "guide_title": "Tanaris",
      "n": 1,
-     "secs": 3059,
+     "secs": 3156,
      "step": 11,
      "title": "Steamwheedle Port",
      "zone": null
     },
     {
      "guide": "forever/alliance/30-40/05-arathi-highlands",
-     "guide_title": "Arathi Highlands, Alterac Mountains & Swamp of Sorrows",
+     "guide_title": "Swamp of Sorrows, Hillsbrad Foothills, Alterac Mountains & Arathi Highlands",
      "n": 1,
-     "secs": 2734,
-     "step": 51,
+     "secs": 2650,
+     "step": 52,
      "title": "Faldir's Cove",
+     "zone": null
+    },
+    {
+     "guide": "forever/alliance/30-40/05-arathi-highlands",
+     "guide_title": "Swamp of Sorrows, Hillsbrad Foothills, Alterac Mountains & Arathi Highlands",
+     "n": 1,
+     "secs": 2162,
+     "step": 65,
+     "title": "Dalaran",
      "zone": null
     },
     {
      "guide": "forever/alliance/40-50/03-feralas",
      "guide_title": "Feralas",
      "n": 1,
-     "secs": 2179,
+     "secs": 2153,
      "step": 21,
      "title": "Jer'kai Moonweaver",
      "zone": null
     },
     {
      "guide": "forever/alliance/30-40/05-arathi-highlands",
-     "guide_title": "Arathi Highlands, Alterac Mountains & Swamp of Sorrows",
+     "guide_title": "Swamp of Sorrows, Hillsbrad Foothills, Alterac Mountains & Arathi Highlands",
      "n": 1,
-     "secs": 2167,
-     "step": 24,
+     "secs": 2071,
+     "step": 25,
      "title": "Southshore",
      "zone": null
     },
     {
-     "guide": "forever/alliance/30-40/05-arathi-highlands",
-     "guide_title": "Arathi Highlands, Alterac Mountains & Swamp of Sorrows",
-     "n": 1,
-     "secs": 2162,
-     "step": 65,
-     "title": "Image of Archmage Modera",
-     "zone": null
-    },
-    {
-     "guide": "forever/alliance/40-50/01-stranglethorn-vale",
-     "guide_title": "Stranglethorn Vale, Dustwallow Marsh & Swamp of Sorrows",
-     "n": 1,
-     "secs": 1896,
-     "step": 42,
-     "title": "Zul'Mamwe's Mystics and the Shadowmaw Panthers",
-     "zone": null
-    },
-    {
      "guide": "forever/alliance/30-40/01-hillsbrad-foothills",
      "guide_title": "Wetlands & Hillsbrad Foothills",
      "n": 1,
-     "secs": 1828,
-     "step": 35,
-     "title": "Menethil Harbor",
-     "zone": null
-    },
-    {
-     "guide": "forever/alliance/30-40/01-hillsbrad-foothills",
-     "guide_title": "Wetlands & Hillsbrad Foothills",
-     "n": 1,
-     "secs": 1764,
-     "step": 44,
+     "secs": 1974,
+     "step": 45,
      "title": "Bartolo Ginsetti",
+     "zone": null
+    },
+    {
+     "guide": "forever/alliance/07-thousand-needles",
+     "guide_title": "Duskwood",
+     "n": 1,
+     "secs": 1935,
+     "step": 15,
+     "title": "Defias Strongbox",
      "zone": null
     }
    ],
@@ -1852,7 +1877,7 @@
   },
   "zones": [
    {
-    "secs": 35665,
+    "secs": 35383,
     "visits": 24,
     "zone": "Wetlands"
    },
@@ -1862,14 +1887,14 @@
     "zone": "Stranglethorn Vale"
    },
    {
-    "secs": 18957,
-    "visits": 11,
-    "zone": "Duskwood"
-   },
-   {
     "secs": 18953,
     "visits": 13,
     "zone": "Arathi Highlands"
+   },
+   {
+    "secs": 18067,
+    "visits": 11,
+    "zone": "Duskwood"
    },
    {
     "secs": 16073,
@@ -1877,7 +1902,7 @@
     "zone": "Tanaris"
    },
    {
-    "secs": 11187,
+    "secs": 11080,
     "visits": 11,
     "zone": "Ashenvale"
    },
@@ -1892,12 +1917,12 @@
     "zone": "Dustwallow Marsh"
    },
    {
-    "secs": 10215,
+    "secs": 10204,
     "visits": 13,
     "zone": "Hillsbrad Foothills"
    },
    {
-    "secs": 9246,
+    "secs": 9655,
     "visits": 9,
     "zone": "Darkshore"
    },
@@ -1922,14 +1947,14 @@
     "zone": "Blackfathom Deeps"
    },
    {
-    "secs": 4299,
-    "visits": 6,
-    "zone": "Ironforge"
-   },
-   {
-    "secs": 3641,
+    "secs": 4861,
     "visits": 17,
     "zone": "Stormwind City"
+   },
+   {
+    "secs": 4572,
+    "visits": 6,
+    "zone": "Ironforge"
    },
    {
     "secs": 2862,
@@ -1942,14 +1967,9 @@
     "zone": "Zul'Farrak"
    },
    {
-    "secs": 2653,
+    "secs": 2417,
     "visits": 1,
     "zone": "Stonetalon Mountains"
-   },
-   {
-    "secs": 2537,
-    "visits": 2,
-    "zone": "Elwynn Forest"
    },
    {
     "secs": 1976,
@@ -1967,6 +1987,11 @@
     "zone": "Razorfen Kraul"
    },
    {
+    "secs": 1746,
+    "visits": 2,
+    "zone": "Westfall"
+   },
+   {
     "secs": 1467,
     "visits": 4,
     "zone": "Loch Modan"
@@ -1977,19 +2002,19 @@
     "zone": "Stormwind Stockade"
    },
    {
-    "secs": 1294,
+    "secs": 1305,
     "visits": 5,
     "zone": "Alterac Mountains"
+   },
+   {
+    "secs": 1014,
+    "visits": 2,
+    "zone": "Elwynn Forest"
    },
    {
     "secs": 895,
     "visits": 8,
     "zone": "Tirisfal Glades"
-   },
-   {
-    "secs": 551,
-    "visits": 2,
-    "zone": "Westfall"
    },
    {
     "secs": 431,
@@ -2021,7 +2046,7 @@
     "dings": [],
     "dungeons": [],
     "end": "2026-11-18T20:50:14Z",
-    "gold_delta_copper": 21998,
+    "gold_delta_copper": 16841,
     "level_end": 46,
     "level_start": 46,
     "levels_gained": 0,
@@ -2048,34 +2073,27 @@
      },
      {
       "level": 44,
-      "name": "More Wastewander Justice",
-      "quest_id": 1691,
-      "t": "2026-11-18T19:14:43.600Z",
-      "zone": "Tanaris"
-     },
-     {
-      "level": 48,
-      "name": "Rescue OOX-17/TN!",
-      "quest_id": 648,
-      "t": "2026-11-18T19:18:16.600Z",
+      "name": "Screecher Spirits",
+      "quest_id": 3520,
+      "t": "2026-11-18T18:54:34.100Z",
       "zone": "Tanaris"
      },
      {
       "level": 45,
-      "name": "Deliver to MacKinley",
-      "quest_id": 2874,
-      "t": "2026-11-18T19:29:35.700Z",
+      "name": "Ship Schedules",
+      "quest_id": 2876,
+      "t": "2026-11-18T18:56:13.100Z",
       "zone": "Tanaris"
      },
      {
       "level": 48,
       "name": "Insect Part Analysis",
       "part": [
-       2,
+       1,
        2
       ],
-      "quest_id": 113,
-      "t": "2026-11-18T20:28:28.200Z",
+      "quest_id": 110,
+      "t": "2026-11-18T19:23:45.400Z",
       "zone": "Tanaris"
      }
     ],
@@ -2193,7 +2211,7 @@
     "dings": [],
     "dungeons": [],
     "end": "2026-11-16T20:14:11Z",
-    "gold_delta_copper": -30556,
+    "gold_delta_copper": -32306,
     "level_end": 45,
     "level_start": 45,
     "levels_gained": 0,
@@ -2215,21 +2233,21 @@
       "level": 45,
       "name": "Stoley's Debt",
       "quest_id": 2872,
-      "t": "2026-11-16T18:09:09.700Z",
+      "t": "2026-11-16T18:09:09.500Z",
       "zone": "Tanaris"
      },
      {
       "level": 43,
       "name": "Wastewander Justice",
       "quest_id": 1690,
-      "t": "2026-11-16T18:47:49.100Z",
+      "t": "2026-11-16T18:45:46.200Z",
       "zone": "Tanaris"
      },
      {
-      "level": 47,
-      "name": "Handle With Care",
-      "quest_id": 3022,
-      "t": "2026-11-16T20:01:52.900Z",
+      "level": 46,
+      "name": "Gadgetzan Water Survey",
+      "quest_id": 992,
+      "t": "2026-11-16T19:59:53.300Z",
       "zone": "Tanaris"
      }
     ],
@@ -2271,16 +2289,16 @@
     "dings": [
      {
       "level": 44,
-      "t": "2026-11-15T19:58:07.800Z"
+      "t": "2026-11-15T19:58:31.000Z"
      },
      {
       "level": 45,
-      "t": "2026-11-15T20:56:29.100Z"
+      "t": "2026-11-15T20:57:39.800Z"
      }
     ],
     "dungeons": [],
     "end": "2026-11-15T21:07:42Z",
-    "gold_delta_copper": 14580,
+    "gold_delta_copper": 12638,
     "level_end": 45,
     "level_start": 43,
     "levels_gained": 2,
@@ -2302,21 +2320,39 @@
       "level": 45,
       "name": "Find OOX-22/FE!",
       "quest_id": 2766,
-      "t": "2026-11-15T18:31:00.100Z",
+      "t": "2026-11-15T18:30:45.000Z",
       "zone": "Feralas"
      },
      {
       "level": 45,
       "name": "Rescue OOX-22/FE!",
       "quest_id": 2767,
-      "t": "2026-11-15T18:45:18.200Z",
+      "t": "2026-11-15T18:44:51.500Z",
+      "zone": "Feralas"
+     },
+     {
+      "level": 43,
+      "name": "Against the Hatecrest",
+      "part": [
+       1,
+       2
+      ],
+      "quest_id": 3130,
+      "t": "2026-11-15T19:14:55.200Z",
+      "zone": "Feralas"
+     },
+     {
+      "level": 45,
+      "name": "Against Lord Shalzaru",
+      "quest_id": 2870,
+      "t": "2026-11-15T20:01:02.600Z",
       "zone": "Feralas"
      },
      {
       "level": 44,
-      "name": "Thalanaar Delivery",
-      "quest_id": 4281,
-      "t": "2026-11-15T19:58:31.500Z",
+      "name": "The Knife Revealed",
+      "quest_id": 4129,
+      "t": "2026-11-15T20:54:33.400Z",
       "zone": "Feralas"
      }
     ],
@@ -2454,20 +2490,20 @@
     "dings": [
      {
       "level": 41,
-      "t": "2026-11-13T14:55:08.600Z"
+      "t": "2026-11-13T15:01:33.000Z"
      },
      {
       "level": 42,
-      "t": "2026-11-13T15:57:56.800Z"
+      "t": "2026-11-13T16:00:44.700Z"
      },
      {
       "level": 43,
-      "t": "2026-11-13T17:22:57.000Z"
+      "t": "2026-11-13T17:23:01.200Z"
      }
     ],
     "dungeons": [],
     "end": "2026-11-13T17:27:54Z",
-    "gold_delta_copper": 10330,
+    "gold_delta_copper": 14399,
     "level_end": 43,
     "level_start": 40,
     "levels_gained": 3,
@@ -2486,6 +2522,24 @@
     ],
     "quests": [
      {
+      "level": 37,
+      "name": "Tiger Mastery",
+      "part": [
+       4,
+       4
+      ],
+      "quest_id": 188,
+      "t": "2026-11-13T14:20:29.800Z",
+      "zone": "Stranglethorn Vale"
+     },
+     {
+      "level": 40,
+      "name": "Troll Witchery",
+      "quest_id": 205,
+      "t": "2026-11-13T14:23:34.400Z",
+      "zone": "Stranglethorn Vale"
+     },
+     {
       "level": 38,
       "name": "Panther Mastery",
       "part": [
@@ -2493,14 +2547,14 @@
        4
       ],
       "quest_id": 192,
-      "t": "2026-11-13T14:20:31.800Z",
+      "t": "2026-11-13T14:25:20.600Z",
       "zone": "Stranglethorn Vale"
      },
      {
-      "level": 43,
-      "name": "Big Game Hunter",
-      "quest_id": 208,
-      "t": "2026-11-13T14:23:36.600Z",
+      "level": 42,
+      "name": "Keep An Eye Out",
+      "quest_id": 576,
+      "t": "2026-11-13T14:36:51.200Z",
       "zone": "Stranglethorn Vale"
      },
      {
@@ -2511,85 +2565,61 @@
        4
       ],
       "quest_id": 193,
-      "t": "2026-11-13T14:25:23.200Z",
-      "zone": "Stranglethorn Vale"
-     },
-     {
-      "level": 38,
-      "name": "Special Forces",
-      "quest_id": 574,
-      "t": "2026-11-13T14:41:49.300Z",
-      "zone": "Stranglethorn Vale"
-     },
-     {
-      "level": 43,
-      "name": "Raptor Mastery",
-      "part": [
-       4,
-       4
-      ],
-      "quest_id": 197,
-      "t": "2026-11-13T14:45:03.600Z",
+      "t": "2026-11-13T14:37:11.200Z",
       "zone": "Stranglethorn Vale"
      },
      {
       "level": 37,
-      "name": "Krazek's Cookery",
-      "quest_id": 210,
-      "t": "2026-11-13T14:47:51.700Z",
-      "zone": "Stranglethorn Vale"
-     },
-     {
-      "level": 37,
-      "name": "Magical Analysis",
-      "quest_id": 602,
-      "t": "2026-11-13T15:58:17.400Z",
-      "zone": "Stranglethorn Vale"
-     },
-     {
-      "level": 40,
-      "name": "The Curse of the Tides",
-      "quest_id": 611,
-      "t": "2026-11-13T16:01:25.000Z",
+      "name": "The Stone of the Tides",
+      "quest_id": 578,
+      "t": "2026-11-13T15:57:56.900Z",
       "zone": "Stranglethorn Vale"
      },
      {
       "level": 41,
-      "name": "Up to Snuff",
-      "quest_id": 587,
-      "t": "2026-11-13T16:14:45.400Z",
+      "name": "Raptor Mastery",
+      "part": [
+       3,
+       4
+      ],
+      "quest_id": 196,
+      "t": "2026-11-13T16:01:43.500Z",
       "zone": "Stranglethorn Vale"
      },
      {
-      "level": 43,
-      "name": "The Bloodsail Buccaneers",
-      "part": [
-       4,
-       5
-      ],
-      "quest_id": 604,
-      "t": "2026-11-13T16:27:45.400Z",
+      "level": 40,
+      "name": "Colonel Kurzen",
+      "quest_id": 202,
+      "t": "2026-11-13T16:31:59.000Z",
       "zone": "Stranglethorn Vale"
      },
      {
       "level": 44,
-      "name": "Cracking Maury's Foot",
-      "quest_id": 613,
-      "t": "2026-11-13T16:52:17.400Z",
+      "name": "Fool's Stout",
+      "quest_id": 1127,
+      "t": "2026-11-13T16:42:04.100Z",
       "zone": "Stranglethorn Vale"
      },
      {
-      "level": 38,
-      "name": "Excelsior",
-      "quest_id": 628,
-      "t": "2026-11-13T16:55:52.500Z",
+      "level": 45,
+      "name": "Stranglethorn Fever",
+      "part": [
+       1,
+       2
+      ],
+      "quest_id": 348,
+      "t": "2026-11-13T16:56:47.400Z",
       "zone": "Stranglethorn Vale"
      },
      {
-      "level": 42,
-      "name": "Keep An Eye Out",
-      "quest_id": 576,
-      "t": "2026-11-13T17:03:09.300Z",
+      "level": 41,
+      "name": "The Bloodsail Buccaneers",
+      "part": [
+       2,
+       5
+      ],
+      "quest_id": 597,
+      "t": "2026-11-13T17:02:32.800Z",
       "zone": "Stranglethorn Vale"
      }
     ],
@@ -2714,16 +2744,16 @@
     "dings": [
      {
       "level": 39,
-      "t": "2026-11-10T18:46:53.200Z"
+      "t": "2026-11-10T18:48:24.500Z"
      },
      {
       "level": 40,
-      "t": "2026-11-10T20:22:15.700Z"
+      "t": "2026-11-10T20:23:43.500Z"
      }
     ],
     "dungeons": [],
     "end": "2026-11-10T20:55:21Z",
-    "gold_delta_copper": 12889,
+    "gold_delta_copper": 9267,
     "level_end": 40,
     "level_start": 38,
     "levels_gained": 2,
@@ -2749,13 +2779,6 @@
       "zone": "Dustwallow Marsh"
      },
      {
-      "level": 38,
-      "name": "Mudrock Soup and Bugs",
-      "quest_id": 1204,
-      "t": "2026-11-10T18:20:16.900Z",
-      "zone": "Dustwallow Marsh"
-     },
-     {
       "level": 40,
       "name": "Lieutenant Paval Reethe",
       "part": [
@@ -2763,7 +2786,14 @@
        2
       ],
       "quest_id": 1259,
-      "t": "2026-11-10T19:12:49.800Z",
+      "t": "2026-11-10T18:19:45.500Z",
+      "zone": "Dustwallow Marsh"
+     },
+     {
+      "level": 40,
+      "name": "... and Bugs",
+      "quest_id": 1258,
+      "t": "2026-11-10T19:11:21.000Z",
       "zone": "Dustwallow Marsh"
      },
      {
@@ -2774,32 +2804,14 @@
        3
       ],
       "quest_id": 1320,
-      "t": "2026-11-10T19:26:25.900Z",
+      "t": "2026-11-10T19:24:58.500Z",
       "zone": "Dustwallow Marsh"
      },
      {
       "level": 38,
-      "name": "The Deserters",
-      "part": [
-       2,
-       2
-      ],
-      "quest_id": 1287,
-      "t": "2026-11-10T19:31:28.700Z",
-      "zone": "Dustwallow Marsh"
-     },
-     {
-      "level": 35,
-      "name": "Jarl Needs a Blade",
-      "quest_id": 1203,
-      "t": "2026-11-10T19:39:58.200Z",
-      "zone": "Dustwallow Marsh"
-     },
-     {
-      "level": 35,
-      "name": "Captain Vimes",
-      "quest_id": 1220,
-      "t": "2026-11-10T20:11:56.000Z",
+      "name": "Morgan Stern",
+      "quest_id": 1260,
+      "t": "2026-11-10T20:01:28.300Z",
       "zone": "Dustwallow Marsh"
      },
      {
@@ -2935,12 +2947,12 @@
     "dings": [
      {
       "level": 38,
-      "t": "2026-11-08T20:03:21.700Z"
+      "t": "2026-11-08T19:57:32.500Z"
      }
     ],
     "dungeons": [],
     "end": "2026-11-08T21:01:10Z",
-    "gold_delta_copper": 11499,
+    "gold_delta_copper": 11353,
     "level_end": 38,
     "level_start": 37,
     "levels_gained": 1,
@@ -2960,45 +2972,44 @@
     "quests": [
      {
       "level": 37,
-      "name": "The Spy Revealed!",
-      "quest_id": 329,
-      "t": "2026-11-08T19:07:31.400Z",
+      "name": "Water Elementals",
+      "quest_id": 601,
+      "t": "2026-11-08T19:18:50.300Z",
       "zone": "Stranglethorn Vale"
      },
      {
-      "level": 36,
-      "name": "Raptor Mastery",
-      "part": [
-       2,
-       4
-      ],
-      "quest_id": 195,
-      "t": "2026-11-08T19:23:31.600Z",
+      "level": 38,
+      "name": "Special Forces",
+      "quest_id": 574,
+      "t": "2026-11-08T19:28:09.500Z",
       "zone": "Stranglethorn Vale"
      },
      {
-      "level": 35,
-      "name": "Bloodscalp Ears",
-      "quest_id": 189,
-      "t": "2026-11-08T19:26:18.400Z",
+      "level": 40,
+      "name": "Chapter I",
+      "quest_id": 339,
+      "t": "2026-11-08T19:30:18.300Z",
       "zone": "Stranglethorn Vale"
      },
      {
-      "level": 34,
-      "name": "Bad Medicine",
-      "quest_id": 204,
-      "t": "2026-11-08T20:08:48.600Z",
+      "level": 40,
+      "name": "The Curse of the Tides",
+      "quest_id": 611,
+      "t": "2026-11-08T19:50:37.300Z",
       "zone": "Stranglethorn Vale"
      },
      {
-      "level": 37,
-      "name": "Tiger Mastery",
-      "part": [
-       4,
-       4
-      ],
-      "quest_id": 188,
-      "t": "2026-11-08T20:13:36.400Z",
+      "level": 40,
+      "name": "Chapter II",
+      "quest_id": 340,
+      "t": "2026-11-08T19:57:32.500Z",
+      "zone": "Stranglethorn Vale"
+     },
+     {
+      "level": 40,
+      "name": "The Green Hills of Stranglethorn",
+      "quest_id": 338,
+      "t": "2026-11-08T20:34:57.300Z",
       "zone": "Stranglethorn Vale"
      }
     ],
@@ -3262,12 +3273,12 @@
     "dings": [
      {
       "level": 35,
-      "t": "2026-11-05T18:45:16.800Z"
+      "t": "2026-11-05T18:46:12.100Z"
      }
     ],
     "dungeons": [],
     "end": "2026-11-05T19:44:16Z",
-    "gold_delta_copper": 422,
+    "gold_delta_copper": 1033,
     "level_end": 35,
     "level_start": 34,
     "levels_gained": 1,
@@ -3282,10 +3293,17 @@
       "zone": "Arathi Highlands"
      },
      {
+      "level": 35,
+      "name": "Legends of the Earth",
+      "quest_id": 636,
+      "t": "2026-11-05T18:15:36.900Z",
+      "zone": "Arathi Highlands"
+     },
+     {
       "level": 38,
-      "name": "Stones of Binding",
-      "quest_id": 651,
-      "t": "2026-11-05T19:04:08.800Z",
+      "name": "Dutiful Steps",
+      "quest_id": 92872,
+      "t": "2026-11-05T19:21:24.200Z",
       "zone": "Arathi Highlands"
      },
      {
@@ -3297,7 +3315,7 @@
      }
     ],
     "start": "2026-11-05T17:20:00Z",
-    "xp": 49096,
+    "xp": 49012,
     "zones": [
      {
       "secs": 8656,
@@ -3356,12 +3374,12 @@
     "dings": [
      {
       "level": 34,
-      "t": "2026-11-04T16:56:12.700Z"
+      "t": "2026-11-04T17:04:51.600Z"
      }
     ],
     "dungeons": [],
     "end": "2026-11-04T18:57:17Z",
-    "gold_delta_copper": 13814,
+    "gold_delta_copper": 13779,
     "level_end": 34,
     "level_start": 33,
     "levels_gained": 1,
@@ -3383,47 +3401,40 @@
       "level": 36,
       "name": "Worth Its Weight in Gold",
       "quest_id": 691,
-      "t": "2026-11-04T16:33:26.100Z",
-      "zone": "Arathi Highlands"
-     },
-     {
-      "level": 37,
-      "name": "Stromgarde Badges",
-      "quest_id": 682,
-      "t": "2026-11-04T17:06:18.000Z",
+      "t": "2026-11-04T17:25:32.600Z",
       "zone": "Arathi Highlands"
      },
      {
       "level": 31,
       "name": "Northfold Manor",
       "quest_id": 681,
-      "t": "2026-11-04T17:28:42.300Z",
+      "t": "2026-11-04T17:48:46.300Z",
       "zone": "Arathi Highlands"
      },
      {
       "level": 37,
       "name": "The Princess Trapped",
       "quest_id": 642,
-      "t": "2026-11-04T17:38:59.700Z",
+      "t": "2026-11-04T17:50:33.300Z",
+      "zone": "Arathi Highlands"
+     },
+     {
+      "level": 37,
+      "name": "Stromgarde Badges",
+      "quest_id": 682,
+      "t": "2026-11-04T18:01:53.900Z",
       "zone": "Arathi Highlands"
      },
      {
       "level": 35,
       "name": "Crystal in the Mountains",
       "quest_id": 635,
-      "t": "2026-11-04T17:51:58.000Z",
-      "zone": "Arathi Highlands"
-     },
-     {
-      "level": 35,
-      "name": "Legends of the Earth",
-      "quest_id": 636,
-      "t": "2026-11-04T17:59:02.600Z",
+      "t": "2026-11-04T18:16:43.800Z",
       "zone": "Arathi Highlands"
      }
     ],
     "start": "2026-11-04T16:30:00Z",
-    "xp": 41334,
+    "xp": 41418,
     "zones": [
      {
       "secs": 8755,
@@ -3543,7 +3554,7 @@
     "dings": [
      {
       "level": 33,
-      "t": "2026-11-02T17:29:38.600Z"
+      "t": "2026-11-02T17:32:04.600Z"
      }
     ],
     "dungeons": [
@@ -3556,7 +3567,7 @@
      }
     ],
     "end": "2026-11-02T18:19:04Z",
-    "gold_delta_copper": 9737,
+    "gold_delta_copper": 2776,
     "level_end": 33,
     "level_start": 32,
     "levels_gained": 1,
@@ -3595,10 +3606,17 @@
     ],
     "quests": [
      {
-      "level": 36,
-      "name": "Crushridge Bounty",
-      "quest_id": 500,
-      "t": "2026-11-02T17:31:52.500Z",
+      "level": 33,
+      "name": "Syndicate Assassins",
+      "quest_id": 505,
+      "t": "2026-11-02T17:25:37.300Z",
+      "zone": "Alterac Mountains"
+     },
+     {
+      "level": 33,
+      "name": "Friend of the Kirin Tor",
+      "quest_id": 92459,
+      "t": "2026-11-02T17:33:37.700Z",
       "zone": "Alterac Mountains"
      },
      {
@@ -3624,10 +3642,10 @@
      }
     ],
     "start": "2026-11-02T16:45:00Z",
-    "xp": 44090,
+    "xp": 43748,
     "zones": [
      {
-      "secs": 2428,
+      "secs": 2417,
       "zone": "Hillsbrad Foothills"
      },
      {
@@ -3635,7 +3653,7 @@
       "zone": "City of Dalaran"
      },
      {
-      "secs": 1294,
+      "secs": 1305,
       "zone": "Alterac Mountains"
      }
     ]
@@ -3653,7 +3671,7 @@
     "dings": [],
     "dungeons": [],
     "end": "2026-11-01T19:06:20Z",
-    "gold_delta_copper": 5194,
+    "gold_delta_copper": 8895,
     "level_end": 32,
     "level_start": 32,
     "levels_gained": 0,
@@ -3672,26 +3690,22 @@
     ],
     "quests": [
      {
-      "level": 32,
-      "name": "Reassignment",
-      "quest_id": 563,
-      "t": "2026-11-01T17:56:16.200Z",
+      "level": 31,
+      "name": "Soothing Turtle Bisque",
+      "quest_id": 555,
+      "t": "2026-11-01T17:09:41.600Z",
       "zone": "Hillsbrad Foothills"
      },
      {
       "level": 32,
-      "name": "Farren's Proof",
-      "part": [
-       2,
-       3
-      ],
-      "quest_id": 560,
-      "t": "2026-11-01T18:29:36.100Z",
+      "name": "Stormwind Ho!",
+      "quest_id": 562,
+      "t": "2026-11-01T18:04:52.000Z",
       "zone": "Hillsbrad Foothills"
      }
     ],
     "start": "2026-11-01T17:05:00Z",
-    "xp": 5000,
+    "xp": 5342,
     "zones": [
      {
       "secs": 7280,
@@ -3794,7 +3808,7 @@
     "dings": [],
     "dungeons": [],
     "end": "2026-10-29T19:00:23Z",
-    "gold_delta_copper": 5613,
+    "gold_delta_copper": 5908,
     "level_end": 32,
     "level_start": 32,
     "levels_gained": 0,
@@ -3811,7 +3825,29 @@
       "sightings": 1
      }
     ],
-    "quests": [],
+    "quests": [
+     {
+      "level": 34,
+      "name": "Stopping the Cycle",
+      "quest_id": 98297,
+      "t": "2026-10-29T17:29:13.800Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 29,
+      "name": "The Cursed Crew",
+      "quest_id": 289,
+      "t": "2026-10-29T17:38:04.700Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 30,
+      "name": "The Eye of Paleth",
+      "quest_id": 292,
+      "t": "2026-10-29T18:45:12.900Z",
+      "zone": "Wetlands"
+     }
+    ],
     "start": "2026-10-29T17:00:00Z",
     "xp": 10000,
     "zones": [
@@ -3829,7 +3865,7 @@
     "dings": [],
     "dungeons": [],
     "end": "2026-10-28T19:00:36Z",
-    "gold_delta_copper": 5890,
+    "gold_delta_copper": 11954,
     "level_end": 32,
     "level_start": 32,
     "levels_gained": 0,
@@ -3848,33 +3884,40 @@
     ],
     "quests": [
      {
-      "level": 31,
-      "name": "The Thandol Span",
+      "level": 30,
+      "name": "MacKreel's Moonshine",
+      "quest_id": 647,
+      "t": "2026-10-28T17:03:07.900Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 30,
+      "name": "Lifting the Curse",
+      "quest_id": 290,
+      "t": "2026-10-28T17:07:53.000Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 35,
+      "name": "James Hyal",
       "part": [
        2,
-       3
+       2
       ],
-      "quest_id": 632,
-      "t": "2026-10-28T17:03:48.300Z",
+      "quest_id": 1302,
+      "t": "2026-10-28T17:13:30.200Z",
       "zone": "Wetlands"
      },
      {
-      "level": 32,
-      "name": "Defeat Nek'rosh",
-      "quest_id": 474,
-      "t": "2026-10-28T17:27:10.300Z",
-      "zone": "Wetlands"
-     },
-     {
-      "level": 29,
-      "name": "This Land Was Their Land",
-      "quest_id": 98230,
-      "t": "2026-10-28T17:35:17.800Z",
+      "level": 34,
+      "name": "A Grim Task",
+      "quest_id": 304,
+      "t": "2026-10-28T17:17:13.200Z",
       "zone": "Wetlands"
      }
     ],
     "start": "2026-10-28T17:00:00Z",
-    "xp": 9786,
+    "xp": 10000,
     "zones": [
      {
       "secs": 7236,
@@ -3895,7 +3938,7 @@
     "dings": [],
     "dungeons": [],
     "end": "2026-10-27T19:00:32Z",
-    "gold_delta_copper": 6090,
+    "gold_delta_copper": 6272,
     "level_end": 32,
     "level_start": 32,
     "levels_gained": 0,
@@ -3915,14 +3958,25 @@
     "quests": [
      {
       "level": 31,
-      "name": "Bring Back a Bang",
-      "quest_id": 88756,
-      "t": "2026-10-27T17:13:09.100Z",
+      "name": "The Thandol Span",
+      "part": [
+       3,
+       3
+      ],
+      "quest_id": 633,
+      "t": "2026-10-27T17:21:34.000Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 30,
+      "name": "Cleansing the Eye",
+      "quest_id": 293,
+      "t": "2026-10-27T17:23:03.800Z",
       "zone": "Wetlands"
      }
     ],
     "start": "2026-10-27T17:00:00Z",
-    "xp": 12351,
+    "xp": 11040,
     "zones": [
      {
       "secs": 7232,
@@ -3951,7 +4005,7 @@
      }
     ],
     "end": "2026-10-26T17:46:34Z",
-    "gold_delta_copper": 13226,
+    "gold_delta_copper": 13360,
     "level_end": 32,
     "level_start": 31,
     "levels_gained": 1,
@@ -3991,20 +4045,16 @@
     "quests": [
      {
       "level": 29,
-      "name": "Ormer's Revenge",
-      "part": [
-       3,
-       3
-      ],
-      "quest_id": 296,
-      "t": "2026-10-26T16:37:14.900Z",
+      "name": "This Land Was Their Land",
+      "quest_id": 98230,
+      "t": "2026-10-26T16:36:28.100Z",
       "zone": "Wetlands"
      },
      {
-      "level": 30,
-      "name": "Fiora Longears",
-      "quest_id": 1132,
-      "t": "2026-10-26T16:48:39.700Z",
+      "level": 32,
+      "name": "Defeat Nek'rosh",
+      "quest_id": 474,
+      "t": "2026-10-26T16:53:10.400Z",
       "zone": "Wetlands"
      },
      {
@@ -4051,7 +4101,7 @@
      }
     ],
     "start": "2026-10-26T16:20:00Z",
-    "xp": 43663,
+    "xp": 44760,
     "zones": [
      {
       "secs": 2595,
@@ -4083,12 +4133,12 @@
     "dings": [
      {
       "level": 31,
-      "t": "2026-10-25T17:47:38.200Z"
+      "t": "2026-10-25T17:35:23.100Z"
      }
     ],
     "dungeons": [],
     "end": "2026-10-25T19:04:30Z",
-    "gold_delta_copper": 8407,
+    "gold_delta_copper": 9075,
     "level_end": 31,
     "level_start": 30,
     "levels_gained": 1,
@@ -4110,18 +4160,7 @@
       "level": 32,
       "name": "Morbent Fel",
       "quest_id": 55,
-      "t": "2026-10-25T16:58:01.300Z",
-      "zone": "Duskwood"
-     },
-     {
-      "level": 28,
-      "name": "The Legend of Stalvan",
-      "part": [
-       9,
-       13
-      ],
-      "quest_id": 78,
-      "t": "2026-10-25T17:03:13.500Z",
+      "t": "2026-10-25T16:58:12.500Z",
       "zone": "Duskwood"
      },
      {
@@ -4132,41 +4171,52 @@
        13
       ],
       "quest_id": 79,
-      "t": "2026-10-25T17:13:59.300Z",
-      "zone": "Duskwood"
-     },
-     {
-      "level": 29,
-      "name": "Armed and Ready",
-      "quest_id": 325,
-      "t": "2026-10-25T17:18:22.000Z",
+      "t": "2026-10-25T17:03:25.500Z",
       "zone": "Duskwood"
      },
      {
       "level": 30,
-      "name": "The Night Watch",
+      "name": "Look to the Stars",
       "part": [
-       3,
-       3
+       4,
+       4
       ],
-      "quest_id": 58,
-      "t": "2026-10-25T18:09:41.400Z",
+      "quest_id": 181,
+      "t": "2026-10-25T17:07:35.000Z",
+      "zone": "Duskwood"
+     },
+     {
+      "level": 29,
+      "name": "Worgen in the Woods",
+      "part": [
+       2,
+       4
+      ],
+      "quest_id": 221,
+      "t": "2026-10-25T17:19:24.400Z",
       "zone": "Duskwood"
      },
      {
       "level": 28,
       "name": "The Legend of Stalvan",
       "part": [
-       6,
+       8,
        13
       ],
-      "quest_id": 72,
-      "t": "2026-10-25T18:17:48.600Z",
+      "quest_id": 75,
+      "t": "2026-10-25T18:16:36.100Z",
+      "zone": "Duskwood"
+     },
+     {
+      "level": 29,
+      "name": "Blessed Arm",
+      "quest_id": 322,
+      "t": "2026-10-25T18:40:22.600Z",
       "zone": "Duskwood"
      }
     ],
     "start": "2026-10-25T16:40:00Z",
-    "xp": 37400,
+    "xp": 36775,
     "zones": [
      {
       "secs": 8670,
@@ -4191,12 +4241,12 @@
     "dings": [
      {
       "level": 30,
-      "t": "2026-10-24T18:29:47.100Z"
+      "t": "2026-10-24T18:30:48.400Z"
      }
     ],
     "dungeons": [],
     "end": "2026-10-24T20:04:38Z",
-    "gold_delta_copper": 10196,
+    "gold_delta_copper": 13310,
     "level_end": 30,
     "level_start": 29,
     "levels_gained": 1,
@@ -4215,38 +4265,42 @@
     ],
     "quests": [
      {
-      "level": 32,
-      "name": "Satyr Slaying!",
-      "quest_id": 1032,
-      "t": "2026-10-24T17:22:24.500Z",
-      "zone": "Ashenvale"
-     },
-     {
       "level": 25,
-      "name": "Ruuzel",
-      "quest_id": 1009,
-      "t": "2026-10-24T17:25:08.100Z",
+      "name": "Culling the Threat",
+      "quest_id": 1054,
+      "t": "2026-10-24T17:17:09.400Z",
       "zone": "Ashenvale"
      },
      {
       "level": 30,
-      "name": "The Carevin Family",
-      "quest_id": 1042,
-      "t": "2026-10-24T17:36:09.700Z",
+      "name": "Velinde's Effects",
+      "quest_id": 1038,
+      "t": "2026-10-24T17:22:45.000Z",
       "zone": "Ashenvale"
      },
      {
-      "level": 32,
-      "name": "Vile Satyr! Dryads in Danger!",
-      "quest_id": 1021,
-      "t": "2026-10-24T18:05:27.100Z",
+      "level": 28,
+      "name": "Raene's Cleansing",
+      "part": [
+       7,
+       11
+      ],
+      "quest_id": 1055,
+      "t": "2026-10-24T17:26:41.900Z",
       "zone": "Ashenvale"
      },
      {
-      "level": 29,
-      "name": "Forsaken Diseases",
-      "quest_id": 1011,
-      "t": "2026-10-24T18:10:31.200Z",
+      "level": 30,
+      "name": "The Caravan Road",
+      "quest_id": 1041,
+      "t": "2026-10-24T17:28:14.000Z",
+      "zone": "Ashenvale"
+     },
+     {
+      "level": 26,
+      "name": "Gleaming Crescent Necklace",
+      "quest_id": 98027,
+      "t": "2026-10-24T17:31:38.200Z",
       "zone": "Ashenvale"
      },
      {
@@ -4257,28 +4311,35 @@
        11
       ],
       "quest_id": 1027,
-      "t": "2026-10-24T18:17:07.700Z",
+      "t": "2026-10-24T17:41:19.800Z",
       "zone": "Ashenvale"
      },
      {
-      "level": 26,
-      "name": "Gleaming Crescent Necklace",
-      "quest_id": 98027,
-      "t": "2026-10-24T18:21:06.400Z",
+      "level": 25,
+      "name": "Ruuzel",
+      "quest_id": 1009,
+      "t": "2026-10-24T17:48:36.300Z",
+      "zone": "Ashenvale"
+     },
+     {
+      "level": 29,
+      "name": "Kayneth Stillwind",
+      "quest_id": 4581,
+      "t": "2026-10-24T17:51:58.500Z",
+      "zone": "Ashenvale"
+     },
+     {
+      "level": 29,
+      "name": "Forsaken Diseases",
+      "quest_id": 1011,
+      "t": "2026-10-24T18:16:11.900Z",
       "zone": "Ashenvale"
      },
      {
       "level": 30,
-      "name": "The Caravan Road",
-      "quest_id": 1041,
-      "t": "2026-10-24T18:29:47.100Z",
-      "zone": "Ashenvale"
-     },
-     {
-      "level": 30,
-      "name": "Answered Questions",
-      "quest_id": 1044,
-      "t": "2026-10-24T18:35:02.000Z",
+      "name": "Passage to Booty Bay",
+      "quest_id": 1040,
+      "t": "2026-10-24T18:20:07.500Z",
       "zone": "Ashenvale"
      },
      {
@@ -4289,67 +4350,117 @@
        11
       ],
       "quest_id": 1028,
-      "t": "2026-10-24T18:38:44.500Z",
+      "t": "2026-10-24T18:25:24.900Z",
       "zone": "Ashenvale"
+     },
+     {
+      "level": 30,
+      "name": "The Carevin Family",
+      "quest_id": 1042,
+      "t": "2026-10-24T18:36:09.700Z",
+      "zone": "Ashenvale"
+     },
+     {
+      "level": 30,
+      "name": "The Howling Vale",
+      "quest_id": 1022,
+      "t": "2026-10-24T18:39:06.100Z",
+      "zone": "Ashenvale"
+     },
+     {
+      "level": 30,
+      "name": "Raene's Cleansing",
+      "part": [
+       10,
+       11
+      ],
+      "quest_id": 1045,
+      "t": "2026-10-24T18:44:39.400Z",
+      "zone": "Ashenvale"
+     },
+     {
+      "level": 30,
+      "name": "Velinde Starsong",
+      "quest_id": 1037,
+      "t": "2026-10-24T18:54:18.200Z",
+      "zone": "Ashenvale"
+     },
+     {
+      "level": 31,
+      "name": "The Tower of Althalaxx",
+      "part": [
+       9,
+       9
+      ],
+      "quest_id": 981,
+      "t": "2026-10-24T19:00:59.100Z",
+      "zone": "Darkshore"
+     },
+     {
+      "level": 30,
+      "name": "Fiora Longears",
+      "quest_id": 1132,
+      "t": "2026-10-24T19:09:56.500Z",
+      "zone": "Wetlands"
      },
      {
       "level": 28,
-      "name": "Raene's Cleansing",
-      "part": [
-       8,
-       11
-      ],
-      "quest_id": 1029,
-      "t": "2026-10-24T18:52:51.900Z",
-      "zone": "Ashenvale"
-     },
-     {
-      "level": 30,
-      "name": "Sara Balloo's Plea",
-      "quest_id": 683,
-      "t": "2026-10-24T19:26:19.400Z",
-      "zone": "Ironforge"
-     },
-     {
-      "level": 30,
       "name": "The Missing Diplomat",
       "part": [
-       6,
+       2,
        17
       ],
-      "quest_id": 1245,
-      "t": "2026-10-24T19:44:36.300Z",
+      "quest_id": 1241,
+      "t": "2026-10-24T19:49:02.500Z",
       "zone": "Stormwind City"
      },
      {
       "level": 30,
-      "name": "The Shamed Lieutenant",
-      "quest_id": 98219,
-      "t": "2026-10-24T19:56:00.600Z",
+      "name": "A Noble Brew",
+      "part": [
+       2,
+       2
+      ],
+      "quest_id": 336,
+      "t": "2026-10-24T19:50:25.700Z",
+      "zone": "Stormwind City"
+     },
+     {
+      "level": 31,
+      "name": "Look to an Old Friend",
+      "quest_id": 350,
+      "t": "2026-10-24T19:50:58.700Z",
+      "zone": "Stormwind City"
+     },
+     {
+      "level": 31,
+      "name": "Brotherhood's End",
+      "quest_id": 395,
+      "t": "2026-10-24T19:58:44.500Z",
       "zone": "Stormwind City"
      }
     ],
     "start": "2026-10-24T17:15:00Z",
-    "xp": 59300,
+    "xp": 59446,
     "zones": [
      {
-      "secs": 6404,
+      "secs": 6099,
       "zone": "Ashenvale"
+     },
+     {
+      "secs": 1615,
+      "zone": "Ironforge"
      },
      {
       "secs": 1458,
       "zone": "Stormwind City"
      },
      {
-      "secs": 1348,
-      "zone": "Ironforge"
-     },
-     {
-      "secs": 515,
+      "secs": 442,
       "zone": "Wetlands"
      },
      {
-      "secs": 86,
+      "secs": 203,
       "zone": "Darkshore"
      }
     ]
@@ -4367,12 +4478,12 @@
     "dings": [
      {
       "level": 29,
-      "t": "2026-10-23T18:46:39.600Z"
+      "t": "2026-10-23T18:36:40.300Z"
      }
     ],
     "dungeons": [],
     "end": "2026-10-23T19:24:55Z",
-    "gold_delta_copper": 8333,
+    "gold_delta_copper": 11037,
     "level_end": 29,
     "level_start": 28,
     "levels_gained": 1,
@@ -4398,87 +4509,100 @@
        2
       ],
       "quest_id": 305,
-      "t": "2026-10-23T17:24:53.300Z",
+      "t": "2026-10-23T17:26:34.900Z",
       "zone": "Wetlands"
      },
      {
       "level": 29,
       "name": "Razormaw Needling",
       "quest_id": 98245,
-      "t": "2026-10-23T17:26:47.500Z",
+      "t": "2026-10-23T17:28:29.100Z",
       "zone": "Wetlands"
      },
      {
       "level": 31,
       "name": "Understanding Our Present",
       "quest_id": 98216,
-      "t": "2026-10-23T17:28:29.400Z",
+      "t": "2026-10-23T17:30:26.500Z",
       "zone": "Wetlands"
      },
      {
       "level": 30,
       "name": "Forced Disarmament",
       "quest_id": 98293,
-      "t": "2026-10-23T17:32:24.900Z",
-      "zone": "Wetlands"
-     },
-     {
-      "level": 25,
-      "name": "The Search Continues",
-      "quest_id": 284,
-      "t": "2026-10-23T18:36:22.100Z",
+      "t": "2026-10-23T17:34:15.700Z",
       "zone": "Wetlands"
      },
      {
       "level": 29,
-      "name": "The Cursed Crew",
-      "quest_id": 289,
-      "t": "2026-10-23T18:47:00.300Z",
+      "name": "Crimson Crate Delivery",
+      "quest_id": 98240,
+      "t": "2026-10-23T17:38:42.500Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 31,
+      "name": "Old Habits",
+      "quest_id": 98223,
+      "t": "2026-10-23T17:42:39.300Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 28,
+      "name": "War Banners",
+      "quest_id": 464,
+      "t": "2026-10-23T18:34:00.500Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 28,
+      "name": "From the Ashes",
+      "quest_id": 98221,
+      "t": "2026-10-23T18:36:40.300Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 25,
+      "name": "Search More Hovels",
+      "quest_id": 285,
+      "t": "2026-10-23T18:37:52.700Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 26,
+      "name": "Apprentice's Duties",
+      "quest_id": 471,
+      "t": "2026-10-23T18:45:19.500Z",
+      "zone": "Wetlands"
+     },
+     {
+      "level": 30,
+      "name": "The Dark Iron War",
+      "quest_id": 303,
+      "t": "2026-10-23T18:55:31.600Z",
       "zone": "Wetlands"
      },
      {
       "level": 25,
       "name": "Reclaiming Goods",
       "quest_id": 281,
-      "t": "2026-10-23T18:51:07.300Z",
+      "t": "2026-10-23T18:59:00.600Z",
       "zone": "Wetlands"
-     },
-     {
-      "level": 29,
-      "name": "Bloom of the Heavens",
-      "part": [
-       2,
-       2
-      ],
-      "quest_id": 98209,
-      "t": "2026-10-23T19:00:27.100Z",
-      "zone": "Wetlands"
-     },
-     {
-      "level": 28,
-      "name": "The Tower of Althalaxx",
-      "part": [
-       7,
-       9
-      ],
-      "quest_id": 1167,
-      "t": "2026-10-23T19:12:57.100Z",
-      "zone": "Darkshore"
      }
     ],
     "start": "2026-10-23T17:00:00Z",
-    "xp": 46400,
+    "xp": 46879,
     "zones": [
      {
-      "secs": 7458,
+      "secs": 7255,
       "zone": "Wetlands"
      },
      {
-      "secs": 539,
+      "secs": 621,
       "zone": "Darkshore"
      },
      {
-      "secs": 342,
+      "secs": 514,
       "zone": "Ashenvale"
      },
      {
@@ -4495,12 +4619,12 @@
     "dings": [
      {
       "level": 28,
-      "t": "2026-10-22T14:50:43.700Z"
+      "t": "2026-10-22T14:45:42.300Z"
      }
     ],
     "dungeons": [],
     "end": "2026-10-22T15:36:40Z",
-    "gold_delta_copper": 7406,
+    "gold_delta_copper": 4232,
     "level_end": 28,
     "level_start": 27,
     "levels_gained": 1,
@@ -4520,8 +4644,8 @@
     "quests": [
      {
       "level": 29,
-      "name": "The Lost Ingots",
-      "quest_id": 324,
+      "name": "Armed and Ready",
+      "quest_id": 325,
       "t": "2026-10-22T13:14:30.800Z",
       "zone": "Duskwood"
      },
@@ -4533,46 +4657,72 @@
        13
       ],
       "quest_id": 80,
-      "t": "2026-10-22T13:20:58.200Z",
+      "t": "2026-10-22T13:20:31.600Z",
       "zone": "Duskwood"
      },
      {
-      "level": 28,
-      "name": "Worgen in the Woods",
+      "level": 25,
+      "name": "Look to the Stars",
       "part": [
        1,
        4
       ],
-      "quest_id": 173,
-      "t": "2026-10-22T13:25:55.800Z",
+      "quest_id": 174,
+      "t": "2026-10-22T13:22:47.600Z",
       "zone": "Duskwood"
      },
      {
-      "level": 25,
-      "name": "Seasoned Wolf Kabobs",
-      "quest_id": 90,
-      "t": "2026-10-22T13:54:59.200Z",
-      "zone": "Duskwood"
-     },
-     {
-      "level": 25,
-      "name": "The Hermit",
-      "quest_id": 165,
-      "t": "2026-10-22T13:57:41.000Z",
+      "level": 28,
+      "name": "The Legend of Stalvan",
+      "part": [
+       3,
+       13
+      ],
+      "quest_id": 68,
+      "t": "2026-10-22T13:29:43.100Z",
       "zone": "Duskwood"
      },
      {
       "level": 25,
       "name": "Sven's Revenge",
       "quest_id": 95,
-      "t": "2026-10-22T14:26:05.100Z",
+      "t": "2026-10-22T13:53:04.900Z",
+      "zone": "Duskwood"
+     },
+     {
+      "level": 25,
+      "name": "Look to the Stars",
+      "part": [
+       2,
+       4
+      ],
+      "quest_id": 175,
+      "t": "2026-10-22T13:55:43.300Z",
+      "zone": "Duskwood"
+     },
+     {
+      "level": 23,
+      "name": "Deliveries to Sven",
+      "quest_id": 164,
+      "t": "2026-10-22T14:00:00.300Z",
       "zone": "Duskwood"
      },
      {
       "level": 30,
       "name": "Bride of the Embalmer",
       "quest_id": 253,
-      "t": "2026-10-22T14:29:17.800Z",
+      "t": "2026-10-22T14:28:27.200Z",
+      "zone": "Duskwood"
+     },
+     {
+      "level": 25,
+      "name": "Look to the Stars",
+      "part": [
+       3,
+       4
+      ],
+      "quest_id": 177,
+      "t": "2026-10-22T14:30:32.900Z",
       "zone": "Duskwood"
      }
     ],
@@ -4580,20 +4730,20 @@
     "xp": 28900,
     "zones": [
      {
-      "secs": 6044,
+      "secs": 4750,
       "zone": "Duskwood"
      },
      {
-      "secs": 1563,
-      "zone": "Elwynn Forest"
-     },
-     {
-      "secs": 542,
+      "secs": 1767,
       "zone": "Stormwind City"
      },
      {
-      "secs": 481,
+      "secs": 1686,
       "zone": "Westfall"
+     },
+     {
+      "secs": 427,
+      "zone": "Elwynn Forest"
      },
      {
       "secs": 0,
@@ -4614,12 +4764,12 @@
     "dings": [
      {
       "level": 27,
-      "t": "2026-10-21T18:12:02.700Z"
+      "t": "2026-10-21T17:58:35.700Z"
      }
     ],
     "dungeons": [],
     "end": "2026-10-21T19:14:43Z",
-    "gold_delta_copper": 15678,
+    "gold_delta_copper": 16171,
     "level_end": 27,
     "level_start": 26,
     "levels_gained": 1,
@@ -4645,43 +4795,57 @@
       "zone": "Redridge Mountains"
      },
      {
-      "level": 23,
-      "name": "Theocritus' Retrieval",
-      "quest_id": 178,
-      "t": "2026-10-21T17:30:20.300Z",
+      "level": 25,
+      "name": "Tharil'zun",
+      "quest_id": 19,
+      "t": "2026-10-21T16:56:35.400Z",
       "zone": "Redridge Mountains"
      },
      {
-      "level": 26,
-      "name": "WANTED: Lieutenant Fangore",
-      "quest_id": 180,
-      "t": "2026-10-21T18:12:02.700Z",
+      "level": 23,
+      "name": "Theocritus' Retrieval",
+      "quest_id": 178,
+      "t": "2026-10-21T17:25:04.800Z",
       "zone": "Redridge Mountains"
      },
      {
       "level": 25,
-      "name": "WANTED: Incinerator Gar'im",
-      "quest_id": 95999,
-      "t": "2026-10-21T18:14:57.200Z",
-      "zone": "Redridge Mountains"
-     },
-     {
-      "level": 23,
-      "name": "Solomon's Law",
-      "quest_id": 91,
-      "t": "2026-10-21T18:23:42.300Z",
+      "name": "Missing In Action",
+      "quest_id": 219,
+      "t": "2026-10-21T17:29:07.700Z",
       "zone": "Redridge Mountains"
      },
      {
       "level": 24,
       "name": "An Unwelcome Guest",
       "quest_id": 34,
-      "t": "2026-10-21T18:41:26.400Z",
+      "t": "2026-10-21T17:29:27.700Z",
+      "zone": "Redridge Mountains"
+     },
+     {
+      "level": 25,
+      "name": "Blackrock Bounty",
+      "quest_id": 128,
+      "t": "2026-10-21T18:07:08.300Z",
+      "zone": "Redridge Mountains"
+     },
+     {
+      "level": 23,
+      "name": "Shadow Magic",
+      "quest_id": 115,
+      "t": "2026-10-21T18:14:57.600Z",
+      "zone": "Redridge Mountains"
+     },
+     {
+      "level": 23,
+      "name": "Solomon's Law",
+      "quest_id": 91,
+      "t": "2026-10-21T18:32:54.600Z",
       "zone": "Redridge Mountains"
      }
     ],
     "start": "2026-10-21T16:50:00Z",
-    "xp": 41200,
+    "xp": 40860,
     "zones": [
      {
       "secs": 8683,
@@ -4702,16 +4866,16 @@
     "dings": [
      {
       "level": 25,
-      "t": "2026-10-20T17:46:42.500Z"
+      "t": "2026-10-20T17:46:37.300Z"
      },
      {
       "level": 26,
-      "t": "2026-10-20T19:11:17.800Z"
+      "t": "2026-10-20T19:19:05.800Z"
      }
     ],
     "dungeons": [],
     "end": "2026-10-20T20:05:11Z",
-    "gold_delta_copper": 13169,
+    "gold_delta_copper": 15653,
     "level_end": 26,
     "level_start": 24,
     "levels_gained": 2,
@@ -4733,14 +4897,14 @@
       "level": 22,
       "name": "Spoils of War",
       "quest_id": 98197,
-      "t": "2026-10-20T17:19:42.200Z",
+      "t": "2026-10-20T17:19:40.400Z",
       "zone": "Wetlands"
      },
      {
       "level": 26,
       "name": "Blisters on the Land",
       "quest_id": 275,
-      "t": "2026-10-20T17:28:22.800Z",
+      "t": "2026-10-20T17:28:19.700Z",
       "zone": "Wetlands"
      },
      {
@@ -4751,21 +4915,21 @@
        2
       ],
       "quest_id": 286,
-      "t": "2026-10-20T17:34:36.500Z",
+      "t": "2026-10-20T17:34:32.700Z",
       "zone": "Wetlands"
      },
      {
       "level": 27,
       "name": "Uncovering the Past",
       "quest_id": 299,
-      "t": "2026-10-20T17:46:42.500Z",
+      "t": "2026-10-20T17:46:37.300Z",
       "zone": "Wetlands"
      },
      {
       "level": 21,
       "name": "A Lack of Virtue",
       "quest_id": 98459,
-      "t": "2026-10-20T17:52:06.900Z",
+      "t": "2026-10-20T17:52:01.000Z",
       "zone": "Wetlands"
      },
      {
@@ -4786,7 +4950,7 @@
       "level": 24,
       "name": "Rethban Ore",
       "quest_id": 347,
-      "t": "2026-10-20T18:35:21.600Z",
+      "t": "2026-10-20T18:35:15.900Z",
       "zone": "Stormwind City"
      },
      {
@@ -4797,59 +4961,59 @@
        3
       ],
       "quest_id": 56,
-      "t": "2026-10-20T18:59:50.100Z",
-      "zone": "Duskwood"
-     },
-     {
-      "level": 25,
-      "name": "Ira's Dagger",
-      "quest_id": 96137,
-      "t": "2026-10-20T19:11:17.800Z",
-      "zone": "Duskwood"
-     },
-     {
-      "level": 23,
-      "name": "Deliveries to Sven",
-      "quest_id": 164,
-      "t": "2026-10-20T19:21:42.000Z",
+      "t": "2026-10-20T18:56:55.400Z",
       "zone": "Duskwood"
      },
      {
       "level": 24,
-      "name": "Gather Rot Blossoms",
-      "quest_id": 156,
-      "t": "2026-10-20T19:50:46.800Z",
+      "name": "Supplies from Darkshire",
+      "quest_id": 148,
+      "t": "2026-10-20T19:03:12.500Z",
+      "zone": "Duskwood"
+     },
+     {
+      "level": 24,
+      "name": "Return the Comb",
+      "quest_id": 154,
+      "t": "2026-10-20T19:05:20.500Z",
       "zone": "Duskwood"
      },
      {
       "level": 25,
-      "name": "The Shadowy Search Continues",
-      "quest_id": 265,
-      "t": "2026-10-20T20:02:33.400Z",
+      "name": "Inquire at the Inn",
+      "quest_id": 266,
+      "t": "2026-10-20T19:51:11.900Z",
+      "zone": "Duskwood"
+     },
+     {
+      "level": 24,
+      "name": "Juice Delivery",
+      "quest_id": 159,
+      "t": "2026-10-20T19:55:58.300Z",
       "zone": "Duskwood"
      }
     ],
     "start": "2026-10-20T17:00:00Z",
-    "xp": 60946,
+    "xp": 61464,
     "zones": [
      {
-      "secs": 4197,
+      "secs": 4600,
       "zone": "Duskwood"
      },
      {
-      "secs": 2941,
+      "secs": 2935,
       "zone": "Wetlands"
      },
      {
-      "secs": 1927,
+      "secs": 1933,
       "zone": "Ironforge"
      },
      {
-      "secs": 974,
+      "secs": 587,
       "zone": "Elwynn Forest"
      },
      {
-      "secs": 398,
+      "secs": 392,
       "zone": "Stormwind City"
      },
      {
@@ -4857,7 +5021,7 @@
       "zone": "Darkshore"
      },
      {
-      "secs": 70,
+      "secs": 59,
       "zone": "Westfall"
      },
      {
@@ -4977,7 +5141,7 @@
     "dings": [],
     "dungeons": [],
     "end": "2026-10-18T19:12:50Z",
-    "gold_delta_copper": 7283,
+    "gold_delta_copper": 6959,
     "level_end": 23,
     "level_start": 23,
     "levels_gained": 0,
@@ -4999,41 +5163,30 @@
       "level": 21,
       "name": "Pridewings of Stonetalon",
       "quest_id": 1134,
-      "t": "2026-10-18T17:29:03.600Z",
+      "t": "2026-10-18T17:32:35.000Z",
       "zone": "Ashenvale"
      },
      {
-      "level": 21,
-      "name": "Raene's Cleansing",
-      "part": [
-       3,
-       11
-      ],
-      "quest_id": 1024,
-      "t": "2026-10-18T17:54:59.800Z",
-      "zone": "Ashenvale"
-     },
-     {
-      "level": 21,
-      "name": "A Gnome's Respite",
-      "quest_id": 1071,
-      "t": "2026-10-18T18:26:56.700Z",
+      "level": 22,
+      "name": "Covert Ops - Beta",
+      "quest_id": 1080,
+      "t": "2026-10-18T17:55:41.800Z",
       "zone": "Stonetalon Mountains"
      }
     ],
     "start": "2026-10-18T17:05:00Z",
-    "xp": 10293,
+    "xp": 9866,
     "zones": [
      {
-      "secs": 4221,
+      "secs": 4246,
       "zone": "Ashenvale"
      },
      {
-      "secs": 2653,
+      "secs": 2417,
       "zone": "Stonetalon Mountains"
      },
      {
-      "secs": 795,
+      "secs": 1007,
       "zone": "Darkshore"
      }
     ]
@@ -5051,7 +5204,7 @@
     "dings": [
      {
       "level": 23,
-      "t": "2026-10-17T17:21:23.300Z"
+      "t": "2026-10-17T17:51:24.700Z"
      }
     ],
     "dungeons": [],
@@ -5076,64 +5229,39 @@
     "quests": [
      {
       "level": 18,
-      "name": "Tharnariun's Hope",
-      "quest_id": 2139,
-      "t": "2026-10-17T16:51:53.200Z",
-      "zone": "Darkshore"
-     },
-     {
-      "level": 20,
-      "name": "Holy Diver",
-      "quest_id": 87760,
-      "t": "2026-10-17T16:54:01.900Z",
-      "zone": "Darkshore"
-     },
-     {
-      "level": 21,
       "name": "The Tower of Althalaxx",
       "part": [
-       4,
+       3,
        9
       ],
-      "quest_id": 970,
-      "t": "2026-10-17T17:15:58.100Z",
-      "zone": "Darkshore"
-     },
-     {
-      "level": 18,
-      "name": "Therylune's Escape",
-      "quest_id": 945,
-      "t": "2026-10-17T17:21:23.300Z",
+      "quest_id": 967,
+      "t": "2026-10-17T17:05:46.500Z",
       "zone": "Darkshore"
      },
      {
       "level": 20,
       "name": "Swelling Forces",
       "quest_id": 98013,
-      "t": "2026-10-17T17:38:59.000Z",
+      "t": "2026-10-17T18:03:03.000Z",
       "zone": "Darkshore"
      },
      {
-      "level": 24,
-      "name": "The Tower of Althalaxx",
-      "part": [
-       5,
-       9
-      ],
-      "quest_id": 973,
-      "t": "2026-10-17T17:45:36.300Z",
+      "level": 20,
+      "name": "Mathystra Relics",
+      "quest_id": 951,
+      "t": "2026-10-17T18:05:51.200Z",
       "zone": "Darkshore"
      },
      {
       "level": 21,
       "name": "Baron Marinous",
       "quest_id": 98028,
-      "t": "2026-10-17T17:53:06.500Z",
+      "t": "2026-10-17T18:13:44.700Z",
       "zone": "Darkshore"
      }
     ],
     "start": "2026-10-17T16:32:00Z",
-    "xp": 19745,
+    "xp": 19994,
     "zones": [
      {
       "secs": 7724,
@@ -5200,7 +5328,7 @@
   "deaths_detail": [
    {
     "attackers": 1,
-    "fight_s": 32,
+    "fight_s": 23,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -5213,7 +5341,7 @@
     },
     "level": 46,
     "level_gap": 1,
-    "t": "2026-11-18T19:23:55.300Z",
+    "t": "2026-11-18T19:13:08.300Z",
     "zone": "Tanaris"
    },
    {
@@ -5236,7 +5364,7 @@
    },
    {
     "attackers": 1,
-    "fight_s": 30,
+    "fight_s": 26,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -5249,7 +5377,7 @@
     },
     "level": 43,
     "level_gap": -2,
-    "t": "2026-11-15T19:09:25.100Z",
+    "t": "2026-11-15T19:10:54.500Z",
     "zone": "Feralas"
    },
    {
@@ -5272,7 +5400,7 @@
    },
    {
     "attackers": 1,
-    "fight_s": 31,
+    "fight_s": 29,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -5285,12 +5413,12 @@
     },
     "level": 42,
     "level_gap": 0,
-    "t": "2026-11-13T16:34:57.500Z",
+    "t": "2026-11-13T16:35:50.200Z",
     "zone": "Stranglethorn Vale"
    },
    {
     "attackers": 1,
-    "fight_s": null,
+    "fight_s": 30,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -5303,7 +5431,7 @@
     },
     "level": 41,
     "level_gap": 1,
-    "t": "2026-11-13T15:36:15.300Z",
+    "t": "2026-11-13T15:34:56.300Z",
     "zone": "Stranglethorn Vale"
    },
    {
@@ -5321,7 +5449,7 @@
     },
     "level": 40,
     "level_gap": 2,
-    "t": "2026-11-13T14:30:26.000Z",
+    "t": "2026-11-13T14:30:22.800Z",
     "zone": "Stranglethorn Vale"
    },
    {
@@ -5357,7 +5485,7 @@
     },
     "level": 39,
     "level_gap": -3,
-    "t": "2026-11-10T19:21:26.800Z",
+    "t": "2026-11-10T19:19:59.400Z",
     "zone": "Dustwallow Marsh"
    },
    {
@@ -5380,7 +5508,7 @@
    },
    {
     "attackers": 1,
-    "fight_s": 16,
+    "fight_s": 34,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -5393,7 +5521,7 @@
     },
     "level": 38,
     "level_gap": -5,
-    "t": "2026-11-08T20:05:21.800Z",
+    "t": "2026-11-08T20:06:13.900Z",
     "zone": "Stranglethorn Vale"
    },
    {
@@ -5434,9 +5562,9 @@
    },
    {
     "attackers": 1,
-    "fight_s": null,
+    "fight_s": 24,
     "in_dungeon": false,
-    "killed_in_fight": 0,
+    "killed_in_fight": 1,
     "killer": {
      "how": "the recorder's own pick: the last hostile creature that targeted you within 10 s",
      "level": 33,
@@ -5447,7 +5575,7 @@
     },
     "level": 34,
     "level_gap": -1,
-    "t": "2026-11-04T17:54:58.000Z",
+    "t": "2026-11-04T17:56:50.800Z",
     "zone": "Arathi Highlands"
    },
    {
@@ -5481,10 +5609,10 @@
     {
      "action": "Once a step runs past 3× its plan, look at what holds it up: skip it only if no later step needs it.",
      "cite": "step durations vs the route's per-step plan",
-     "detail": "8h 15m more than planned in all. The worst: step 18 (Direforge Hill) of Wetlands & Hillsbrad Foothills, 1h 32m against 1m.",
+     "detail": "9h 28m more than planned in all. The worst: step 31 (Howin Kindfeather) of Wetlands & Hillsbrad Foothills, 1h 31m against 2m.",
      "kind": "slow_steps",
      "link": "#guide",
-     "text": "11 steps took over 3× their planned time, 8h 15m more than planned. The worst: step 18 (Direforge Hill) of Wetlands & Hillsbrad Foothills, 1h 32m against 1m.",
+     "text": "11 steps took over 3× their planned time, 9h 28m more than planned. The worst: step 31 (Howin Kindfeather) of Wetlands & Hillsbrad Foothills, 1h 31m against 2m.",
      "title": "11 guide steps took over 3× their plan",
      "zone": null
     }
@@ -5504,20 +5632,20 @@
      "guide": "forever/alliance/30-40/01-hillsbrad-foothills",
      "guide_title": "Wetlands & Hillsbrad Foothills",
      "n": 1,
-     "route_s": 112,
-     "secs": 5521,
-     "step": 18,
-     "title": "Direforge Hill",
+     "route_s": 120,
+     "secs": 5515,
+     "step": 31,
+     "title": "Howin Kindfeather",
      "zone": null
     },
     {
      "guide": "forever/alliance/30-40/01-hillsbrad-foothills",
      "guide_title": "Wetlands & Hillsbrad Foothills",
      "n": 1,
-     "route_s": 156,
-     "secs": 4084,
-     "step": 31,
-     "title": "Howin Kindfeather",
+     "route_s": 110,
+     "secs": 4897,
+     "step": 18,
+     "title": "Direforge Hill",
      "zone": null
     },
     {
@@ -5525,9 +5653,19 @@
      "guide_title": "Tanaris",
      "n": 1,
      "route_s": 14,
-     "secs": 3420,
-     "step": 27,
+     "secs": 4327,
+     "step": 28,
      "title": "Steamwheedle Port",
+     "zone": null
+    },
+    {
+     "guide": "forever/alliance/30-40/01-hillsbrad-foothills",
+     "guide_title": "Wetlands & Hillsbrad Foothills",
+     "n": 1,
+     "route_s": 8,
+     "secs": 4028,
+     "step": 36,
+     "title": "Menethil Harbor",
      "zone": null
     },
     {
@@ -5535,46 +5673,36 @@
      "guide_title": "Tanaris",
      "n": 1,
      "route_s": 174,
-     "secs": 3059,
+     "secs": 3156,
      "step": 11,
      "title": "Steamwheedle Port",
      "zone": null
-    },
-    {
-     "guide": "forever/alliance/30-40/05-arathi-highlands",
-     "guide_title": "Arathi Highlands, Alterac Mountains & Swamp of Sorrows",
-     "n": 1,
-     "route_s": 146,
-     "secs": 2734,
-     "step": 51,
-     "title": "Faldir's Cove",
-     "zone": null
     }
    ],
-   "over_plan_s": 29707,
+   "over_plan_s": 34112,
    "skipped": 0,
    "total": 478
   },
   "header": {
-   "avg_level_s": 7188,
+   "avg_level_s": 7112,
    "avg_levels": 5,
    "char": "Nibbet-Gearholt",
    "class": "Priest",
    "counts": {
     "completed_levels": {
      "from_level": 22,
-     "kills": 2255,
-     "quests": 141,
+     "kills": 2211,
+     "quests": 156,
      "to_level": 45
     },
     "current_level": {
-     "kills": 101,
+     "kills": 109,
      "level": 46,
-     "quests": 6
+     "quests": 5
     },
     "including_current_level": {
-     "kills": 2356,
-     "quests": 147
+     "kills": 2320,
+     "quests": 161
     }
    },
    "eta_s": 6308,
@@ -5586,12 +5714,12 @@
    "guild_known": false,
    "level": 46,
    "money_at": "2026-11-18T20:50:14.900Z",
-   "money_copper": 230570,
+   "money_copper": 231452,
    "name": "Nibbet",
-   "played_s": 226461,
+   "played_s": 226462,
    "polestar": true,
    "race": "Gnome",
-   "rested_xp": 7558,
+   "rested_xp": 5306,
    "resting": true,
    "seen": "2026-11-18T20:50:14.900Z",
    "sex": null,
@@ -5601,7 +5729,7 @@
    "title": "Priest",
    "xp": 45000,
    "xp_max": 123200,
-   "xp_per_hour": 44624,
+   "xp_per_hour": 44629,
    "zone": "Stormwind City"
   },
   "levels_seen": 24,
@@ -5632,87 +5760,87 @@
     {
      "cite": "wow-level splits vs data/route-reference.json",
      "link": "#levels",
-     "text": "The last 5 levels (levels 41-45) took 9h 59m; Polestar's route plans 10h 25m for them (1.0×)."
+     "text": "The last 5 levels (levels 41-45) took 9h 52m; Polestar's route plans 13h 47m for them (0.7×)."
     },
     {
      "cite": "wow-level splits",
-     "detail": "3h 26m, against a median of 1h 25m over the 5 levels before.",
+     "detail": "3h 25m, against a median of 1h 22m over the 5 levels before.",
      "kind": "slow_level",
      "link": "#levels",
-     "text": "Level 45 took 3h 26m, slower than your median of the 5 before (1h 25m).",
+     "text": "Level 45 took 3h 25m, slower than your median of the 5 before (1h 22m).",
      "title": "Level 45 went slower than your own pace"
     },
     {
      "cite": "XP left / XP an hour, last 3 levels",
      "kind": "eta",
      "link": "#levels",
-     "text": "Level 47 in about 1h 45m of play at your recent pace (44,624 XP an hour)."
+     "text": "Level 47 in about 1h 45m of play at your recent pace (44,629 XP an hour)."
     },
     {
      "cite": "Polestar_Recorder logged-in time since the ding",
      "link": "#levels",
-     "text": "2h 28m played at level 46 so far, 37% of the way; the route plans 2h 39m for the whole level."
+     "text": "2h 28m played at level 46 so far, 37% of the way; the route plans 2h 30m for the whole level."
     }
    ],
    "eta_s": 6308,
    "last_level": 45,
-   "last_s": 12392,
+   "last_s": 12322,
    "level_played_s": 8903,
-   "own_median_s": 5100,
-   "own_ratio": 2.43,
+   "own_median_s": 4937,
+   "own_ratio": 2.5,
    "per_level": [
     {
      "level": 36,
-     "route_s": 7032,
+     "route_s": 7022,
      "seconds": 4261
     },
     {
      "level": 37,
-     "route_s": 5178,
-     "seconds": 8787
+     "route_s": 5177,
+     "seconds": 8438
     },
     {
      "level": 38,
-     "route_s": 7945,
-     "seconds": 9953
+     "route_s": 8389,
+     "seconds": 10394
     },
     {
      "level": 39,
-     "route_s": 6955,
-     "seconds": 5723
+     "route_s": 6962,
+     "seconds": 5719
     },
     {
      "level": 40,
-     "route_s": 3947,
-     "seconds": 8292
+     "route_s": 7403,
+     "seconds": 8589
     },
     {
      "level": 41,
-     "route_s": 4136,
-     "seconds": 3768
+     "route_s": 5067,
+     "seconds": 3552
     },
     {
      "level": 42,
-     "route_s": 7538,
-     "seconds": 5100
+     "route_s": 14440,
+     "seconds": 4937
     },
     {
      "level": 43,
-     "route_s": 15100,
-     "seconds": 11181
+     "route_s": 15101,
+     "seconds": 11200
     },
     {
      "level": 44,
-     "route_s": 4183,
-     "seconds": 3501
+     "route_s": 5233,
+     "seconds": 3549
     },
     {
      "level": 45,
-     "route_s": 6572,
-     "seconds": 12392
+     "route_s": 9799,
+     "seconds": 12322
     }
    ],
-   "played_s": 35942,
+   "played_s": 35560,
    "route_levels": [
     41,
     42,
@@ -5720,12 +5848,12 @@
     44,
     45
    ],
-   "route_ratio": 0.96,
-   "route_s": 37529,
+   "route_ratio": 0.72,
+   "route_s": 49640,
    "verdict": "on track"
   },
   "roster_note": "Who was in the group comes from ForeverDB_Helper (optional, from ForeverDB.net), whose journal names each groupmate once a day, and from the combat log when it was on. Without either, no addon the kit reads saves names: Polestar_Recorder keeps the party size, Polestar's instance runs the dungeon and the time. \"N of M names known\": the Recorder counted more players than were named.",
-  "route_source": "Polestar 0.4.2.2 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
+  "route_source": "Polestar 0.4.3 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
   "runs": [
    {
     "bosses": 7,
@@ -6196,39 +6324,6 @@
    ],
    "findings": [
     {
-     "cite": "gear advice",
-     "item": {
-      "bis_pct": 100,
-      "bis_pct_worn": 37,
-      "delta_pct": 63,
-      "gain": 31.52,
-      "gain_share_pct": 10.9,
-      "item_id": 2549,
-      "name": "Staff of the Shade",
-      "negligible": null,
-      "quality": 3,
-      "slot": 16,
-      "slot_name": "Main hand",
-      "url": "https://www.wowhead.com/forever/item=2549"
-     },
-     "item_id": 2549,
-     "kind": "upgrade",
-     "link": "#up-16",
-     "source": {
-      "basis": "seen in Forever",
-      "blocker": null,
-      "boss": "Razorfen Warden",
-      "kind": "drop",
-      "profession": null,
-      "quest": null,
-      "via": "foreverdb",
-      "zone": null
-     },
-     "text": "You could wear Staff of the Shade now: 37% → 100% on your weapons (drops from Razorfen Warden (seen in Forever)).",
-     "title": "Staff of the Shade",
-     "weight": 3
-    },
-    {
      "action": "Check a creature's level before you pull; come back at level 47 (you are 46).",
      "cite": "likely killer's level vs yours",
      "kind": "deaths_level_gap",
@@ -6260,10 +6355,10 @@
     {
      "action": "Once a step runs past 3× its plan, look at what holds it up: skip it only if no later step needs it.",
      "cite": "step durations vs the route's per-step plan",
-     "detail": "8h 15m more than planned in all. The worst: step 18 (Direforge Hill) of Wetlands & Hillsbrad Foothills, 1h 32m against 1m.",
+     "detail": "9h 28m more than planned in all. The worst: step 31 (Howin Kindfeather) of Wetlands & Hillsbrad Foothills, 1h 31m against 2m.",
      "kind": "slow_steps",
      "link": "#guide",
-     "text": "11 steps took over 3× their planned time, 8h 15m more than planned. The worst: step 18 (Direforge Hill) of Wetlands & Hillsbrad Foothills, 1h 32m against 1m.",
+     "text": "11 steps took over 3× their planned time, 9h 28m more than planned. The worst: step 31 (Howin Kindfeather) of Wetlands & Hillsbrad Foothills, 1h 31m against 2m.",
      "title": "11 guide steps took over 3× their plan",
      "weight": 2,
      "zone": null
@@ -6278,10 +6373,10 @@
     },
     {
      "cite": "wow-level splits",
-     "detail": "3h 26m, against a median of 1h 25m over the 5 levels before.",
+     "detail": "3h 25m, against a median of 1h 22m over the 5 levels before.",
      "kind": "slow_level",
      "link": "#levels",
-     "text": "Level 45 took 3h 26m, slower than your median of the 5 before (1h 25m).",
+     "text": "Level 45 took 3h 25m, slower than your median of the 5 before (1h 22m).",
      "title": "Level 45 went slower than your own pace",
      "weight": 1
     }
@@ -6296,14 +6391,14 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 33,
-   "loot": 23,
-   "turnin": 4
+   "kill": 49,
+   "loot": 37,
+   "turnin": 1
   },
   "deaths": [
    {
     "attackers": 1,
-    "fight_s": 20,
+    "fight_s": 25,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -6316,11 +6411,11 @@
     },
     "level": 22,
     "level_gap": -3,
-    "t": "2026-10-17T17:16:52.100Z",
+    "t": "2026-10-17T17:13:23.900Z",
     "zone": "Darkshore"
    }
   ],
-  "from": "2026-10-17T16:32:00Z",
+  "from": "2026-10-17T16:31:59Z",
   "gear_check": {
    "agree": 0,
    "differs": 0,
@@ -6343,7 +6438,7 @@
   },
   "gear_partial": true,
   "gear_reconstructed": true,
-  "gear_records_from": "2026-10-17T16:40:55Z",
+  "gear_records_from": "2026-10-17T16:41:32Z",
   "level": 22,
   "levels": [
    22,
@@ -6374,12 +6469,12 @@
   ],
   "looted_gear": [],
   "partial_time": true,
-  "route_s": 3754,
-  "seconds": 2963,
-  "to": "2026-10-17T17:21:23Z",
+  "route_s": 3282,
+  "seconds": 4765,
+  "to": "2026-10-17T17:51:24Z",
   "zones": [
    {
-    "secs": 2963,
+    "secs": 4764,
     "zone": "Darkshore"
    }
   ]
@@ -6388,14 +6483,14 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 128,
-   "loot": 91,
-   "turnin": 9
+   "kill": 116,
+   "loot": 80,
+   "turnin": 7
   },
   "deaths": [
    {
     "attackers": 1,
-    "fight_s": 26,
+    "fight_s": null,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -6408,7 +6503,7 @@
     },
     "level": 23,
     "level_gap": -4,
-    "t": "2026-10-17T17:57:50.000Z",
+    "t": "2026-10-17T18:05:51.200Z",
     "zone": "Darkshore"
    },
    {
@@ -6426,7 +6521,7 @@
     },
     "level": 23,
     "level_gap": -6,
-    "t": "2026-10-18T18:16:39.800Z",
+    "t": "2026-10-18T18:12:30.900Z",
     "zone": "Stonetalon Mountains"
    },
    {
@@ -6448,7 +6543,7 @@
     "zone": "Blackfathom Deeps"
    }
   ],
-  "from": "2026-10-17T17:21:23Z",
+  "from": "2026-10-17T17:51:24Z",
   "gear_at": "2026-10-17T18:40:44.100Z",
   "gear_partial": false,
   "level": 23,
@@ -6480,25 +6575,25 @@
    46
   ],
   "partial_time": false,
-  "route_s": 4731,
-  "seconds": 14229,
+  "route_s": 4747,
+  "seconds": 12427,
   "to": "2026-10-19T17:49:57Z",
   "zones": [
    {
-    "secs": 5475,
-    "zone": "Darkshore"
-   },
-   {
-    "secs": 4441,
+    "secs": 4466,
     "zone": "Ashenvale"
    },
    {
-    "secs": 2653,
+    "secs": 2417,
     "zone": "Stonetalon Mountains"
    },
    {
     "secs": 1577,
     "zone": "Blackfathom Deeps"
+   },
+   {
+    "secs": 1007,
+    "zone": "Darkshore"
    }
   ]
  },
@@ -6526,7 +6621,7 @@
     },
     "level": 24,
     "level_gap": -3,
-    "t": "2026-10-20T17:34:36.500Z",
+    "t": "2026-10-20T17:34:32.700Z",
     "zone": "Wetlands"
    }
   ],
@@ -6562,12 +6657,12 @@
    46
   ],
   "partial_time": false,
-  "route_s": 5465,
-  "seconds": 6379,
-  "to": "2026-10-20T17:46:42Z",
+  "route_s": 5523,
+  "seconds": 6374,
+  "to": "2026-10-20T17:46:37Z",
   "zones": [
    {
-    "secs": 2514,
+    "secs": 2509,
     "zone": "Wetlands"
    },
    {
@@ -6584,12 +6679,12 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 53,
-   "loot": 31,
-   "turnin": 7
+   "kill": 54,
+   "loot": 37,
+   "turnin": 8
   },
   "deaths": [],
-  "from": "2026-10-20T17:46:42Z",
+  "from": "2026-10-20T17:46:37Z",
   "gear_at": "2026-10-19T18:49:34.100Z",
   "gear_partial": false,
   "level": 25,
@@ -6621,24 +6716,24 @@
    46
   ],
   "partial_time": false,
-  "route_s": 2630,
-  "seconds": 5075,
-  "to": "2026-10-20T19:11:17Z",
+  "route_s": 2618,
+  "seconds": 5548,
+  "to": "2026-10-20T19:19:05Z",
   "zones": [
    {
-    "secs": 1927,
+    "secs": 1933,
     "zone": "Ironforge"
    },
    {
-    "secs": 974,
-    "zone": "Elwynn Forest"
-   },
-   {
-    "secs": 963,
+    "secs": 1835,
     "zone": "Duskwood"
    },
    {
-    "secs": 398,
+    "secs": 587,
+    "zone": "Elwynn Forest"
+   },
+   {
+    "secs": 392,
     "zone": "Stormwind City"
    },
    {
@@ -6646,7 +6741,7 @@
     "zone": "Wetlands"
    },
    {
-    "secs": 70,
+    "secs": 59,
     "zone": "Westfall"
    }
   ]
@@ -6655,31 +6750,12 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 93,
-   "loot": 64,
+   "kill": 83,
+   "loot": 55,
    "turnin": 7
   },
-  "deaths": [
-   {
-    "attackers": 1,
-    "fight_s": 31,
-    "in_dungeon": false,
-    "killed_in_fight": 1,
-    "killer": {
-     "how": "the recorder's own pick: the last hostile creature that targeted you within 10 s",
-     "level": 25,
-     "likely": true,
-     "name": "Blackrock Champion",
-     "named": true,
-     "npc_id": 435
-    },
-    "level": 26,
-    "level_gap": -1,
-    "t": "2026-10-21T18:02:11.400Z",
-    "zone": "Redridge Mountains"
-   }
-  ],
-  "from": "2026-10-20T19:11:17Z",
+  "deaths": [],
+  "from": "2026-10-20T19:19:05Z",
   "gear_at": "2026-10-19T18:49:34.100Z",
   "gear_partial": false,
   "level": 26,
@@ -6711,16 +6787,16 @@
    46
   ],
   "partial_time": false,
-  "route_s": 4374,
-  "seconds": 8156,
-  "to": "2026-10-21T18:12:02Z",
+  "route_s": 4609,
+  "seconds": 6881,
+  "to": "2026-10-21T17:58:35Z",
   "zones": [
    {
-    "secs": 4922,
+    "secs": 4115,
     "zone": "Redridge Mountains"
    },
    {
-    "secs": 3214,
+    "secs": 789,
     "zone": "Duskwood"
    }
   ]
@@ -6729,12 +6805,31 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 104,
-   "loot": 71,
-   "turnin": 11
+   "kill": 113,
+   "loot": 74,
+   "turnin": 12
   },
-  "deaths": [],
-  "from": "2026-10-21T18:12:02Z",
+  "deaths": [
+   {
+    "attackers": 1,
+    "fight_s": null,
+    "in_dungeon": false,
+    "killed_in_fight": 0,
+    "killer": {
+     "how": "the recorder's own pick: the last hostile creature that targeted you within 10 s",
+     "level": 25,
+     "likely": true,
+     "name": "Blackrock Champion",
+     "named": true,
+     "npc_id": 435
+    },
+    "level": 27,
+    "level_gap": -2,
+    "t": "2026-10-21T18:07:22.300Z",
+    "zone": "Redridge Mountains"
+   }
+  ],
+  "from": "2026-10-21T17:58:35Z",
   "gear_at": "2026-10-19T18:49:34.100Z",
   "gear_partial": false,
   "level": 27,
@@ -6766,13 +6861,17 @@
    46
   ],
   "partial_time": false,
-  "route_s": 4003,
-  "seconds": 9805,
-  "to": "2026-10-22T14:50:43Z",
+  "route_s": 3810,
+  "seconds": 10311,
+  "to": "2026-10-22T14:45:42Z",
   "zones": [
    {
-    "secs": 5875,
+    "secs": 4750,
     "zone": "Duskwood"
+   },
+   {
+    "secs": 823,
+    "zone": "Westfall"
    }
   ]
  },
@@ -6780,16 +6879,16 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 96,
-   "loot": 64,
-   "turnin": 5
+   "kill": 89,
+   "loot": 61,
+   "turnin": 8
   },
   "deaths": [
    {
     "attackers": 1,
     "fight_s": null,
     "in_dungeon": false,
-    "killed_in_fight": 1,
+    "killed_in_fight": 0,
     "killer": {
      "how": "the recorder's own pick: the last hostile creature that targeted you within 10 s",
      "level": 22,
@@ -6800,11 +6899,11 @@
     },
     "level": 28,
     "level_gap": -6,
-    "t": "2026-10-23T17:34:29.700Z",
+    "t": "2026-10-23T17:34:15.700Z",
     "zone": "Wetlands"
    }
   ],
-  "from": "2026-10-22T14:50:43Z",
+  "from": "2026-10-22T14:45:42Z",
   "gear_at": "2026-10-22T15:36:40.100Z",
   "gear_partial": false,
   "level": 28,
@@ -6836,25 +6935,21 @@
    46
   ],
   "partial_time": false,
-  "route_s": 5380,
-  "seconds": 9156,
-  "to": "2026-10-23T18:46:39Z",
+  "route_s": 5373,
+  "seconds": 8858,
+  "to": "2026-10-23T18:36:40Z",
   "zones": [
    {
-    "secs": 6270,
+    "secs": 5671,
     "zone": "Wetlands"
    },
    {
-    "secs": 1563,
-    "zone": "Elwynn Forest"
-   },
-   {
-    "secs": 542,
+    "secs": 1767,
     "zone": "Stormwind City"
    },
    {
-    "secs": 481,
-    "zone": "Westfall"
+    "secs": 427,
+    "zone": "Elwynn Forest"
    }
   ]
  },
@@ -6862,9 +6957,9 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 71,
-   "loot": 49,
-   "turnin": 12
+   "kill": 79,
+   "loot": 47,
+   "turnin": 16
   },
   "deaths": [
    {
@@ -6882,11 +6977,11 @@
     },
     "level": 29,
     "level_gap": -5,
-    "t": "2026-10-24T18:05:49.100Z",
+    "t": "2026-10-24T18:06:43.300Z",
     "zone": "Ashenvale"
    }
   ],
-  "from": "2026-10-23T18:46:39Z",
+  "from": "2026-10-23T18:36:40Z",
   "gear_at": "2026-10-22T15:36:40.100Z",
   "gear_partial": false,
   "level": 29,
@@ -6918,16 +7013,16 @@
    46
   ],
   "partial_time": false,
-  "route_s": 5265,
-  "seconds": 6783,
-  "to": "2026-10-24T18:29:47Z",
+  "route_s": 5081,
+  "seconds": 7443,
+  "to": "2026-10-24T18:30:48Z",
   "zones": [
    {
-    "secs": 4829,
+    "secs": 5062,
     "zone": "Ashenvale"
    },
    {
-    "secs": 539,
+    "secs": 621,
     "zone": "Darkshore"
    },
    {
@@ -6940,12 +7035,12 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 112,
-   "loot": 61,
-   "turnin": 11
+   "kill": 100,
+   "loot": 62,
+   "turnin": 14
   },
   "deaths": [],
-  "from": "2026-10-24T18:29:47Z",
+  "from": "2026-10-24T18:30:48Z",
   "gear_at": "2026-10-24T20:04:38.100Z",
   "gear_partial": false,
   "level": 30,
@@ -6977,28 +7072,28 @@
    46
   ],
   "partial_time": false,
-  "route_s": 5063,
-  "seconds": 9749,
-  "to": "2026-10-25T17:47:38Z",
+  "route_s": 5073,
+  "seconds": 8953,
+  "to": "2026-10-25T17:35:23Z",
   "zones": [
    {
-    "secs": 4058,
+    "secs": 3323,
     "zone": "Duskwood"
+   },
+   {
+    "secs": 1615,
+    "zone": "Ironforge"
    },
    {
     "secs": 1458,
     "zone": "Stormwind City"
    },
    {
-    "secs": 1348,
-    "zone": "Ironforge"
-   },
-   {
-    "secs": 515,
+    "secs": 442,
     "zone": "Wetlands"
    },
    {
-    "secs": 86,
+    "secs": 203,
     "zone": "Darkshore"
    }
   ]
@@ -7007,12 +7102,12 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 96,
-   "loot": 69,
+   "kill": 107,
+   "loot": 82,
    "turnin": 9
   },
   "deaths": [],
-  "from": "2026-10-25T17:47:38Z",
+  "from": "2026-10-25T17:35:23Z",
   "gear_at": "2026-10-24T20:04:38.100Z",
   "gear_partial": false,
   "level": 31,
@@ -7044,12 +7139,12 @@
    46
   ],
   "partial_time": false,
-  "route_s": 6714,
-  "seconds": 9632,
+  "route_s": 6971,
+  "seconds": 10367,
   "to": "2026-10-26T17:43:39Z",
   "zones": [
    {
-    "secs": 2781,
+    "secs": 2652,
     "zone": "Duskwood"
    },
    {
@@ -7074,14 +7169,14 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 359,
-   "loot": 227,
-   "turnin": 8
+   "kill": 314,
+   "loot": 207,
+   "turnin": 14
   },
   "deaths": [
    {
     "attackers": 1,
-    "fight_s": 19,
+    "fight_s": 26,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -7094,12 +7189,12 @@
     },
     "level": 32,
     "level_gap": -6,
-    "t": "2026-10-27T18:46:00.000Z",
+    "t": "2026-10-27T18:47:44.500Z",
     "zone": "Wetlands"
    },
    {
     "attackers": 1,
-    "fight_s": 23,
+    "fight_s": null,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -7112,7 +7207,7 @@
     },
     "level": 32,
     "level_gap": -5,
-    "t": "2026-11-01T18:23:15.500Z",
+    "t": "2026-11-01T18:17:46.100Z",
     "zone": "Hillsbrad Foothills"
    }
   ],
@@ -7148,20 +7243,20 @@
    46
   ],
   "partial_time": false,
-  "route_s": 7799,
-  "seconds": 32452,
-  "to": "2026-11-02T17:29:38Z",
+  "route_s": 8829,
+  "seconds": 32598,
+  "to": "2026-11-02T17:32:04Z",
   "zones": [
    {
     "secs": 21935,
     "zone": "Wetlands"
    },
    {
-    "secs": 10126,
+    "secs": 10115,
     "zone": "Hillsbrad Foothills"
    },
    {
-    "secs": 250,
+    "secs": 407,
     "zone": "Alterac Mountains"
    },
    {
@@ -7174,9 +7269,9 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 63,
-   "loot": 38,
-   "turnin": 6
+   "kill": 70,
+   "loot": 44,
+   "turnin": 5
   },
   "deaths": [
    {
@@ -7198,7 +7293,7 @@
     "zone": "City of Dalaran"
    }
   ],
-  "from": "2026-11-02T17:29:38Z",
+  "from": "2026-11-02T17:32:04Z",
   "gear_at": "2026-11-03T17:46:50.400Z",
   "gear_partial": false,
   "level": 33,
@@ -7230,10 +7325,14 @@
    46
   ],
   "partial_time": false,
-  "route_s": 7282,
-  "seconds": 6784,
-  "to": "2026-11-04T16:56:12Z",
+  "route_s": 7354,
+  "seconds": 7156,
+  "to": "2026-11-04T17:04:51Z",
   "zones": [
+   {
+    "secs": 2010,
+    "zone": "Arathi Highlands"
+   },
    {
     "secs": 1922,
     "zone": "City of Dalaran"
@@ -7243,11 +7342,7 @@
     "zone": "Razorfen Kraul"
    },
    {
-    "secs": 1491,
-    "zone": "Arathi Highlands"
-   },
-   {
-    "secs": 929,
+    "secs": 482,
     "zone": "Alterac Mountains"
    },
    {
@@ -7264,16 +7359,16 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 176,
-   "loot": 120,
-   "turnin": 7
+   "kill": 171,
+   "loot": 111,
+   "turnin": 8
   },
   "deaths": [
    {
     "attackers": 1,
-    "fight_s": null,
+    "fight_s": 24,
     "in_dungeon": false,
-    "killed_in_fight": 0,
+    "killed_in_fight": 1,
     "killer": {
      "how": "the recorder's own pick: the last hostile creature that targeted you within 10 s",
      "level": 33,
@@ -7284,11 +7379,11 @@
     },
     "level": 34,
     "level_gap": -1,
-    "t": "2026-11-04T17:54:58.000Z",
+    "t": "2026-11-04T17:56:50.800Z",
     "zone": "Arathi Highlands"
    }
   ],
-  "from": "2026-11-04T16:56:12Z",
+  "from": "2026-11-04T17:04:51Z",
   "gear_at": "2026-11-05T09:05:20.000Z",
   "gear_partial": false,
   "level": 34,
@@ -7320,12 +7415,12 @@
    46
   ],
   "partial_time": false,
-  "route_s": 8486,
-  "seconds": 13923,
-  "to": "2026-11-05T18:45:16Z",
+  "route_s": 8430,
+  "seconds": 13459,
+  "to": "2026-11-05T18:46:12Z",
   "zones": [
    {
-    "secs": 13464,
+    "secs": 10717,
     "zone": "Arathi Highlands"
    }
   ]
@@ -7334,8 +7429,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 108,
-   "loot": 74,
+   "kill": 107,
+   "loot": 79,
    "turnin": 5
   },
   "deaths": [
@@ -7358,7 +7453,7 @@
     "zone": "Scarlet Monastery"
    }
   ],
-  "from": "2026-11-05T18:45:16Z",
+  "from": "2026-11-05T18:46:12Z",
   "gear_at": "2026-11-06T14:08:00.600Z",
   "gear_partial": false,
   "level": 35,
@@ -7390,17 +7485,13 @@
    46
   ],
   "partial_time": false,
-  "route_s": 5204,
-  "seconds": 9514,
+  "route_s": 5806,
+  "seconds": 9458,
   "to": "2026-11-07T18:41:33Z",
   "zones": [
    {
     "secs": 2963,
     "zone": "Scarlet Monastery"
-   },
-   {
-    "secs": 2650,
-    "zone": "Arathi Highlands"
    },
    {
     "secs": 2209,
@@ -7480,7 +7571,7 @@
    46
   ],
   "partial_time": false,
-  "route_s": 7032,
+  "route_s": 7022,
   "seconds": 4261,
   "to": "2026-11-07T19:52:34Z",
   "zones": [
@@ -7494,9 +7585,9 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 89,
-   "loot": 62,
-   "turnin": 3
+   "kill": 83,
+   "loot": 60,
+   "turnin": 5
   },
   "deaths": [],
   "from": "2026-11-07T19:52:34Z",
@@ -7531,12 +7622,12 @@
    46
   ],
   "partial_time": false,
-  "route_s": 5178,
-  "seconds": 8787,
-  "to": "2026-11-08T20:03:21Z",
+  "route_s": 5177,
+  "seconds": 8438,
+  "to": "2026-11-08T19:57:32Z",
   "zones": [
    {
-    "secs": 6291,
+    "secs": 5942,
     "zone": "Stranglethorn Vale"
    },
    {
@@ -7553,14 +7644,14 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 103,
+   "kill": 112,
    "loot": 71,
    "turnin": 4
   },
   "deaths": [
    {
     "attackers": 1,
-    "fight_s": 16,
+    "fight_s": 34,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -7573,7 +7664,7 @@
     },
     "level": 38,
     "level_gap": -5,
-    "t": "2026-11-08T20:05:21.800Z",
+    "t": "2026-11-08T20:06:13.900Z",
     "zone": "Stranglethorn Vale"
    },
    {
@@ -7595,7 +7686,7 @@
     "zone": "Scarlet Monastery"
    }
   ],
-  "from": "2026-11-08T20:03:21Z",
+  "from": "2026-11-08T19:57:32Z",
   "gear_at": "2026-11-09T19:06:10.800Z",
   "gear_partial": false,
   "level": 38,
@@ -7627,20 +7718,20 @@
    46
   ],
   "partial_time": false,
-  "route_s": 7945,
-  "seconds": 9953,
-  "to": "2026-11-10T18:46:53Z",
+  "route_s": 8389,
+  "seconds": 10394,
+  "to": "2026-11-10T18:48:24Z",
   "zones": [
    {
     "secs": 2975,
     "zone": "Scarlet Monastery"
    },
    {
-    "secs": 2484,
+    "secs": 2575,
     "zone": "Dustwallow Marsh"
    },
    {
-    "secs": 1319,
+    "secs": 1307,
     "zone": "Stranglethorn Vale"
    },
    {
@@ -7661,9 +7752,9 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 64,
-   "loot": 39,
-   "turnin": 5
+   "kill": 65,
+   "loot": 41,
+   "turnin": 3
   },
   "deaths": [
    {
@@ -7681,11 +7772,11 @@
     },
     "level": 39,
     "level_gap": -3,
-    "t": "2026-11-10T19:21:26.800Z",
+    "t": "2026-11-10T19:19:59.400Z",
     "zone": "Dustwallow Marsh"
    }
   ],
-  "from": "2026-11-10T18:46:53Z",
+  "from": "2026-11-10T18:48:24Z",
   "gear_at": "2026-11-09T19:06:10.800Z",
   "gear_partial": false,
   "level": 39,
@@ -7717,12 +7808,12 @@
    46
   ],
   "partial_time": false,
-  "route_s": 6955,
-  "seconds": 5723,
-  "to": "2026-11-10T20:22:15Z",
+  "route_s": 6962,
+  "seconds": 5719,
+  "to": "2026-11-10T20:23:43Z",
   "zones": [
    {
-    "secs": 4246,
+    "secs": 4422,
     "zone": "Dustwallow Marsh"
    }
   ]
@@ -7731,9 +7822,9 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 60,
-   "loot": 40,
-   "turnin": 8
+   "kill": 61,
+   "loot": 41,
+   "turnin": 7
   },
   "deaths": [
    {
@@ -7769,11 +7860,11 @@
     },
     "level": 40,
     "level_gap": 2,
-    "t": "2026-11-13T14:30:26.000Z",
+    "t": "2026-11-13T14:30:22.800Z",
     "zone": "Stranglethorn Vale"
    }
   ],
-  "from": "2026-11-10T20:22:15Z",
+  "from": "2026-11-10T20:23:43Z",
   "gear_at": "2026-11-12T14:19:57.800Z",
   "gear_partial": false,
   "level": 40,
@@ -7805,12 +7896,12 @@
    46
   ],
   "partial_time": false,
-  "route_s": 3947,
-  "seconds": 8292,
-  "to": "2026-11-13T14:55:08Z",
+  "route_s": 7403,
+  "seconds": 8589,
+  "to": "2026-11-13T15:01:33Z",
   "zones": [
    {
-    "secs": 3094,
+    "secs": 3479,
     "zone": "Stranglethorn Vale"
    },
    {
@@ -7818,7 +7909,7 @@
     "zone": "Razorfen Downs"
    },
    {
-    "secs": 1659,
+    "secs": 1665,
     "zone": "Dustwallow Marsh"
    },
    {
@@ -7839,13 +7930,14 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 58,
-   "loot": 37
+   "kill": 53,
+   "loot": 31,
+   "turnin": 1
   },
   "deaths": [
    {
     "attackers": 1,
-    "fight_s": null,
+    "fight_s": 30,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -7858,11 +7950,11 @@
     },
     "level": 41,
     "level_gap": 1,
-    "t": "2026-11-13T15:36:15.300Z",
+    "t": "2026-11-13T15:34:56.300Z",
     "zone": "Stranglethorn Vale"
    }
   ],
-  "from": "2026-11-13T14:55:08Z",
+  "from": "2026-11-13T15:01:33Z",
   "gear_at": "2026-11-12T14:19:57.800Z",
   "gear_partial": false,
   "level": 41,
@@ -7894,12 +7986,12 @@
    46
   ],
   "partial_time": false,
-  "route_s": 4136,
-  "seconds": 3768,
-  "to": "2026-11-13T15:57:56Z",
+  "route_s": 5067,
+  "seconds": 3552,
+  "to": "2026-11-13T16:00:44Z",
   "zones": [
    {
-    "secs": 516,
+    "secs": 697,
     "zone": "Stranglethorn Vale"
    }
   ]
@@ -7908,14 +8000,14 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 53,
-   "loot": 37,
-   "turnin": 7
+   "kill": 52,
+   "loot": 38,
+   "turnin": 5
   },
   "deaths": [
    {
     "attackers": 1,
-    "fight_s": 31,
+    "fight_s": 29,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -7928,11 +8020,11 @@
     },
     "level": 42,
     "level_gap": 0,
-    "t": "2026-11-13T16:34:57.500Z",
+    "t": "2026-11-13T16:35:50.200Z",
     "zone": "Stranglethorn Vale"
    }
   ],
-  "from": "2026-11-13T15:57:56Z",
+  "from": "2026-11-13T16:00:44Z",
   "gear_at": "2026-11-12T14:19:57.800Z",
   "gear_partial": false,
   "level": 42,
@@ -7964,12 +8056,12 @@
    46
   ],
   "partial_time": false,
-  "route_s": 7538,
-  "seconds": 5100,
-  "to": "2026-11-13T17:22:57Z",
+  "route_s": 14440,
+  "seconds": 4937,
+  "to": "2026-11-13T17:23:01Z",
   "zones": [
    {
-    "secs": 4760,
+    "secs": 4755,
     "zone": "Stranglethorn Vale"
    }
   ]
@@ -7978,9 +8070,9 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 76,
+   "kill": 75,
    "loot": 50,
-   "turnin": 3
+   "turnin": 4
   },
   "deaths": [
    {
@@ -8003,7 +8095,7 @@
    },
    {
     "attackers": 1,
-    "fight_s": 30,
+    "fight_s": 26,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -8016,11 +8108,11 @@
     },
     "level": 43,
     "level_gap": -2,
-    "t": "2026-11-15T19:09:25.100Z",
+    "t": "2026-11-15T19:10:54.500Z",
     "zone": "Feralas"
    }
   ],
-  "from": "2026-11-13T17:22:57Z",
+  "from": "2026-11-13T17:23:01Z",
   "gear_at": "2026-11-14T18:53:14.900Z",
   "gear_partial": false,
   "level": 43,
@@ -8052,12 +8144,12 @@
    46
   ],
   "partial_time": false,
-  "route_s": 15100,
-  "seconds": 11181,
-  "to": "2026-11-15T19:58:07Z",
+  "route_s": 15101,
+  "seconds": 11200,
+  "to": "2026-11-15T19:58:31Z",
   "zones": [
    {
-    "secs": 6646,
+    "secs": 6669,
     "zone": "Feralas"
    },
    {
@@ -8086,12 +8178,12 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 56,
-   "loot": 40,
-   "turnin": 1
+   "kill": 54,
+   "loot": 38,
+   "turnin": 2
   },
   "deaths": [],
-  "from": "2026-11-15T19:58:07Z",
+  "from": "2026-11-15T19:58:31Z",
   "gear_at": "2026-11-14T18:53:14.900Z",
   "gear_partial": false,
   "level": 44,
@@ -8123,12 +8215,12 @@
    46
   ],
   "partial_time": false,
-  "route_s": 4183,
-  "seconds": 3501,
-  "to": "2026-11-15T20:56:29Z",
+  "route_s": 5233,
+  "seconds": 3549,
+  "to": "2026-11-15T20:57:39Z",
   "zones": [
    {
-    "secs": 3239,
+    "secs": 3266,
     "zone": "Feralas"
    }
   ]
@@ -8137,12 +8229,12 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 139,
+   "kill": 141,
    "loot": 91,
    "turnin": 3
   },
   "deaths": [],
-  "from": "2026-11-15T20:56:29Z",
+  "from": "2026-11-15T20:57:39Z",
   "gear_at": "2026-11-16T20:14:11.600Z",
   "gear_partial": false,
   "level": 45,
@@ -8174,8 +8266,8 @@
    46
   ],
   "partial_time": false,
-  "route_s": 6572,
-  "seconds": 12392,
+  "route_s": 9799,
+  "seconds": 12322,
   "to": "2026-11-17T18:51:07Z",
   "zones": [
    {
@@ -8208,9 +8300,9 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 101,
-   "loot": 59,
-   "turnin": 6
+   "kill": 109,
+   "loot": 67,
+   "turnin": 5
   },
   "deaths": [
    {
@@ -8233,7 +8325,7 @@
    },
    {
     "attackers": 1,
-    "fight_s": 32,
+    "fight_s": 23,
     "in_dungeon": false,
     "killed_in_fight": 1,
     "killer": {
@@ -8246,7 +8338,7 @@
     },
     "level": 46,
     "level_gap": 1,
-    "t": "2026-11-18T19:23:55.300Z",
+    "t": "2026-11-18T19:13:08.300Z",
     "zone": "Tanaris"
    }
   ],
@@ -8282,7 +8374,7 @@
    46
   ],
   "partial_time": false,
-  "route_s": 9596,
+  "route_s": 9058,
   "seconds": 8903,
   "so_far": true,
   "to": null,
@@ -8306,7 +8398,7 @@
   "events": [
    {
     "link": "#deaths",
-    "t": "2026-11-18T19:23:55.300Z",
+    "t": "2026-11-18T19:13:08.300Z",
     "text": "Died in Tanaris, likely to Dunemaul Enforcer",
     "type": "death"
    },
@@ -8375,19 +8467,19 @@
    },
    {
     "link": "#levels",
-    "t": "2026-11-15T20:56:29.100Z",
+    "t": "2026-11-15T20:57:39.800Z",
     "text": "Level 45",
     "type": "level"
    },
    {
     "link": "#levels",
-    "t": "2026-11-15T19:58:07.800Z",
+    "t": "2026-11-15T19:58:31.000Z",
     "text": "Level 44",
     "type": "level"
    },
    {
     "link": "#deaths",
-    "t": "2026-11-15T19:09:25.100Z",
+    "t": "2026-11-15T19:10:54.500Z",
     "text": "Died in Feralas, likely to Gordunni Ogre",
     "type": "death"
    },
@@ -8437,37 +8529,37 @@
    },
    {
     "link": "#levels",
-    "t": "2026-11-13T17:22:57.000Z",
+    "t": "2026-11-13T17:23:01.200Z",
     "text": "Level 43",
     "type": "level"
    },
    {
     "link": "#deaths",
-    "t": "2026-11-13T16:34:57.500Z",
+    "t": "2026-11-13T16:35:50.200Z",
     "text": "Died in Stranglethorn Vale, likely to Skullsplitter Hunter",
     "type": "death"
    },
    {
     "link": "#levels",
-    "t": "2026-11-13T15:57:56.800Z",
+    "t": "2026-11-13T16:00:44.700Z",
     "text": "Level 42",
     "type": "level"
    },
    {
     "link": "#deaths",
-    "t": "2026-11-13T15:36:15.300Z",
+    "t": "2026-11-13T15:34:56.300Z",
     "text": "Died in Stranglethorn Vale, likely to Skullsplitter Hunter",
     "type": "death"
    },
    {
     "link": "#levels",
-    "t": "2026-11-13T14:55:08.600Z",
+    "t": "2026-11-13T15:01:33.000Z",
     "text": "Level 41",
     "type": "level"
    },
    {
     "link": "#deaths",
-    "t": "2026-11-13T14:30:26.000Z",
+    "t": "2026-11-13T14:30:22.800Z",
     "text": "Died in Stranglethorn Vale, likely to Skullsplitter Hunter",
     "type": "death"
    },
@@ -8517,26 +8609,26 @@
    },
    {
     "link": "#levels",
-    "t": "2026-11-10T20:22:15.700Z",
+    "t": "2026-11-10T20:23:43.500Z",
     "text": "Level 40",
     "type": "level"
    },
    {
     "link": "#deaths",
-    "t": "2026-11-10T19:21:26.800Z",
+    "t": "2026-11-10T19:19:59.400Z",
     "text": "Died in Dustwallow Marsh, likely to Theramore Infiltrator",
     "type": "death"
    },
    {
     "link": "#levels",
-    "t": "2026-11-10T18:46:53.200Z",
+    "t": "2026-11-10T18:48:24.500Z",
     "text": "Level 39",
     "type": "level"
    },
    {
     "link": "#guide",
     "t": "2026-11-10T18:05:28.800Z",
-    "text": "Started Stranglethorn Vale, Dustwallow Marsh & Swamp of Sorrows",
+    "text": "Started Dustwallow Marsh, Stranglethorn Vale & Swamp of Sorrows",
     "type": "guide"
    },
    {
@@ -8579,13 +8671,13 @@
    },
    {
     "link": "#deaths",
-    "t": "2026-11-08T20:05:21.800Z",
+    "t": "2026-11-08T20:06:13.900Z",
     "text": "Died in Stranglethorn Vale, likely to Stranglethorn Tiger",
     "type": "death"
    },
    {
     "link": "#levels",
-    "t": "2026-11-08T20:03:21.700Z",
+    "t": "2026-11-08T19:57:32.500Z",
     "text": "Level 38",
     "type": "level"
    },
@@ -8678,7 +8770,7 @@
    },
    {
     "link": "#levels",
-    "t": "2026-11-05T18:45:16.800Z",
+    "t": "2026-11-05T18:46:12.100Z",
     "text": "Level 35",
     "type": "level"
    },
@@ -8710,13 +8802,13 @@
    },
    {
     "link": "#deaths",
-    "t": "2026-11-04T17:54:58.000Z",
+    "t": "2026-11-04T17:56:50.800Z",
     "text": "Died in Arathi Highlands, likely to Witherbark Axe Thrower",
     "type": "death"
    },
    {
     "link": "#levels",
-    "t": "2026-11-04T16:56:12.700Z",
+    "t": "2026-11-04T17:04:51.600Z",
     "text": "Level 34",
     "type": "level"
    },
@@ -8766,7 +8858,7 @@
    },
    {
     "link": "#levels",
-    "t": "2026-11-02T17:29:38.600Z",
+    "t": "2026-11-02T17:32:04.600Z",
     "text": "Level 33",
     "type": "level"
    },
@@ -8780,12 +8872,12 @@
    {
     "link": "#guide",
     "t": "2026-11-02T16:45:00.000Z",
-    "text": "Started Arathi Highlands, Alterac Mountains & Swamp of Sorrows",
+    "text": "Started Swamp of Sorrows, Hillsbrad Foothills, Alterac Mountains & Arathi Highlands",
     "type": "guide"
    },
    {
     "link": "#deaths",
-    "t": "2026-11-01T18:23:15.500Z",
+    "t": "2026-11-01T18:17:46.100Z",
     "text": "Died in Hillsbrad Foothills, likely to Hillsbrad Miner",
     "type": "death"
    },
@@ -8833,7 +8925,7 @@
    },
    {
     "link": "#deaths",
-    "t": "2026-10-27T18:46:00.000Z",
+    "t": "2026-10-27T18:47:44.500Z",
     "text": "Died in Wetlands, likely to Mottled Scytheclaw",
     "type": "death"
    },
@@ -8877,7 +8969,7 @@
    },
    {
     "link": "#levels",
-    "t": "2026-10-25T17:47:38.200Z",
+    "t": "2026-10-25T17:35:23.100Z",
     "text": "Level 31",
     "type": "level"
    },
@@ -8896,13 +8988,13 @@
    },
    {
     "link": "#levels",
-    "t": "2026-10-24T18:29:47.100Z",
+    "t": "2026-10-24T18:30:48.400Z",
     "text": "Level 30",
     "type": "level"
    },
    {
     "link": "#deaths",
-    "t": "2026-10-24T18:05:49.100Z",
+    "t": "2026-10-24T18:06:43.300Z",
     "text": "Died in Ashenvale, likely to Foulweald Warrior",
     "type": "death"
    },
@@ -8915,13 +9007,13 @@
    },
    {
     "link": "#levels",
-    "t": "2026-10-23T18:46:39.600Z",
+    "t": "2026-10-23T18:36:40.300Z",
     "text": "Level 29",
     "type": "level"
    },
    {
     "link": "#deaths",
-    "t": "2026-10-23T17:34:29.700Z",
+    "t": "2026-10-23T17:34:15.700Z",
     "text": "Died in Wetlands, likely to Mosshide Mongrel",
     "type": "death"
    },
@@ -8934,7 +9026,7 @@
    },
    {
     "link": "#levels",
-    "t": "2026-10-22T14:50:43.700Z",
+    "t": "2026-10-22T14:45:42.300Z",
     "text": "Level 28",
     "type": "level"
    },
@@ -8946,16 +9038,16 @@
     "type": "session"
    },
    {
-    "link": "#levels",
-    "t": "2026-10-21T18:12:02.700Z",
-    "text": "Level 27",
-    "type": "level"
-   },
-   {
     "link": "#deaths",
-    "t": "2026-10-21T18:02:11.400Z",
+    "t": "2026-10-21T18:07:22.300Z",
     "text": "Died in Redridge Mountains, likely to Blackrock Champion",
     "type": "death"
+   },
+   {
+    "link": "#levels",
+    "t": "2026-10-21T17:58:35.700Z",
+    "text": "Level 27",
+    "type": "level"
    },
    {
     "link": "#timeline",
@@ -8966,19 +9058,19 @@
    },
    {
     "link": "#levels",
-    "t": "2026-10-20T19:11:17.800Z",
+    "t": "2026-10-20T19:19:05.800Z",
     "text": "Level 26",
     "type": "level"
    },
    {
     "link": "#levels",
-    "t": "2026-10-20T17:46:42.500Z",
+    "t": "2026-10-20T17:46:37.300Z",
     "text": "Level 25",
     "type": "level"
    },
    {
     "link": "#deaths",
-    "t": "2026-10-20T17:34:36.500Z",
+    "t": "2026-10-20T17:34:32.700Z",
     "text": "Died in Wetlands, likely to Mosshide Gnoll",
     "type": "death"
    },
@@ -9022,7 +9114,7 @@
    },
    {
     "link": "#deaths",
-    "t": "2026-10-18T18:16:39.800Z",
+    "t": "2026-10-18T18:12:30.900Z",
     "text": "Died in Stonetalon Mountains, likely to Deepmoss Creeper",
     "type": "death"
    },
@@ -9035,19 +9127,19 @@
    },
    {
     "link": "#deaths",
-    "t": "2026-10-17T17:57:50.000Z",
+    "t": "2026-10-17T18:05:51.200Z",
     "text": "Died in Darkshore, likely to Stormscale Myrmidon",
     "type": "death"
    },
    {
     "link": "#levels",
-    "t": "2026-10-17T17:21:23.300Z",
+    "t": "2026-10-17T17:51:24.700Z",
     "text": "Level 23",
     "type": "level"
    },
    {
     "link": "#deaths",
-    "t": "2026-10-17T17:16:52.100Z",
+    "t": "2026-10-17T17:13:23.900Z",
     "text": "Died in Darkshore, likely to Stormscale Myrmidon",
     "type": "death"
    },
@@ -9347,7 +9439,7 @@
    "first_partial": true,
    "level": 46,
    "name": "Nibbet",
-   "played_s": 226461,
+   "played_s": 226462,
    "played_total_s": null,
    "polestar": true,
    "race": "Gnome",
@@ -9368,149 +9460,149 @@
    {
     "level": 22,
     "partial": true,
-    "route_s": 3754,
-    "seconds": 2963
+    "route_s": 3282,
+    "seconds": 4765
    },
    {
     "level": 23,
     "partial": false,
-    "route_s": 4731,
-    "seconds": 14229
+    "route_s": 4747,
+    "seconds": 12427
    },
    {
     "level": 24,
     "partial": false,
-    "route_s": 5465,
-    "seconds": 6379
+    "route_s": 5523,
+    "seconds": 6374
    },
    {
     "level": 25,
     "partial": false,
-    "route_s": 2630,
-    "seconds": 5075
+    "route_s": 2618,
+    "seconds": 5548
    },
    {
     "level": 26,
     "partial": false,
-    "route_s": 4374,
-    "seconds": 8156
+    "route_s": 4609,
+    "seconds": 6881
    },
    {
     "level": 27,
     "partial": false,
-    "route_s": 4003,
-    "seconds": 9805
+    "route_s": 3810,
+    "seconds": 10311
    },
    {
     "level": 28,
     "partial": false,
-    "route_s": 5380,
-    "seconds": 9156
+    "route_s": 5373,
+    "seconds": 8858
    },
    {
     "level": 29,
     "partial": false,
-    "route_s": 5265,
-    "seconds": 6783
+    "route_s": 5081,
+    "seconds": 7443
    },
    {
     "level": 30,
     "partial": false,
-    "route_s": 5063,
-    "seconds": 9749
+    "route_s": 5073,
+    "seconds": 8953
    },
    {
     "level": 31,
     "partial": false,
-    "route_s": 6714,
-    "seconds": 9632
+    "route_s": 6971,
+    "seconds": 10367
    },
    {
     "level": 32,
     "partial": false,
-    "route_s": 7799,
-    "seconds": 32452
+    "route_s": 8829,
+    "seconds": 32598
    },
    {
     "level": 33,
     "partial": false,
-    "route_s": 7282,
-    "seconds": 6784
+    "route_s": 7354,
+    "seconds": 7156
    },
    {
     "level": 34,
     "partial": false,
-    "route_s": 8486,
-    "seconds": 13923
+    "route_s": 8430,
+    "seconds": 13459
    },
    {
     "level": 35,
     "partial": false,
-    "route_s": 5204,
-    "seconds": 9514
+    "route_s": 5806,
+    "seconds": 9458
    },
    {
     "level": 36,
     "partial": false,
-    "route_s": 7032,
+    "route_s": 7022,
     "seconds": 4261
    },
    {
     "level": 37,
     "partial": false,
-    "route_s": 5178,
-    "seconds": 8787
+    "route_s": 5177,
+    "seconds": 8438
    },
    {
     "level": 38,
     "partial": false,
-    "route_s": 7945,
-    "seconds": 9953
+    "route_s": 8389,
+    "seconds": 10394
    },
    {
     "level": 39,
     "partial": false,
-    "route_s": 6955,
-    "seconds": 5723
+    "route_s": 6962,
+    "seconds": 5719
    },
    {
     "level": 40,
     "partial": false,
-    "route_s": 3947,
-    "seconds": 8292
+    "route_s": 7403,
+    "seconds": 8589
    },
    {
     "level": 41,
     "partial": false,
-    "route_s": 4136,
-    "seconds": 3768
+    "route_s": 5067,
+    "seconds": 3552
    },
    {
     "level": 42,
     "partial": false,
-    "route_s": 7538,
-    "seconds": 5100
+    "route_s": 14440,
+    "seconds": 4937
    },
    {
     "level": 43,
     "partial": false,
-    "route_s": 15100,
-    "seconds": 11181
+    "route_s": 15101,
+    "seconds": 11200
    },
    {
     "level": 44,
     "partial": false,
-    "route_s": 4183,
-    "seconds": 3501
+    "route_s": 5233,
+    "seconds": 3549
    },
    {
     "level": 45,
     "partial": false,
-    "route_s": 6572,
-    "seconds": 12392
+    "route_s": 9799,
+    "seconds": 12322
    }
   ],
-  "route_source": "Polestar 0.4.2.2 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
+  "route_source": "Polestar 0.4.3 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
   "spec": {
    "name": null,
    "points": [],

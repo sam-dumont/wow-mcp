@@ -99,3 +99,32 @@ def test_the_mount_goal_hedges_a_tier_no_game_read_saw():
     assert [t["bought"] for t in seen["tiers"]] == [True, False]
     assert not any(t["may_be_trained"] for t in seen["tiers"])
     assert not any(u.startswith("whether") for u in seen["unknown"])
+
+
+def test_class_mounts_share_the_quest_and_its_cost_across_advice():
+    from wowstats.analysis import kb
+    from wowstats.plan import estimate as E
+    from wowstats.plan import facts
+
+    who = {"class": "PALADIN", "faction": "Horde", "race": "Undead"}
+    inp = {"level": 39, "xp": 0, "who": who, "open_quests": [{"quest_id": 94971}],
+           "gold_copper": 0, "gold_rate": {"copper_per_hour": 10000}, "mount": facts.mount_facts(kb.build({}))}
+    tiers = E.mounts(inp, E.pace(inp))["tiers"]
+    q = tiers[0]["quest"]
+    assert q["quest_id"] == 94971 and q["state"] == "open" and "Danitha Morr" in q["action"]
+    assert tiers[0]["trainer_alternative_copper"] == 1_000_000
+    assert tiers[0]["left_copper"] == tiers[0]["eta_played_s"] == tiers[1]["prior_cost_copper"] == 0
+    assert tiers[1]["need_copper"] is None and tiers[1]["eta_played_s"] is None
+    overview = insights.riding_claims(39, who, {})[0]
+    assert "Danitha" in overview["text"] and overview["skill"]["cost_copper"] == 0
+    assert ahsource.mount_left(0, [], who=who)["need_copper"] == 0
+    assert ahsource.mount_left(0, [], who=who, done={94971})["name"] == "riding.journeyman"
+    assert riding.class_route(75, {**who, "race": "Tauren"}) is None
+    for side, npc in (("Horde", "Zevrost"), ("Alliance", "Ursula")):
+        lock = {"class": "WARLOCK", "faction": side}
+        apprentice = riding.class_route(75, lock, done={4490})
+        assert "Felsteed" in apprentice["action"] and apprentice["riding_source_url"].endswith("/2403040/5")
+        epic = ahsource.mount_left(0, [], BOOK_RIDING, who=lock, done={7631})
+        assert epic["need_copper"] == 0 and npc in epic["quest"]["action"]
+    done = E.mounts({**inp, "quests_done": [94971, 97185]}, E.pace(inp))
+    assert done["current"]["quest"]["state"] == "done" and "Danitha" in done["current"]["quest"]["action"]

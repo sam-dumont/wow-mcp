@@ -14,7 +14,7 @@ Nothing here comes from a website. Spells, zones and talents are read at run
 time from Forever's own client tables on wago.tools (wowstats.analysis.kb).
 The same checkout always gives the same bytes.
 
-    git clone --depth 1 --branch v0.4.2.2 https://github.com/fitzforge/polestar /tmp/polestar
+    git clone --depth 1 --branch v0.4.3 https://github.com/fitzforge/polestar /tmp/polestar
     python3 tools/kb/export.py --polestar /tmp/polestar
 """
 
@@ -89,13 +89,15 @@ def main() -> int:
     ps = a.polestar
     fdb = ps / "forever-db"
     idx = json.loads((fdb / "index.json").read_text())
+    # checkout.py links addon/ to the tagged checkout when forever-db uses its own release.
+    addon = (ps / "addon").resolve()
     try:
-        tag = subprocess.run(["git", "-C", str(ps), "describe", "--tags"], capture_output=True, text=True,
-                             check=True).stdout.strip()
-        commit = subprocess.run(["git", "-C", str(ps), "rev-parse", "HEAD"], capture_output=True, text=True,
+        tag = subprocess.run(["git", "-C", str(addon), "describe", "--tags", "--exact-match"],
+                             capture_output=True, text=True, check=True).stdout.strip()
+        commit = subprocess.run(["git", "-C", str(addon), "rev-parse", "HEAD"], capture_output=True, text=True,
                                 check=True).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        tag, commit = "unknown", "unknown"
+    except (OSError, subprocess.CalledProcessError) as e:
+        raise SystemExit(f"no tagged Polestar checkout for {addon}") from e
     fdb_src = f"forever-db {idx.get('version')} (Polestar {tag}, client {idx.get('clientBuild')}), GPL-3.0"
     ps_src = f"Polestar {tag} ({commit[:12]}), GPL-3.0"
     date = idx.get("version", "")

@@ -86,6 +86,8 @@ def open_page(pw, engine, url, width):
 def test_at_most_three_candidates_in_view_per_slot(site, pw, engine, width):
     url, gear = site
     b, pg, _ = open_page(pw, engine, url, width)
+    slot_picks = [u for sl in gear["slots"] for u in (sl["best"], sl["next"]) if u]
+    expected = {f"{u['slot']}-{u['item_id']}" for u in [*gear["upgrades"], *slot_picks]}
     try:
         for view in ("By where you get it", "By slot"):
             pg.locator("#advice .order button", has_text=view).click()
@@ -101,15 +103,15 @@ def test_at_most_three_candidates_in_view_per_slot(site, pw, engine, width):
             cut = pg.locator("#advice .cand:visible .itm .iname").evaluate_all(
                 "els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent)")
             assert not cut, f"{view} at {width}: names cut short: {cut}"
+            # Every candidate appears once, either in view or in a fold.
+            rows = pg.locator("#advice .cand").evaluate_all("els => els.map(e => e.dataset.up)")
+            assert sorted(rows) == sorted(expected), view
             if view == "By slot" and width > 640:
                 # A table, not a grid a row (.cand's list style once made it
                 # one: every cell its own line, the columns adrift).
                 shown = pg.locator("#advice .byslot tr.cand").evaluate_all(
                     "els => els.map(e => getComputedStyle(e).display)")
                 assert shown and set(shown) == {"table-row"}, shown
-        # Nothing dropped: the rest is behind "N more" and "N small upgrades".
-        hidden = pg.locator("#advice details.upmore .cand").count()
-        assert hidden + len(slots) >= len(gear["upgrades"]) - 3
     finally:
         b.close()
 
@@ -153,33 +155,27 @@ def test_slot_click_opens_the_comparison(site, pw, engine, width):
         b.close()
 
 
-def crafted_gated(gear: dict) -> dict:
-    """A slot's next piece gated by both a level and a crafting skill (Icy
-    Cloak until the #208 regen, Black Handwraps after it): taken from the
-    fixture, so a regenerated answer keeps the test on the same shape."""
-    return next(s["next"] for s in gear["slots"]
-                if s.get("next") and sorted(g["kind"] for g in s["next"]["gates"]) == ["level", "skill"])
-
-
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])
 def test_a_crafted_piece_shows_its_real_gate(site, pw, engine):
     url, gear = site
-    item = crafted_gated(gear)
-    lv = next(g for g in item["gates"] if g["kind"] == "level")
-    sk = next(g for g in item["gates"] if g["kind"] == "skill")
+    slippers = next(u for u in gear["upgrades"] if u["name"] == "Black Slippers")
+    sk = next(g for g in slippers["gates"] if g["kind"] == "skill")
+    assert sk["need"] == 150
     b, pg, _ = open_page(pw, engine, url, 1920)
     try:
         pg.locator("#advice .order button", has_text="By where you get it").click()
         pg.evaluate("() => document.querySelectorAll('#advice details').forEach((d) => { d.open = true; })")
-        row = pg.locator("#advice .cand", has_text=item["name"])
+        row = pg.locator("#advice .cand", has_text=slippers["name"])
         assert row.count() == 1
         pill = row.locator(".pill:not(.effort)")
-        assert pill.inner_text() == f"Level {lv['need']} + {sk['profession']} {sk['need']}"
+        assert pill.inner_text() == "Tailoring 150"
         # The skill the fixture seeds moves with the generated data (105, then 109
         # after the Polestar 0.4.2.1 regen): the title must agree with itself.
         m = re.search(rf"{sk['profession']} reaches {sk['need']} \(you have (\d+), (\d+) to go\)", pill.get_attribute("title"))
         assert m, pill.get_attribute("title")
         assert 0 < int(m[1]) < sk["need"] and int(m[1]) + int(m[2]) == sk["need"]
+        handwraps = pg.locator("#advice .cand", has_text="Black Handwraps")
+        assert handwraps.locator(".pill:not(.effort)").inner_text() == "Level 35 + Check recipe"
     finally:
         b.close()
 
@@ -234,7 +230,7 @@ def test_each_upgrade_says_who_it_is_built_for(site, pw, engine, scheme):
         pg.locator("#advice details.upmore").evaluate_all("els => els.forEach(e => e.open = true)")
         rows = pg.locator("#advice li.cand")
         assert rows.count() and rows.count() == pg.locator("#advice li.cand .fit").count()
-        shroud = pg.locator("#advice li.cand", has_text=off["name"]).first
+        shroud = pg.locator(f"#advice li.cand[data-up='{off['slot']}-{off['item_id']}']").first
         line = shroud.locator(".fit").inner_text()
         assert line.startswith("Not made for your spec. Fine while levelling") and "don't roll Need" in line, line
         assert pg.locator("#advice li.cand .fit.yes", has_text="Built for your spec").count() >= 10
@@ -264,7 +260,12 @@ def test_every_upgrade_row_says_how_hard_it_is(site, pw, engine, width):
     it; the page said it only under "Best possible"). Each pill reads the
     upgrade's own effort, and none pushes the row wider than the page."""
     url, gear = site
-    want = {f"{u['slot']}-{u['item_id']}": u["effort"] for u in gear["upgrades"]}
+    want = {}
+    for u in gear["upgrades"]:
+        first = next(iter(u["sources"]), {})
+        e = (first.get("plan") or {}).get("craft_effort") if first.get("kind") == "craft" else None
+        effort = "Craft: " + ("easy", "some effort", "hard")[e] if e is not None else u["effort"]
+        want[f"{u['slot']}-{u['item_id']}"] = effort
     b, pg, _ = open_page(pw, engine, url, width)
     try:
         for view in ("By where you get it", "By slot"):
@@ -357,3 +358,76 @@ def test_weights_copy_for_forever_leveling_bis(site, pw, engine, width):
         assert pg.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth + 1")
     finally:
         b.close()
+
+
+def test_published_and_owner_show_the_same_acquisition_at_phone_width(tmp_path, monkeypatch, pw):
+    from datetime import date, timedelta
+
+    from tests.conftest import Running
+    from wowstats import gear, insights
+
+    day = date.today().isoformat()
+    old_day = (date.today() - timedelta(days=2)).isoformat()
+    sheet = {"class": "PRIEST", "race": "Human", "faction": "Alliance",
+             "professions": [{"name": "Enchanting", "rank": 160}],
+             "recipes": [{"profession": "Enchanting", "known": []}]}
+    market = {"items": {1980: {"price_copper": 245500, "seen_day": day, "seen_days_ago": 0}},
+              "money_copper": 300000, "mount": {"level": 40, "left_copper": 700000},
+              "latest": {249144: {"price_copper": 17000, "days_ago": 2, "seen_day": old_day}}}
+    a = gear.advise(gear.reference(), sheet, level=46, spec="shadow", every=True, market=market)
+    # Four actual candidate records from the level-46 report; two have only hard drops.
+    a.update(available=True, char=CHAR, upgrades=[u for u in a.pop("upgrades_all")
+                                                   if u["item_id"] in (1980, 249144, 2549, 1713)])
+    moves = insights.next_moves(46, a, {}, {}, {}, [], {})["moves"]
+    assert [m["item_id"] for m in moves] == [1980]
+    monkeypatch.setattr(ui, "Store", lambda *args, **kwargs: PoisonStore())
+    monkeypatch.setattr(facts, "store_for", lambda env, like=None: like)
+    monkeypatch.setattr(itemcard, "shared", lambda: Catalog())
+    monkeypatch.setenv("WOW_ITEMS", "off")
+    monkeypatch.setattr(ui.App, "gear", lambda self, name, spec=None, mode=None, pvp=None: a)
+    overview = ui.App.overview
+    monkeypatch.setattr(ui.App, "overview", lambda self, name: {**overview(self, name), "moves": moves})
+    env = {"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": "http://vl.invalid", "MODEL3D": "off",
+           "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_KEY_FILE": str(tmp_path / "friends.key"),
+           "MODEL3D_CACHE_DIR": str(tmp_path / "cache")}
+    with redirect_stdout(io.StringIO()):
+        publish.publish(env)
+    owner = Running(ui.App(env))
+    key = Path(env["ZOGZOG_KEY_FILE"]).read_text().strip()
+    site = static.Site({"SITE_DIR": env["PUBLISH_DIR"], "ZOGZOG_PATH": "/zogzog/", "BIND": "127.0.0.1", "PORT": "0"})
+    friends = static.Server(("127.0.0.1", 0), static.make_handler(site))
+    threading.Thread(target=friends.serve_forever, daemon=True).start()
+    try:
+        try:
+            browser = pw.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"no Chromium: {exc}")
+        try:
+            for url in (owner.base + f"/?char={CHAR}",
+                        f"http://wow.localhost:{friends.server_address[1]}/zogzog/?char={CHAR}#{key}"):
+                pg = browser.new_page(viewport={"width": 390, "height": 844})
+                pg.goto(url)
+                move = pg.locator(".ovmoves .move", has_text="Underworld Band")
+                move.wait_for()
+                assert "24g 55s" in move.inner_text() and day in move.inner_text()
+                pg.locator(".tabs button", has_text="Character").first.click()
+                wait_count(pg, "#advice .cand")
+                pg.locator("#advice .order button", has_text="By where you get it").click()
+                pg.locator("#advice details.upmore").evaluate_all("els => els.forEach(el => el.open = true)")
+                band = pg.locator("#advice .cand", has_text="Underworld Band").first
+                assert "Auction House" in band.inner_text() and day in band.inner_text()
+                card = pg.locator('#advice .cand[data-up="18-249144"] .craftplan').first
+                assert "Missing Formula" in card.inner_text() and "Priced part" in card.inner_text()
+                assert "No current listing" in card.inner_text() and "Boulderfist Magus" in card.inner_text()
+                details = card.locator("details")
+                assert not details.get_attribute("open")
+                details.locator("summary").click()
+                assert "Riding at level" in details.inner_text() and "×" in details.inner_text()
+                assert pg.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+                pg.close()
+        finally:
+            browser.close()
+    finally:
+        friends.shutdown()
+        friends.server_close()
+        owner.close()

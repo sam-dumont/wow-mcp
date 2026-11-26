@@ -58,9 +58,16 @@ def test_an_easier_item_wins_a_near_tie():
     a = advise(caster(), level=34)
     chest = next(s for s in a["slots"] if s["slot_name"] == "Chest")
     gown = next(u for u in a["upgrades_all"] if u["item_id"] == SHADOW_GOWN)
-    # The gown scores 0.9 more and needs effort; the robes are easy.
-    assert gown["score"] > chest["best"]["score"] and gown["effort"] == "some effort"
-    assert chest["best"]["item_id"] == DUSTFALL_ROBES and chest["best"]["effort"] == "easy"
+    robes = chest["best"]
+    assert robes["item_id"] == DUSTFALL_ROBES and robes["effort"] == "easy"
+    assert 0 < gown["score"] - robes["score"] < 1 and gown["value"] < robes["value"]
+    # Tailoring 119 clears the pattern's reading rank, but the fixture has
+    # neither the pattern nor a recipe list, and no trainer offer is recorded.
+    craft = next(s for s in gown["sources"] if s["kind"] == "craft")
+    learn = craft["plan"]["learn"]
+    assert craft["your_rank"] == 119 and (learn["pattern_id"], learn["pattern_skill"]) == (253968, 110)
+    assert learn["kind"] is None and learn["trainer_skill"] is None
+    assert [g["kind"] for g in gown["gates"]] == ["check_recipe"] and gown["effort"] == "hard"
 
 
 def test_a_long_shot_is_never_an_upgrade_while_levelling():

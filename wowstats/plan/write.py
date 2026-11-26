@@ -162,12 +162,14 @@ def fallback(est: dict) -> str:
     cur = m.get("current")
     if cur:
         i = m["tiers"].index(cur) + 1
-        if est["start"].get("gold_copper") is None:  # no character sheet yet: the gold isn't known
+        if cur.get("quest"):
+            line = f"- {f[f'mount{i}.quest']} Paid trainer alternative: {f[f'mount{i}.trainer']}."
+        elif est["start"].get("gold_copper") is None:  # no character sheet yet: the gold isn't known
             line = f"- Riding at {f[f'mount{i}.level']}: {f[f'mount{i}.need']} needed (your gold isn't known yet)"
         else:
             line = (f"- Riding at {f[f'mount{i}.level']}: {f[f'mount{i}.need']} needed, {f[f'mount{i}.left']} to go"
                     + (f" at {f['gold.rate']} net" if f.get("gold.rate") != "n/a" else ", no gold rate measured yet"))
-        if f"mount{i}.eta" in f:
+        if f"mount{i}.eta" in f and not cur.get("quest"):
             line += f": about {f[f'mount{i}.eta']} of play" + (f" (level {f[f'mount{i}.eta_level']})"
                                                                if f"mount{i}.eta_level" in f else
                                                                ", past the route's last level at this rate")

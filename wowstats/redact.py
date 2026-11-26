@@ -113,13 +113,18 @@ CLASS_GUIDE = {
 # 2026-11-20), from the class, spec and level too.
 META_PARAGRAPH = {k: None for k in ("class", "spec", "text", "checked", "stale", "soon")}
 
-DATA_VERSIONS = {"foreverdb": {}, "forever_db": {}, "polestar": None, "client_build": {}, "checked": None}
+DATA_VERSIONS = {"foreverdb": {}, "forever_db": {}, "polestar": None, "client_build": {},
+                 "wowsims": {}, "checked_addons": {}, "checked": None, "watched_client_build": None,
+                 "spell_hotfix_push": None, "kb_digest_week": {}, "kb_statement_reviews": {}, "observations": {},
+                 "profession_file_versions": {}}
+
+LEVEL_SPLIT = {k: None for k in ("level", "seconds", "partial", "route_s")}
 
 PUBLIC: dict[str, dict] = {
     # What the page may turn on: nothing beyond the four parts above.
     # What the static data was built from (wowstats.dataversions): source
     # versions, nothing about a person.
-    "config": {"view": None, "static": None, "data_versions": DATA_VERSIONS},
+    "config": {"version": None, "view": None, "static": None, "data_versions": DATA_VERSIONS},
     # The character switcher.
     "chars": {"chars": [{"char": None, "level": None, "demo": None}]},
     # The card, the climb and the dungeons. No zone, no "last seen", no
@@ -132,7 +137,7 @@ PUBLIC: dict[str, dict] = {
             # The climb: played time (Polestar's splits, Altoholic's /played)
             # and how far into the level in play.
             "played_s", "played_total_s", "first_level", "first_partial", "time_in_level_s")},
-        "levels": [{"level": None, "seconds": None, "partial": None, "route_s": None}],
+        "levels": [LEVEL_SPLIT],
         # Cleared, when, at what level: no group, no bosses, no time or XP.
         "dungeons": [{"name": None, "level": None, "t": None}],
         "gear": {"item_level": None, "armory_item_level": None, "armory_item_level_source": None,
@@ -204,7 +209,7 @@ ZOGZOG_MOVE_KINDS = frozenset({"upgrade", "dungeon", "profession", "riding", "de
                                "enchant"})
 PLACE = {**_keys("name", "id", "url"), "levels": [None]}
 MOVE_ITEM = {**_keys("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct", "url", *BADGE),
-             "with": _keys("item_id", "name", "slot_name", "kind", "url")}
+             "with": _keys("item_id", "name", "slot_name", "kind", "url", "price_copper", "seen_day", "seen_days_ago")}
 TRAINER = {**_keys("npc", "name", "url", "x", "y"), "zone": PLACE}
 # One more run of a dungeon (wowstats.plan.dungeongain): time, XP, pace
 # against the character's own questing, the quests to pick up and who gives
@@ -237,8 +242,8 @@ VS_GUIDE = {**_keys("agrees", "we_say", "reason", "under_floor", "text"), "guide
 MOVE = {**_keys("text", "link", "cite", "kind", "title", "detail", "action", "blocker", "item_id", "skill_id",
                 "weight"),
         "item": MOVE_ITEM, "items": [MOVE_ITEM], "zone": PLACE, "quest_rewards": [QUEST_REWARD],
-        "source": {**_keys("kind", "boss", "profession", "blocker"), "quest": _keys("id", "name", "url"),
-                   "zone": PLACE},
+        "source": {**_keys("kind", "boss", "profession", "blocker", "price_copper", "seen_day", "seen_days_ago"),
+                   "quest": _keys("id", "name", "url"), "zone": PLACE},
         "skill": {**_keys("skill_id", "name", "rank", "max_rank", "next", "need_level", "level_ok", "need_skill",
                           "skill_ok", "cost_copper", "cost_scope", "money_copper", "search_url"),
                   "trainers": [TRAINER]},
@@ -273,8 +278,14 @@ SOURCE = _keys("kind", "quest_id", "name", "zone", "level", "req_level", "dungeo
                                "levels": [None], "part": [None], "levels_drop": [None],
     # What a craft takes, priced (wowstats.crafting.brief): its line, the next
     # step, the gold to craft it and the auction house price the other way.
-    "plan": _keys("line", "action", "effort", "recipe", "craft_copper", "buy_copper", "buy_days_ago",
-                  "bind_on_pickup", "can_make")}
+    "plan": {**_keys("line", "action", "effort", "craft_effort", "recipe", "craft_copper", "buy_copper", "buy_days_ago",
+                     "bind_on_pickup", "can_make", "blocker", "cost_complete"),
+             "skill": _keys("profession", "need", "have", "cap"), "unpriced": [None],
+             "materials": _keys("covered", "items", "counts_known"),
+             "buy": _keys("copper", "seen_day", "days_ago"), "estimate": _keys("copper", "seen_day", "days_ago"),
+             "steps": [_keys("name", "crafts", "from", "to")], "riding": _keys("level", "left_copper"),
+             "learn": _keys("kind", "trainer_skill", "pattern_skill", "pattern_bop", "via")}}
+
 AH = {**_keys("available", "scan_day", "scan_days_ago", "on_sale", "upgrades_on_sale", "money_copper",
               "cheap_under_copper", "notice"), "mount": _keys("name", "level", "need_copper", "left_copper")}
 # `stats`: the item's stats as the scoring reads them (game data), for the
@@ -351,13 +362,13 @@ DUNGEON = {
 }
 
 ZOGZOG: dict[str, dict] = {
-    "config": {**_keys("view", "static", "players", "gold", "market", "prices", "debug", "mcp", "journal",
+    "config": {**_keys("version", "view", "static", "players", "gold", "market", "prices", "debug", "mcp", "journal",
                        "people", "loot"), "data_versions": DATA_VERSIONS},
     "chars": {"chars": [_keys("char", "events", "level", "demo")]},
     "char": {
-        **_keys("char", "generated_at", "stale"),
+        **_keys("char", "generated_at", "stale", "route_source"),
         "header": HEADER_Z,
-        "levels": [_keys("level", "seconds", "xp", "quests", "kills", "partial", "at", "xp_per_hour")],
+        "levels": [{**LEVEL_SPLIT, **_keys("xp", "quests", "kills", "at", "xp_per_hour")}],
         "climb": [_keys("level", "t")],
         "zones": [_keys("zone", "secs", "visits")],
         "steps": {**_keys("skipped_total", "total", "median_s", "picks_total"), "guides": [None],
@@ -383,9 +394,10 @@ ZOGZOG: dict[str, dict] = {
         "dungeons": [_keys("name", "level", "seconds", "xp", "t")]}]},
     "gear": {
         **_keys("char", "name", "polestar", "available", "why", "at", "class", "level", "min_upgrade_pct",
-                "soon_levels", "upgrades_total", "generated_at", "stale", "gear_score"),
+                "soon_levels", "upgrades_total", "generated_at", "stale", "gear_score", "estimated", "unlock"),
         # The weights' mode and whose they are: the page credits ForeverDB.net.
         "mode": {**_keys("key", "label"), "choices": [_keys("key", "label")]},
+        "pvp_rewards": _keys("on", "forced"),
         "scoring": _keys("mode", "label", "note", "source", "style"),
         "source": _keys("name", "url", "text"),
         "spec": SPEC, "weights": {}, "talents": [{}],
@@ -515,6 +527,8 @@ def worn_standing(advice: dict | None) -> list[dict]:
 def char(d: dict, route: dict[int, int] | None = None, route_source: str | None = None) -> dict:
     """The character page's answer, with the route's time for each level
     (Polestar's route clock, wowstats.mcp.route) next to the played one."""
+    if route is None and route_source is None:
+        return public("char", d)
     route = route or {}
     levels = [{**lv, "route_s": route.get(lv.get("level"))} for lv in d.get("levels") or [] if isinstance(lv, dict)]
     return public("char", {**d, "levels": levels, "route_source": route_source})

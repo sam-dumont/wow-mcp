@@ -182,6 +182,40 @@ def test_both_bundles_carry_each_levels_picture(world):
     assert res2["built"] and not r2.asked and res2["pictures"]["drawn"] == 0
 
 
+def test_a_missing_texture_arriving_rebuilds_the_cached_portrait(world):
+    from tests.test_renderer import Drawer, start
+    from wowstats import assets
+
+    env, tmp = world
+    texture = w.FX.TEX_MULT
+    path = assets.Store(tmp / "assets").path(texture)
+    data = path.read_bytes()
+    path.unlink()
+
+    class LayerDrawer(Drawer):
+        def render(self, req):
+            body = super().render(req)
+            return body + (b"layer" if texture in self.read else b"")
+
+    d = LayerDrawer(tmp / "renderer")
+    srv, url, _ = start(tmp, d)
+    env = {**env, "RENDER_URL": url}
+    try:
+        assert run(env)[0]["built"]
+        assert any(texture in req["absent"] for req in d.drawn)
+        old = (tmp / "site" / "current" / "public" / "data" / "render" / "Hero-Test.webp").read_bytes()
+        count = len(d.drawn)
+        assert not run(env)[0]["built"] and len(d.drawn) == count
+        path.write_bytes(data)
+        assert run(env)[0]["why"] == "picture files arrived"
+        new = (tmp / "site" / "current" / "public" / "data" / "render" / "Hero-Test.webp").read_bytes()
+        assert new == old + b"layer" and len(d.drawn) > count
+        assert not run(env)[0]["built"]
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
 def test_a_slow_or_absent_renderer_leaves_pending_and_tries_again(world):
     env, tmp = world
     state_f = tmp / "site" / "state.json"

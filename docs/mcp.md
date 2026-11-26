@@ -33,6 +33,7 @@ The same list, generated from the server's registry with every argument:
 
 | Tool | What it answers |
 | --- | --- |
+| `data_status` | Running wow-stats version, bundled data releases and builds, last accepted source change, weights fetch date and KB digest weeks. Takes no arguments and works without any characters. |
 | `character_summary` | Level, XP, gold, time in this level, pace over the last 3 levels, ETA to the next |
 | `levels` | Time per level, slowest and median, from Polestar's splits |
 | `sessions` | Play sessions (330 s without a Recorder record ends one), with XP, deaths, quests, dungeons, who you grouped with |

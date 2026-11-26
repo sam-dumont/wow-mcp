@@ -34,6 +34,8 @@ FILE = "gear-modes.json"
 SCHEMA = 1
 MAX_CHARS = 500  # a person's characters; a bigger file is somebody else's
 _LOCK = threading.Lock()
+# In-memory copy for one publish pass; every answer reads the same settings.
+PUBLISHED = "_published_gear_settings"
 
 
 class ModeError(Exception):
@@ -50,6 +52,8 @@ def _name(char: str) -> str:
 
 
 def _doc(env: dict) -> dict:
+    if isinstance(env.get(PUBLISHED), dict):
+        return env[PUBLISHED]
     p = path(env)
     if p is None:
         return {}
@@ -60,15 +64,19 @@ def _doc(env: dict) -> dict:
     return {}
 
 
-def _load(env: dict) -> dict[str, str]:
-    s = _doc(env)
+def for_publish(env: dict) -> dict:
+    """The gear settings to pass to this person's read-only publisher."""
+    doc = _doc(env)
+    return {"chars": _modes(doc), "pvp": sorted(_pvp_chars(doc))}
+
+
+def _modes(s: dict) -> dict[str, str]:
     if isinstance(s.get("chars"), dict):
         return {str(k): gear.mode_key(v) for k, v in s["chars"].items()}
     return {}
 
 
-def _load_pvp(env: dict) -> set[str]:
-    s = _doc(env)
+def _pvp_chars(s: dict) -> set[str]:
     return {str(k) for k in s.get("pvp") or [] if isinstance(k, str)} if isinstance(s.get("pvp"), list) else set()
 
 
@@ -87,7 +95,7 @@ def _write(p: Path, chars: dict[str, str], pvp: set[str]) -> None:
 
 def saved(env: dict, char: str) -> str:
     """The character's mode: what the page saved, else Leveling."""
-    return _load(env).get(_name(char), gear.DEFAULT_MODE)
+    return _modes(_doc(env)).get(_name(char), gear.DEFAULT_MODE)
 
 
 def save(env: dict, char: str, mode) -> str:
@@ -100,19 +108,20 @@ def save(env: dict, char: str, mode) -> str:
         raise ModeError("mode: lvl, pvp or pve")
     key, name = gear.mode_key(mode), _name(char)
     with _LOCK:
-        chars = _load(env)
+        doc = _doc(env)
+        chars = _modes(doc)
         if key == gear.DEFAULT_MODE:
             chars.pop(name, None)
         else:
             chars[name] = key
-        _write(p, chars, _load_pvp(env))
+        _write(p, chars, _pvp_chars(doc))
     return key
 
 
 def pvp(env: dict, char: str) -> bool:
     """Whether PvP rewards count for the character: the page's or the MCP's
     toggle, off when nothing is saved."""
-    return _name(char) in _load_pvp(env)
+    return _name(char) in _pvp_chars(_doc(env))
 
 
 def save_pvp(env: dict, char: str, on) -> bool:
@@ -125,10 +134,11 @@ def save_pvp(env: dict, char: str, on) -> bool:
         raise ModeError("pvp: true or false")
     name = _name(char)
     with _LOCK:
-        kept = _load_pvp(env)
+        doc = _doc(env)
+        kept = _pvp_chars(doc)
         if on:
             kept.add(name)
         else:
             kept.discard(name)
-        _write(p, _load(env), kept)
+        _write(p, _modes(doc), kept)
     return on

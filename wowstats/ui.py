@@ -435,7 +435,7 @@ class App:
                  "plan": full,
                  # Each outside source's version as the bundled files record
                  # it (wowstats.dataversions), public: nothing about a person.
-                 "data_versions": dataversions.versions()}
+                 **dataversions.status()}
         return feats if full else redact.public("config", feats)
 
     def nudge(self, name: str) -> dict | None:
@@ -514,7 +514,7 @@ class App:
             # standing from the gear advice, cut to rank, percent and label
             # (redact.worn_standing). The advice itself stays full-view only.
             d = {**d, "gear": {**d["gear"], "standing": self.worn_standing(name)}}
-        return redact.char(d, *self.views.route_levels(d))
+        return redact.char(d)
 
     def worn_standing(self, name: str) -> list[dict]:
         """The worn slots' standing for the public doll; none when the gear
@@ -747,6 +747,13 @@ class App:
 
     # ------------------------------------------------------------ prebuilt
 
+    def event_mark(self) -> tuple[str, str]:
+        """The newest event and count across the recent store and archive."""
+        rows = self.views.vl(f"{self.views.stream} | stats max(_time) as t, count() as n", (),
+                             {"t": "maxtime", "n": "sum"})
+        r = rows[0] if rows else {}
+        return str(r.get("t") or ""), str(r.get("n") or "0")
+
     def data_mark(self, before: tuple | None = None) -> tuple:
         """What says the answers may have changed (wowstats.prebuilt): the
         newest event and the number of events (an old session sent late
@@ -755,16 +762,14 @@ class App:
         person's item facts: their shipper sends those after its events, so
         a build the events started missed them (rc.2 on the lab: the Drowned
         City kept its bare names for a day)."""
-        rows = self.views.vl(f"{self.views.stream} | stats max(_time) as t, count() as n", (),
-                             {"t": "maxtime", "n": "sum"})
-        r = rows[0] if rows else {}
+        events = self.event_mark()
         try:
             fp = self.store.profile_fingerprint()
         except Exception:  # noqa: BLE001 - vm-wow down: judge on the events alone
             fp = before[2] if before else ""
         f = self.item_facts.facts()
         facts = f"{len(f.items)}:{len(f.budget)}:{sum(int(v.get('h') or 0) for v in f.items.values())}"
-        return str(r.get("t") or ""), str(r.get("n") or "0"), fp, facts
+        return *events, fp, facts
 
     def page_answers(self, only: str = "", keep: dict | None = None) -> dict:
         """Every answer a plain open of the page asks for (web/app.js loadChar
@@ -830,16 +835,21 @@ class App:
         if self.view != "full":
             raise FullOnly
 
-    def index_html(self, nav: str = "") -> bytes:
-        """The character pages; `nav`: the reader's pages in the bar (bar.links)."""
+    def dashboard_html(self, *, model3d_on: bool) -> str:
+        """The common dashboard shell, with only the sections its data source serves."""
         html = (self.static / "index.html").read_text(encoding="utf-8")
         if self.view == "public":
             html = FULL_BLOCK.sub("", html)
-        if self.model3d is None:
+        if not model3d_on:
             html = MODEL3D_BLOCK.sub("", html)
+        return html.replace("@VIEW@", self.view)
+
+    def index_html(self, nav: str = "") -> bytes:
+        """The character pages; `nav`: the reader's pages in the bar (bar.links)."""
+        html = self.dashboard_html(model3d_on=self.model3d is not None)
         # The tab icon from where no login stands in the way (bar.ICON).
         html = bar.fill(html, "./", nav).replace('rel="icon" href="favicon.svg"', f'rel="icon" href="{bar.ICON}"', 1)
-        return og_tags(html, self.default_header()).replace("@VIEW@", self.view).encode()
+        return og_tags(html, self.default_header()).encode()
 
     def default_header(self) -> dict | None:
         """The page's own character's header (as this view may show it), for
@@ -1416,7 +1426,7 @@ def make_handler(root: App, tenancy=None):
                 from wowstats import ahshared
 
                 try:
-                    ahshared.share(ahshared.location(app.env), lines, app.store)
+                    ahshared.share(ahshared.location(app.env), lines)
                 except (SourceError, ValueError) as e:
                     public_error(e, "/ingest (shared auction scans)")
 

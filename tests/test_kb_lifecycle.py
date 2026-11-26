@@ -26,7 +26,7 @@ from wowstats.analysis import kbschema  # noqa: E402
 DATA = ROOT / "data" / "kb"
 ALLOW = kbschema.load_allow(DATA / "sources.json")
 TODAY = date(2026, 11, 20)
-OFFICIAL = "https://us.forums.blizzard.com/en/wow/t/wow-forever-hotfixes/1"
+OFFICIAL = "https://us.forums.blizzard.com/en/wow/t/2403040/12"
 PRESS = "https://www.wowhead.com/news=1/x"
 GUIDE = "https://www.warcrafttavern.com/forever/guides/dungeons/"
 

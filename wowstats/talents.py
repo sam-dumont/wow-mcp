@@ -46,7 +46,7 @@ import threading
 import time
 from pathlib import Path
 
-from wowstats import upstream
+from wowstats import talent_hotfixes, upstream
 
 DAY = 86400
 CLASS_CURRENCY = "3820"
@@ -61,7 +61,7 @@ TABLES = ("TraitTree", "TraitNode", "TraitNodeXTraitNodeEntry", "TraitNodeEntry"
 # module is rebuilt, not reused (2: the grid from the commonest step, off-grid
 # nodes dropped, the prerequisite edges; 3: each Legacy challenge's
 # achievement ids, both client versions').
-FORMAT = 6  # 5: the per-rank numbers (TraitDefinitionEffectPoints curves); 6: the spells a description names
+FORMAT = 7  # 7: build-matched hotfixes to the public trait definitions and rank descriptions.
 # Read in a second pass, only the rows the trees need (they're large).
 SPELL_TABLES = ("SpellName", "Spell", "SpellEffect", "SpellMisc", "ManifestInterfaceData",
                 "TraitDefinitionEffectPoints", "CurvePoint", "SpellDuration", "SpellAuraOptions", "SpellRadius")
@@ -480,8 +480,11 @@ class Catalog:
             if not self.data and self.file and self.file.is_file():
                 with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
                     d = json.loads(self.file.read_text(encoding="utf-8"))
-                    if d.get("format") == FORMAT:
+                    if d.get("format") in (6, FORMAT):
                         self.data, self.build, self.checked = d["catalog"], d["build"], float(d["checked"])
+                        if (d["format"] == 6 and self.product == upstream.PRODUCT
+                                and self.build == talent_hotfixes.BUILD):
+                            talent_hotfixes.upgrade_cache(self.data)
                 if self.data and time.time() - self.checked < DAY:
                     return
             from wowstats.upstream import Upstream, build_of, builds_url, fetch
@@ -509,15 +512,19 @@ class Catalog:
                 raise Upstream(f"wago.tools has no {name} table for {build}")
             return body
 
-        return catalog_from(lambda name: read_rows(table(name)))
+        return catalog_from(lambda name: read_rows(table(name)), build if self.product == upstream.PRODUCT else "")
 
 
-def catalog_from(rows) -> dict:
+def catalog_from(rows, build: str = "") -> dict:
     """The catalog from rows(table name) -> that table's CSV rows (dicts):
     wago.tools in production, a saved slice of the same tables in the tests."""
     cat = build_catalog({n: list(rows(n)) for n in TABLES})
+    if build == talent_hotfixes.BUILD:
+        talent_hotfixes.apply_nodes(cat)
     want = needed_spells(cat)
     names = {r["ID"]: r["Name_lang"] for r in rows("SpellName") if r["ID"] in want}
+    if build == talent_hotfixes.BUILD:
+        names.update({f.spell: f.name for f in talent_hotfixes.BALANCE.values() if f.spell in want})
     descs = {r["ID"]: r["Description_lang"] for r in rows("Spell") if r["ID"] in want}
     # The spells whose numbers the descriptions name ($15271s1) are read too.
     every = want | named_spells(descs)
@@ -625,7 +632,13 @@ def frame(cat: dict | None, cls, ranks: dict[str, int], kind: str = "class") -> 
             nodes = []
             for nd in sec["nodes"]:
                 rank = max((ranks.get(s, 0) for s in nd["spells"]), default=0)
-                used.update(s for s in nd["spells"] if s in ranks)
+                hotfix = talent_hotfixes.BALANCE.get(nd.get("hotfix"))
+                if nd.get("hotfix") == 134394 and rank > hotfix.max_rank:
+                    return {"sections": [], "unmatched": len(ranks), "why": talent_hotfixes.STARFIRE_REFUND}
+                if hotfix and rank > hotfix.max_rank:
+                    rank = 0  # A pre-refund reading cannot establish a current allocation.
+                else:
+                    used.update(s for s in nd["spells"] if s in ranks)
                 pts += rank
                 # The tooltip: the classic talent's spell for this rank when
                 # it has one (its own numbers), else the trait's spell: its
@@ -644,7 +657,8 @@ def frame(cat: dict | None, cls, ranks: dict[str, int], kind: str = "class") -> 
                 base = spells.get(nd["spells"][0]) or {}
                 nodes.append({"col": nd["col"], "row": nd["row"], "name": base.get("name") or sp.get("name"),
                               "icon": base.get("icon") or sp.get("icon"), "rank": rank, "max": nd["max"],
-                              "desc": describe(sp.get("desc") or "", values, spell=sp, spells=spells)})
+                              "desc": (hotfix.description(at) if hotfix else
+                                       describe(sp.get("desc") or "", values, spell=sp, spells=spells))})
             sections.append({"name": sec["name"], "points": pts, "nodes": nodes, "edges": sec.get("edges") or []})
     return {"sections": sections, "unmatched": len(set(ranks) - used)}
 
@@ -659,9 +673,9 @@ def answer(cat: dict | None, cls, ranks: dict[str, int], source: str | None, at:
                 "sections": [],
                 "why": NO_TALENTS}
     f = frame(cat, cls, ranks)
-    if not f:
+    if not f or f.get("why"):
         return {"available": False, "source": source, "at": at, "level": level, "spec": None, "points": [],
-                "sections": [], "why": "The talent tables for this class aren't loaded."}
+                "sections": [], "why": f["why"] if f else "The talent tables for this class aren't loaded."}
     pts = [{"tree": s["name"], "points": s["points"]} for s in f["sections"]]
     top = max(pts, key=lambda p: p["points"]) if pts else None
     return {"available": True, "source": source, "at": at, "level": level,
@@ -746,6 +760,9 @@ def match_ranks(cat: dict | None, cls, readings) -> dict[str, int]:
                 name = (spells.get(first) or {}).get("name")
                 if name:
                     by_name.setdefault(name.lower(), first)
+                fix = talent_hotfixes.BALANCE.get(nd.get("hotfix"))
+                if fix and fix.previous_name:
+                    by_name.setdefault(fix.previous_name.lower(), first)
     out: dict[str, int] = {}
     for x in readings if isinstance(readings, list) else []:
         if not isinstance(x, dict) or _i(x.get("rank")) <= 0:
@@ -830,6 +847,8 @@ def from_battlenet(cat: dict | None, cls, bnet: dict | None = None) -> tuple[dic
         ans = answer(cat, cls, b_ranks, "Battle.net", (bnet or {}).get("refreshed"), None)
     else:
         ans = answer(cat, cls, {}, None, None)
+    if ans["why"] == talent_hotfixes.STARFIRE_REFUND:
+        return ans, {"name": None, "source": None, "split": None, "points": []}
     # The split in the game's tab order (Discipline / Holy / Shadow for a
     # priest: the frame's sections, TalentTab.OrderIndex), every tree shown,
     # 0 too; Battle.net's own tree names and points when it gave them (it
@@ -870,12 +889,30 @@ def history(cat: dict | None, cls, readings: list[dict]) -> list[dict]:
     tabs = [s["name"] for s in (frame(cat, cls, {}) or {}).get("sections") or []]
     names = _node_names(cat, cls)
 
+    renamed = {f.previous_name.lower(): f.name for f in talent_hotfixes.BALANCE.values()
+               if f.previous_name and names.get(f.spell) == f.name}
+
+    def ranks(reading: dict) -> dict:
+        # The store keys by name because spell IDs can change between ranks. Only merge a rename
+        # when this catalog actually has its new spell. A replacement such as Dreamstate stays separate.
+        got = {}
+        for key, row in (reading.get("ranks") or {}).items():
+            current = renamed.get(key)
+            if key == str(row.get("spell")) and names.get(key) in renamed.values():
+                current = names[key]
+            if current:
+                key = current.lower()
+                row = {**row, "name": current}
+            if key not in got or _i(row.get("rank")) > _i(got[key].get("rank")):
+                got[key] = row
+        return got
+
     def split(r: dict) -> list[dict]:
         return in_tab_order([{"tree": t["tree"], "points": _i(t.get("points"))} for t in r.get("trees") or []], tabs)
 
     out = []
     for a, b in zip(readings, readings[1:], strict=False):
-        ra, rb = a.get("ranks") or {}, b.get("ranks") or {}
+        ra, rb = ranks(a), ranks(b)
         before, after = split(a), split(b)
         gained, dropped = [], []
         for k in sorted(set(ra) | set(rb)):

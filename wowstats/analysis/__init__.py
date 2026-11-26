@@ -495,7 +495,7 @@ def advice_for(rows: list[dict], char: str, env: dict) -> dict | None:
         return None
 
 
-def prices_for(store, env: dict) -> list[dict]:
+def prices_for(store, env: dict, char: str | None = None) -> list[dict]:
     """The Auctionator scans for prep's ah_prices and ah_upgrades: the price
     list's own read (wowstats.ahshared.price_rows, one row per item, house
     and scan day; on an install with several people the shared scans of this
@@ -509,28 +509,25 @@ def prices_for(store, env: dict) -> list[dict]:
         return []
     try:
         days = int(env.get("PRICE_DAYS") or ahshared.PRICE_DAYS)
-        return ahshared.price_rows(store, ahshared.location(env), start=datetime.now(UTC) - timedelta(days=days))
+        rows = ahshared.price_rows(store, ahshared.location(env), start=datetime.now(UTC) - timedelta(days=days))
+        return ahshared.for_character(store, char, rows)[1] if char else rows
     except Exception as e:  # noqa: BLE001 - prices are optional: the analysis runs without them
         log(f"no auction scans for the prep: {e}")
         return []
 
 
-def scoring_for(rows: list[dict], char: str, env: dict) -> dict:
-    """The gear scoring the build's upgrade candidates come from, normalized
-    for the run manifest's definitions: the spec the gear is scored for, as
-    resolved from WEIGHTS (settings_from_env), the add-ons and the class
-    default (gear.resolve_spec). Two settings that resolve to the same spec score the same. Without a
-    sheet or the gear data nothing is scored: None. Review 6: without it a
-    WEIGHTS change wasn't a definition change at all."""
-    from wowstats import gear
+def scoring_for(advice: dict | None) -> dict:
+    """Record the rules used for the very candidates written to this build."""
+    from wowstats import dataversions
 
-    got = gear.newest_sheet(rows)
-    ref = gear.reference()
-    cls = gear.class_token((got or ({},))[0].get("class"))
-    if got is None or not ref.available or not cls:
+    if not advice:
         return {"spec": None}
-    key, _how = gear.resolve_spec(ref, cls, got[0], None, weights_for(env, char))
-    return {"spec": key}
+    versions = dataversions.versions()
+    fdb = versions.get("foreverdb", {})
+    client = versions.get("client_build", {})
+    return {"spec": advice["spec"]["key"], "pvp_rewards": advice["pvp_rewards"]["on"],
+            "item_sources": fdb.get("data_version"), "weights": fdb.get("weights_data_version"),
+            "client_items": client.get("items"), "client_crafting": client.get("crafting")}
 
 
 def tables_of(db) -> tuple[list[str], int]:
@@ -922,9 +919,10 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
         players = other_players(store, store.stream, char)
     knowledge = knowledge if knowledge is not None else kb.shared(env)
     ref = route.reference()
+    advice = advice_for(rows, char, env)
     db = prep.build(rows, char, ref, map_sizes=knowledge.meta.get("ui_map"),
-                    advice=advice_for(rows, char, env), prices=prices_for(store, env))
-    build = manifest.build(db, rows, knowledge, ref, scoring=scoring_for(rows, char, env))
+                    advice=advice, prices=prices_for(store, env, char))
+    build = manifest.build(db, rows, knowledge, ref, scoring=scoring_for(advice))
     now = datetime.now(UTC).isoformat(timespec="seconds")
     state = load_state(env, char)
     kept: dict[str, dict] = dict(state.get("findings") or {})

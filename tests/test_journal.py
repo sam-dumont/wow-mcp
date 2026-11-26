@@ -57,6 +57,21 @@ def test_build_session_entry():
     assert s["xp"] == 1500
 
 
+def test_money_across_two_sessions_needs_a_reading_between_them():
+    mins = [bucket(f"2026-11-17T10:{m:02d}:00", f"2026-11-17T10:{m:02d}:00")
+            for m in (*range(11), *range(17, 26))]
+    def snap(time, copper):
+        return {"_time": z("2026-11-17T" + time), "money_copper": str(copper)}
+
+    snaps = [snap("09:59:00", 1000), snap("10:25:00", 6000)]
+    def deltas():
+        return [s["gold_delta_copper"] for s in journal.build(mins, [], [], [], [], snaps)]
+
+    assert deltas() == [None, None]
+    snaps.append(snap("10:11:00", 3000))
+    assert deltas() == [3000, 2000]
+
+
 def test_a_sessions_first_reading_keeps_its_xp():
     """XP comes one row per reading at its own time (prep.xp_gains), the
     sessions to the second: a reading on a session's first record counts

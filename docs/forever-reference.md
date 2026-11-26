@@ -17,7 +17,7 @@ Without this file the journal would print "quest 631".
 The server names a quest in this order:
 
 1. the name the record carries,
-2. forever-db's title (every quest Forever has, its own 98xxx ones too),
+2. forever-db's title, or the gear Codex title when forever-db's record has none,
 3. the title of a Recorder `text` record in the store (`Views.quest_titles`),
 4. nothing: the page says "Unknown quest (631)" and the publisher logs the id.
 
@@ -53,10 +53,33 @@ game's question mark (`inv_misc_questionmark`), never an empty frame.
 | `quest_work`: for every quest that gives gear, `[type, foe, bring, objectives]`: forever-db's quest type (1 group, 41 PvP, 62 raid, 81 dungeon, else 0), the strongest creature its objectives send you to (a kill target, or the one creature that drops a collected item; by rank, then level), the items to bring that no creature drops and no object gives, and how many objectives it lists. `npcs`: those creatures and every creature ForeverDB.net names as a drop source, as `[name, level min, level max, rank, zone]` (rank 0 normal, 1 elite, 2 rare elite, 3 boss, 4 rare; the zone for a drop source when one zone map alone holds all its spawns). The gear advice's quest work (`wowstats/questwork.py`) | forever-db's `quest.jsonl`, `quest_objective.jsonl`, `item_source.jsonl`, `npc.jsonl`, `spawn.jsonl` and `ui_map.jsonl`; the gear data's and ForeverDB.net's quests and creatures (`data/gear-reference.json`, `data/foreverdb/item-sources.json`); zone names from Forever's client table UiMap on wago.tools | GPL-3.0, with CC BY 4.0 and MIT parts (`THIRD_PARTY.md`); ForeverDB.net's data GPL-3.0 with its attribution term |
 | `factions`: every reputation's name and side (Alliance, Horde, or none for a neutral one like Ratchet): a reputation's quartermaster sells to its side (`wowstats/gear.py` `side_of_gate`) | Forever's client table Faction on wago.tools, same build: the side of the faction it sits under (Alliance or Alliance Forces, Horde or Horde Forces) | Game data © Blizzard Entertainment, used as facts |
 
+`unavailable_quests` lists gear quests the released forever-db corrections
+withdraw or the gear Codex marks `<NYI>`. Gear advice skips those routes and
+holding their items gives no credit for those quests. The historical Codex
+entry keeps its title and restrictions.
+
+The `guide_quests` rows identify the Library Books reward choices when the quest reward table omits them. The exporter matches each item ID in the guide header to its item name in the milestone step and that step’s hand-in. The guide documents Alliance for the two Greater Friend milestones. Horde availability for those rewards is unknown. [Polestar Library Books guide](https://github.com/fitzforge/polestar/blob/v0.4.3/guides/forever/miscellaneous/library-books.guide)
+
+The `dungeon_drops` fallback covers otherwise unsourced gear. The run and spawn
+rosters place each NPC in one dungeon. A boss missing from a roster also
+qualifies when ForeverDB.net players observed its NPC ID in one instance and
+its name matches that map's client encounter. The source credits ForeverDB.net
+for that placement. Polestar's trusted recordings supply the observer count and
+any measured boss rate. For other mobs, every recorded NPC that dropped the item
+must place in the same dungeon. Their kill counts supply no per-run rate.
+The separate forever-db release supplies designed loot rates.
+[Polestar recording format](https://github.com/fitzforge/polestar/blob/v0.4.3/rust/crates/forge-data/src/codex/recorded.rs)
+
+`recorded_loot` fills the remaining gaps for uncommon or better gear. It takes
+trusted loot windows from Polestar and the matching creature or object's name
+from the released forever-db. The recorded ID identifies the source even when
+its zone or drop chance is unknown. Korg Bat, for example, has three observers
+on Mosh'Ogg Brute in Stranglethorn Vale and no measured drop rate.
+
 ## New zones and dungeons
 
 Forever adds zones and dungeons faster than Polestar's addon releases
-carry them: Polestar v0.4.2.2 bundles forever-db 2026.11.1, made from
+can carry them. The addon previously bundled forever-db 2026.11.1, made from
 client 1.60.1.70532, which has no Drowned City at all (its Map 2970 came
 later), and its quests stop before Saving Sunnyglade or The Saltseer
 Captain. forever-db's own release 2026.11.2 has both. So forever-db comes
@@ -92,7 +115,9 @@ release in `tools/forever-db-tag` (`--latest` moves it to the newest
 `data-v*` release, then exports) and the client build in
 `data/kb/watch.json` (`client_build.known`, moved daily by the refresh job's
 client-build kind, which reruns this export, the dungeon quests and the
-route reference). Stdlib only, the same bytes for the same pins.
+route reference). The export reuses the checked release in the daily build's
+overlay or in `--forever-db-cache`. The addon checkout can have unpublished
+quest corrections even when its index carries the same version.
 `.github/workflows/route-reference.yml` reruns it on each change, on a new
 `tools/polestar-tag`, `tools/forever-db-tag` or client build, and fails when
 the committed file differs.

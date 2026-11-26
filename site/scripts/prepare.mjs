@@ -115,6 +115,8 @@ const SECTIONS = [
   { dir: "game-data", label: "Game data", pages: [
     { src: "docs/reference/addons.md", label: "Addons it reads" },
     { src: "docs/gear-reference.md", label: "Gear upgrades" },
+    { src: "docs/gear-source-review.md", label: "Gear source review" },
+    { src: "docs/recipe-acquisition-audit.md", label: "Recipe acquisition audit" },
     { src: "docs/route-reference.md", label: "Route times" },
     { src: "docs/forever-reference.md", label: "Forever reference" },
     { src: "docs/dungeon-xp.md", label: "Dungeon kill XP" },

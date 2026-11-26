@@ -21,13 +21,19 @@ already read, the highest that still covers the rank winning (caps only go up):
    lowest cap at or above the rank ("tiers"). That is a floor: a character at
    exactly 150 may have trained Expert already, so a move built on it hedges.
 
-Old wow-gear events still carry the cap CharacterExport-Forever read
-(`max_rank`, `max_rank_at`): they stay stored, and nothing reads them.
+Older shippers stored a dated character export as max_rank/max_rank_at.
+It remains a recorded observation. A dated return to the first few points
+of Apprentice can start a new history. A lower rank alone cannot date an
+unlearn: the two addons may have last seen different skill-ups.
 """
 
 from __future__ import annotations
 
-from .stores import num, opt_num
+from .stores import num, opt_num, parse_t
+
+# A reset has no event of its own. Accept a fresh Apprentice reading in its
+# first ten points when an earlier reading had already outgrown that tier.
+RELEARN_MAX_RANK = 10
 
 
 def tiers() -> list[dict]:
@@ -46,36 +52,56 @@ def infer(rank: int | None) -> int | None:
     return next((t["cap"] for t in tiers() if t["cap"] >= rank), None)
 
 
+def _stamp(value) -> float:
+    if isinstance(value, (int, float)) or str(value or "").isdigit():
+        return float(value)
+    t = parse_t(value)
+    return t.timestamp() if t.year >= 2000 else 0
+
+
 def cap_of(rank: int | None, rec: dict | None,
            sheet: dict | None = None) -> tuple[int, int | None, str | None]:
-    """(rank, cap, where the cap comes from: "game", "recorder", "tiers" or
-    None) for one profession: Polestar's rank, the Recorder's newest record
-    of that skill ({rank, max_rank, t}) and the sheet's profession entry
-    (its `cap`, from DataStore_Crafts). Ranks and caps only go up, so the
-    highest of each wins, whichever was read last: DataStore rescans at
-    login and skill-ups, not at a trainer, so the Recorder can be the newer
-    one within a session. A cap below the rank is from before a training
-    nobody saw and doesn't count. Equal caps: the game's full reading."""
-    sheet = sheet or {}
-    rank = max(int(rank or 0), int(num((rec or {}).get("rank"))), int(num(sheet.get("rank"))))
-    seen = [(int(num(sheet.get("cap"))), "game"), (int(num((rec or {}).get("max_rank"))), "recorder")]
-    ok = [s for s in seen if s[0] and s[0] >= rank]
-    if ok:
-        cap, src = max(ok, key=lambda s: (s[0], s[1] == "game"))
-        return rank, cap, src
-    cap = infer(rank)
-    return rank, cap, "tiers" if cap else None
+    """Reconcile dated observations within the current learning of a skill."""
+    sheet, rec = sheet or {}, rec or {}
+    sheet_rank = int(num(sheet.get("rank") or rank))
+    readings = rec.get("readings") or [(rec.get("t"), rec.get("rank"), rec.get("max_rank"))]
+    seen = [(_stamp(t), int(num(r)), int(num(c)), "recorder") for t, r, c in readings]
+    seen.append((_stamp(sheet.get("cap_at") or sheet.get("rank_at")), sheet_rank, int(num(sheet.get("cap"))), "game"))
+    if _stamp(sheet.get("max_rank_at")):
+        seen.append((_stamp(sheet["max_rank_at"]), sheet_rank, int(num(sheet.get("max_rank"))), "export"))
+    elif sheet.get("max_rank_from") in ("game", "recorder", "export"):
+        seen.append((_stamp(sheet.get("cap_at") or sheet.get("rank_at")), sheet_rank,
+                     int(num(sheet.get("max_rank"))), sheet["max_rank_from"]))
+    best_rank, best_cap, best_src, last_at = 0, 0, None, 0
+    for at, r, c, src in sorted(seen, key=lambda row: row[0]):
+        if (last_at and at > last_at and 0 < r <= RELEARN_MAX_RANK and c > 0
+                and c < max(best_rank, best_cap) and c == infer(1)):
+            best_rank, best_cap, best_src = 0, 0, None
+        best_rank = max(best_rank, r)
+        if c and c >= best_rank and (c > best_cap or (c == best_cap and src == "game")):
+            best_cap, best_src = c, src
+        if r:
+            last_at = at
+    if best_cap and best_cap >= best_rank:
+        return best_rank, best_cap, best_src
+    cap = infer(best_rank)
+    return best_rank, cap, "tiers" if cap else None
 
 
 def fill(profs: list[dict], skills: dict[int, dict] | None) -> list[dict]:
     """The professions with `max_rank` and `max_rank_from` set (cap_of),
-    whatever cap an old sheet carried (`cap`/`cap_at` stay: fill again
-    reads the same)."""
+    whatever cap an old sheet carried."""
     out = []
     for p in profs or []:
         sid = opt_num(p.get("skill_id"))
         rank, cap, src = cap_of(opt_num(p.get("rank")), (skills or {}).get(int(sid)) if sid is not None else None, p)
-        q = {k: v for k, v in p.items() if k != "max_rank_at"}
+        q = {k: v for k, v in p.items() if k != "max_rank_at" or src == "export"}
+        # A reset superseded the game's old cap. Pairing it with the new
+        # rank on this derived sheet would restore it when Next Moves reads
+        # the sheet a second time.
+        if src == "recorder" and cap < num(p.get("cap")):
+            q.pop("cap", None)
+            q.pop("cap_at", None)
         out.append({**q, "rank": rank, "max_rank": cap, "max_rank_from": src})
     return out
 
@@ -85,19 +111,20 @@ def newest_skills(rows: list[dict], t_key: str = "_time", until: float | None = 
     the newest per skill (rows in any order); with `until` (unix seconds),
     the newest at or before it: the caps as they were then (a level's
     snapshot)."""
-    from .stores import parse_t
-
     out: dict[int, dict] = {}
-    best: dict[int, float] = {}
-    for r in rows or []:
+    for r in sorted(rows or [], key=lambda row: _stamp(row.get(t_key))):
         sid = opt_num(r.get("skill_id"))
-        if sid is None:
+        if sid is None or (until is not None and _stamp(r.get(t_key)) > until):
             continue
-        t = r.get(t_key)
-        ts = t if isinstance(t, int | float) else (parse_t(t).timestamp() if t else 0.0)
-        if until is not None and ts > until:
+        rank, cap = int(num(r.get("rank"))), int(num(r.get("max_rank")))
+        prev = out.get(int(sid), {})
+        if not rank and not cap:
             continue
-        if ts >= best.get(int(sid), -1.0):
-            best[int(sid)] = ts
-            out[int(sid)] = {"rank": int(num(r.get("rank"))), "max_rank": int(num(r.get("max_rank"))), "t": t}
+        # Keep each reading for cap_of: the sheet's observation can fall
+        # between two of them, including an unlearn followed by new skill-ups.
+        readings = prev.get("readings", [])
+        readings.append((r.get(t_key), rank, cap))
+        if not cap and (not rank or rank >= prev.get("rank", 0)):
+            cap = prev.get("max_rank", 0)
+        out[int(sid)] = {"rank": rank or prev.get("rank", 0), "max_rank": cap, "t": r.get(t_key), "readings": readings}
     return out

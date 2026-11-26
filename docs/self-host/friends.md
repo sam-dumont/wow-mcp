@@ -187,18 +187,22 @@ Tenant numbers are never reused, so a deleted friend's data can't show up under 
 
 ## Shared auction scans
 
-An Auctionator scan is a snapshot of one auction house: one ruleset (Forever has no realms;
-the addon's "realm" is the ruleset's name) and one faction's house, or the neutral one. The
-prices are the same for everyone there, so on a shared install everyone's scans land in one
-shared space too, and each person's gear advice, price list and `prices` answers read the
-newest scan of their own characters' rulesets and factions, whoever made it. A Horde
-character never reads the Alliance house, and two rulesets never mix.
+Auctionator on Forever saves a price history under a ruleset and the player's faction.
+A Horde player visiting Booty Bay still writes to the Horde key. The file carries no
+auctioneer location. Gear advice and price trends use one key at a time. With only
+scan records for the selected character, a single key identifies its prices. If there
+are several keys, select the ruleset and faction in the MCP `prices` tool.
 
-What the shared space keeps per item and scan day: the item, the lowest and highest price,
-how many were listed, the scan day and time, the ruleset and the faction. Never the
-character, the account, the upload's source id or the shipper's text. When Auctionator's key
-doesn't name the faction, the server takes it from the scanning character's newest faction
-record, else its race; a scan whose side stays unknown stays in its sender's own data only.
+Only keys with a faction label enter the shared store. It keeps item, price, quantity,
+scan date, ruleset, faction and a field confirming the label came from the addon key.
+A realm-only key stays in the sender's private price history with faction unknown.
+To read it explicitly with `prices`, select its ruleset and faction `Unknown`.
+
+Older servers also shared realm-only scans under the sender's faction. Their shared
+Alliance and Horde rows lack the original key and scanner, so readers skip those
+unverified copies. Neutral was always an explicit label and remains readable.
+Original scans remain available in the sender's own store. Running the backfill below
+restores labelled scans for other people from those originals.
 
 Where it lives: one more tenant (AccountID `4000000000`) in the friends' store
 (`FRIENDS_VL_URL`), or the file `events-4000000000.sqlite` next to everyone's with the

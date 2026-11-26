@@ -40,7 +40,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from wowstats import forever
+from wowstats import classguide, forever
 from wowstats import gear as gm
 from wowstats.stores import parse_t
 
@@ -155,7 +155,7 @@ class Scorer:
 
 
 def replay(ref: gm.Reference, scorer: Scorer, acqs: list[Acq], dings: list[tuple[datetime, int]],
-           start: datetime) -> Replay:
+           start: datetime, who: gm.Who) -> Replay:
     """The gear the records point to, slot by slot."""
     from wowstats import insights
 
@@ -213,7 +213,7 @@ def replay(ref: gm.Reference, scorer: Scorer, acqs: list[Acq], dings: list[tuple
         info = ref.item(a.item_id)
         if not info or info.get("inv") in UNWORN_INV or not gm.SLOTS_OF.get(info.get("inv")):
             continue
-        usable, _, min_level = gm.usability(ref, info, scorer.cls, level_at(a.t))
+        usable, _, min_level = gm.usability(ref, info, scorer.cls, level_at(a.t), who)
         if not usable:
             continue
         if min_level > level_at(a.t) and a.kind != "enchant":
@@ -299,7 +299,12 @@ def build(ref: gm.Reference, sheet: dict, turnins: list[dict], loots: list[dict]
     start = min(parse_t(r["_time"]) for r in rows)
     key, _ = gm.resolve_spec(ref, cls, sheet)
     acqs = acquisitions(ref, turnins, loots, crafts)
-    rp = replay(ref, Scorer(ref, cls, key), acqs, dings, start)
+    # Faction and race apply to earlier levels. Today's profession ranks do not.
+    faction = sheet.get("faction")
+    who = gm.Who(cls=cls, level=1, side=gm.SIDES.get(str(faction or "").lower()),
+                 race_id=classguide.race_bit(sheet.get("race"), faction).bit_length() or None,
+                 professions={}, done=set(), zone=None)
+    rp = replay(ref, Scorer(ref, cls, key), acqs, dings, start, who)
     check = None
     if first_sheet and first_sheet.get("_time"):
         t = parse_t(first_sheet["_time"])

@@ -136,7 +136,7 @@ docker compose logs ui | grep '"event"'
 The bug form asks for these. Leave out real share links (`/zogzog/#...`), keys, tokens,
 passwords and account names.
 
-- The version: `docker compose exec ui wow-stats --version`.
+- Run `docker compose exec ui wow-stats data-status` for the running version, bundled client builds, source revisions and knowledge-base dates.
 - How it runs: the compose kit, Kubernetes, or `uv run`.
 - The last lines of the log that broke: `docker compose logs --tail 50 <service>`, or the
   shipper's log.

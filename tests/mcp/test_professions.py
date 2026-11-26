@@ -38,7 +38,9 @@ def test_one_item_craft_or_buy(ctx):
     out = tools.call(ctx, "professions", {"char": fakes.CHAR, "profession": "Tailoring",
                                           "item": "Gloves of Meditation"})
     it = out["professions"][0]["item"]
-    assert (it["item_id"], it["spell_id"], it["needs_skill"]) == (4318, 3852, 125)
+    assert (it["item_id"], it["spell_id"], it["needs_skill"]) == (4318, 3852, 105)
+    assert it["recipe"]["trainer_skill"] == 105
+    assert it["recipe"]["selected"]["source"].endswith("/1.60.1.71091/trainers.json")
     assert it["bind_on_pickup"] is False
 
 

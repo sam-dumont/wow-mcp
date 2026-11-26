@@ -1,4 +1,10 @@
 {
+ "_notice": [
+  "-- Data: ForeverDB.net (https://foreverdb.net), build 1.60.1.71139. Reuse requires this credit: see NOTICE.txt (GPL-3.0 section 7(b)).",
+  "Data from ForeverDB.net (https://foreverdb.net)",
+  "-- Data: ForeverDB.net (https://foreverdb.net), build 1.60.1.71037. Reuse requires this credit: see NOTICE.txt (GPL-3.0 section 7(b)).",
+  "NPC encounter placements use ForeverDB.net addon data under GPL-3.0 with its section 7(b) attribution term. See data/foreverdb/LICENSE.txt, NOTICE.txt and COPYING.txt."
+ ],
  "schema": 1,
  "source": {
   "forever_db": {
@@ -10,7 +16,7 @@
   "client_tables": {
    "via": "wago.tools",
    "product": "wowf",
-   "build": "1.60.1.71091",
+   "build": "1.60.1.71139",
    "tables": [
     "AreaTable",
     "Map",
@@ -21,7 +27,16 @@
    ],
    "note": "Game data (c) Blizzard Entertainment, used as facts"
   },
+  "guide_quests": "Polestar guides/forever/miscellaneous/library-books.guide (milestone reward choices)",
   "levels_exceptions": "Polestar data/codex/levels.json (max, floor)",
+  "dungeon_drops": "Polestar trusted loot recordings and forever-db item_source (table rates), matched to kill-xp.json or observed NPC IDs and client dungeon encounters",
+  "encounter_placement": "ForeverDB.net observed NPC IDs and maps, checked against DungeonEncounter",
+  "recorded_loot": "Polestar trusted NPC and object loot windows, named by the released forever-db",
+  "reviewed_loot": {
+   "reviewed_on": "2026-11-26",
+   "eg_link_commit": "f25e0efde0c8490e4e6f356a68f7a81a703fa21c",
+   "credit": "Data from Efficient Games (https://efficient.games), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Reduced to NPC and item IDs. See docs/gear-source-review.md for the evidence for each item."
+  },
   "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)"
  },
  "quests": {
@@ -9771,6 +9786,12 @@
   ],
   "2681": [
    "The Stones That Bind Us",
+   57,
+   45,
+   4
+  ],
+  "2701": [
+   "Heroes of Old",
    57,
    45,
    4
@@ -44945,6 +44966,12 @@
    [],
    [
     2801
+   ]
+  ],
+  "2701": [
+   [],
+   [
+    2702
    ]
   ],
   "2721": [
@@ -84972,7 +84999,6 @@
  },
  "rewards": {
   "744": 53,
-  "864": 5101,
   "1009": 417,
   "1116": 1046,
   "1131": 101,
@@ -85006,7 +85032,6 @@
   "2037": 168,
   "2041": 166,
   "2042": 166,
-  "2043": 98,
   "2044": 98,
   "2074": 214,
   "2089": 214,
@@ -85217,7 +85242,6 @@
   "5355": 873,
   "5356": 873,
   "5357": 873,
-  "5387": 993,
   "5420": 924,
   "5459": 486,
   "5587": 486,
@@ -85567,7 +85591,6 @@
   "11963": 4136,
   "12018": 4242,
   "12021": 4242,
-  "12038": 7201,
   "12041": 4242,
   "12049": 4136,
   "12050": 4513,
@@ -85611,7 +85634,6 @@
   "13474": 5060,
   "13475": 5060,
   "13544": 5384,
-  "13812": 5532,
   "13982": 5466,
   "13984": 5466,
   "13986": 5466,
@@ -85934,7 +85956,6 @@
   "20083": 8232,
   "20086": 8249,
   "20130": 8425,
-  "20134": 8258,
   "20213": 8201,
   "20215": 8201,
   "20216": 8201,
@@ -86222,6 +86243,8 @@
   "22725": 9248,
   "23206": 9120,
   "23207": 9120,
+  "217314": 79980,
+  "217315": 79980,
   "246164": 91285,
   "246165": 91285,
   "246265": 91316,
@@ -86349,12 +86372,9 @@
   "271740": 95682,
   "271768": 95795,
   "271769": 95795,
-  "271794": 93045,
-  "271795": 93045,
   "271796": 92873,
   "271797": 92873,
   "271798": 92873,
-  "271799": 93045,
   "271800": 93196,
   "271801": 93128,
   "271802": 93128,
@@ -86375,29 +86395,19 @@
   "276895": 96261,
   "276898": 96800,
   "276899": 96800,
-  "277203": 78150,
-  "277204": 78150,
   "277205": 78093,
   "277206": 95534,
-  "277207": 78830,
-  "277208": 79242,
-  "277209": 78830,
   "277210": 78307,
   "277214": 97048,
   "277218": 95999,
-  "277223": 79242,
   "277224": 97048,
   "277226": 95999,
   "277232": 97048,
   "277234": 95999,
-  "277235": 79242,
   "277246": 78699,
   "277247": 98545,
-  "277254": 82208,
   "277255": 98545,
   "277256": 95384,
-  "277258": 82208,
-  "277260": 82208,
   "277286": 97250,
   "277288": 97250,
   "277289": 97250,
@@ -86405,6 +86415,7 @@
   "277515": 97265,
   "277988": 76240,
   "278002": 76240,
+  "278567": 92867,
   "279388": 98071,
   "279835": 92456,
   "279836": 92456,
@@ -86428,8 +86439,6 @@
   "279875": 92421,
   "279876": 95216,
   "279877": 95216,
-  "279888": 95776,
-  "279889": 95776,
   "279894": 96393,
   "279895": 96393,
   "279896": 96393,
@@ -86439,6 +86448,7 @@
   "279900": 96395,
   "280095": 96394,
   "280096": 96403,
+  "280505": 92867,
   "280696": 96016,
   "280805": 95697,
   "281250": 940,
@@ -86448,7 +86458,6 @@
   "281254": 86585,
   "281256": 86614,
   "281257": 86758,
-  "281258": 88758,
   "281265": 95981,
   "281267": 97223,
   "281269": 97326,
@@ -86483,8 +86492,6 @@
   "281319": 98310,
   "281320": 98310,
   "281321": 98310,
-  "281634": 79536,
-  "281635": 79536,
   "281673": 95885,
   "282064": 98545,
   "282284": 98403,
@@ -86495,6 +86502,2880 @@
   "286742": 99156,
   "286743": 99156,
   "286744": 99156
+ },
+ "quest_supplies": {
+  "5387": 993
+ },
+ "summons": {
+  "10584": {
+   "items": [
+    12533,
+    12534
+   ],
+   "note": "bring a Roughshod Pike and Omokk's Head to Urok's Tribute Pile"
+  },
+  "14516": {
+   "items": [
+    18746
+   ],
+   "note": "use the Divination Scryer in the Great Ossuary"
+  }
+ },
+ "dungeon_drops": {
+  "1155": [
+   {
+    "kind": "drop",
+    "npc": 4832,
+    "npc_name": "Twilight Lord Kelris",
+    "zone": 719,
+    "pct": null,
+    "voters": 43,
+    "via": "polestar-recording"
+   }
+  ],
+  "1816": [
+   {
+    "kind": "drop",
+    "npc": 3669,
+    "npc_name": "Lord Cobrahn",
+    "zone": 718,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "3456": [
+   {
+    "kind": "drop",
+    "npc": 3974,
+    "npc_name": "Houndmaster Loksey",
+    "zone": 796,
+    "pct": null,
+    "voters": 25,
+    "via": "polestar-recording"
+   }
+  ],
+  "5516": [
+   {
+    "kind": "drop",
+    "npc": 4830,
+    "npc_name": "Old Serra'kis",
+    "zone": 719,
+    "pct": null,
+    "voters": 13,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 7273,
+    "npc_name": "Gahz'rilla",
+    "zone": 1176,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
+   }
+  ],
+  "6582": [
+   {
+    "kind": "drop",
+    "npc": 3654,
+    "npc_name": "Mutanus the Devourer",
+    "zone": 718,
+    "pct": null,
+    "voters": 5,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
+   }
+  ],
+  "6904": [
+   {
+    "kind": "drop",
+    "npc": 4830,
+    "npc_name": "Old Serra'kis",
+    "zone": 719,
+    "pct": null,
+    "voters": 24,
+    "via": "polestar-recording"
+   }
+  ],
+  "6907": [
+   {
+    "kind": "drop",
+    "npc": 4887,
+    "npc_name": "Ghamoo-ra",
+    "zone": 719,
+    "pct": null,
+    "voters": 50,
+    "via": "polestar-recording"
+   }
+  ],
+  "7414": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "9387": [
+   {
+    "kind": "drop",
+    "npc": 6910,
+    "npc_name": "Revelosh",
+    "zone": 1337,
+    "pct": null,
+    "voters": 6,
+    "via": "polestar-recording"
+   }
+  ],
+  "9388": [
+   {
+    "kind": "drop",
+    "npc": 6910,
+    "npc_name": "Revelosh",
+    "zone": 1337,
+    "pct": null,
+    "voters": 7,
+    "via": "polestar-recording"
+   }
+  ],
+  "9389": [
+   {
+    "kind": "drop",
+    "npc": 6910,
+    "npc_name": "Revelosh",
+    "zone": 1337,
+    "pct": null,
+    "voters": 12,
+    "via": "polestar-recording"
+   }
+  ],
+  "9390": [
+   {
+    "kind": "drop",
+    "npc": 6910,
+    "npc_name": "Revelosh",
+    "zone": 1337,
+    "pct": null,
+    "voters": 10,
+    "via": "polestar-recording"
+   }
+  ],
+  "9418": [
+   {
+    "kind": "drop",
+    "npc": 2748,
+    "npc_name": "Archaedas",
+    "zone": 1337,
+    "pct": null,
+    "voters": 17,
+    "via": "polestar-recording"
+   }
+  ],
+  "9445": [
+   {
+    "kind": "drop",
+    "npc": 7361,
+    "npc_name": "Grubbis",
+    "zone": 721,
+    "pct": null,
+    "voters": 29,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
+   }
+  ],
+  "9458": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 10,
+    "via": "polestar-recording"
+   }
+  ],
+  "9461": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 26,
+    "via": "polestar-recording"
+   }
+  ],
+  "9475": [
+   {
+    "kind": "drop",
+    "npc": 7275,
+    "npc_name": "Shadowpriest Sezz'ziz",
+    "zone": 1176,
+    "pct": null,
+    "voters": 10,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
+   }
+  ],
+  "9819": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 6,
+    "via": "polestar-recording"
+   }
+  ],
+  "9853": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   }
+  ],
+  "9860": [
+   {
+    "kind": "drop",
+    "npc": 7800,
+    "npc_name": "Mekgineer Thermaplugg",
+    "zone": 721,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "10777": [
+   {
+    "kind": "drop",
+    "npc": 7355,
+    "npc_name": "Tuten'kash",
+    "zone": 722,
+    "pct": null,
+    "voters": 16,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
+   }
+  ],
+  "10795": [
+   {
+    "kind": "drop",
+    "npc": 5722,
+    "npc_name": "Hazzas",
+    "zone": 1417,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "10800": [
+   {
+    "kind": "drop",
+    "npc": 8580,
+    "npc_name": "Atal'alarion",
+    "zone": 1417,
+    "pct": null,
+    "voters": 9,
+    "via": "polestar-recording",
+    "placement": "foreverdb"
+   }
+  ],
+  "10803": [
+   {
+    "kind": "drop",
+    "npc": 5711,
+    "npc_name": "Ogom the Wretched",
+    "zone": 1417,
+    "pct": null,
+    "voters": 10,
+    "via": "polestar-recording"
+   }
+  ],
+  "10828": [
+   {
+    "kind": "drop",
+    "npc": 5709,
+    "npc_name": "Shade of Eranikus",
+    "zone": 1417,
+    "pct": null,
+    "voters": 6,
+    "via": "polestar-recording"
+   }
+  ],
+  "11118": [
+   {
+    "kind": "drop",
+    "npc": 2748,
+    "npc_name": "Archaedas",
+    "zone": 1337,
+    "pct": null,
+    "voters": 36,
+    "via": "polestar-recording"
+   }
+  ],
+  "11767": [
+   {
+    "kind": "drop",
+    "npc": 9017,
+    "npc_name": "Lord Incendius",
+    "zone": 1584,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   }
+  ],
+  "16668": [
+   {
+    "kind": "drop",
+    "npc": 10440,
+    "npc_name": "Baron Rivendare",
+    "zone": 2017,
+    "pct": 11.1,
+    "via": "forever-db"
+   }
+  ],
+  "16673": [
+   {
+    "kind": "drop",
+    "npc": 9257,
+    "npc_name": "Scarshield Warlock",
+    "zone": 1583,
+    "pct": 2,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9262,
+    "npc_name": "Firebrand Invoker",
+    "zone": 1583,
+    "pct": 1.2,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9264,
+    "npc_name": "Firebrand Pyromancer",
+    "zone": 1583,
+    "pct": 2.4,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9266,
+    "npc_name": "Smolderthorn Witch Doctor",
+    "zone": 1583,
+    "pct": 4.4,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9693,
+    "npc_name": "Bloodaxe Evoker",
+    "zone": 1583,
+    "pct": 2.5,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9736,
+    "npc_name": "Quartermaster Zigris",
+    "zone": 1583,
+    "pct": 1.5,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 10083,
+    "npc_name": "Rage Talon Flamescale",
+    "zone": 1583,
+    "pct": 3.8,
+    "via": "forever-db"
+   }
+  ],
+  "16688": [
+   {
+    "kind": "drop",
+    "npc": 10363,
+    "npc_name": "General Drakkisath",
+    "zone": 1583,
+    "pct": 11.1,
+    "via": "forever-db"
+   }
+  ],
+  "16700": [
+   {
+    "kind": "drop",
+    "npc": 10363,
+    "npc_name": "General Drakkisath",
+    "zone": 1583,
+    "pct": 11.1,
+    "via": "forever-db"
+   }
+  ],
+  "16706": [
+   {
+    "kind": "drop",
+    "npc": 10363,
+    "npc_name": "General Drakkisath",
+    "zone": 1583,
+    "pct": 11.1,
+    "via": "forever-db"
+   }
+  ],
+  "16715": [
+   {
+    "kind": "drop",
+    "npc": 10596,
+    "npc_name": "Mother Smolderweb",
+    "zone": 1583,
+    "pct": 15,
+    "via": "forever-db"
+   }
+  ],
+  "16717": [
+   {
+    "kind": "drop",
+    "npc": 9096,
+    "npc_name": "Rage Talon Dragonspawn",
+    "zone": 1583,
+    "pct": 3.8,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9258,
+    "npc_name": "Scarshield Raider",
+    "zone": 1583,
+    "pct": 2.1,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9262,
+    "npc_name": "Firebrand Invoker",
+    "zone": 1583,
+    "pct": 1.3,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9264,
+    "npc_name": "Firebrand Pyromancer",
+    "zone": 1583,
+    "pct": 2.4,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9268,
+    "npc_name": "Smolderthorn Berserker",
+    "zone": 1583,
+    "pct": 4.5,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9269,
+    "npc_name": "Smolderthorn Seer",
+    "zone": 1583,
+    "pct": 0.8,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9692,
+    "npc_name": "Bloodaxe Raider",
+    "zone": 1583,
+    "pct": 2.1,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9736,
+    "npc_name": "Quartermaster Zigris",
+    "zone": 1583,
+    "pct": 1,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 10516,
+    "npc_name": "The Unforgiven",
+    "zone": 2017,
+    "pct": 20,
+    "via": "forever-db"
+   }
+  ],
+  "16719": [
+   {
+    "kind": "drop",
+    "npc": 10440,
+    "npc_name": "Baron Rivendare",
+    "zone": 2017,
+    "pct": 11.1,
+    "via": "forever-db"
+   }
+  ],
+  "16720": [
+   {
+    "kind": "drop",
+    "npc": 1853,
+    "npc_name": "Darkmaster Gandling",
+    "zone": 2057,
+    "pct": 11.1,
+    "via": "forever-db",
+    "placement": "foreverdb"
+   }
+  ],
+  "17744": [
+   {
+    "kind": "drop",
+    "npc": 13282,
+    "npc_name": "Noxxion",
+    "zone": 2100,
+    "pct": null,
+    "voters": 8,
+    "via": "polestar-recording"
+   }
+  ],
+  "17750": [
+   {
+    "kind": "drop",
+    "npc": 12258,
+    "npc_name": "Razorlash",
+    "zone": 2100,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "215374": [
+   {
+    "kind": "drop",
+    "npc": 4290,
+    "npc_name": "Scarlet Guardsman",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4298,
+    "npc_name": "Scarlet Defender",
+    "zone": 796,
+    "pct": null,
+    "voters": 6,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4299,
+    "npc_name": "Scarlet Chaplain",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4301,
+    "npc_name": "Scarlet Centurion",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "215375": [
+   {
+    "kind": "drop",
+    "npc": 4287,
+    "npc_name": "Scarlet Gallant",
+    "zone": 796,
+    "pct": null,
+    "voters": 5,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4290,
+    "npc_name": "Scarlet Guardsman",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4295,
+    "npc_name": "Scarlet Myrmidon",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4296,
+    "npc_name": "Scarlet Adept",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4298,
+    "npc_name": "Scarlet Defender",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4540,
+    "npc_name": "Scarlet Monk",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   }
+  ],
+  "215376": [
+   {
+    "kind": "drop",
+    "npc": 4287,
+    "npc_name": "Scarlet Gallant",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4290,
+    "npc_name": "Scarlet Guardsman",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4291,
+    "npc_name": "Scarlet Diviner",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4292,
+    "npc_name": "Scarlet Protector",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4295,
+    "npc_name": "Scarlet Myrmidon",
+    "zone": 796,
+    "pct": null,
+    "voters": 5,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4298,
+    "npc_name": "Scarlet Defender",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4299,
+    "npc_name": "Scarlet Chaplain",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4301,
+    "npc_name": "Scarlet Centurion",
+    "zone": 796,
+    "pct": null,
+    "voters": 4,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4302,
+    "npc_name": "Scarlet Champion",
+    "zone": 796,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 4540,
+    "npc_name": "Scarlet Monk",
+    "zone": 796,
+    "pct": null,
+    "voters": 5,
+    "via": "polestar-recording"
+   }
+  ],
+  "271217": [
+   {
+    "kind": "drop",
+    "npc": 256097,
+    "npc_name": "Bjork",
+    "zone": 16611,
+    "pct": null,
+    "voters": 31,
+    "via": "polestar-recording"
+   }
+  ],
+  "273084": [
+   {
+    "kind": "drop",
+    "npc": 3653,
+    "npc_name": "Kresh",
+    "zone": 718,
+    "pct": null,
+    "voters": 22,
+    "via": "polestar-recording"
+   }
+  ],
+  "273298": [
+   {
+    "kind": "drop",
+    "npc": 645,
+    "npc_name": "Cookie",
+    "zone": 1581,
+    "pct": null,
+    "voters": 29,
+    "via": "polestar-recording"
+   }
+  ],
+  "273819": [
+   {
+    "kind": "drop",
+    "npc": 1663,
+    "npc_name": "Dextren Ward",
+    "zone": 717,
+    "pct": null,
+    "voters": 22,
+    "via": "polestar-recording"
+   }
+  ],
+  "273820": [
+   {
+    "kind": "drop",
+    "npc": 1663,
+    "npc_name": "Dextren Ward",
+    "zone": 717,
+    "pct": null,
+    "voters": 34,
+    "via": "polestar-recording"
+   }
+  ],
+  "273840": [
+   {
+    "kind": "drop",
+    "npc": 6243,
+    "npc_name": "Gelihast",
+    "zone": 719,
+    "pct": null,
+    "voters": 41,
+    "via": "polestar-recording"
+   }
+  ],
+  "274092": [
+   {
+    "kind": "drop",
+    "npc": 1706,
+    "npc_name": "Defias Prisoner",
+    "zone": 717,
+    "pct": null,
+    "voters": 8,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 1707,
+    "npc_name": "Defias Captive",
+    "zone": 717,
+    "pct": null,
+    "voters": 9,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 1708,
+    "npc_name": "Defias Inmate",
+    "zone": 717,
+    "pct": null,
+    "voters": 8,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 1711,
+    "npc_name": "Defias Convict",
+    "zone": 717,
+    "pct": null,
+    "voters": 3,
+    "via": "polestar-recording"
+   },
+   {
+    "kind": "drop",
+    "npc": 1715,
+    "npc_name": "Defias Insurgent",
+    "zone": 717,
+    "pct": null,
+    "voters": 5,
+    "via": "polestar-recording"
+   }
+  ],
+  "274615": [
+   {
+    "kind": "drop",
+    "npc": 263886,
+    "npc_name": "Primeval Elemental",
+    "zone": 16550,
+    "pct": null,
+    "voters": 26,
+    "via": "polestar-recording"
+   }
+  ]
+ },
+ "recorded_loot": {
+  "790": [
+   {
+    "kind": "drop",
+    "npc": 202,
+    "npc_name": "Skeletal Horror",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 1706,
+    "npc_name": "Defias Prisoner",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 1708,
+    "npc_name": "Defias Inmate",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "880": [
+   {
+    "kind": "drop",
+    "npc": 202,
+    "npc_name": "Skeletal Horror",
+    "via": "polestar-recording",
+    "voters": 23,
+    "pct": null
+   }
+  ],
+  "886": [
+   {
+    "kind": "drop",
+    "npc": 210,
+    "npc_name": "Bone Chewer",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "920": [
+   {
+    "kind": "drop",
+    "npc": 909,
+    "npc_name": "Defias Night Blade",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "1296": [
+   {
+    "kind": "drop",
+    "npc": 437,
+    "npc_name": "Blackrock Renegade",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4065,
+    "npc_name": "Blackrock Sentry",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "1455": [
+   {
+    "kind": "drop",
+    "npc": 435,
+    "npc_name": "Blackrock Champion",
+    "via": "polestar-recording",
+    "voters": 11,
+    "pct": null
+   }
+  ],
+  "1461": [
+   {
+    "kind": "drop",
+    "npc": 431,
+    "npc_name": "Shadowhide Slayer",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "1462": [
+   {
+    "kind": "drop",
+    "npc": 429,
+    "npc_name": "Shadowhide Darkweaver",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "1679": [
+   {
+    "kind": "drop",
+    "npc": 1142,
+    "npc_name": "Mosh'Ogg Brute",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "1997": [
+   {
+    "kind": "drop",
+    "npc": 701,
+    "npc_name": "Bloodscalp Mystic",
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   }
+  ],
+  "2015": [
+   {
+    "kind": "drop",
+    "npc": 570,
+    "npc_name": "Brain Eater",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "2084": [
+   {
+    "kind": "drop",
+    "npc": 1054,
+    "npc_name": "Dark Iron Demolitionist",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 275045,
+    "npc_name": "Dragonmaw Saboteur",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "2175": [
+   {
+    "kind": "drop",
+    "npc": 568,
+    "npc_name": "Shadowhide Warrior",
+    "via": "polestar-recording",
+    "voters": 7,
+    "pct": null
+   }
+  ],
+  "2942": [
+   {
+    "kind": "drop",
+    "npc": 1720,
+    "npc_name": "Bruegal Ironknuckle",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "3184": [
+   {
+    "kind": "drop",
+    "npc": 657,
+    "npc_name": "Defias Pirate",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 1732,
+    "npc_name": "Defias Squallshaper",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 6,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 12,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5756,
+    "npc_name": "Deviate Venomwing",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   },
+   {
+    "kind": "container",
+    "object": true,
+    "object_id": 75293,
+    "name": "Large Battered Chest",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "3323": [
+   {
+    "kind": "drop",
+    "npc": 1533,
+    "npc_name": "Tormented Spirit",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "6593": [
+   {
+    "kind": "drop",
+    "via": "eg-link",
+    "npc": 260809,
+    "zone": 11,
+    "npc_name": "Highland Tortoise"
+   }
+  ],
+  "6604": [
+   {
+    "kind": "drop",
+    "npc": 6329,
+    "npc_name": "Irradiated Pillager",
+    "zone": 721,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 260800,
+    "npc_name": "Thicket Lurker",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7355": [
+   {
+    "kind": "drop",
+    "npc": 6234,
+    "npc_name": "Mechanized Guardian",
+    "zone": 721,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7407": [
+   {
+    "kind": "drop",
+    "npc": 689,
+    "npc_name": "Crystal Spine Basilisk",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7433": [
+   {
+    "kind": "drop",
+    "npc": 258792,
+    "npc_name": "Risen Sentry",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "7434": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 263196,
+    "npc_name": "Profane Necromancer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7437": [
+   {
+    "kind": "drop",
+    "npc": 4540,
+    "npc_name": "Scarlet Monk",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7441": [
+   {
+    "kind": "drop",
+    "npc": 2735,
+    "npc_name": "Lesser Rock Elemental",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7443": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7445": [
+   {
+    "kind": "drop",
+    "npc": 258792,
+    "npc_name": "Risen Sentry",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "7446": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7447": [
+   {
+    "kind": "drop",
+    "npc": 4540,
+    "npc_name": "Scarlet Monk",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7456": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "7462": [
+   {
+    "kind": "drop",
+    "npc": 4295,
+    "npc_name": "Scarlet Myrmidon",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "7494": [
+   {
+    "kind": "drop",
+    "npc": 258042,
+    "npc_name": "Twilight Grunt",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9428": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 4844,
+    "zone": 3,
+    "npc_name": "Shadowforge Surveyor"
+   }
+  ],
+  "9455": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 6228,
+    "zone": 721,
+    "npc_name": "Dark Iron Ambassador"
+   }
+  ],
+  "9770": [
+   {
+    "kind": "drop",
+    "npc": 3636,
+    "npc_name": "Deviate Ravager",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 6,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5755,
+    "npc_name": "Deviate Viper",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 12,
+    "pct": null
+   }
+  ],
+  "9794": [
+   {
+    "kind": "drop",
+    "npc": 2529,
+    "npc_name": "Son of Arugal",
+    "zone": 209,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 6206,
+    "npc_name": "Caverndeep Burrower",
+    "zone": 721,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 6329,
+    "npc_name": "Irradiated Pillager",
+    "zone": 721,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9800": [
+   {
+    "kind": "drop",
+    "npc": 246664,
+    "npc_name": "Fragmented Sentry",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9838": [
+   {
+    "kind": "drop",
+    "npc": 246664,
+    "npc_name": "Fragmented Sentry",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9847": [
+   {
+    "kind": "drop",
+    "npc": 4287,
+    "npc_name": "Scarlet Gallant",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9851": [
+   {
+    "kind": "drop",
+    "npc": 258792,
+    "npc_name": "Risen Sentry",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9852": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9859": [
+   {
+    "kind": "drop",
+    "npc": 4299,
+    "npc_name": "Scarlet Chaplain",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "9868": [
+   {
+    "kind": "drop",
+    "npc": 4540,
+    "npc_name": "Scarlet Monk",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "10131": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 8921,
+    "zone": 1584,
+    "npc_name": "Bloodhound"
+   }
+  ],
+  "10238": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "world": true,
+    "zone_name": "Sunken Temple"
+   }
+  ],
+  "10243": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "world": true
+   }
+  ],
+  "10387": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 9568,
+    "zone": 1583,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Overlord Wyrmthalak"
+   }
+  ],
+  "10787": [
+   {
+    "kind": "drop",
+    "npc": 5714,
+    "npc_name": "Loro",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "10788": [
+   {
+    "kind": "drop",
+    "npc": 5712,
+    "npc_name": "Zolo",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5717,
+    "npc_name": "Mijan",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "11967": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "11981": [
+   {
+    "kind": "drop",
+    "npc": 657,
+    "npc_name": "Defias Pirate",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "11993": [
+   {
+    "kind": "drop",
+    "npc": 5763,
+    "npc_name": "Nightmare Ectoplasm",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "12010": [
+   {
+    "kind": "drop",
+    "npc": 258792,
+    "npc_name": "Risen Sentry",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "12040": [
+   {
+    "kind": "drop",
+    "npc": 258792,
+    "npc_name": "Risen Sentry",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "12582": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 9237,
+    "zone": 1583,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "War Master Voone"
+   }
+  ],
+  "13051": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 12219,
+    "zone": 2100,
+    "npc_name": "Barbed Lasher"
+   }
+  ],
+  "13206": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 10268,
+    "zone": 1583,
+    "zone_name": "Blackrock Spire: Lower",
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Gizrul the Slavener"
+   }
+  ],
+  "13258": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 10584,
+    "zone": 1583,
+    "zone_name": "Blackrock Spire: Lower",
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Urok Doomhowl"
+   }
+  ],
+  "13953": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 1853,
+    "zone": 2057,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Darkmaster Gandling"
+   }
+  ],
+  "14120": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "14121": [
+   {
+    "kind": "drop",
+    "npc": 3636,
+    "npc_name": "Deviate Ravager",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 6,
+    "pct": null
+   }
+  ],
+  "14123": [
+   {
+    "kind": "drop",
+    "npc": 3256,
+    "npc_name": "Sunscale Scytheclaw",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3640,
+    "npc_name": "Evolving Ectoplasm",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 11318,
+    "npc_name": "Ragefire Trogg",
+    "zone": 2437,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14127": [
+   {
+    "kind": "drop",
+    "npc": 4809,
+    "npc_name": "Twilight Acolyte",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14129": [
+   {
+    "kind": "drop",
+    "npc": 3636,
+    "npc_name": "Deviate Ravager",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 6,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 13,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   }
+  ],
+  "14159": [
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "14162": [
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "14166": [
+   {
+    "kind": "drop",
+    "npc": 428,
+    "npc_name": "Dire Condor",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 657,
+    "npc_name": "Defias Pirate",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3853,
+    "npc_name": "Shadowfang Moonwalker",
+    "zone": 209,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3861,
+    "npc_name": "Bleak Worg",
+    "zone": 209,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "container",
+    "object": true,
+    "object_id": 75293,
+    "name": "Large Battered Chest",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "14167": [
+   {
+    "kind": "drop",
+    "npc": 1731,
+    "npc_name": "Goblin Craftsman",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3947,
+    "npc_name": "Goblin Shipbuilder",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "14171": [
+   {
+    "kind": "drop",
+    "npc": 1707,
+    "npc_name": "Defias Captive",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14174": [
+   {
+    "kind": "drop",
+    "npc": 657,
+    "npc_name": "Defias Pirate",
+    "zone": 1581,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3853,
+    "npc_name": "Shadowfang Moonwalker",
+    "zone": 209,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14179": [
+   {
+    "kind": "drop",
+    "via": "eg-link",
+    "npc": 4805,
+    "zone": 719,
+    "npc_name": "Blackfathom Sea Witch"
+   }
+  ],
+  "14181": [
+   {
+    "kind": "drop",
+    "npc": 4442,
+    "npc_name": "Razorfen Defender",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14183": [
+   {
+    "kind": "drop",
+    "npc": 4623,
+    "npc_name": "Quilguard Champion",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14257": [
+   {
+    "kind": "drop",
+    "npc": 5649,
+    "npc_name": "Sandfury Blood Drinker",
+    "zone": 1176,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "14425": [
+   {
+    "kind": "drop",
+    "via": "eg-link",
+    "npc": 7269,
+    "zone": 1176,
+    "npc_name": "Scarab"
+   }
+  ],
+  "14434": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 255377,
+    "zone": 16620,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Alcaz Jailer"
+   }
+  ],
+  "14487": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 10508,
+    "zone": 2057,
+    "npc_name": "Ras Frostwhisper"
+   }
+  ],
+  "14756": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 4107,
+    "zone": 400,
+    "npc_name": "Highperch Wyvern"
+   }
+  ],
+  "14833": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 5649,
+    "zone": 1176,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Sandfury Blood Drinker"
+   }
+  ],
+  "14919": [
+   {
+    "kind": "drop",
+    "via": "eg-link",
+    "npc": 6527,
+    "zone": 490,
+    "npc_name": "Tar Creeper"
+   }
+  ],
+  "14922": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 9167,
+    "zone": 490,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Frenzied Pterrordax"
+   }
+  ],
+  "14952": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 255377,
+    "zone": 16620,
+    "npc_name": "Alcaz Jailer"
+   }
+  ],
+  "14957": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "world": true
+   }
+  ],
+  "14960": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 9166,
+    "zone": 490,
+    "npc_name": "Pterrordax"
+   }
+  ],
+  "15018": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 10,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5056,
+    "npc_name": "Deviate Dreadfang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15111": [
+   {
+    "kind": "drop",
+    "npc": 3636,
+    "npc_name": "Deviate Ravager",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5756,
+    "npc_name": "Deviate Venomwing",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15114": [
+   {
+    "kind": "drop",
+    "npc": 3636,
+    "npc_name": "Deviate Ravager",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3637,
+    "npc_name": "Deviate Guardian",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3640,
+    "npc_name": "Evolving Ectoplasm",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5048,
+    "npc_name": "Deviate Adder",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15116": [
+   {
+    "kind": "drop",
+    "npc": 4814,
+    "npc_name": "Twilight Elementalist",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15117": [
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "15120": [
+   {
+    "kind": "drop",
+    "npc": 4514,
+    "npc_name": "Raging Agam'ar",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15122": [
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4820,
+    "npc_name": "Blindlight Oracle",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15124": [
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15135": [
+   {
+    "kind": "drop",
+    "npc": 4538,
+    "npc_name": "Kraul Bat",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15211": [
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 7,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "container",
+    "object": true,
+    "object_id": 75298,
+    "name": "Large Solid Chest",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15230": [
+   {
+    "kind": "drop",
+    "npc": 1708,
+    "npc_name": "Defias Inmate",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 1715,
+    "npc_name": "Defias Insurgent",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 2268,
+    "npc_name": "Hillsbrad Footman",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4437,
+    "npc_name": "Razorfen Warden",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4511,
+    "npc_name": "Agam'ar",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4514,
+    "npc_name": "Raging Agam'ar",
+    "zone": 491,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4799,
+    "npc_name": "Fallenroot Hellcaller",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 6329,
+    "npc_name": "Irradiated Pillager",
+    "zone": 721,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15255": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 9262,
+    "zone": 1583,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Firebrand Invoker"
+   }
+  ],
+  "15310": [
+   {
+    "kind": "drop",
+    "npc": 3637,
+    "npc_name": "Deviate Guardian",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3640,
+    "npc_name": "Evolving Ectoplasm",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "15311": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15322": [
+   {
+    "kind": "drop",
+    "npc": 4298,
+    "npc_name": "Scarlet Defender",
+    "zone": 796,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15329": [
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15330": [
+   {
+    "kind": "drop",
+    "npc": 4809,
+    "npc_name": "Twilight Acolyte",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15331": [
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15333": [
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15348": [
+   {
+    "kind": "drop",
+    "npc": 4814,
+    "npc_name": "Twilight Elementalist",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15488": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15498": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "15500": [
+   {
+    "kind": "drop",
+    "npc": 4811,
+    "npc_name": "Twilight Aquamancer",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15501": [
+   {
+    "kind": "drop",
+    "npc": 3640,
+    "npc_name": "Evolving Ectoplasm",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15503": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15506": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5755,
+    "npc_name": "Deviate Viper",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "15510": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5761,
+    "npc_name": "Deviate Shambler",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15517": [
+   {
+    "kind": "drop",
+    "npc": 4810,
+    "npc_name": "Twilight Reaver",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15519": [
+   {
+    "kind": "drop",
+    "npc": 3917,
+    "npc_name": "Befouled Water Elemental",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4807,
+    "npc_name": "Blackfathom Myrmidon",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "15520": [
+   {
+    "kind": "drop",
+    "npc": 4825,
+    "npc_name": "Aku'mai Snapjaw",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15526": [
+   {
+    "kind": "drop",
+    "npc": 4798,
+    "npc_name": "Fallenroot Shadowstalker",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 4805,
+    "npc_name": "Blackfathom Sea Witch",
+    "zone": 719,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15912": [
+   {
+    "kind": "drop",
+    "npc": 1706,
+    "npc_name": "Defias Prisoner",
+    "zone": 717,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15918": [
+   {
+    "kind": "drop",
+    "npc": 258799,
+    "npc_name": "Brinescale Explorer",
+    "zone": 16550,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15933": [
+   {
+    "kind": "drop",
+    "npc": 504,
+    "npc_name": "Defias Trapper",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 263390,
+    "npc_name": "Tormented Soul",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 263466,
+    "npc_name": "Lesser Stone Golem",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 263470,
+    "npc_name": "Bloodhound Runt",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15970": [
+   {
+    "kind": "drop",
+    "npc": 11318,
+    "npc_name": "Ragefire Trogg",
+    "zone": 2437,
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 11322,
+    "npc_name": "Searing Blade Cultist",
+    "zone": 2437,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 11323,
+    "npc_name": "Searing Blade Enforcer",
+    "zone": 2437,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "15971": [
+   {
+    "kind": "drop",
+    "npc": 3840,
+    "npc_name": "Druid of the Fang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   },
+   {
+    "kind": "drop",
+    "npc": 5056,
+    "npc_name": "Deviate Dreadfang",
+    "zone": 718,
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "18374": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 11487,
+    "zone": 2557,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Magister Kalendris"
+   }
+  ],
+  "18462": [
+   {
+    "kind": "drop",
+    "via": "foreverdb",
+    "npc": 14326,
+    "zone": 2557,
+    "label": "s",
+    "reviewed": true,
+    "npc_name": "Guard Mol'dar"
+   }
+  ],
+  "18760": [
+   {
+    "kind": "drop",
+    "via": "reviewed-loot",
+    "npc": 14516,
+    "zone": 2057,
+    "npc_name": "Death Knight Darkreaver"
+   }
+  ],
+  "264501": [
+   {
+    "kind": "container",
+    "object": true,
+    "object_id": 618822,
+    "name": "Ancient Sword",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "274648": [
+   {
+    "kind": "drop",
+    "npc": 7604,
+    "npc_name": "Sergeant Bly",
+    "via": "polestar-recording",
+    "voters": 13,
+    "pct": null
+   }
+  ],
+  "276745": [
+   {
+    "kind": "drop",
+    "npc": 255702,
+    "npc_name": "Blazeroar",
+    "via": "polestar-recording",
+    "voters": 8,
+    "pct": null
+   }
+  ],
+  "280059": [
+   {
+    "kind": "drop",
+    "npc": 247198,
+    "npc_name": "Bonesnout the Unbroken",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "280071": [
+   {
+    "kind": "drop",
+    "npc": 247231,
+    "npc_name": "Unbound Spirit",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "280075": [
+   {
+    "kind": "drop",
+    "npc": 247234,
+    "npc_name": "Varrox Bleakhoof",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "281648": [
+   {
+    "kind": "drop",
+    "npc": 259758,
+    "npc_name": "Gul'gash",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "281676": [
+   {
+    "kind": "drop",
+    "npc": 259801,
+    "npc_name": "Mosh'gra",
+    "via": "polestar-recording",
+    "voters": 4,
+    "pct": null
+   }
+  ],
+  "283253": [
+   {
+    "kind": "drop",
+    "npc": 14222,
+    "npc_name": "Araga",
+    "via": "polestar-recording",
+    "voters": 5,
+    "pct": null
+   }
+  ],
+  "284192": [
+   {
+    "kind": "drop",
+    "npc": 2186,
+    "npc_name": "Carnivous the Breaker",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "284859": [
+   {
+    "kind": "drop",
+    "npc": 5350,
+    "npc_name": "Qirot",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ],
+  "286541": [
+   {
+    "kind": "drop",
+    "npc": 5848,
+    "npc_name": "Malgin Barleybrew",
+    "via": "polestar-recording",
+    "voters": 3,
+    "pct": null
+   }
+  ]
  },
  "gear_quests": {
   "6": [
@@ -91842,6 +94723,15 @@
    0,
    [
     8529
+   ],
+   []
+  ],
+  "2701": [
+   0,
+   0,
+   0,
+   [
+    10659
    ],
    []
   ],
@@ -104762,6 +107652,660 @@
    []
   ]
  },
+ "unavailable_quests": [
+  5532,
+  88758
+ ],
+ "guide_quests": {
+  "78150": [
+   0,
+   0,
+   0,
+   [],
+   [
+    277203,
+    277204
+   ]
+  ],
+  "79536": [
+   1,
+   0,
+   0,
+   [],
+   [
+    281634,
+    281635
+   ]
+  ],
+  "82208": [
+   1,
+   0,
+   0,
+   [],
+   [
+    277254,
+    277258,
+    277260
+   ]
+  ]
+ },
+ "quest_gates": {
+  "549": [
+   2,
+   8589934770,
+   0
+  ],
+  "909": [
+   2,
+   8589934770,
+   0
+  ],
+  "940": [
+   1,
+   4294967373,
+   0
+  ],
+  "7668": [
+   2,
+   8589934754,
+   64
+  ],
+  "76240": [
+   2,
+   32,
+   0
+  ],
+  "78093": [
+   1,
+   5,
+   2
+  ],
+  "78307": [
+   0,
+   12884902111,
+   8
+  ],
+  "78699": [
+   0,
+   12884902111,
+   8
+  ],
+  "79442": [
+   2,
+   8589934754,
+   64
+  ],
+  "82084": [
+   0,
+   4294967507,
+   128
+  ],
+  "86574": [
+   1,
+   4294967373,
+   0
+  ],
+  "86585": [
+   1,
+   4294967373,
+   0
+  ],
+  "86614": [
+   1,
+   4294967373,
+   0
+  ],
+  "86758": [
+   1,
+   4294967373,
+   0
+  ],
+  "89013": [
+   1,
+   4294967373,
+   0
+  ],
+  "89037": [
+   1,
+   4294967373,
+   0
+  ],
+  "90854": [
+   2,
+   8589934770,
+   0
+  ],
+  "91548": [
+   2,
+   8589934770,
+   0
+  ],
+  "91608": [
+   2,
+   8589934770,
+   0
+  ],
+  "91685": [
+   2,
+   8589934770,
+   0
+  ],
+  "91794": [
+   2,
+   8589934770,
+   0
+  ],
+  "92446": [
+   2,
+   8589934770,
+   0
+  ],
+  "92449": [
+   1,
+   4294967373,
+   0
+  ],
+  "92456": [
+   1,
+   4294967373,
+   0
+  ],
+  "92457": [
+   1,
+   4294967373,
+   0
+  ],
+  "92458": [
+   1,
+   4294967373,
+   0
+  ],
+  "92489": [
+   1,
+   4294967373,
+   0
+  ],
+  "92609": [
+   2,
+   8589934770,
+   0
+  ],
+  "92858": [
+   1,
+   4294967373,
+   0
+  ],
+  "92878": [
+   2,
+   8589934770,
+   0
+  ],
+  "93383": [
+   1,
+   4294967373,
+   0
+  ],
+  "93797": [
+   1,
+   4294967361,
+   128
+  ],
+  "94411": [
+   2,
+   8589934770,
+   0
+  ],
+  "94533": [
+   2,
+   8589934770,
+   0
+  ],
+  "94556": [
+   2,
+   8589934770,
+   0
+  ],
+  "94679": [
+   1,
+   4294967373,
+   0
+  ],
+  "94768": [
+   2,
+   8589934770,
+   0
+  ],
+  "94861": [
+   1,
+   4294967373,
+   0
+  ],
+  "94877": [
+   1,
+   4294967373,
+   0
+  ],
+  "94890": [
+   1,
+   4294967373,
+   0
+  ],
+  "94927": [
+   1,
+   4294967373,
+   0
+  ],
+  "94968": [
+   2,
+   8589934770,
+   0
+  ],
+  "94972": [
+   2,
+   8589934770,
+   0
+  ],
+  "94975": [
+   2,
+   8589934770,
+   0
+  ],
+  "94982": [
+   1,
+   4294967373,
+   0
+  ],
+  "94984": [
+   1,
+   4294967373,
+   0
+  ],
+  "94998": [
+   1,
+   4294967373,
+   0
+  ],
+  "95026": [
+   2,
+   8589934770,
+   0
+  ],
+  "95027": [
+   1,
+   4294967373,
+   0
+  ],
+  "95063": [
+   2,
+   8589934770,
+   0
+  ],
+  "95064": [
+   1,
+   4294967373,
+   0
+  ],
+  "95066": [
+   1,
+   4294967373,
+   0
+  ],
+  "95126": [
+   2,
+   16,
+   2
+  ],
+  "95140": [
+   2,
+   16,
+   2
+  ],
+  "95161": [
+   1,
+   4294967373,
+   0
+  ],
+  "95250": [
+   1,
+   4294967373,
+   0
+  ],
+  "95264": [
+   1,
+   4294967373,
+   0
+  ],
+  "95433": [
+   2,
+   8589934770,
+   0
+  ],
+  "95483": [
+   2,
+   8589934770,
+   0
+  ],
+  "95508": [
+   2,
+   8589934770,
+   0
+  ],
+  "95615": [
+   1,
+   4294967373,
+   0
+  ],
+  "95646": [
+   1,
+   4294967373,
+   0
+  ],
+  "95682": [
+   2,
+   8589934770,
+   0
+  ],
+  "95697": [
+   2,
+   8589934770,
+   0
+  ],
+  "95776": [
+   2,
+   8589934770,
+   0
+  ],
+  "95790": [
+   1,
+   4294967373,
+   0
+  ],
+  "95795": [
+   1,
+   4294967373,
+   0
+  ],
+  "95798": [
+   1,
+   4294967373,
+   0
+  ],
+  "95799": [
+   1,
+   4294967373,
+   0
+  ],
+  "95809": [
+   1,
+   4294967373,
+   0
+  ],
+  "95882": [
+   2,
+   8589934770,
+   0
+  ],
+  "95885": [
+   2,
+   8589934770,
+   0
+  ],
+  "95912": [
+   1,
+   4294967373,
+   0
+  ],
+  "95913": [
+   1,
+   4294967373,
+   0
+  ],
+  "95926": [
+   2,
+   8589934770,
+   0
+  ],
+  "95928": [
+   2,
+   8589934770,
+   0
+  ],
+  "95991": [
+   1,
+   4294967373,
+   0
+  ],
+  "95992": [
+   2,
+   8589934770,
+   0
+  ],
+  "95999": [
+   1,
+   4294967373,
+   0
+  ],
+  "96009": [
+   1,
+   4294967373,
+   0
+  ],
+  "96015": [
+   1,
+   4294967373,
+   0
+  ],
+  "96016": [
+   1,
+   4,
+   64
+  ],
+  "96077": [
+   1,
+   4294967373,
+   0
+  ],
+  "96078": [
+   2,
+   8589934770,
+   0
+  ],
+  "96130": [
+   2,
+   8589934770,
+   0
+  ],
+  "96332": [
+   2,
+   8589934770,
+   0
+  ],
+  "96334": [
+   2,
+   8589934770,
+   0
+  ],
+  "96381": [
+   1,
+   4294967373,
+   0
+  ],
+  "96609": [
+   1,
+   4294967373,
+   0
+  ],
+  "96674": [
+   1,
+   4294967373,
+   0
+  ],
+  "96800": [
+   1,
+   4294967373,
+   0
+  ],
+  "96984": [
+   2,
+   8589934770,
+   0
+  ],
+  "96986": [
+   2,
+   8589934770,
+   0
+  ],
+  "96987": [
+   2,
+   8589934770,
+   0
+  ],
+  "96988": [
+   2,
+   8589934770,
+   0
+  ],
+  "96999": [
+   2,
+   8589934770,
+   0
+  ],
+  "97005": [
+   1,
+   4294967373,
+   0
+  ],
+  "97007": [
+   2,
+   8589934770,
+   0
+  ],
+  "97265": [
+   2,
+   8589934770,
+   0
+  ],
+  "97332": [
+   2,
+   8589934770,
+   0
+  ],
+  "97386": [
+   2,
+   8589934770,
+   0
+  ],
+  "97405": [
+   1,
+   4294967373,
+   0
+  ],
+  "98025": [
+   1,
+   4294967373,
+   0
+  ],
+  "98027": [
+   1,
+   4294967373,
+   0
+  ],
+  "98028": [
+   1,
+   4294967373,
+   0
+  ],
+  "98071": [
+   1,
+   4294967373,
+   0
+  ],
+  "98093": [
+   2,
+   8589934770,
+   0
+  ],
+  "98095": [
+   2,
+   8589934770,
+   0
+  ],
+  "98156": [
+   1,
+   4294967373,
+   0
+  ],
+  "98191": [
+   1,
+   4294967373,
+   0
+  ],
+  "98203": [
+   2,
+   8589934770,
+   0
+  ],
+  "98208": [
+   1,
+   4294967373,
+   0
+  ],
+  "98216": [
+   1,
+   4294967373,
+   0
+  ],
+  "98223": [
+   1,
+   4294967373,
+   0
+  ],
+  "98283": [
+   1,
+   4294967373,
+   0
+  ],
+  "98298": [
+   2,
+   8589934770,
+   0
+  ],
+  "98310": [
+   1,
+   4294967373,
+   0
+  ],
+  "98326": [
+   1,
+   4294967373,
+   0
+  ],
+  "98403": [
+   1,
+   4294967373,
+   0
+  ],
+  "98545": [
+   2,
+   8589934770,
+   0
+  ],
+  "98824": [
+   1,
+   4294967373,
+   0
+  ],
+  "99053": [
+   1,
+   4294967373,
+   0
+  ],
+  "99123": [
+   2,
+   8589934770,
+   0
+  ]
+ },
  "quest_work": {
   "6": [
    0,
@@ -106190,12 +109734,6 @@
    [],
    0
   ],
-  "993": [
-   0,
-   null,
-   [],
-   0
-  ],
   "1012": [
    0,
    3940,
@@ -107101,6 +110639,12 @@
    4
   ],
   "2662": [
+   0,
+   null,
+   [],
+   0
+  ],
+  "2701": [
    0,
    null,
    [],
@@ -108257,12 +111801,6 @@
    [],
    2
   ],
-  "5101": [
-   0,
-   1933,
-   [],
-   1
-  ],
   "5102": [
    62,
    10363,
@@ -108828,12 +112366,6 @@
    12902,
    [],
    1
-  ],
-  "6570": [
-   1,
-   null,
-   [],
-   0
   ],
   "6571": [
    0,
@@ -110520,6 +114052,12 @@
    14516,
    [],
    1
+  ],
+  "8259": [
+   0,
+   null,
+   [],
+   0
   ],
   "8260": [
    0,
@@ -114512,6 +118050,16 @@
    [],
    0
   ],
+  "82084": [
+   0,
+   null,
+   [
+    221359,
+    221361,
+    221360
+   ],
+   3
+  ],
   "82208": [
    0,
    null,
@@ -114619,6 +118167,14 @@
    null,
    [
     246780
+   ],
+   1
+  ],
+  "91608": [
+   0,
+   null,
+   [
+    238503
    ],
    1
   ],
@@ -115015,6 +118571,12 @@
    [],
    0
   ],
+  "93383": [
+   0,
+   null,
+   [],
+   0
+  ],
   "93404": [
    0,
    null,
@@ -115233,6 +118795,14 @@
    [],
    2
   ],
+  "95027": [
+   0,
+   null,
+   [
+    253341
+   ],
+   1
+  ],
   "95064": [
    0,
    256749,
@@ -115343,6 +118913,12 @@
    ],
    1
   ],
+  "95483": [
+   0,
+   null,
+   [],
+   0
+  ],
   "95508": [
    0,
    261367,
@@ -115390,6 +118966,14 @@
    null,
    [
     270333
+   ],
+   1
+  ],
+  "95790": [
+   0,
+   null,
+   [
+    271972
    ],
    1
   ],
@@ -115534,6 +119118,12 @@
    [],
    0
   ],
+  "96077": [
+   0,
+   null,
+   [],
+   0
+  ],
   "96078": [
    0,
    null,
@@ -115642,6 +119232,12 @@
    ],
    1
   ],
+  "96674": [
+   0,
+   265962,
+   [],
+   1
+  ],
   "96800": [
    0,
    null,
@@ -115716,6 +119312,12 @@
     276070
    ],
    1
+  ],
+  "97007": [
+   0,
+   null,
+   [],
+   0
   ],
   "97010": [
    0,
@@ -116161,13 +119763,6 @@
    0,
    "Elwynn Forest"
   ],
-  "98": [
-   "Riverpaw Taskmaster",
-   17,
-   18,
-   0,
-   "Westfall"
-  ],
   "100": [
    "Gruff Swiftbite",
    12,
@@ -116259,13 +119854,6 @@
    0,
    "Westfall"
   ],
-  "154": [
-   "Greater Fleshripper",
-   16,
-   17,
-   0,
-   "Westfall"
-  ],
   "171": [
    "Murloc Warrior",
    15,
@@ -116322,13 +119910,6 @@
    0,
    null
   ],
-  "213": [
-   "Starving Dire Wolf",
-   19,
-   20,
-   0,
-   "Duskwood"
-  ],
   "217": [
    "Venom Web Spider",
    19,
@@ -116369,13 +119950,6 @@
    9,
    9,
    0,
-   null
-  ],
-  "335": [
-   "Singe",
-   24,
-   24,
-   1,
    null
   ],
   "345": [
@@ -116609,12 +120183,12 @@
    0,
    "Westfall"
   ],
-  "505": [
-   "Greater Tarantula",
-   19,
-   20,
-   0,
-   null
+  "506": [
+   "Sergeant Brashclaw",
+   18,
+   18,
+   4,
+   "Westfall"
   ],
   "507": [
    "Fenros",
@@ -116629,6 +120203,13 @@
    12,
    0,
    null
+  ],
+  "517": [
+   "Murloc Oracle",
+   16,
+   18,
+   0,
+   "Westfall"
   ],
   "518": [
    "Yowler",
@@ -116665,19 +120246,19 @@
    0,
    "Duskwood"
   ],
-  "534": [
-   "Nefaru",
-   34,
-   34,
-   4,
-   null
-  ],
   "539": [
    "Pygmy Venom Web Spider",
    18,
    19,
    0,
    "Duskwood"
+  ],
+  "544": [
+   "Murloc Nightcrawler",
+   21,
+   22,
+   0,
+   null
   ],
   "548": [
    "Murloc Minor Tidecaller",
@@ -116699,6 +120280,13 @@
    25,
    0,
    null
+  ],
+  "569": [
+   "Green Recluse",
+   21,
+   22,
+   0,
+   "Duskwood"
   ],
   "570": [
    "Brain Eater",
@@ -116782,6 +120370,13 @@
    18,
    18,
    2,
+   null
+  ],
+  "597": [
+   "Bloodscalp Berserker",
+   36,
+   37,
+   0,
    null
   ],
   "598": [
@@ -116971,7 +120566,7 @@
    43,
    44,
    1,
-   null
+   "Stranglethorn Vale"
   ],
   "681": [
    "Young Stranglethorn Tiger",
@@ -117162,12 +120757,12 @@
    0,
    "Stranglethorn Vale"
   ],
-  "752": [
-   "Marsh Oracle",
-   43,
-   45,
+  "761": [
+   "Lost One Seer",
+   37,
+   38,
    0,
-   "Swamp of Sorrows"
+   null
   ],
   "769": [
    "Deathstrike Tarantula",
@@ -117260,13 +120855,6 @@
    1,
    null
   ],
-  "819": [
-   "Servant of Ilgalar",
-   24,
-   25,
-   0,
-   null
-  ],
   "822": [
    "Young Forest Bear",
    8,
@@ -117302,13 +120890,6 @@
    0,
    "Westfall"
   ],
-  "854": [
-   "Young Jungle Stalker",
-   36,
-   37,
-   0,
-   "Stranglethorn Vale"
-  ],
   "871": [
    "Saltscale Warrior",
    35,
@@ -117329,6 +120910,13 @@
    36,
    1,
    "Stranglethorn Vale"
+  ],
+  "909": [
+   "Defias Night Blade",
+   25,
+   26,
+   0,
+   "Duskwood"
   ],
   "910": [
    "Defias Enchanter",
@@ -117386,13 +120974,6 @@
    0,
    "Dun Morogh"
   ],
-  "948": [
-   "Rotted One",
-   25,
-   26,
-   0,
-   null
-  ],
   "949": [
    "Carrion Recluse",
    25,
@@ -117404,13 +120985,6 @@
    "Mosshide Gnoll",
    20,
    21,
-   0,
-   "Wetlands"
-  ],
-  "1008": [
-   "Mosshide Mongrel",
-   21,
-   22,
    0,
    "Wetlands"
   ],
@@ -117428,6 +121002,13 @@
    0,
    "Wetlands"
   ],
+  "1016": [
+   "Highland Lashtail",
+   24,
+   25,
+   0,
+   "Wetlands"
+  ],
   "1018": [
    "Highland Razormaw",
    27,
@@ -117439,13 +121020,6 @@
    "Elder Razormaw",
    29,
    29,
-   0,
-   "Wetlands"
-  ],
-  "1020": [
-   "Mottled Raptor",
-   22,
-   23,
    0,
    "Wetlands"
   ],
@@ -117519,10 +121093,24 @@
    0,
    "Wetlands"
   ],
+  "1043": [
+   "Lost Whelp",
+   24,
+   25,
+   0,
+   "Wetlands"
+  ],
   "1051": [
    "Dark Iron Dwarf",
    27,
    28,
+   1,
+   "Wetlands"
+  ],
+  "1052": [
+   "Dark Iron Saboteur",
+   28,
+   29,
    1,
    "Wetlands"
   ],
@@ -117533,11 +121121,11 @@
    1,
    "Wetlands"
   ],
-  "1057": [
-   "Dragonmaw Bonewarder",
-   27,
-   28,
-   0,
+  "1054": [
+   "Dark Iron Demolitionist",
+   30,
+   31,
+   1,
    "Wetlands"
   ],
   "1069": [
@@ -117600,13 +121188,6 @@
    "Rockjaw Skullthumper",
    8,
    9,
-   0,
-   "Dun Morogh"
-  ],
-  "1116": [
-   "Rockjaw Ambusher",
-   9,
-   10,
    0,
    "Dun Morogh"
   ],
@@ -117708,6 +121289,13 @@
    0,
    "Stranglethorn Vale"
   ],
+  "1157": [
+   "Cursed Sailor",
+   26,
+   27,
+   0,
+   "Wetlands"
+  ],
   "1158": [
    "Cursed Marine",
    27,
@@ -117741,7 +121329,7 @@
    15,
    16,
    0,
-   "Loch Modan"
+   null
   ],
   "1166": [
    "Stonesplinter Seer",
@@ -117862,13 +121450,6 @@
    0,
    "Dun Morogh"
   ],
-  "1258": [
-   "Black Ravager Mastiff",
-   25,
-   26,
-   0,
-   "Duskwood"
-  ],
   "1260": [
    "Great Father Arctikus",
    11,
@@ -117895,7 +121476,7 @@
    34,
    34,
    1,
-   null
+   "Wetlands"
   ],
   "1388": [
    "Vagash",
@@ -117953,8 +121534,22 @@
    4,
    null
   ],
+  "1489": [
+   "Zanzil Hunter",
+   43,
+   44,
+   0,
+   "Stranglethorn Vale"
+  ],
   "1490": [
    "Zanzil Witch Doctor",
+   44,
+   44,
+   0,
+   "Stranglethorn Vale"
+  ],
+  "1491": [
+   "Zanzil Naga",
    44,
    44,
    0,
@@ -118037,11 +121632,11 @@
    4,
    "Tirisfal Glades"
   ],
-  "1534": [
-   "Wailing Ancestor",
+  "1533": [
+   "Tormented Spirit",
+   8,
    9,
-   10,
-   0,
+   4,
    "Tirisfal Glades"
   ],
   "1535": [
@@ -118268,6 +121863,13 @@
    0,
    "Dun Morogh"
   ],
+  "1720": [
+   "Bruegal Ironknuckle",
+   26,
+   26,
+   2,
+   null
+  ],
   "1725": [
    "Defias Watchman",
    16,
@@ -118310,13 +121912,6 @@
    1,
    null
   ],
-  "1779": [
-   "Moonrage Glutton",
-   12,
-   13,
-   0,
-   "Silverpine Forest"
-  ],
   "1780": [
    "Moss Stalker",
    12,
@@ -118342,6 +121937,20 @@
    "Skeletal Executioner",
    53,
    55,
+   0,
+   "Western Plaguelands"
+  ],
+  "1789": [
+   "Skeletal Acolyte",
+   55,
+   56,
+   0,
+   "Western Plaguelands"
+  ],
+  "1791": [
+   "Slavering Ghoul",
+   50,
+   52,
    0,
    "Western Plaguelands"
   ],
@@ -118379,13 +121988,6 @@
    10,
    4,
    "Tirisfal Glades"
-  ],
-  "1933": [
-   "Sheep",
-   3,
-   3,
-   0,
-   null
   ],
   "1934": [
    "Tirisfal Farmer",
@@ -118471,13 +122073,6 @@
    0,
    "Teldrassil"
   ],
-  "1997": [
-   "Strigid Hunter",
-   8,
-   9,
-   0,
-   "Teldrassil"
-  ],
   "2000": [
    "Webwood Silkspinner",
    8,
@@ -118492,13 +122087,6 @@
    0,
    "Teldrassil"
   ],
-  "2009": [
-   "Gnarlpine Shaman",
-   7,
-   8,
-   0,
-   "Teldrassil"
-  ],
   "2011": [
    "Gnarlpine Augur",
    8,
@@ -118510,6 +122098,13 @@
    "Timberling Mire Beast",
    9,
    10,
+   0,
+   "Teldrassil"
+  ],
+  "2030": [
+   "Elder Timberling",
+   10,
+   11,
    0,
    "Teldrassil"
   ],
@@ -118632,13 +122227,6 @@
    0,
    null
   ],
-  "2172": [
-   "Strider Clutchmother",
-   20,
-   20,
-   4,
-   null
-  ],
   "2176": [
    "Cursed Highborne",
    10,
@@ -118674,6 +122262,13 @@
    0,
    "Darkshore"
   ],
+  "2186": [
+   "Carnivous the Breaker",
+   16,
+   16,
+   4,
+   null
+  ],
   "2189": [
    "Vile Sprite",
    10,
@@ -118687,13 +122282,6 @@
    14,
    4,
    null
-  ],
-  "2203": [
-   "Greymist Seer",
-   13,
-   14,
-   0,
-   "Darkshore"
   ],
   "2231": [
    "Pygmy Tide Crawler",
@@ -118716,26 +122304,12 @@
    0,
    null
   ],
-  "2235": [
-   "Reef Crawler",
-   15,
-   17,
-   0,
-   "Darkshore"
-  ],
   "2236": [
    "Raging Reef Crawler",
    20,
    21,
    0,
    "Darkshore"
-  ],
-  "2240": [
-   "Syndicate Footpad",
-   31,
-   33,
-   0,
-   null
   ],
   "2241": [
    "Syndicate Thief",
@@ -118912,13 +122486,6 @@
    0,
    null
   ],
-  "2369": [
-   "Daggerspine Shorehunter",
-   30,
-   31,
-   0,
-   "Hillsbrad Foothills"
-  ],
   "2371": [
    "Daggerspine Siren",
    31,
@@ -119073,6 +122640,13 @@
    0,
    "Arathi Highlands"
   ],
+  "2561": [
+   "Highland Fleshstalker",
+   36,
+   37,
+   0,
+   "Arathi Highlands"
+  ],
   "2563": [
    "Plains Creeper",
    32,
@@ -119136,13 +122710,6 @@
    0,
    null
   ],
-  "2581": [
-   "Dabyrie Militia",
-   31,
-   32,
-   0,
-   "Arathi Highlands"
-  ],
   "2586": [
    "Syndicate Highwayman",
    30,
@@ -119184,6 +122751,13 @@
    34,
    4,
    null
+  ],
+  "2602": [
+   "Ruul Onestone",
+   39,
+   39,
+   2,
+   "Arathi Highlands"
   ],
   "2603": [
    "Kovork",
@@ -119227,22 +122801,15 @@
    1,
    null
   ],
-  "2643": [
-   "Vilebranch Berserker",
-   47,
-   48,
-   1,
-   null
-  ],
-  "2645": [
-   "Vilebranch Shadow Hunter",
-   48,
-   49,
-   1,
-   null
-  ],
   "2646": [
    "Vilebranch Blood Drinker",
+   49,
+   50,
+   1,
+   null
+  ],
+  "2647": [
+   "Vilebranch Soul Eater",
    49,
    50,
    1,
@@ -119308,6 +122875,13 @@
    "Ridge Stalker Patriarch",
    40,
    41,
+   0,
+   null
+  ],
+  "2735": [
+   "Lesser Rock Elemental",
+   37,
+   39,
    0,
    null
   ],
@@ -119577,13 +123151,6 @@
    0,
    null
   ],
-  "3131": [
-   "Lightning Hide",
-   10,
-   11,
-   0,
-   null
-  ],
   "3183": [
    "Yarrog Baneshadow",
    5,
@@ -119710,12 +123277,12 @@
    0,
    "The Barrens"
   ],
-  "3258": [
-   "Bristleback Hunter",
-   17,
+  "3256": [
+   "Sunscale Scytheclaw",
+   16,
    18,
    0,
-   null
+   "The Barrens"
   ],
   "3260": [
    "Bristleback Water Seeker",
@@ -119724,10 +123291,10 @@
    0,
    null
   ],
-  "3265": [
-   "Razormane Hunter",
-   11,
-   12,
+  "3261": [
+   "Bristleback Thornweaver",
+   18,
+   19,
    0,
    null
   ],
@@ -119798,13 +123365,6 @@
    "Bael'dun Excavator",
    21,
    22,
-   0,
-   null
-  ],
-  "3375": [
-   "Bael'dun Foreman",
-   22,
-   23,
    0,
    null
   ],
@@ -119941,13 +123501,6 @@
    0,
    null
   ],
-  "3461": [
-   "Oasis Snapjaw",
-   15,
-   16,
-   0,
-   null
-  ],
   "3470": [
    "Rathorian",
    15,
@@ -119995,13 +123548,6 @@
    19,
    19,
    2,
-   null
-  ],
-  "3631": [
-   "Deviate Stinglash",
-   16,
-   17,
-   1,
    null
   ],
   "3636": [
@@ -120137,13 +123683,6 @@
    0,
    "Ashenvale"
   ],
-  "3820": [
-   "Wildthorn Venomspitter",
-   24,
-   25,
-   0,
-   "Ashenvale"
-  ],
   "3823": [
    "Ghostpaw Runner",
    19,
@@ -120172,31 +123711,10 @@
    1,
    null
   ],
-  "3851": [
-   "Shadowfang Whitescalp",
-   18,
-   19,
-   1,
-   null
-  ],
-  "3853": [
-   "Shadowfang Moonwalker",
-   20,
-   20,
-   1,
-   null
-  ],
   "3857": [
    "Shadowfang Glutton",
    21,
    21,
-   1,
-   null
-  ],
-  "3862": [
-   "Slavering Worg",
-   18,
-   18,
    1,
    null
   ],
@@ -120249,6 +123767,13 @@
    1,
    null
   ],
+  "3917": [
+   "Befouled Water Elemental",
+   23,
+   25,
+   0,
+   null
+  ],
   "3924": [
    "Thistlefur Shaman",
    23,
@@ -120282,13 +123807,6 @@
    32,
    32,
    0,
-   null
-  ],
-  "3947": [
-   "Goblin Shipbuilder",
-   19,
-   20,
-   1,
    null
   ],
   "3974": [
@@ -120403,17 +123921,17 @@
    1,
    null
   ],
+  "4065": [
+   "Blackrock Sentry",
+   20,
+   22,
+   1,
+   null
+  ],
   "4067": [
    "Twilight Runner",
    23,
    24,
-   0,
-   null
-  ],
-  "4094": [
-   "Galak Scout",
-   24,
-   25,
    0,
    null
   ],
@@ -120447,6 +123965,13 @@
   ],
   "4107": [
    "Highperch Wyvern",
+   28,
+   29,
+   0,
+   null
+  ],
+  "4109": [
+   "Highperch Consort",
    28,
    29,
    0,
@@ -120536,13 +124061,6 @@
    0,
    null
   ],
-  "4248": [
-   "Pesterhide Hyena",
-   26,
-   27,
-   0,
-   "Thousand Needles"
-  ],
   "4249": [
    "Pesterhide Snarler",
    28,
@@ -120599,6 +124117,13 @@
    1,
    null
   ],
+  "4288": [
+   "Scarlet Beastmaster",
+   34,
+   35,
+   1,
+   null
+  ],
   "4289": [
    "Scarlet Evoker",
    36,
@@ -120627,6 +124152,13 @@
    1,
    null
   ],
+  "4293": [
+   "Scarlet Scryer",
+   30,
+   31,
+   1,
+   null
+  ],
   "4294": [
    "Scarlet Sorcerer",
    37,
@@ -120638,13 +124170,6 @@
    "Scarlet Myrmidon",
    37,
    38,
-   1,
-   null
-  ],
-  "4296": [
-   "Scarlet Adept",
-   33,
-   34,
    1,
    null
   ],
@@ -120678,13 +124203,6 @@
   ],
   "4302": [
    "Scarlet Champion",
-   39,
-   40,
-   1,
-   null
-  ],
-  "4303": [
-   "Scarlet Abbot",
    39,
    40,
    1,
@@ -120935,13 +124453,6 @@
    1,
    null
   ],
-  "4519": [
-   "Death's Head Seer",
-   28,
-   29,
-   1,
-   null
-  ],
   "4522": [
    "Razorfen Dustweaver",
    28,
@@ -120953,13 +124464,6 @@
    "Razorfen Groundshaker",
    27,
    28,
-   1,
-   null
-  ],
-  "4525": [
-   "Razorfen Earthbreaker",
-   30,
-   31,
    1,
    null
   ],
@@ -121040,6 +124544,13 @@
    0,
    null
   ],
+  "4637": [
+   "Kolkar Destroyer",
+   32,
+   33,
+   0,
+   null
+  ],
   "4639": [
    "Magram Outrunner",
    32,
@@ -121054,10 +124565,10 @@
    0,
    null
   ],
-  "4641": [
-   "Magram Windchaser",
-   33,
-   34,
+  "4644": [
+   "Magram Marauder",
+   35,
+   36,
    0,
    null
   ],
@@ -121109,6 +124620,13 @@
    33,
    0,
    "Desolace"
+  ],
+  "4726": [
+   "Raging Thunder Lizard",
+   33,
+   34,
+   0,
+   null
   ],
   "4788": [
    "Fallenroot Satyr",
@@ -121229,6 +124747,13 @@
    1,
    null
   ],
+  "4841": [
+   "Deadmire",
+   45,
+   45,
+   0,
+   null
+  ],
   "4844": [
    "Shadowforge Surveyor",
    35,
@@ -121247,20 +124772,6 @@
    "Shadowforge Archaeologist",
    43,
    44,
-   1,
-   null
-  ],
-  "4850": [
-   "Stonevault Cave Lurker",
-   37,
-   39,
-   1,
-   null
-  ],
-  "4851": [
-   "Stonevault Rockchewer",
-   36,
-   37,
    1,
    null
   ],
@@ -121320,6 +124831,20 @@
    0,
    null
   ],
+  "5226": [
+   "Murk Worm",
+   47,
+   48,
+   1,
+   null
+  ],
+  "5232": [
+   "Gordunni Brute",
+   42,
+   43,
+   0,
+   "Feralas"
+  ],
   "5234": [
    "Gordunni Mauler",
    43,
@@ -121340,13 +124865,6 @@
    44,
    0,
    "Feralas"
-  ],
-  "5243": [
-   "Cursed Atal'ai",
-   45,
-   46,
-   1,
-   "Swamp of Sorrows"
   ],
   "5245": [
    "Zukk'ash Wasp",
@@ -121390,20 +124908,6 @@
    1,
    null
   ],
-  "5272": [
-   "Grizzled Ironfur Bear",
-   44,
-   45,
-   0,
-   "Feralas"
-  ],
-  "5278": [
-   "Sprite Darter",
-   43,
-   45,
-   0,
-   null
-  ],
   "5280": [
    "Nightmare Wyrmkin",
    50,
@@ -121422,13 +124926,6 @@
    "Feral Scar Yeti",
    43,
    44,
-   0,
-   null
-  ],
-  "5295": [
-   "Enraged Feral Scar",
-   44,
-   45,
    0,
    null
   ],
@@ -121460,6 +124957,20 @@
    4,
    null
   ],
+  "5350": [
+   "Qirot",
+   47,
+   47,
+   4,
+   "Feralas"
+  ],
+  "5358": [
+   "Cliff Giant",
+   49,
+   50,
+   1,
+   "Feralas"
+  ],
   "5402": [
    "Khan Hratha",
    42,
@@ -121485,13 +124996,6 @@
    "Roc",
    41,
    43,
-   0,
-   "Tanaris"
-  ],
-  "5429": [
-   "Fire Roc",
-   43,
-   45,
    0,
    "Tanaris"
   ],
@@ -121541,13 +125045,6 @@
    "Wastewander Rogue",
    43,
    44,
-   0,
-   "Tanaris"
-  ],
-  "5623": [
-   "Wastewander Assassin",
-   44,
-   45,
    0,
    "Tanaris"
   ],
@@ -121614,8 +125111,22 @@
    1,
    null
   ],
+  "5714": [
+   "Loro",
+   51,
+   51,
+   1,
+   null
+  ],
   "5715": [
    "Hukku",
+   52,
+   52,
+   1,
+   null
+  ],
+  "5717": [
+   "Mijan",
    52,
    52,
    1,
@@ -121628,17 +125139,17 @@
    1,
    null
   ],
+  "5720": [
+   "Weaver",
+   51,
+   51,
+   1,
+   null
+  ],
   "5722": [
    "Hazzas",
    53,
    53,
-   1,
-   null
-  ],
-  "5756": [
-   "Deviate Venomwing",
-   20,
-   21,
    1,
    null
   ],
@@ -121719,6 +125230,13 @@
    2,
    null
   ],
+  "5826": [
+   "Geolord Mottle",
+   9,
+   9,
+   4,
+   null
+  ],
   "5827": [
    "Brontus",
    27,
@@ -121782,6 +125300,20 @@
    2,
    null
   ],
+  "5842": [
+   "Takk the Leaper",
+   19,
+   19,
+   2,
+   null
+  ],
+  "5843": [
+   "Slave Worker",
+   44,
+   47,
+   0,
+   null
+  ],
   "5846": [
    "Dark Iron Taskmaster",
    46,
@@ -121793,6 +125325,13 @@
    "Heggin Stonewhisker",
    24,
    24,
+   4,
+   null
+  ],
+  "5848": [
+   "Malgin Barleybrew",
+   25,
+   25,
    4,
    null
   ],
@@ -121838,6 +125377,13 @@
    2,
    null
   ],
+  "5860": [
+   "Twilight Dark Shaman",
+   47,
+   48,
+   1,
+   null
+  ],
   "5863": [
    "Geopriest Gukk'rok",
    19,
@@ -121865,13 +125411,6 @@
    48,
    0,
    "Blasted Lands"
-  ],
-  "5984": [
-   "Starving Snickerfang",
-   45,
-   46,
-   0,
-   null
   ],
   "5992": [
    "Ashmane Boar",
@@ -121908,13 +125447,6 @@
    4,
    null
   ],
-  "6123": [
-   "Dark Iron Spy",
-   9,
-   11,
-   0,
-   "Dun Morogh"
-  ],
   "6168": [
    "Roogug",
    28,
@@ -121950,11 +125482,11 @@
    1,
    null
   ],
-  "6223": [
-   "Leprous Defender",
-   28,
+  "6224": [
+   "Leprous Machinesmith",
    29,
-   1,
+   30,
+   0,
    null
   ],
   "6226": [
@@ -121969,6 +125501,13 @@
    31,
    32,
    1,
+   null
+  ],
+  "6228": [
+   "Dark Iron Ambassador",
+   33,
+   33,
+   2,
    null
   ],
   "6229": [
@@ -122020,6 +125559,13 @@
    0,
    null
   ],
+  "6391": [
+   "Holdout Warrior",
+   29,
+   30,
+   1,
+   "Dun Morogh"
+  ],
   "6487": [
    "Arcanist Doan",
    37,
@@ -122048,20 +125594,6 @@
    2,
    null
   ],
-  "6509": [
-   "Bloodpetal Lasher",
-   48,
-   49,
-   0,
-   null
-  ],
-  "6511": [
-   "Bloodpetal Thresher",
-   49,
-   50,
-   0,
-   null
-  ],
   "6514": [
    "Un'Goro Gorilla",
    50,
@@ -122073,6 +125605,13 @@
    "Living Blaze",
    54,
    55,
+   0,
+   null
+  ],
+  "6527": [
+   "Tar Creeper",
+   51,
+   52,
    0,
    null
   ],
@@ -122188,13 +125727,6 @@
    0,
    null
   ],
-  "7011": [
-   "Earthen Rocksmasher",
-   42,
-   43,
-   0,
-   null
-  ],
   "7012": [
    "Earthen Sculptor",
    42,
@@ -122237,6 +125769,20 @@
    0,
    null
   ],
+  "7055": [
+   "Blackrock Worg",
+   54,
+   55,
+   0,
+   null
+  ],
+  "7078": [
+   "Cleft Scorpid",
+   35,
+   36,
+   0,
+   null
+  ],
   "7079": [
    "Viscous Fallout",
    30,
@@ -122244,8 +125790,15 @@
    1,
    null
   ],
-  "7115": [
-   "Jaedenar Adept",
+  "7104": [
+   "Dessecus",
+   56,
+   56,
+   2,
+   null
+  ],
+  "7112": [
+   "Jaedenar Cultist",
    51,
    52,
    0,
@@ -122382,6 +125935,13 @@
    10,
    10,
    0,
+   null
+  ],
+  "7320": [
+   "Stonevault Mauler",
+   44,
+   45,
+   1,
    null
   ],
   "7327": [
@@ -122531,13 +126091,6 @@
    0,
    null
   ],
-  "7397": [
-   "Earthen Stonecarver",
-   44,
-   45,
-   0,
-   null
-  ],
   "7405": [
    "Deadly Cleft Scorpid",
    42,
@@ -122636,13 +126189,6 @@
    0,
    "Tanaris"
   ],
-  "7864": [
-   "Lingering Highborne",
-   48,
-   50,
-   0,
-   "Azshara"
-  ],
   "7872": [
    "Death's Head Cultist",
    33,
@@ -122706,6 +126252,13 @@
    2,
    null
   ],
+  "8202": [
+   "Cyclok the Mad",
+   48,
+   48,
+   4,
+   null
+  ],
   "8207": [
    "Greater Firebird",
    46,
@@ -122733,6 +126286,13 @@
    48,
    4,
    "Searing Gorge"
+  ],
+  "8283": [
+   "Slave Master Blackheart",
+   50,
+   50,
+   4,
+   null
   ],
   "8311": [
    "Slime Maggot",
@@ -122766,6 +126326,13 @@
    "Lathoric the Black",
    51,
    52,
+   1,
+   null
+  ],
+  "8438": [
+   "Hakkari Bloodkeeper",
+   49,
+   50,
    1,
    null
   ],
@@ -122860,6 +126427,13 @@
    0,
    "Azshara"
   ],
+  "8889": [
+   "Anvilrage Overseer",
+   48,
+   49,
+   1,
+   null
+  ],
   "8890": [
    "Anvilrage Warden",
    49,
@@ -122893,6 +126467,13 @@
    53,
    54,
    1,
+   null
+  ],
+  "8897": [
+   "Doomforge Craftsman",
+   52,
+   54,
+   0,
    null
   ],
   "8898": [
@@ -122948,6 +126529,13 @@
    "Twilight's Hammer Torturer",
    50,
    51,
+   1,
+   null
+  ],
+  "8914": [
+   "Twilight Bodyguard",
+   53,
+   54,
    1,
    null
   ],
@@ -123126,6 +126714,13 @@
    2,
    null
   ],
+  "9045": [
+   "Scarshield Acolyte",
+   54,
+   55,
+   1,
+   null
+  ],
   "9056": [
    "Fineous Darkvire",
    54,
@@ -123133,8 +126728,22 @@
    1,
    null
   ],
+  "9096": [
+   "Rage Talon Dragonspawn",
+   58,
+   59,
+   1,
+   null
+  ],
   "9097": [
    "Scarshield Legionnaire",
+   54,
+   55,
+   1,
+   null
+  ],
+  "9098": [
+   "Scarshield Spellbinder",
    54,
    55,
    1,
@@ -123151,6 +126760,13 @@
    "Fledgling Pterrordax",
    48,
    50,
+   0,
+   null
+  ],
+  "9166": [
+   "Pterrordax",
+   50,
+   52,
    0,
    null
   ],
@@ -123178,6 +126794,13 @@
   "9198": [
    "Spirestone Mystic",
    55,
+   56,
+   1,
+   null
+  ],
+  "9200": [
+   "Spirestone Reaver",
+   54,
    56,
    1,
    null
@@ -123238,6 +126861,13 @@
    1,
    null
   ],
+  "9269": [
+   "Smolderthorn Seer",
+   56,
+   57,
+   1,
+   null
+  ],
   "9318": [
    "Incendosaur",
    47,
@@ -123259,11 +126889,11 @@
    1,
    null
   ],
-  "9445": [
-   "Dark Guard",
+  "9416": [
+   "Scarshield Worg",
    53,
    54,
-   1,
+   0,
    null
   ],
   "9448": [
@@ -123322,13 +126952,6 @@
    1,
    null
   ],
-  "9554": [
-   "Hammered Patron",
-   48,
-   52,
-   1,
-   null
-  ],
   "9568": [
    "Overlord Wyrmthalak",
    60,
@@ -123376,6 +126999,13 @@
    56,
    57,
    0,
+   null
+  ],
+  "9716": [
+   "Bloodaxe Warmonger",
+   57,
+   58,
+   1,
    null
   ],
   "9736": [
@@ -123432,6 +127062,13 @@
    54,
    54,
    0,
+   null
+  ],
+  "10080": [
+   "Sandarr Dunereaver",
+   45,
+   45,
+   2,
    null
   ],
   "10081": [
@@ -123546,6 +127183,13 @@
    1,
    null
   ],
+  "10382": [
+   "Mangled Cadaver",
+   55,
+   56,
+   1,
+   null
+  ],
   "10390": [
    "Skeletal Guardian",
    55,
@@ -123567,6 +127211,13 @@
    2,
    null
   ],
+  "10394": [
+   "Black Guard Sentry",
+   58,
+   59,
+   1,
+   null
+  ],
   "10398": [
    "Thuzadin Shadowcaster",
    58,
@@ -123581,6 +127232,20 @@
    0,
    null
   ],
+  "10400": [
+   "Thuzadin Necromancer",
+   59,
+   61,
+   1,
+   null
+  ],
+  "10405": [
+   "Plague Ghoul",
+   57,
+   58,
+   1,
+   null
+  ],
   "10407": [
    "Fleshflayer Ghoul",
    59,
@@ -123588,8 +127253,15 @@
    1,
    null
   ],
-  "10409": [
-   "Rockwing Screecher",
+  "10408": [
+   "Rockwing Gargoyle",
+   57,
+   58,
+   1,
+   null
+  ],
+  "10412": [
+   "Crypt Crawler",
    58,
    59,
    1,
@@ -123616,6 +127288,13 @@
    1,
    null
   ],
+  "10419": [
+   "Crimson Conjuror",
+   57,
+   58,
+   1,
+   null
+  ],
   "10421": [
    "Crimson Defender",
    58,
@@ -123634,6 +127313,20 @@
    "Crimson Priest",
    58,
    59,
+   1,
+   null
+  ],
+  "10425": [
+   "Crimson Battle Mage",
+   59,
+   60,
+   1,
+   null
+  ],
+  "10426": [
+   "Crimson Inquisitor",
+   59,
+   60,
    1,
    null
   ],
@@ -123721,10 +127414,31 @@
    1,
    null
   ],
+  "10470": [
+   "Scholomance Neophyte",
+   57,
+   58,
+   1,
+   null
+  ],
   "10476": [
    "Scholomance Necrolyte",
    57,
    58,
+   1,
+   null
+  ],
+  "10477": [
+   "Scholomance Necromancer",
+   58,
+   59,
+   1,
+   null
+  ],
+  "10478": [
+   "Splintered Skeleton",
+   59,
+   60,
    1,
    null
   ],
@@ -123735,9 +127449,23 @@
    1,
    null
   ],
+  "10491": [
+   "Risen Bonewarder",
+   58,
+   59,
+   1,
+   null
+  ],
   "10498": [
    "Spectral Tutor",
    58,
+   60,
+   1,
+   null
+  ],
+  "10502": [
+   "Lady Illucia Barov",
+   60,
    60,
    1,
    null
@@ -124008,6 +127736,13 @@
    1,
    null
   ],
+  "11257": [
+   "Scholomance Handler",
+   59,
+   60,
+   1,
+   null
+  ],
   "11261": [
    "Doctor Theolen Krastinov",
    60,
@@ -124022,10 +127757,10 @@
    1,
    null
   ],
-  "11319": [
-   "Ragefire Shaman",
+  "11320": [
+   "Earthborer",
    13,
-   15,
+   14,
    1,
    null
   ],
@@ -124047,6 +127782,13 @@
    "Searing Blade Enforcer",
    13,
    15,
+   1,
+   null
+  ],
+  "11440": [
+   "Gordok Enforcer",
+   53,
+   54,
    1,
    null
   ],
@@ -124176,6 +127918,13 @@
    1,
    null
   ],
+  "11551": [
+   "Necrofiend",
+   58,
+   60,
+   1,
+   null
+  ],
   "11560": [
    "Magrami Spectre",
    38,
@@ -124230,6 +127979,13 @@
    41,
    42,
    0,
+   "Desolace"
+  ],
+  "11688": [
+   "Cursed Centaur",
+   43,
+   43,
+   4,
    "Desolace"
   ],
   "11698": [
@@ -124330,12 +128086,26 @@
    0,
    null
   ],
+  "11778": [
+   "Shadowshard Smasher",
+   41,
+   42,
+   1,
+   "Desolace"
+  ],
   "11788": [
    "Rock Worm",
    41,
    42,
    1,
    "Desolace"
+  ],
+  "11789": [
+   "Deep Borer",
+   46,
+   48,
+   0,
+   null
   ],
   "11790": [
    "Putridus Satyr",
@@ -124463,13 +128233,6 @@
    1,
    null
   ],
-  "12207": [
-   "Thessala Hydra",
-   46,
-   47,
-   1,
-   null
-  ],
   "12216": [
    "Poison Sprite",
    42,
@@ -124512,13 +128275,6 @@
    1,
    null
   ],
-  "12223": [
-   "Cavern Lurker",
-   45,
-   46,
-   1,
-   null
-  ],
   "12224": [
    "Cavern Shambler",
    46,
@@ -124535,13 +128291,6 @@
   ],
   "12236": [
    "Lord Vyletongue",
-   47,
-   47,
-   1,
-   null
-  ],
-  "12243": [
-   "Spirit of Veng",
    47,
    47,
    1,
@@ -124715,10 +128464,10 @@
    1,
    null
   ],
-  "13142": [
-   "Deeprot Tangler",
+  "13141": [
+   "Deeprot Stomper",
+   43,
    44,
-   45,
    1,
    null
   ],
@@ -124785,10 +128534,17 @@
    1,
    null
   ],
-  "14221": [
-   "Gravis Slipknot",
-   36,
-   36,
+  "14123": [
+   "Steeljaw Snapper",
+   42,
+   43,
+   0,
+   "Tanaris"
+  ],
+  "14222": [
+   "Araga",
+   35,
+   35,
    4,
    null
   ],
@@ -124831,13 +128587,6 @@
    "Boulderheart",
    25,
    25,
-   4,
-   null
-  ],
-  "14277": [
-   "Lady Zephris",
-   33,
-   33,
    4,
    null
   ],
@@ -124918,6 +128667,13 @@
    4,
    "Teldrassil"
   ],
+  "14431": [
+   "Fury Shelda",
+   8,
+   8,
+   4,
+   "Teldrassil"
+  ],
   "14432": [
    "Threggil",
    6,
@@ -124936,13 +128692,6 @@
    "Roloch",
    38,
    38,
-   4,
-   "Stranglethorn Vale"
-  ],
-  "14492": [
-   "Verifonix",
-   42,
-   42,
    4,
    "Stranglethorn Vale"
   ],
@@ -125282,13 +129031,6 @@
    0,
    null
   ],
-  "211965": [
-   "Carrodin",
-   25,
-   25,
-   4,
-   "Wetlands"
-  ],
   "212753": [
    "Tortured Soul",
    20,
@@ -125317,17 +129059,17 @@
    4,
    "Arathi Highlands"
   ],
+  "236867": [
+   "Legashi Soulstealer",
+   53,
+   54,
+   0,
+   null
+  ],
   "243509": [
    "Noxious Slime",
    56,
    57,
-   0,
-   null
-  ],
-  "246008": [
-   "Mana Devourer",
-   0,
-   0,
    0,
    null
   ],
@@ -125359,8 +129101,29 @@
    0,
    null
   ],
+  "246664": [
+   "Fragmented Sentry",
+   0,
+   0,
+   0,
+   null
+  ],
   "246888": [
    "Arcane Elemental",
+   0,
+   0,
+   0,
+   null
+  ],
+  "246890": [
+   "Arcane Manaling",
+   0,
+   0,
+   0,
+   null
+  ],
+  "246990": [
+   "Phantasm",
    0,
    0,
    0,
@@ -125387,8 +129150,29 @@
    0,
    null
   ],
+  "247198": [
+   "Bonesnout the Unbroken",
+   0,
+   0,
+   0,
+   null
+  ],
   "247206": [
    "Impaan the Imprisoner",
+   0,
+   0,
+   0,
+   null
+  ],
+  "247209": [
+   "Elder Shaman Bloodmane",
+   0,
+   0,
+   0,
+   null
+  ],
+  "247231": [
+   "Unbound Spirit",
    0,
    0,
    0,
@@ -125398,6 +129182,20 @@
    "Varrox Bleakhoof",
    0,
    0,
+   0,
+   null
+  ],
+  "247237": [
+   "Blackmaw Berserker",
+   55,
+   57,
+   1,
+   null
+  ],
+  "248395": [
+   "Tainted Shrubbery",
+   55,
+   56,
    0,
    null
   ],
@@ -125428,6 +129226,13 @@
    59,
    0,
    null
+  ],
+  "250023": [
+   "Blackmaw Thrall",
+   55,
+   57,
+   1,
+   "Azshara"
   ],
   "250187": [
    "Bladetooth Frenzy",
@@ -125462,13 +129267,6 @@
    0,
    0,
    0,
-   null
-  ],
-  "250626": [
-   "Skeletal Soldier",
-   0,
-   0,
-   1,
    null
   ],
   "250631": [
@@ -125562,6 +129360,13 @@
    1,
    null
   ],
+  "252664": [
+   "Al'Aketh Stormchaser",
+   10,
+   11,
+   0,
+   null
+  ],
   "252666": [
    "Commander Belguilos",
    10,
@@ -125590,10 +129395,31 @@
    0,
    null
   ],
+  "253201": [
+   "Titanosaur",
+   0,
+   0,
+   0,
+   null
+  ],
+  "253215": [
+   "Ravasaur Matriarch",
+   0,
+   0,
+   0,
+   null
+  ],
   "253511": [
    "Al'Aketh Pillager",
    8,
    9,
+   0,
+   null
+  ],
+  "253524": [
+   "Bristleback Nomad",
+   42,
+   43,
    0,
    null
   ],
@@ -125625,8 +129451,15 @@
    0,
    "Riverglades"
   ],
-  "255065": [
-   "Risen Terror",
+  "254567": [
+   "Terrible Tulip",
+   41,
+   42,
+   0,
+   null
+  ],
+  "255068": [
+   "Mindless Horror",
    0,
    0,
    0,
@@ -125641,6 +129474,13 @@
   ],
   "255070": [
    "Skeletal Warder",
+   0,
+   0,
+   0,
+   null
+  ],
+  "255072": [
+   "Dark Caster",
    0,
    0,
    0,
@@ -125715,6 +129555,13 @@
    0,
    0,
    null
+  ],
+  "255394": [
+   "Blackmaw Champion",
+   57,
+   57,
+   1,
+   "Azshara"
   ],
   "255702": [
    "Blazeroar",
@@ -126066,6 +129913,13 @@
    0,
    "Riverglades"
   ],
+  "259055": [
+   "Wildplains Huntress",
+   38,
+   39,
+   0,
+   "Riverglades"
+  ],
   "259267": [
    "Plains Coyote",
    36,
@@ -126078,6 +129932,13 @@
    0,
    0,
    0,
+   null
+  ],
+  "259385": [
+   "Tel'daeor the Stormspeaker",
+   13,
+   13,
+   4,
    null
   ],
   "259394": [
@@ -126099,6 +129960,13 @@
    49,
    49,
    2,
+   "Riverglades"
+  ],
+  "259801": [
+   "Mosh'gra",
+   41,
+   41,
+   4,
    "Riverglades"
   ],
   "259897": [
@@ -126178,8 +130046,8 @@
    0,
    null
   ],
-  "260801": [
-   "Thicket Hunter",
+  "260800": [
+   "Thicket Lurker",
    0,
    0,
    0,
@@ -126197,6 +130065,13 @@
    28,
    29,
    1,
+   "Wetlands"
+  ],
+  "260809": [
+   "Highland Tortoise",
+   25,
+   26,
+   0,
    "Wetlands"
   ],
   "260995": [
@@ -126220,13 +130095,6 @@
    1,
    null
   ],
-  "261319": [
-   "Durgen Dirgehammer",
-   0,
-   0,
-   1,
-   null
-  ],
   "261367": [
    "Terry Longdrink",
    19,
@@ -126234,8 +130102,57 @@
    0,
    null
   ],
+  "261809": [
+   "Nanaya",
+   0,
+   0,
+   0,
+   null
+  ],
+  "261811": [
+   "Tor'Rel",
+   0,
+   0,
+   0,
+   null
+  ],
+  "261812": [
+   "Thunderhoof",
+   0,
+   0,
+   0,
+   null
+  ],
+  "261813": [
+   "Venomridge",
+   0,
+   0,
+   0,
+   null
+  ],
+  "261974": [
+   "Cinder",
+   0,
+   0,
+   0,
+   null
+  ],
   "262065": [
    "Riding Wolf",
+   0,
+   0,
+   0,
+   null
+  ],
+  "262081": [
+   "Bolt",
+   0,
+   0,
+   0,
+   null
+  ],
+  "262127": [
+   "Direhorn Matriarch",
    0,
    0,
    0,
@@ -126247,6 +130164,20 @@
    41,
    0,
    "Riverglades"
+  ],
+  "262297": [
+   "Snowtalon",
+   0,
+   0,
+   0,
+   null
+  ],
+  "262301": [
+   "Eastgrotto Silverback",
+   0,
+   0,
+   0,
+   null
   ],
   "262716": [
    "Kroog",
@@ -126297,10 +130228,24 @@
    1,
    null
   ],
+  "263466": [
+   "Lesser Stone Golem",
+   0,
+   0,
+   1,
+   null
+  ],
   "263470": [
    "Bloodhound Runt",
    0,
    0,
+   0,
+   null
+  ],
+  "263681": [
+   "Bear",
+   41,
+   42,
    0,
    null
   ],
@@ -126353,6 +130298,13 @@
    0,
    null
   ],
+  "265962": [
+   "Escaped Sheep",
+   5,
+   5,
+   0,
+   null
+  ],
   "267006": [
    "Dark Neophyte",
    11,
@@ -126395,13 +130347,6 @@
    0,
    null
   ],
-  "269175": [
-   "Carnivorous Weed",
-   36,
-   38,
-   0,
-   "Stranglethorn Vale"
-  ],
   "269185": [
    "Headsplitter",
    15,
@@ -126422,13 +130367,6 @@
    10,
    4,
    "Tirisfal Glades"
-  ],
-  "271348": [
-   "Dragonmaw Soulbinder",
-   29,
-   30,
-   1,
-   "Wetlands"
   ],
   "271351": [
    "Dragonmaw Reclaimer",
@@ -126451,8 +130389,22 @@
    0,
    null
   ],
+  "272561": [
+   "Vitrix",
+   0,
+   0,
+   0,
+   null
+  ],
   "275044": [
    "Dragonmaw Warder",
+   0,
+   0,
+   0,
+   null
+  ],
+  "275045": [
+   "Dragonmaw Saboteur",
    0,
    0,
    0,
@@ -126485,6 +130437,13 @@
    10,
    4,
    null
+  ],
+  "276111": [
+   "Ghostfang",
+   10,
+   10,
+   4,
+   "Dun Morogh"
   ],
   "276189": [
    "Matriarch Bristlefur",

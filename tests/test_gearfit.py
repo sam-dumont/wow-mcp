@@ -100,6 +100,16 @@ def test_healer_cloth_for_a_mage_is_against_the_class(ref):
     assert label(ref, 9407, "PRIEST", "holy", 37)["for_you"] == "yes"
 
 
+@pytest.mark.parametrize("iid", [272603, 4385, 4393])
+def test_the_horde_war_staff_and_engineering_goggles_keep_their_spec_fit(ref, iid):
+    from wowstats.plan import kbloot
+
+    f = label(ref, iid, "MAGE", "frost", 60)
+    assert (f["built_for"], f["factor"]) == ("healers", gearfit.CLASS)
+    assert kbloot.stat_fit(ref.item(iid), "PRIEST", "holy", 60) is True
+    assert kbloot.stat_fit(ref.item(iid), "MAGE", "frost", 60) is False
+
+
 def test_healer_cloth_for_a_shadow_priest_is_fine_while_levelling(ref):
     """Owner, 2026-11-20: a shadow priest heals himself until Shadowform."""
     at30 = label(ref, 9407, "PRIEST", "shadow", 30)
@@ -202,16 +212,19 @@ def test_close_options_rank_the_on_spec_one_first(ref):
     """A head piece built for healers ranks at 90% of its gain for a shadow
     priest and names the one built for him as the alternative, with where
     it comes from; a holy priest gets it at full value."""
-    a = gear.advise(ref, sheet(), level=32)
-    healer = next(u for u in a["upgrades"] if u["name"] == "Filigreed Pristine Circlet")
-    assert healer["fit"]["for_you"] == "spec" and healer["value"] == pytest.approx(
-        gear.ranking_value(healer["gain"], healer["score"], gear.EFFORT.index(healer["effort"]), gearfit.OTHER, 32), abs=0.01)
+    # Both finished circlets are in the bags, so acquisition effort is equal.
+    shadow_id, pristine_id = 253981, 253975
+    held = {"bags": [shadow_id, pristine_id], "bank": []}
+    a = gear.advise(ref, sheet(), level=32, held=held)
+    shadow, healer = [u for u in a["upgrades"] if u["item_id"] in held["bags"]]
+    assert (shadow["item_id"], healer["item_id"]) == (shadow_id, pristine_id)
+    assert shadow["fit"]["for_you"] == "yes" and shadow["value"] == shadow["gain"]
+    assert healer["fit"]["for_you"] == "spec" and healer["value"] == pytest.approx(0.9 * healer["gain"], abs=0.01)
     alt = healer["fit"]["alternative"]
-    assert alt["name"] == "Filigreed Shadow Circlet" and alt["sources"]
-    holy = gear.advise(ref, sheet(), level=32, spec="holy")
-    hu = next(u for u in holy["upgrades"] if u["name"] == "Filigreed Pristine Circlet")
-    assert hu["fit"]["for_you"] == "yes" and hu["value"] == pytest.approx(
-        gear.ranking_value(hu["gain"], hu["score"], gear.EFFORT.index(hu["effort"]), 1.0, 32), abs=0.01)
+    assert alt["item_id"] == shadow_id and alt["sources"][0]["kind"] == "bags"
+    holy = gear.advise(ref, sheet(), level=32, spec="holy", held=held)
+    hu = next(u for u in holy["upgrades"] if u["item_id"] == pristine_id)
+    assert hu["fit"]["for_you"] == "yes" and hu["value"] == hu["gain"]
 
 
 def test_same_gain_different_fit_different_order():

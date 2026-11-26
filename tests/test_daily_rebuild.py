@@ -10,6 +10,7 @@ import hashlib
 import io
 import json
 import re
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -103,15 +104,27 @@ def test_select_reads_the_inputs():
     assert order.index("forever-reference") < order.index("dungeon-quests") < order.index("route-reference")
 
 
-def test_the_check_names_the_file_and_puts_it_back(tmp_path, monkeypatch, capsys):
-    calls = []
-    monkeypatch.setattr(rebuild.subprocess, "run", lambda cmd, **k: calls.append(cmd) or type(
-        "R", (), {"returncode": 0, "stdout": "data/gear-reference.json\n" if cmd[:2] == ["git", "diff"] else "",
-                  "stderr": ""})())
-    gear = [e for e in rebuild.EXPORTS if e.name == "gear-reference"]
-    assert rebuild.run(gear, tmp_path, "lua5.4", tmp_path / "w", check=True) == 1
-    assert "data/gear-reference.json is not what gear-reference builds" in capsys.readouterr().out
-    assert calls[-1][:3] == ["git", "checkout", "--"]
+@pytest.mark.parametrize(("dirty", "exit_code"), [(False, 0), (True, 0), (True, 7)])
+def test_check_preserves_the_tree_and_index(tmp_path, monkeypatch, dirty, exit_code):
+    tree = tmp_path / "caller"
+    tree.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=tree, check=True)
+    output = tree / "data.txt"
+    output.write_text("original")
+    subprocess.run(["git", "add", "data.txt"], cwd=tree, check=True)
+    if dirty:
+        output.write_text("staged")
+        subprocess.run(["git", "add", "data.txt"], cwd=tree, check=True)
+        output.write_text("unstaged")
+    # Even a generator that writes a partial file and then exits can't touch the caller.
+    (tree / "input").write_text("original")
+    cmd = (sys.executable, "-c", "from pathlib import Path; Path('data.txt').write_bytes(Path('input').read_bytes()); "
+           f"raise SystemExit({exit_code})")
+    export = rebuild.Export("test", cmd, ("data.txt",), (), "doc")
+    before = output.read_bytes(), (tree / ".git/index").read_bytes()
+    monkeypatch.setattr(rebuild, "ROOT", tree)
+    assert rebuild.run([export], tmp_path, "lua", tmp_path / "work", check=True) == int(dirty)
+    assert (output.read_bytes(), (tree / ".git/index").read_bytes()) == before
 
 
 # ------------------------------------------------------------------ forever-db
@@ -156,6 +169,36 @@ def sums(body: bytes, name: str = "forever-db-2026.11.9.zip") -> str:
     return f"{hashlib.sha256(body).hexdigest()}  {name}\n"
 
 
+def test_exports_use_the_verified_release_when_an_addon_has_the_same_version(tmp_path, monkeypatch):
+    from tools.forever_reference import upstream
+
+    version = "2026.11.9"
+    name = f"forever-db-{version}.zip"
+    body = zip_of({"data/quest.jsonl": b"{}", "corrections/quests.json": b'{"88758":{"remove":true}}'})
+    addon = tmp_path / "addon"
+    bundled = addon / "forever-db"
+    # The source checkout and release agree on index.json and compiled data.
+    # The addon's corrections can already contain unpublished changes.
+    checkout.unpack(body, sums(body), name, version, bundled)
+    (bundled / checkout.VERIFIED).unlink()
+    (bundled / "corrections/quests.json").write_text('{"2701":{"remove":true}}')
+    reads = []
+
+    def asset(url, *args):
+        reads.append(url)
+        return sums(body).encode() if url.endswith("/SHA256SUMS") else body
+
+    monkeypatch.setattr(checkout, "get", asset)
+    release = upstream.forever_db(version, tmp_path / "cache", addon)
+    assert release != bundled and json.loads((release / "corrections/quests.json").read_text()) == {"88758": {"remove": True}}
+    assert upstream.forever_db(version, tmp_path / "cache", addon) == release and len(reads) == 2
+    overlay = tmp_path / "overlay"
+    checkout.unpack(body, sums(body), name, version, overlay / "forever-db")
+    assert upstream.forever_db(version, tmp_path / "cache", overlay) == overlay / "forever-db"
+    (overlay / "forever-db/corrections/quests.json").write_text("{}")
+    assert upstream.forever_db(version, tmp_path / "cache", overlay) == release and len(reads) == 2
+
+
 def test_a_release_is_read_only_as_its_checksums_say(tmp_path):
     good = zip_of({"data/quest.jsonl": b'{"id":1}\n', "LICENSE": b"GPL"})
     idx = checkout.unpack(good, sums(good), "forever-db-2026.11.9.zip", "2026.11.9", tmp_path / "f")
@@ -182,6 +225,9 @@ def test_a_forever_db_release_needs_a_person_when_its_terms_move(tmp_path):
     tp = (ROOT / "THIRD_PARTY.md").read_text(encoding="utf-8")
     approved = bump.approved_notice(tp)
     assert "independent sources" in approved and "Polestar's own notice" not in approved
+    # A neighbouring component's credit is outside forever-db's notice.
+    extra = tp.replace("## QuestieDB", "## Another component\n\nAnother copyright holder.\n\n## QuestieDB")
+    assert bump.approved_notice(extra) == approved
     old, new = tmp_path / "old", tmp_path / "new"
     for d in (old, new):
         d.mkdir()
@@ -254,11 +300,48 @@ def test_the_server_says_what_its_data_was_built_from():
     assert v["foreverdb"]["data_version"] == src["data_version"]
     assert v["forever_db"]["version"] == fref["forever_db"]["version"]
     assert re.fullmatch(r"v\d+(\.\d+)+", v["polestar"])
-    assert set(v["client_build"]) == {"zones", "spells", "items"}
+    assert set(v["client_build"]) == {"zones", "spells", "items", "crafting"}
+    craft = json.loads((ROOT / "data/craft-reference.json").read_text())
+    assert v["client_build"]["crafting"] == craft["source"]["client_tables"]["build"]
+    assert v["foreverdb"]["fingerprint"] == src["fingerprint"]
+    assert v["foreverdb"]["addon_version"] == src["addon_version"]
+    talent_order = json.loads((ROOT / "data/wowsims-talents.json").read_text())
+    assert v["wowsims"] == {k: talent_order[k] for k in ("exporter", "sim")}
+    checked = {a["name"]: a["known"] for a in state()["addons"] if a.get("repo") and a.get("known")}
+    assert v["checked_addons"] == checked
+    assert {"Questie", "WoWSims Exporter"} <= set(checked)
     assert v["checked"] == state()["checked"]
+    learning = json.loads((ROOT / "data/kb/professions/learning.json").read_text())
+    assert v["profession_file_versions"] == {name: row["version"] for name, row in learning["foreverdb"]["files"].items()}
+    assert v["observations"]["profession_latest_capture_build"] == learning["eg_link"]["latest_build"]
+    assert v["observations"]["gear_eg_link_commit"] == fref["reviewed_loot"]["eg_link_commit"]
+    assert v["watched_client_build"] == state()["client_build"]["known"]
+    classes = json.loads((ROOT / "data/class-reference.json").read_text())["source"]
+    weights = json.loads((ROOT / "data/foreverdb-weights.json").read_text())["source"]
+    assert v["spell_hotfix_push"] == classes["client"]["hotfix"]["push"]
+    assert v["foreverdb"]["weights_fetched"] == weights["fetched"]
+    for name, group in (("news", "digests"), ("community", "weeks")):
+        digests = json.loads((ROOT / f"data/kb/{name}.json").read_text())[group]
+        assert v["kb_digest_week"][name] == max(row["week"] for row in digests)
     pub = redact.public("config", {"view": "public", "debug": True, "data_versions": v})
     assert pub["data_versions"] == v and "debug" not in pub
     assert redact.zogzog("config", {"view": "zogzog", "data_versions": v})["data_versions"] == v
+
+
+def test_data_status_reads_dates_from_the_bundle_without_a_character(tmp_path, monkeypatch, capsys):
+    from wowstats import __version__, cli, dataversions
+
+    monkeypatch.setattr(dataversions, "DATA_DIRS", (tmp_path,))
+    assert cli.main(["data-status"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"version": __version__, "data_versions": {}}
+    research = tmp_path / "kb/research"
+    research.mkdir(parents=True)
+    (research / "dungeons.json").write_text(json.dumps({"statements": [
+        {"last_verified": "2026-10-01"}, {}, {"last_verified": "2026-11-01"}]}))
+    first = dataversions.versions()["kb_statement_reviews"]
+    assert first == {"oldest": "2026-10-01", "newest": "2026-11-01"}
+    (research / "new.json").write_text('{"statements":[{"last_verified":"2026-11-26"}]}')
+    assert dataversions.versions()["kb_statement_reviews"]["newest"] == "2026-11-26"
 
 
 def test_the_release_note_names_forever_db_and_the_rebuild():
@@ -295,7 +378,7 @@ def test_an_export_whose_input_moved_runs_again(tmp_path, monkeypatch):
     monkeypatch.setattr(rebuild.subprocess, "run",
                         lambda cmd, **k: type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})())
     monkeypatch.setattr(rebuild, "command", command)
-    monkeypatch.setattr(rebuild, "_digest", lambda paths: tuple(state.get(p, p) for p in paths))
+    monkeypatch.setattr(rebuild, "_digest", lambda root, paths: tuple(state.get(p, p) for p in paths))
     monkeypatch.setitem(rebuild.FETCH, "cmangos", lambda w: w)
     picked = [e for e in rebuild.EXPORTS if e.name in ("route-reference", "dungeon-wings")]
     assert rebuild.run(picked, tmp_path, "lua5.4", tmp_path / "w") == 0

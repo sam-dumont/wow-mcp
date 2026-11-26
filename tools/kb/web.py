@@ -107,6 +107,12 @@ def official_version(kind: str, body: bytes) -> str | None:
     return digest(text) if len(text) > 200 else None
 
 
+def staff_text(post: dict) -> str:
+    """A staff reply's own text, without the other posts it quotes."""
+    cooked = re.sub(r'<aside class="quote.*?</aside>', "", post.get("cooked") or "", flags=re.S)
+    return text_of(f"<article>{cooked}</article>".encode())
+
+
 def remember(url: str, text: str) -> None:
     """Keep the text a model pass read for `url` (one JSON line in the file
     KB_SOURCES names, a temp path in the workflow), so the gates

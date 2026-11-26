@@ -8,7 +8,9 @@ The numbers below are worked out by hand from ForeverDB's formula
 item). The character is a level 32 Gnome Priest, Shadow, Leveling weights,
 wearing a two-handed staff and one trinket."""
 
+import json
 import time
+from dataclasses import replace
 
 import pytest
 
@@ -39,12 +41,13 @@ def priest_gear(ref):
     return w, worn
 
 
-def test_the_file_is_polestars(ref):
-    d = ref.data
+def test_the_file_is_polestars():
+    d = json.loads(next(p for p in gear.BUNDLED if p.is_file()).read_text())
     assert d["polestar"]["license"] == "GPL-3.0-only" and d["polestar"]["tag"].startswith("v")
-    assert d["leveling"]["source"] == "ForeverLevelingBiS" and d["leveling"]["version"] == "v0.12.0-beta"
-    assert d["leveling"]["licence"] == "MIT"
-    assert len(d["items"]) > 9000 and len(d["sources"]) > 3000
+    assert d["leveling"]["source"] == "Codex" and d["leveling"]["version"]
+    assert d["leveling"]["author"] is None and d["leveling"]["licence"] is None
+    assert len(d["items"]) > 9000 and len(d["sources"]) == d["leveling"]["items"] > 0
+    assert len(d["quests"]) == d["leveling"]["quests"] > 0
 
 
 def test_leveling_weights(ref):
@@ -86,6 +89,26 @@ def test_school_bonus_adds_up():
     """School damage counts on top of spell power, every school (ForeverDB)."""
     info = {"inv": 1, "class": 4, "subclass": 1, "stats": {"spFire": 34, "spShadow": 34}}
     assert gear.score_with(info, {"sp": 1, "spFire": 0.6, "spShadow": 0.8}) == pytest.approx(34 * 1.4)
+
+
+def test_don_rings_share_one_slot_in_the_gear_advice(ref):
+    julio, rodrigo, other = 19325, 21563, 1116
+    assert ref.item(julio)["unique_group"] == ref.item(rodrigo)["unique_group"] == 722
+    ids = [julio, rodrigo, other]
+    rings = replace(ref, data={**ref.data, "items": {str(i): ref.item(i) for i in ids}, "sources": {}}, nowhere=[])
+
+    def advice(wearing):
+        return gear.advise(rings, sheet(items=wearing), level=60, held={"bags": ids}, every=True)
+
+    empty = [r for r in advice([])["slots"] if r["slot"] in (11, 12)]
+    for key in ("bis", "best"):
+        assert {r[key]["item_id"] for r in empty} == {julio, other}
+    # Rodrigo is the only worn ring. Julio scores higher but can't fill the open slot beside it.
+    result = advice([{"slot": 12, "item_id": rodrigo}])
+    rings_by_slot = {r["slot"]: r for r in result["slots"] if r["slot"] in (11, 12)}
+    for key in ("bis", "best"):
+        assert [rings_by_slot[s][key]["item_id"] for s in (11, 12)] == [other, julio]
+    assert next(r["slot"] for r in result["upgrades_all"] if r["item_id"] == julio) == 12
 
 
 def test_usability(ref):

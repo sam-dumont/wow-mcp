@@ -102,12 +102,6 @@ def weeks() -> list[dict]:
     return sorted(out.values(), key=lambda w: w["week"], reverse=True)
 
 
-def role_of(cls, spec) -> str:
-    from . import classmeta
-
-    return classmeta.role(cls, spec) or "dps"
-
-
 def who(char: dict | None) -> dict | None:
     """{class, level, role, faction} from a character header-like dict
     (class, level, spec, faction), or None."""
@@ -119,7 +113,8 @@ def who(char: dict | None) -> dict | None:
     from . import classmeta
 
     spec = classmeta.spec_name(cls, char.get("spec")) if cls else None
-    return {"class": cls, "level": lv, "spec": spec, "role": classmeta.role(cls, spec) if cls else None,
+    role = (classmeta.role(cls, spec) or "dps") if spec else None
+    return {"class": cls, "level": lv, "spec": spec, "role": role,
             "faction": str(char.get("faction") or "").title() or None}
 
 
@@ -133,12 +128,12 @@ def relevance(item: dict, w: dict | None) -> int:
     roles = [r for r in item.get("roles") or [] if r in ROLES]
     lv = item.get("levels")
     score = 1
-    if classes:
+    if classes and w.get("class"):
         if w.get("class") not in classes:
             return 0
         score += 3
-    if roles:
-        if (w.get("role") or "dps") not in roles:
+    if roles and w.get("role"):
+        if w["role"] not in roles:
             return 0
         score += 2
     if lv and w.get("level") is not None:
@@ -345,7 +340,7 @@ def events(today: date | None = None) -> list[dict]:
                     "changes": ev.get("changes") or it.get("text"), "effects": ev.get("effects") or [],
                     "prep": ev.get("prep") or [], "category": it.get("category"),
                     "levels": ev.get("levels") or it.get("levels"), "roles": it.get("roles") or [],
-                    "classes": it.get("classes") or [], "event": True,
+                    "classes": it.get("classes") or [], "faction": it.get("faction"), "event": True,
                     **{k: it[k] for k in CITE if it.get(k) not in (None, "", [])}})
     return sorted(out, key=lambda e: (e["in_days"] is None, e["in_days"] or 0, e["name"]))
 
@@ -379,25 +374,25 @@ def upcoming(today: date | None = None, chars: list[dict] | None = None, char: d
     whos = [x for x in (who(c) for c in ([char] if char else []) + list(chars or [])) if x]
     rows = []
     for e in events(today):
-        r = max([relevance(e, x) for x in whos] or [0])
-        mine = whos[0] if whos else None
-        fx = [f["text"] for f in e["effects"] if mine and _effect_for(f, mine)]
+        audience = [w for w in whos if relevance(e, w)]
+        fx = [f["text"] for f in e["effects"] if any(_effect_for(f, w) for w in audience)]
         row = {k: e[k] for k in ("key", "name", "starts", "window", "when", "in_days", "changes", "category",
                                  "levels")}
         row["for_you"] = fx
-        row["concerns_you"] = r > 0 if whos else None
+        row["concerns_you"] = bool(audience) if whos else None
         if cite:
             row.update({k: e[k] for k in CITE if e.get(k) not in (None, "", [])})
             row["effects"] = e["effects"]
-        rows.append((r, row))
-    rows.sort(key=lambda x: -(x[0] > 0))
-    return [row for _, row in rows]
+        rows.append(row)
+    return sorted(rows, key=lambda row: not row["concerns_you"])
 
 
 def _effect_for(f: dict, w: dict) -> bool:
     classes = [classguide.token(c) for c in f.get("classes") or []]
     roles = f.get("roles") or []
-    return (not classes or w.get("class") in classes) and (not roles or (w.get("role") or "dps") in roles)
+    faction = f.get("faction")
+    return ((not classes or w.get("class") in classes) and (not roles or not w.get("role") or w["role"] in roles)
+            and (not faction or w.get("faction") == faction.title()))
 
 
 def soon_line(cls, spec, level, today: date | None = None) -> str | None:

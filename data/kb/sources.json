@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "about": "The source domains a KB statement may cite (wowstats.analysis.kbschema). A statement whose every source is off this list is refused; a domain's max_confidence caps the confidence a statement resting on it alone may claim. Booster and SEO sites are listed so their claims stay visible, capped at low (the research lanes' own rule). Add a domain here, with its type, before citing it. A record's source_type is its source_url's (kbschema.source_type): `paths` [{match: regex on path+query, type}], first match wins, else the domain's type. A `corroboration_only` domain (JudgeHype: French, mostly relaying others; owner, 2026-11-20) is never read by the refresh and may only be cited next to another source: it never counts as one.",
+  "about": "The source domains a KB statement may cite (wowstats.analysis.kbschema). A statement whose every source is off this list is refused; a domain's max_confidence caps the confidence a statement resting on it alone may claim. Blizzard forum posts are community sources unless forum-staff.json records their Discourse staff flag. Booster and SEO sites are listed so their claims stay visible, capped at low (the research lanes' own rule). Add a domain here, with its type, before citing it. A record's source_type is its source_url's (kbschema.source_type): `paths` [{match: regex on path+query, type}], first match wins, else the domain's type. A `corroboration_only` domain (JudgeHype: French, mostly relaying others; owner, 2026-11-20) is never read by the refresh and may only be cited next to another source: it never counts as one.",
   "types": ["official", "datamined", "guide", "press", "community", "commercial"],
   "domains": {
     "news.blizzard.com": {"type": "official", "max_confidence": "high"},
     "worldofwarcraft.blizzard.com": {"type": "official", "max_confidence": "high"},
-    "us.forums.blizzard.com": {"type": "official", "max_confidence": "high"},
-    "eu.forums.blizzard.com": {"type": "official", "max_confidence": "high"},
+    "us.forums.blizzard.com": {"type": "community", "max_confidence": "medium"},
+    "eu.forums.blizzard.com": {"type": "community", "max_confidence": "medium"},
 
     "www.wowhead.com": {"type": "guide", "max_confidence": "high", "paths": [
       {"match": "(^|/)news(=|/)|/blue-tracker", "type": "press"},
@@ -18,7 +18,9 @@
     "forg.gg": {"type": "datamined", "max_confidence": "medium"},
     "classicdb.ch": {"type": "datamined", "max_confidence": "high"},
     "wow.allakhazam.com": {"type": "datamined", "max_confidence": "medium"},
-    "github.com": {"type": "datamined", "max_confidence": "medium"},
+    "github.com": {"type": "datamined", "max_confidence": "medium", "paths": [
+      {"match": "^/ClassicWoWCommunity/forever-bugs/issues/[0-9]+/?$", "type": "community"}
+    ]},
 
     "www.warcrafttavern.com": {"type": "guide", "max_confidence": "high"},
     "warcrafttavern.com": {"type": "guide", "max_confidence": "high"},

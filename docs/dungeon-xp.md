@@ -21,9 +21,10 @@ kill XP after them, always labelled for what it is.
   player** (14 November change,
   [Blizzard's post](https://us.forums.blizzard.com/en/wow/t/player-level-dungeon-xp-adjustment-november-14/2416343)).
   A high-level friend dragging you through kills your XP.
-- **About 5 instance entries an hour per character.** Only a guide gives the
-  number ([Warcraft Tavern](https://www.warcrafttavern.com/forever/guides/dungeons/));
-  Blizzard hasn't published one.
+- **Five resets and re-entries per hour for each dungeon.** Blizzard reduced
+  the limit from ten on November 20. The hotfix gives no separate hourly
+  total for visits to different dungeons.
+  [November 20 hotfix](https://us.forums.blizzard.com/en/wow/t/2403040/14)
 
 ## How a run's kill XP is estimated
 
@@ -134,12 +135,9 @@ Forever's own data only: forever-db at its release in `tools/forever-db-tag`, th
 | Polestar's dungeon runs (`data/dungeon-runs.json`) | the quests a run picks up, works on, starts from an item inside and hands in |
 
 forever-db's own dungeon flag (quest type 81) is noted beside a quest one
-of these places; alone it doesn't say which dungeon. Coverage at Polestar
-v0.4.2.2: every dungeon of the panel has quests except The Shaper's Terrace
-("a level 60 dungeon: its quests give no experience", Polestar's word);
-City of Dalaran has its 8 (4 per side), Gnomeregan 27, Blackrock Depths 41,
-the newest ones 2 to 14 each. `tests/analysis/test_dungeon_quests.py` holds
-every dungeon to having quests or a reason.
+of these places; alone it doesn't say which dungeon. All 28 dungeons on the panel have quests. Shaper's Terrace has 6,
+Gnomeregan 28, and Blackrock Depths 42. The coverage test checks each
+dungeon for quests or an explicit reason it has none.
 
 ## Where the data comes from
 

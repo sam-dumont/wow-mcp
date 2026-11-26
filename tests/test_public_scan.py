@@ -61,7 +61,7 @@ UPSTREAMS = {
     # The game, its maker and its data: links, item renders, the API.
     "blizzard.com", "battle.net", "worldofwarcraft.com", "blizzard.net", "blizzplanet.com", "zamimg.com",
     "wowhead.com", "allakhazam.com", "wago.tools", "wago.io", "foreverdb.net", "classicdb.ch",
-    "polestar.guide", "curseforge.com", "warcraft.wiki.gg",
+    "polestar.guide", "curseforge.com", "warcraft.wiki.gg", "wowforever.ninja",
     # Code and packages: sources, licences, the tools the docs install.
     "github.com", "githubusercontent.com", "pypi.org", "pythonhosted.org", "npmjs.org", "astral.sh",
     "gnu.org", "fsf.org", "creativecommons.org", "sil.org", "purl.org", "w3.org", "openjsf.org", "jquery.com",
@@ -95,6 +95,8 @@ UPSTREAMS = {
     "devtrackers.gg", "boostroom.com", "wowforevertalents.com", "wowisclassic.com", "pcgames.de", "engadget.com",
     "mobalytics.gg", "kotaku.com", "dotesports.com", "reddit.com", "ezg.com", "seemeta.com", "efficient.games",
     "judgehype.com",  # corroboration only (data/kb/sources.json)
+    # Public sightings and quest references cited by the item-by-item acquisition audits.
+    "foreverchanges.pro", "questing.wiki", "azeroth.wiki",
     # Gear tables the fit model is checked against (tests/data/gearfit-refs.json:
     # item IDs, ranks and the page each came from).
     "wowforeverbislist.com", "noobtoboss.com",

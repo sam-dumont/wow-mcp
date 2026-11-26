@@ -16,7 +16,7 @@ textures the person's own shipper sent: wowstats.assets) are copied in, in
 clear, under model3d/file/<id>: only those the bundle's characters' recipes
 need, and only from that person's own store.
 
-Rebuilt when new events arrived (the newest event's time moved), when the
+Rebuilt when the event count or newest timestamp changes, when the
 Battle.net data in vm-wow changed (the exporter refreshes each profile,
 look and equipment once a day, with or without a game session: a hash of
 them, Store.profile_fingerprint), or when the bundle is older than
@@ -71,7 +71,9 @@ from wowstats import (
     armory,
     bar,
     character3d,
+    dataversions,
     forever,
+    gearmode,
     itemcard,
     names,
     notice,
@@ -93,7 +95,6 @@ KEEP = 2  # builds kept besides current, for a request in flight during the swap
 # minutes. Another publisher's build on the same folder is younger and stays.
 STALE_BUILD_S = 3600
 ENC = ".enc"
-FULL_BLOCK = ui.FULL_BLOCK
 ASK = re.compile(r'\s*<section id="askbox".*?</section>', re.S)
 DEBUG = re.compile(r'\s*<details id="debug".*?</details>', re.S)
 
@@ -260,21 +261,19 @@ def analytics(env: dict) -> dict | None:
     return {"domain": domain, "script": script, "api": api}
 
 
-def page(app: ui.App, sealed: bool, stats: dict | None = None, path: str = "/") -> bytes:
-    """index.html for a static bundle: the 3D kept in both, the full-only
+def page(app: ui.App, sealed: bool, model3d_on: bool, stats: dict | None = None, path: str = "/") -> str:
+    """index.html for a static bundle: the full-only
     sections kept in zogzog minus the Ask links and the query box. `path`: where
     the bundle is served, the only address the analytics ever send."""
-    html = (app.static / "index.html").read_text(encoding="utf-8")
-    if app.view == "public":
-        html = FULL_BLOCK.sub("", html)
-    else:
+    html = app.dashboard_html(model3d_on=model3d_on)
+    if app.view == "full":
         html = DEBUG.sub("", ASK.sub("", html))
     # Home is the bundle's own page; no link to anything behind the login.
     html = bar.fill(html, "./")
     if stats is not None:
         html = html.replace("</head>", ui.stats_tags(stats, "stats.js", path) + "</head>", 1)
     attrs = 'data-static="1"' + (' data-sealed="1"' if sealed else "")
-    return html.replace("@VIEW@", app.view).replace("<html ", f"<html {attrs} ", 1).encode()
+    return html.replace("<html ", f"<html {attrs} ", 1)
 
 
 def copy_static(app: ui.App, b: Bundle, stats: dict | None = None) -> None:
@@ -298,12 +297,13 @@ FILES = {
 }
 
 
-def fetch_analysis(env: dict) -> dict:
+def fetch_analysis(env: dict) -> dict | None:
     """The play analysis' shareable nudges per character from the full view
     (its share port): actions, each with where, what blocks it and the next
     step. Screened again here: a nudge with a time, a date, he or she or a
     number typed by hand doesn't reach the bundle, whatever the other side
-    sent; pattern lines (descriptions) never do."""
+    sent; pattern lines (descriptions) never do. None is a temporary
+    failure; a refusal or an explicit empty answer withdraws the content."""
     url = (env.get("ANALYSIS_SHARE_URL") or "").strip()
     if not url:
         return {"available": False}
@@ -314,11 +314,19 @@ def fetch_analysis(env: dict) -> dict:
 
         with guard.share_open(url, env) as r:
             a = json.loads(r.read(2_000_000))
-    except (OSError, ValueError) as e:
+    except PermissionError as e:
         log(f"analysis: {e}")
         return {"available": False}
-    if not isinstance(a, dict) or not a.get("available") or not isinstance(a.get("chars"), dict):
+    except urllib.error.HTTPError as e:
+        log(f"analysis: HTTP {e.code}")
+        return {"available": False} if e.code in (401, 403, 404, 410) else None
+    except (OSError, ValueError) as e:
+        log(f"analysis: {e}")
+        return None
+    if isinstance(a, dict) and a.get("available") is False:
         return {"available": False}
+    if not isinstance(a, dict) or a.get("available") is not True or not isinstance(a.get("chars"), dict):
+        return None
     keep = lambda xs: [{k: n.get(k) for k in verify.SHARED_NUDGE} for n in xs or []  # noqa: E731
                        if isinstance(n, dict) and verify.shareable_action(n, set())[0]][:4]
     chars = {c: {**{k: v for k, v in x.items() if k != "patterns"}, "nudges": keep(x.get("nudges"))}
@@ -416,10 +424,6 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
             return
         try:
             body = out(what, fn())
-            if what == "config":
-                # data_versions describe a running server's bundled data
-                # (/api/config), not a snapshot published once.
-                body.pop("data_versions", None)
             b.json(rel, body)
         except Exception as e:  # noqa: BLE001 - a store that is down drops one section
             if what not in ("market", "prices"):
@@ -439,8 +443,8 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
             head = out("char", app.char(name)).get("header")
         except Exception:  # noqa: BLE001
             head = None
-    html = ui.og_tags(page(app, sealed, stats, path).decode(), head) if not sealed else \
-        ui.og_generic(page(app, sealed, stats, path).decode())
+    shell = page(app, sealed, full_app.model3d is not None, stats, path)
+    html = ui.og_generic(shell) if sealed else ui.og_tags(shell, head)
     if canonical:  # the site's one address, fixed at build time (an alias host serves the same bundle)
         url = canonical.rstrip("/") + path
         html = html.replace("</head>", f'<link rel="canonical" href="{url}">\n'
@@ -696,11 +700,6 @@ def profile_fingerprint(app: ui.App, before: str | None) -> str | None:
         return before
 
 
-def newest_event(app: ui.App) -> str:
-    rows = app.views.vl(f"{app.views.stream} | stats max(_time) as t")
-    return max((r.get("t") or "" for r in rows), default="")
-
-
 def safe_chars(chars: list[dict]) -> list[dict]:
     """The characters whose name can be a file name (names.valid_char).
     /ingest and the shipper refuse any other; one stored before
@@ -725,6 +724,9 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
     out.mkdir(parents=True, exist_ok=True)
     sweep_builds(out)
     zz_path = env.get("ZOGZOG_PATH", "/zogzog/").strip()
+    gear_dir = env.get("PUBLISH_GEAR_SETTINGS_DIR")
+    gear_env = {**env, "ANALYSIS_STATE_DIR": gear_dir} if gear_dir else env
+    env[gearmode.PUBLISHED] = gearmode.for_publish(gear_env)
     base = {**env, "BIND": "127.0.0.1", "AUTH": "none", "MCP_PUBLIC_URL": "", "MCP_AUTH": "",
             "INGEST_PASSWORD": "", "INGEST_PASSWORD_FILE": ""}
     full_app = ui.App({**base, "VIEW": "full"})
@@ -733,8 +735,10 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
     pics = pictures.Pictures(env, out, log)
     # The page itself changes with a new version or analytics setting: rebuild
     # then too, not only on new data.
-    page_id = hashlib.sha256(json.dumps([__version__, stats, zz_path, public, sorted(hide_public),
-                                         sorted(hide_zogzog), canonical, pics.on, env.get("MODEL3D_MODELS", "")],
+    page_id = hashlib.sha256(json.dumps([dataversions.status(), stats, zz_path, public, sorted(hide_public),
+                                         sorted(hide_zogzog), canonical, pics.on, full_app.model3d is not None,
+                                         env.get("MODEL3D_MODELS", ""),
+                                         full_app.settings.weights, env[gearmode.PUBLISHED]],
                                         sort_keys=True).encode()).hexdigest()[:12]
 
     state_f = out / "state.json"
@@ -742,10 +746,9 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
         state = json.loads(state_f.read_text())
     except (OSError, ValueError):
         state = {}
-    newest = newest_event(full_app)
+    newest, count = full_app.event_mark()
     profiles = profile_fingerprint(full_app, state.get("profiles"))
     shared = fetch_analysis(env) if zz_path else {"available": False}
-    shared_id = hashlib.sha256(json.dumps(shared, sort_keys=True).encode()).hexdigest()[:12]
     age = time.time() - float(state.get("built_at", 0))
     if zz_path and zz_key is None:
         kf = env.get("ZOGZOG_KEY_FILE", str(out.parent / "zogzog.key"))
@@ -758,20 +761,40 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
             force = True
     help_key = help_key_of(env)
     key_id = hashlib.sha256((zz_key or b"") + b"|" + (help_key or b"")).hexdigest()[:12] if zz_key or help_key else ""
+    audience = hashlib.sha256(zz_key or b"").hexdigest()
+    share_scope = hashlib.sha256(json.dumps([slug, full_app.store.account_id, full_app.store.vl_url,
+                                             full_app.store.vl_archive_url, env.get("ANALYSIS_SHARE_URL"),
+                                             zz_path, audience]).encode()).hexdigest()
+    last = (out / "current").resolve() if (out / "current").exists() else None
+    keep_analysis = (shared is None and last is not None and last.name == state.get("build")
+                     and state.get("share_scope") == share_scope)
+    shared_id = (state.get("analysis_id") if keep_analysis else
+                 hashlib.sha256(json.dumps(shared or {"available": False}, sort_keys=True).encode()).hexdigest()[:12])
+    events_changed = state.get("newest") != newest or state.get("event_count") != count
+    analysis_changed = (state.get("analysis_id") != shared_id or state.get("share_scope") != share_scope
+                        or (shared is not None and state.get("analysis_needs_refresh")))
     why = ("forced" if force else "no build yet" if not (out / "current").exists()
-           else "new events" if state.get("newest") != newest
+           else "new events" if events_changed
            else "Battle.net data changed" if state.get("profiles", "") != (profiles or "")
            else f"older than {MAX_AGE_S // 3600} h" if age >= MAX_AGE_S
            else "new key" if state.get("key_id") != key_id
            else "new version or page settings" if state.get("page_id") != page_id
-           # A missing answer (the full view restarting) keeps the last build's lines.
-           else "analysis changed" if shared.get("available") and state.get("analysis_id") != shared_id
+           else "analysis changed" if analysis_changed
+           else "picture files arrived" if pics.on and pics.files_changed(state.get("pictures_missing") or {},
+                                                                           store_reader(full_app))
            else "level pictures pending" if pics.on and state.get("pictures_pending")
            and time.time() >= float(state.get("pictures_retry_at") or 0) else None)
     if why is None:
         push(env, (out / "current").resolve(), slug)
         return {"built": False, "why": "no new events, no Battle.net change", "newest": newest,
                 "built_at": state.get("built_at")}
+
+    if events_changed:
+        # Ingest usually runs in another process. Its late rows must also
+        # invalidate the character and plan caches used during this build.
+        from wowstats import eventstore
+
+        eventstore.changed(full_app.store.vl_url, full_app.store.account_id)
 
     t0 = time.time()
     # Builds are named by the second; two in the same second (a forced one
@@ -783,7 +806,6 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
     build = out / f".build-{n}"
     try:
         chars = safe_chars(full_app.views.chars())
-        last = (out / "current").resolve() if (out / "current").exists() else None
         # The public page off: no public/ in the build (the static server answers
         # 404 there), the 3D files gathered in a scratch folder for zogzog.
         # No character at all yet (a new account): the short empty page, public
@@ -806,11 +828,20 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
 
             helppage.build(pub, help_key, env.get("HELP_MCP_URL", "").strip() or env.get("MCP_PUBLIC_URL", "").strip())
         zz = None
-        if zz_key is not None:
+        if zz_path and zz_key is not None:
             zz = Bundle(build / "zogzog", zz_key)
             zz_files: dict[str, set[int]] = {}
-            build_view(full_app, full_app, zz, [c for c in chars if c["char"] not in hide_zogzog], zz_files, stats,
+            visible = [c for c in chars if c["char"] not in hide_zogzog]
+            build_view(full_app, full_app, zz, visible, zz_files, stats,
                        "/" + zz_path.strip("/") + "/", shared, canonical=canonical, pics=pics)
+            if keep_analysis:
+                # Copy only this audience's already-screened, sealed answer
+                # for characters still visible in its new bundle.
+                for c in visible:
+                    rel = sealed_name(zz_key, data_path("analysis", c["char"]))
+                    old_answer = last / "zogzog" / rel
+                    if old_answer.is_file():
+                        shutil.copyfile(old_answer, zz.root / rel)
             if full_app.model3d is not None:
                 n3d += copy_3d(full_app, zz, zz_files, last)
         shutil.rmtree(build / ".scratch", ignore_errors=True)
@@ -831,8 +862,10 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
     for p in old[:-KEEP] if KEEP else old:
         shutil.rmtree(p, ignore_errors=True)
     pics.prune()
-    state = {"newest": newest, "profiles": profiles or "", "built_at": t0, "key_id": key_id, "page_id": page_id,
-             "build": final.name, "analysis_id": shared_id, **pics.state()}
+    state = {"newest": newest, "event_count": count, "profiles": profiles or "", "built_at": t0,
+             "key_id": key_id, "page_id": page_id,
+             "build": final.name, "analysis_id": shared_id, "share_scope": share_scope,
+             "analysis_needs_refresh": shared is None, **pics.state()}
     state_f.write_text(json.dumps(state))
     push(env, final, slug)
     res = {"built": True, "why": why, "build": final.name, "built_at": t0, "chars": len(chars),
@@ -926,6 +959,10 @@ def user_env(env: dict, u: dict) -> dict:
         raise PublishError(f"bad slug {slug!r}")
     out = Path(env.get("PUBLISH_DIR", "/data/site"))
     e = {**env, "PUBLISH_DIR": str(out / slug), "VL_ACCOUNT_ID": str(int(u["account_id"]))}
+    if isinstance(u.get("gear_settings"), dict):
+        e[gearmode.PUBLISHED] = u["gear_settings"]
+    if u.get("store") == "owner" and "weights" in u:
+        e["WEIGHTS"] = u["weights"]
     if u.get("models") in ("hd", "sd"):  # the 3D view's default models, their setting
         e["MODEL3D_MODELS"] = u["models"]
     # Their 3D files (tables, models, textures) from the full view's share
@@ -947,6 +984,8 @@ def user_env(env: dict, u: dict) -> dict:
             raise PublishError("FRIENDS_VL_URL is unset")
         e.update({"VL_URL": friends, "VL_ARCHIVE_URL": "", "DEFAULT_CHAR": "", "WEIGHTS": "",
                   "HELP_KEY_FILE": "", "ZOGZOG_KEY_FILE": ""})
+        # An older share server sends no settings: never inherit the owner's.
+        e[gearmode.PUBLISHED] = u.get("gear_settings") or {}
     return e
 
 

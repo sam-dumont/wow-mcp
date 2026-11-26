@@ -19,7 +19,7 @@ sync_api = pytest.importorskip("playwright.sync_api")
 
 from tests.test_browser import Catalog, wait_count  # noqa: E402
 from tests.test_public_view import CHAR, PoisonStore  # noqa: E402
-from wowstats import itemcard, ui  # noqa: E402
+from wowstats import dataversions, itemcard, ui  # noqa: E402
 from wowstats.plan import facts  # noqa: E402
 
 CHECK_MS = 3 * 60 * 1000  # app.js NEWS_EVERY_MS
@@ -108,7 +108,7 @@ def reader_settles(pg):
     pg.locator("#gearspec").evaluate("(s) => s.blur()")
     wait_count(pg, "#gearspec option[value='holy'][selected]", 1)  # the redraw for the pick is in
     fold = pg.locator("#advice details.upmore").first
-    fold.locator("summary").click()
+    fold.locator(":scope > summary").click()
     assert fold.evaluate("(d) => d.open")
     pg.evaluate("() => window.scrollTo(0, 600)")
     return pg.evaluate("() => window.scrollY")
@@ -132,6 +132,10 @@ def level(pg):
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])
 def test_new_data_waits_for_the_reader(live, pw, engine):
     b, pg, bump, api = open_live(pw, engine, live)
+    sources = pg.locator("#foot-sources details")
+    sources.locator("summary").click()
+    assert "Server version" in sources.inner_text()
+    assert dataversions.versions()["polestar"] in sources.inner_text()
     y = reader_settles(pg)
     before = level(pg)
     # Minutes pass with nothing new: no pill, nothing redrawn.

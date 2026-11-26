@@ -13,8 +13,8 @@ the computer you play on:
   in, kills, deaths, flights, guide steps, dungeon runs, gold at logout, and the players you
   crossed paths with.
 - **Auctionator**: your own auction house scans, one price per item and day. On a shared
-  install, the price fields of each scan (item, price, quantity, scan day, ruleset, faction)
-  also go to one space everyone on the install reads: see
+  install, a scan with a faction label shares its item, price, quantity, scan day, ruleset
+  and faction. Realm-only scans stay private. See
   [Shared auction scans](../self-host/friends.md#shared-auction-scans).
 - **The combat log** (`Logs/WoWCombatLog*.txt`), when you turn it on in game: its events,
   parsed. Only your own character and creatures are named; any other player is "another

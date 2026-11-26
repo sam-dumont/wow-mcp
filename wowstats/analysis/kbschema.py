@@ -64,11 +64,47 @@ def load_allow(path: Path | None = None) -> dict:
         path = data_file("kb/sources.json")
     if path is None:
         return {}
-    return json.loads(path.read_text(encoding="utf-8")).get("domains") or {}
+    allow = json.loads(path.read_text(encoding="utf-8")).get("domains") or {}
+    staff = path.with_name("forum-staff.json")
+    if staff.is_file():
+        for host, topics in json.loads(staff.read_text(encoding="utf-8")).items():
+            if host in allow:
+                allow[host]["staff_posts"] = topics
+    return allow
 
 
 def domain(url: str) -> str:
     return (urllib.parse.urlsplit(url or "").hostname or "").lower()
+
+
+FORUMS = {"us.forums.blizzard.com", "eu.forums.blizzard.com"}
+
+
+def forum_post(url: str) -> tuple[str, str, int] | None:
+    """Only a numbered reply identifies which author and text the record cites."""
+    parts = urllib.parse.urlsplit(url)
+    if parts.hostname in FORUMS and (m := re.fullmatch(r"/en/wow/t/(?:[^/]+/)?(\d+)/(\d+)/?", parts.path)):
+        return parts.hostname, m[1], int(m[2])
+    return None
+
+
+def add_staff_posts(allow: dict, urls) -> None:
+    """Only call with post URLs whose Discourse record had staff=true."""
+    for url in urls:
+        if post := forum_post(url):
+            host, topic, n = post
+            numbers = allow[host].setdefault("staff_posts", {}).setdefault(topic, [])
+            if n not in numbers:
+                numbers.append(n)
+                numbers.sort()
+
+
+def save_staff_posts(sources: Path, urls) -> None:
+    allow = load_allow(sources)
+    add_staff_posts(allow, urls)
+    entries = {h: allow[h]["staff_posts"] for h in FORUMS if allow.get(h, {}).get("staff_posts")}
+    sources.with_name("forum-staff.json").write_text(json.dumps(entries, indent=1, sort_keys=True) + "\n",
+                                                   encoding="utf-8")
 
 
 def source_type(url: str, allow: dict) -> str | None:
@@ -81,6 +117,9 @@ def source_type(url: str, allow: dict) -> str | None:
     d = allow.get(domain(url))
     if d is None:
         return None
+    post = forum_post(url)
+    if post and post[2] in d.get("staff_posts", {}).get(post[1], ()):
+        return "official"
     parts = urllib.parse.urlsplit(url)
     where = parts.path + (f"?{parts.query}" if parts.query else "")
     return next((p["type"] for p in d.get("paths") or [] if re.search(p["match"], where)), d["type"])
@@ -118,8 +157,14 @@ def cap(conf: str, allowed: str) -> str:
     return CONFIDENCE[min(CONFIDENCE.index(conf), CONFIDENCE.index(allowed))]
 
 
+def source_cap(url: str, allow: dict) -> str:
+    if domain(url) in FORUMS and source_type(url, allow) == "official":
+        return "high"
+    return (allow.get(domain(url)) or {}).get("max_confidence", "low")
+
+
 def best_cap(rec: dict, allow: dict) -> str | None:
-    caps = [allow[domain(u)]["max_confidence"] for u in counted(rec, allow) if domain(u) in allow]
+    caps = [source_cap(u, allow) for u in counted(rec, allow) if domain(u) in allow]
     return max(caps, key=CONFIDENCE.index) if caps else None
 
 
@@ -138,6 +183,8 @@ def check(rec: dict, allow: dict, strict_type: bool = True) -> list[str]:
     for u in urls(rec):
         if not u.startswith("https://"):
             errs.append(f"{u} is not an https URL")
+        elif re.search(r'[\s"<>“”]', u):
+            errs.append(f"{u!r} contains invalid characters in a citation URL")
         elif domain(u) not in allow:
             errs.append(f"{domain(u)} is not on the source allow-list (data/kb/sources.json)")
     if strict_type and rec.get("source_type"):
@@ -272,7 +319,7 @@ def multi_source(rec: dict, allow: dict) -> str:
     holds): two distinct sources, or `single_source` with low confidence, or
     an official page."""
     us = counted(rec, allow)
-    if any((allow.get(domain(u)) or {}).get("type") == "official" for u in us):
+    if any(source_type(u, allow) == "official" for u in us):
         return ""
     if rec.get("single_source"):
         return "" if rec.get("confidence") == "low" else "single_source but its confidence isn't low"

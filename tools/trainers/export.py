@@ -24,9 +24,9 @@ spawns, GPL-2.0, used as facts); nothing here comes from a website.
   Forest"`); of two spellings, the longer ("Stormwind City", "The Barrens"),
   which is the game's AreaTable name.
 
-Stdlib only, the same file byte for byte on every run:
+Python and Lua, the same file byte for byte on every run:
 
-    git clone --depth 1 --branch v0.4.2.2 https://github.com/fitzforge/polestar /tmp/polestar
+    git clone --depth 1 --branch v0.4.3 https://github.com/fitzforge/polestar /tmp/polestar
     uv run python tools/trainers/export.py --polestar /tmp/polestar
 """
 
@@ -39,15 +39,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parents[2] / "data" / "trainers-reference.json"
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from tools.craft_reference.export import guides  # noqa: E402
+
+OUT = ROOT / "data" / "trainers-reference.json"
 RANK_NAMES = {1: "Apprentice", 2: "Journeyman", 3: "Expert", 4: "Artisan"}
 
-# One candidate: an NPC at a spot. In a list line, inline ones end at
-# their faction; in the records table, one a line, more may follow it.
-RECORD = re.compile(r'\{ npc = (\d+), npcName = "((?:[^"\\]|\\.)*)", map = (\d+), x = ([\d.]+), y = ([\d.]+)'
-                    r'[^{}]*?faction = "(A|H|AH)"')
-TRAIN = re.compile(r't = "train", skill = "([^"]+)", skillLine = (\d+), rank = (\d), rankMax = (\d+), '
-                   r'candidates = (.*) \},?$', re.M)
 PRICE = re.compile(r"(?:raises the cap from \d+ to \d+|lets you [^.]*?) for (\d+[gsc](?: \d+[gsc])*)"
                    r"(?: \(([^)]*)\))?")
 # The gathering guides: "raises the cap to 225; it needs skill 125 and no
@@ -69,57 +67,37 @@ def zone_names(lua: str) -> dict[int, str]:
     return out
 
 
-def trainer(m: re.Match) -> dict:
-    return {"npc": int(m[1]), "name": m[2].replace('\\"', '"'), "map": int(m[3]), "x": float(m[4]),
-            "y": float(m[5]), "side": m[6]}
-
-
-def professions(lua: str, zones: dict[int, str]) -> dict[str, dict]:
+def professions(compiled: list[dict], zones: dict[int, str]) -> dict[str, dict]:
     out: dict[str, dict] = {}
-    parts = re.split(r"^(-- Source: .*)$", lua, flags=re.M)
-    for head, block in zip(parts[1::2], parts[2::2], strict=True):
-        if "forever/professions/" not in head:
-            continue
-        recs_m = re.search(r"local candidateRecords = \{\n(.*?)\n\t\t\}\n", block, re.S)
-        records = [trainer(RECORD.search(line)) if RECORD.search(line) else None
-                   for line in recs_m[1].split("\n")] if recs_m else []
-
-        def resolve(text: str) -> list[dict]:
-            got = []
-            for m in re.finditer(r"candidateRecords\[(\d+)\]|" + RECORD.pattern, text):
-                got.append(records[int(m[1]) - 1] if m[1] else trainer(re.match(RECORD.pattern, m[0])))
-            return [t for t in got if t]
-
-        lists_m = re.search(r"local candidateLists = \{\n(.*?)\n\t\t\}\n", block, re.S)
-        lists = [resolve(line) for line in lists_m[1].split("\n")] if lists_m else []
-        # The steps, each with its note and goals: a train goal's price and
-        # level come from its own step.
-        for step in re.split(r"\n\t\t\t\t\{\n", block):
-            for m in TRAIN.finditer(step):
-                skill, line, rank, rank_max, cands = m[1], int(m[2]), int(m[3]), int(m[4]), m[5]
-                ref = re.match(r"candidateLists\[(\d+)\]", cands)
-                people = lists[int(ref[1]) - 1] if ref else resolve(cands)
-                seen, ts = set(), []
-                for t in people:
-                    if t["npc"] in seen:
-                        continue
-                    seen.add(t["npc"])
-                    ts.append({**t, "zone": zones.get(t["map"])})
-                note = re.search(r'note = "((?:[^"\\]|\\.)*)"', step)
-                price = (PRICE.search(note[1]) or COSTS.search(note[1])) if note else None
-                level = re.search(r'\{ t = "level", level = (\d+) \}', step)
-                no_level = bool(note and "no character level" in note[1])
-                p = out.setdefault(str(line), {"name": skill, "ranks": {}})
-                p["ranks"][str(rank)] = {
-                    "name": RANK_NAMES.get(rank), "max": rank_max,
-                    "level": int(level[1]) if level else (0 if no_level else None),
+    for guide in compiled:
+        for step in guide["steps"]:
+            goals = step.get("goals") or []
+            note = step.get("note") or ""
+            level = next((g["level"] for g in goals if g["t"] == "level"), None)
+            price = PRICE.search(note) or COSTS.search(note)
+            for g in goals:
+                if g["t"] != "train" or not g.get("rank") or not g.get("candidates"):
+                    continue
+                # Book vendors also use a train goal, with the book to buy in its text.
+                if g.get("text", "").startswith("Buy and read {item:"):
+                    continue
+                people = {}
+                for t in g["candidates"]:
+                    people.setdefault(t["npc"], {
+                        "npc": t["npc"], "name": t["npcName"], "map": t["map"], "x": float(t["x"]), "y": float(t["y"]),
+                        "side": t["faction"], "zone": zones.get(t["map"]),
+                    })
+                p = out.setdefault(str(g["skillLine"]), {"name": g["skill"], "ranks": {}})
+                p["ranks"][str(g["rank"])] = {
+                    "name": RANK_NAMES.get(g["rank"]), "max": g["rankMax"],
+                    "level": level if level is not None else (0 if "no character level" in note else None),
                     "price_copper": copper(price[1]) if price else None,
-                    # The note says whose price it is; without a word on
-                    # it, the guide's figure stands as the guide's.
                     "price_scope": ("Classic Era price" if price and "Classic" in (price[2] or "")
                                     else ("Polestar's guide" if price else None)),
-                    "trainers": sorted(ts, key=lambda t: (t["zone"] or "", t["name"])),
+                    "trainers": sorted(people.values(), key=lambda t: (t["zone"] or "", t["name"])),
                 }
+    if not out:
+        raise SystemExit("no profession trainers in the compiled Polestar guides")
     return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
 
 
@@ -145,6 +123,7 @@ def riding(src: str, zones: dict[int, str]) -> dict:
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--polestar", required=True, type=Path)
+    ap.add_argument("--lua", default="lua", help="the Lua interpreter for the compiled guides")
     ap.add_argument("--out", type=Path, default=OUT)
     a = ap.parse_args(argv)
     root = a.polestar
@@ -154,7 +133,7 @@ def main(argv: list[str]) -> int:
                          text=True).stdout.strip()
     commit = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True,
                             text=True).stdout.strip()
-    profs = professions(lua, zones)
+    profs = professions(guides(root, a.lua), zones)
     doc = {
         "schema": 1,
         "source": {"polestar": {"tag": tag, "commit": commit, "licence": "GPL-3.0",

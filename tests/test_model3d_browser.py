@@ -46,12 +46,15 @@ COVERED = """async () => {
 }"""
 
 
-def bundle(tmp_path, monkeypatch, with_files=True):
+def bundle(tmp_path, monkeypatch, with_files=True, friends=False):
     def store(vl, archive="", vm="", *a, **k):
         s = LookStore()
         s.vm_url = vm
         return s
 
+    from wowstats.plan import facts
+
+    monkeypatch.setattr(facts, "store_for", lambda env, like=None: like)
     monkeypatch.setattr(ui, "Store", store)
     monkeypatch.setattr(itemcard, "shared", lambda: Catalog())
     w.patch_tables(monkeypatch)
@@ -59,11 +62,12 @@ def bundle(tmp_path, monkeypatch, with_files=True):
         w.fill(tmp_path / "assets")
     env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "on",
            "MODEL3D_CACHE_DIR": str(tmp_path / "cache"), "MODEL3D_ASSETS_DIR": str(tmp_path / "assets"),
-           "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_PATH": ""}
+           "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_PATH": "/zogzog/" if friends else "",
+           "ZOGZOG_KEY_FILE": str(tmp_path / "key")}
     with redirect_stdout(io.StringIO()):
         res = publish.publish(env)
     assert res["built"], res
-    s = static.Site({"SITE_DIR": str(tmp_path / "site"), "ZOGZOG_PATH": ""})
+    s = static.Site({"SITE_DIR": str(tmp_path / "site"), "ZOGZOG_PATH": env["ZOGZOG_PATH"]})
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), static.make_handler(s))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd, f"http://127.0.0.1:{httpd.server_address[1]}"
@@ -81,7 +85,7 @@ def browser(request):
         b.close()
 
 
-def open_page(browser, base, width=1280, height=900, answers=None):
+def open_page(browser, base, width=1280, height=900, answers=None, path="/"):
     """`answers`: a status the bundle's 3D answers (data/model3d/...) get
     instead of their file, to stand for a missing file or a failing server."""
     ctx = browser.new_context(viewport={"width": width, "height": height})
@@ -100,7 +104,7 @@ def open_page(browser, base, width=1280, height=900, answers=None):
     ctx.on("request", lambda r: asked.append(r.url[len(base):]) if r.url.startswith(base + "/") else None)
     page = ctx.new_page()
     page.on("pageerror", lambda e: errors.append(str(e)))
-    page.goto(base + "/", wait_until="networkidle")
+    page.goto(base + path, wait_until="domcontentloaded")
     return ctx, page, asked, outside, errors
 
 
@@ -153,6 +157,25 @@ def test_the_toggle_draws_the_model_and_the_switch_changes_it(browser, tmp_path,
         assert page.locator("iframe.m3dframe").count() == 0
         assert not outside, outside
         assert not errors, errors
+    finally:
+        ctx.close()
+        httpd.shutdown()
+
+
+@pytest.mark.parametrize("friends", [False, True], ids=["public", "friends"])
+def test_model_at_a_past_level(browser, tmp_path, monkeypatch, friends):
+    httpd, base = bundle(tmp_path, monkeypatch, friends=friends)
+    path = "/zogzog/?tab=overview#" + (tmp_path / "key").read_text().strip() if friends else "/"
+    ctx, page, _asked, outside, errors = open_page(browser, base, path=path)
+    try:
+        page.locator("#gear button.m3dtoggle").click()
+        assert wait_state(frame_of(page)) == "drawn"
+        page.locator("#gear button.m3dtoggle").click()
+        page.locator("#tab-timeline").click()
+        frame = frame_of(page)
+        assert "level=" in frame.url and wait_state(frame) == "drawn"
+        assert frame.evaluate(COVERED)[0] > 20
+        assert not outside and not errors
     finally:
         ctx.close()
         httpd.shutdown()

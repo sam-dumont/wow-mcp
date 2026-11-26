@@ -285,11 +285,12 @@ the newer time.
   rescanned at each login and skill-up) and that row's `lastUpdate` (unix
   seconds); a profession only DataStore knows is added. The server takes the
   highest cap that covers the rank, this one or the Recorder's `skill`
-  records (`max_rank`), else the trainer tiers (wowstats/profcaps.py); only
-  `cap` says what the character has now, so a move built on the others
-  hedges. Shippers before 0.7.0 also sent
-  `max_rank` and `max_rank_at` from CharacterExport-Forever: still stored,
-  read by nothing.
+  records (`max_rank`), or a dated CharacterExport-Forever cap
+  (`max_rank`, `max_rank_at`) saved by shippers before 0.7.0. Without a
+  recorded cap it uses the trainer tiers. A later Apprentice reading at
+  rank 1–10 with cap 75 starts a new history if the old one had already
+  passed that tier. Smaller differences between rank readings keep the
+  known cap. A trainer move hedges unless the cap came from DataStore.
 - `wanted`: the upgrades the player tracks in GearQuestForever (the
   character's `GearQuestForeverCharDB.hunts` with status `tracked`):
   `item_id`, `name`, `item_level`, `req_level`, `slot_name`, `level`.
@@ -349,8 +350,10 @@ bank they saw. An event with the ID lists and no `*_n` comes from an older
 shipper: its counts are unknown, never 0, and readers take each list's counts
 from the event that list came from only. A character whose
 bags Syndicator hasn't scanned yet sends nothing; one that holds nothing
-sends empty lists, so an older list doesn't stay the newest. `_time` is
-`Syndicator.lua`'s modification time. The newest one is what the character
+sends empty lists, so an older list doesn't stay the newest. A change to
+one container sends only that container and its counts. Its observation
+time is when the game wrote the save containing those contents. The save
+gives no date for a banker visit. The latest observation per container is what the character
 has: the gear advice lists a held upgrade with its bag or bank as its only
 source ("equip it"), and so do the Overview, the plans and the MCP; the
 Dungeons panel marks a drop obtained (worn, in the bags or in the bank). The
@@ -419,7 +422,9 @@ player's own auction house scans.
   some items), `item_name` (LibForeverData's or Polestar_QuestDB's item table),
   `price_copper` (the day's lowest price), `price_high_copper`, `available`
   (items listed), `scan_day` (`YYYY-MM-DD`), `realm`, `faction` (only for
-  houses Auctionator keys as "Realm Faction"). `_time` is the scan day's local
+  Auctionator keys of the form "Realm Faction"). The LegacyAH addon uses
+  the player's faction even at a neutral auctioneer. A realm-only key has
+  an unknown faction and stays private. `_time` is the scan day's local
   midnight.
 - Each realm's table is a CBOR string (Auctionator 11+); the shipper decodes
   it with the standard library. Days count from 2020-01-01 local time.
@@ -437,7 +442,10 @@ the standard prefix. A name is your own character's or a creature's;
 any other player is `another player`, with no name, realm or GUID. `_msg`
 is built from those (`SPELL_DAMAGE Testchar Demo-Realm > Young Wolf`),
 `_time` from the line's own timestamp (the PC's local time, converted to
-UTC). No page reads this feed yet; the players it saw go out as `wow-player`
+UTC). A player flagged as the client's own character sets the active
+character for subsequent records. The source ID hashes the original line
+and counts identical lines within its timestamp, so appends and rotated
+copies keep their record IDs. The players it saw go out as `wow-player`
 events. Shippers before 0.7.0 sent the raw line: `/ingest` parses it again
 the same way and stores only these fields (`wowstats/otherplayers.py`).
 

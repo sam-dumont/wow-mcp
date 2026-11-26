@@ -10,6 +10,8 @@ import inspect
 import io
 import json
 
+import pytest
+
 from tests.test_server import PW, FakeVL, fake_vl  # noqa: F401  (fake_vl: the fixture)
 from wowstats import ingest, otherplayers, ui
 
@@ -88,6 +90,60 @@ def test_combat_log_sends_parsed_fields_and_no_other_player(shipper, tmp_path, m
     # The People tab keeps its players: the name, how and where; no realm.
     people = sorted((e["player"], e["context"], e.get("zone")) for e in got if e["feed"] == "wow-player")
     assert people == [("Othername-Alpha", "grouped", "Elwynn Forest"), ("Strangerfoo-Beta", "combat", "Elwynn Forest")]
+
+
+def test_combat_switch_uses_player_flags_and_scopes_sightings(shipper, tmp_path, monkeypatch):
+    logs = tmp_path / "Logs"
+    logs.mkdir()
+    file = logs / "WoWCombatLog.txt"
+    monkeypatch.setattr(shipper, "WOW", tmp_path)
+    ours = {"Testchar-Demo", "Other-Fixture"}
+    state = {}
+    def take():
+        return emitted(shipper, lambda out: shipper.extract_combatlogs(ours, None, state, out))
+
+    own, stranger = LOG.splitlines()[2:4]
+    file.write_text(own + "\n" + LOG.splitlines()[1] + "\n" + stranger + "\n")
+    first = take()
+    assert {r["char"] for r in first} == {"Testchar-Demo"}
+    state = json.loads(json.dumps(state))
+    with file.open("a") as f:
+        f.write(stranger + "\n" + own.replace(OURS, "Other Fixture-Homerealm") + "\n" + stranger + "\n")
+    second = take()
+    assert [r["char"] for r in second if r["feed"] == "wow-combatlog"] == [
+        "Testchar-Demo", "Other-Fixture", "Other-Fixture"]
+    assert not any(r.get("zone") for r in second if r["char"] == "Other-Fixture")
+    assert {r["source_id"] for r in first if r["feed"] == "wow-player"}.isdisjoint(
+        r["source_id"] for r in second if r["feed"] == "wow-player" and r["char"] == "Other-Fixture")
+
+
+@pytest.mark.parametrize("lines", [1, 2, 3])
+def test_replaced_log_replays_by_record_instead_of_offset(shipper, tmp_path, monkeypatch, lines):
+    logs = tmp_path / "Logs"
+    logs.mkdir()
+    path = logs / "WoWCombatLog.txt"
+    monkeypatch.setattr(shipper, "WOW", tmp_path)
+    state = {}
+    def take():
+        return emitted(shipper, lambda out: shipper.extract_combatlogs({"Testchar-Demo"}, None, state, out))
+
+    own = LOG.splitlines()[2] + "\n"
+    path.write_text(own)
+    first, = take()
+    with path.open("a") as f:
+        f.write(own)
+    duplicate, = take()
+    assert duplicate["source_id"] != first["source_id"]
+    # Same inode, new contents, shorter/equal/longer than the two original lines.
+    path.write_text(own.replace("15:14:", "15:21:") * lines)
+    changed = take()
+    assert len(changed) == lines and len({r["source_id"] for r in changed}) == lines
+    assert {first["source_id"], duplicate["source_id"]}.isdisjoint(r["source_id"] for r in changed)
+    assert take() == []
+    path.rename(logs / "WoWCombatLog-rotated.txt")
+    path.write_text(own * 2)
+    replay = take()
+    assert {r["source_id"] for r in replay} == {r["source_id"] for r in [first, duplicate, *changed]}
 
 
 def recorder_events(shipper) -> list[dict]:

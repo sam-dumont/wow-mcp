@@ -1,24 +1,24 @@
 {
   "about": "What the knowledge base was last checked against (tools/kb/watch.py). A value here that no longer matches today's opens one issue per kind (label kb-watch). The refresh job moves it in the PR that brings the KB up to date (`tools/kb/watch.py --accept <kind>`); an addon's `contract` is what tools/kb/bump.py checks is unchanged before taking a release.",
-  "checked": "2026-11-25",
+  "checked": "2026-11-26",
   "client_build": {
     "url": "https://wago.tools/api/builds/wowf/latest",
     "page": "https://wago.tools/builds",
-    "known": "1.60.1.71091"
+    "known": "1.60.1.71139"
   },
   "official": [
     {
       "key": "hotfixes",
       "kind": "page",
       "url": "https://worldofwarcraft.blizzard.com/en-us/news/24315281",
-      "known": "f0fbd438421d3db4092b0bc7bddaa7a2309de3f5956ab1e47c6cbfb1cfa85c5a"
+      "known": "2673a485bf31400422a122a7da8ed3bd73e57eea8fb900fde81a06f2627f4e67"
     },
     {
       "key": "hotfixes-forum",
       "kind": "discourse",
       "url": "https://us.forums.blizzard.com/en/wow/t/2403040.json",
       "page": "https://us.forums.blizzard.com/en/wow/t/2403040",
-      "known": "12 posts, last 2026-11-21T00:18:29.701Z"
+      "known": "14 posts, last 2026-11-25T23:25:08.237Z"
     },
     {
       "key": "beta-development-notes",
@@ -37,7 +37,7 @@
   ],
   "polestar": {
     "repo": "fitzforge/polestar",
-    "known": "v0.4.2.2"
+    "known": "v0.4.3"
   },
   "forever_db": {
     "repo": "fitzforge/polestar",
@@ -49,7 +49,7 @@
     {
       "name": "Questie",
       "repo": "Questie/Questie",
-      "known": "bundle/v12.14.0+v1.1.6",
+      "known": "bundle/v12.15.0+v1.1.6",
       "contract": {
         "toc": "Questie_Forever.toc",
         "files": {
@@ -95,7 +95,7 @@
         "category": "Forever",
         "source_type": "press",
         "max_confidence": "medium",
-        "known": 383959
+        "known": 384000
       },
       {
         "key": "blizzard-tracker",
@@ -104,69 +104,69 @@
         "forum": "https://us.forums.blizzard.com/en/wow",
         "source_type": "official",
         "max_confidence": "high",
-        "known": 1795220358
+        "known": 1795649108
       }
     ],
     "guides": [
       {
         "key": "wt-dungeons",
         "url": "https://www.warcrafttavern.com/forever/guides/dungeons/",
-        "known": "f14012891d67e3116d27e2f34130ed50b9e494dfd80c0a39b3a97b00d33b09f4"
+        "known": "45df4b4aa588949d1e5f15b04e841a2447098148b48e2b40fa60e947513b176a"
       },
       {
         "key": "wt-experience",
         "url": "https://www.warcrafttavern.com/forever/guides/experience/",
-        "known": "019585af7afe2807e26180379c809bca1f46e8dde0995afc194baed8c07c6a90"
+        "known": "22ae1b104e9a301291b8f198439d050eff30d98822add8f1c341ffcddeb50549"
       },
       {
         "key": "wt-classes",
         "url": "https://www.warcrafttavern.com/forever/guides/classes/",
-        "known": "22e0d67d9d75b5ba1a40b5f129a93439bff7fdd474664c1c6917a8e4c04d17b5"
+        "known": "af0633c185fadbf4ac5cc45cf1135783d7ae6214550b248cc55f563a3393700f"
       },
       {
         "key": "wt-shapers-terrace",
         "url": "https://www.warcrafttavern.com/forever/guides/shapers-terrace/",
-        "known": "9f42c01ebfa5dd7e3e08d162e486a31feca1cd0b7be2ddbe11fd2181080dc2af"
+        "known": "fbc9aa3a69cc401a56010b694658bdc78af0b26a3af28bd6db7e2ca7f4af3499"
       },
       {
         "key": "wt-alcaz-island-prison",
         "url": "https://www.warcrafttavern.com/forever/guides/alcaz-island-prison/",
-        "known": "d5850cb4c0052d7aa8a8948fa7a1a2d80d1cf92a8c2722ef867a23e79fc4b072"
+        "known": "d7ea9509825cfe40404de2e7c85f3fc375d6a075e66affecc2939982e85b7f84"
       },
       {
         "key": "wt-blackmaw-hold",
         "url": "https://www.warcrafttavern.com/forever/guides/blackmaw-hold/",
-        "known": "3bc178038d943ef81958fe17c8568d4644c3b73e62dca1d9b222ab9728668335"
+        "known": "3b5d14f5951bf0d539b0628a953dcf6ae66f40520745ab4d97619c88532f4653"
       },
       {
         "key": "wt-kroldok-stronghold",
         "url": "https://www.warcrafttavern.com/forever/guides/kroldok-stronghold/",
-        "known": "499832937c221cebb23366168999a1d50f12d304c4698e6374bf4ee5f8c891ce"
+        "known": "cf0a97766b5fc88260f07acbf7638c7c107bcd33b4cfd70960054d8defffdc31"
       },
       {
         "key": "wt-city-of-dalaran-quests",
         "url": "https://www.warcrafttavern.com/forever/guides/city-of-dalaran-quests/",
-        "known": "e8ded09cdd64365935894fed7e1016e44b684ab991e9b9a7df6ff56b6b85d798"
+        "known": "6b7274f0dc30fcdb1abb524a73ca1f8eda45fa8430896b5ec172d762241b0a68"
       },
       {
         "key": "wt-scarlet-monastery-quests",
         "url": "https://www.warcrafttavern.com/forever/guides/scarlet-monastery-quests/",
-        "known": "dce74d154a4e5ccd0735a09506c0449750cb1f11af061e3d3aa72b2f432e8a0c"
+        "known": "62e76a86027faef4990fb77f22978894c97171a73b15a0a20d50be115d3f0c71"
       },
       {
         "key": "wt-gnomeregan-quests",
         "url": "https://www.warcrafttavern.com/forever/guides/gnomeregan-quests/",
-        "known": "cef60478921e61ad855077d31dbaa8328f84e3edbd2312e3f2a893e959ae48f3"
+        "known": "3d33c207dbfef5c2e8949a5d021a1dcf0876d0006c0aa7567867d9a04be4c7a4"
       },
       {
         "key": "wt-blackrock-depths",
         "url": "https://www.warcrafttavern.com/forever/guides/blackrock-depths/",
-        "known": "49a9a330f753d078ce483f7b784c6765ee637b4901c4eb523dffc67d61094775"
+        "known": "2306a1279441edb476aee4fc70ebf2ce9a971ed22d5f440b87fcdd81f4c8eace"
       },
       {
         "key": "wowgg-kroldok-stronghold",
         "url": "https://wow.gg/guides/kroldok-stronghold",
-        "known": "e8647ca93839f2ada220b148bc4dea6c89ad4f67a2ec9946948059f4c2a54b85"
+        "known": "d5538105ea650bc8d93b0056deac9fba0318981759889e082c52453b2f3f477e"
       },
       {
         "key": "wowgg-dungeon-xp",
@@ -177,109 +177,109 @@
         "key": "wt-warrior-leveling",
         "url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
         "class": "Warrior",
-        "known": "3962702e7fb8ea82c379b1f31eac93854a5415f803905dbe1d0d2ce3c53e4af0"
+        "known": "99d31f7bdb71be690bb3d2b514d9aca785106002379e95f05a1970a423b5b87a"
       },
       {
         "key": "wt-paladin-leveling",
         "url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
         "class": "Paladin",
-        "known": "7066fc24879b0120b6c6c5879c7b9e3bee5120efeb46ceb7638dc590362f550f"
+        "known": "f112a5b27ad660275bb2936e520b74136f8f398447c1b5f1ba70d5bde365b525"
       },
       {
         "key": "wt-hunter-leveling",
         "url": "https://www.warcrafttavern.com/forever/guides/hunter-leveling/",
         "class": "Hunter",
-        "known": "906313af41f52be0474525fd656715b4b2fcebf994e07e5d351f078e98342667"
+        "known": "13b0aca60df1d9be5d9f9ea73aef6abea13208df97a487860f9e2eeb50597673"
       },
       {
         "key": "wt-rogue-leveling",
         "url": "https://www.warcrafttavern.com/forever/guides/rogue-leveling/",
         "class": "Rogue",
-        "known": "fb316f4184d89737e94e6bb2f3e98dbd1a70c325fbaee17b663d55071c4c78d6"
+        "known": "472a1d0bde200bcc6195d8f714d9b3df1759da0ef18c84f4e06134841912d791"
       },
       {
         "key": "wt-priest-leveling",
         "url": "https://www.warcrafttavern.com/forever/guides/priest-leveling/",
         "class": "Priest",
-        "known": "a0504eaa77d1f53f2eaa53148782a837c5f83745e60a6ca407be94e92aa0b1c0"
+        "known": "436a3e09bd4370ebbb074fa3a10e2a9813875aa8cd2b0b6ea5e02de9919a2676"
       },
       {
         "key": "wt-shaman-leveling",
         "url": "https://www.warcrafttavern.com/forever/guides/shaman-leveling/",
         "class": "Shaman",
-        "known": "620349d8ef2a7387bfcc4f1f8bf2169f874af3eb81559bfaf90e55f816e3a948"
+        "known": "2112dfb78da3f505912d712523b774c7abe58ff154cbb731d63da1e3efdc284b"
       },
       {
         "key": "wt-mage-leveling",
         "url": "https://www.warcrafttavern.com/forever/guides/mage-leveling/",
         "class": "Mage",
-        "known": "5fcc71fbea1656a0d8cc1c4aec99a5c1388186266c1bd715082fa9beac81cfd2"
+        "known": "29e9ec8bb946b7ba73b5a32a5aea5d4a2d2297ba7edc4bd48a0a2c519f7bbb39"
       },
       {
         "key": "wt-warlock-leveling",
         "url": "https://www.warcrafttavern.com/forever/guides/warlock-leveling/",
         "class": "Warlock",
-        "known": "a1eff10efafa70b243f36fef56f5e45a55c24280e9f48b9bd13eee718edafc94"
+        "known": "3dcbf271f3c420662243beb2bee5c65ba32903c61c5a5d0ebb76691ef1688bc7"
       },
       {
         "key": "wt-druid-leveling",
         "url": "https://www.warcrafttavern.com/forever/guides/druid-leveling/",
         "class": "Druid",
-        "known": "4fb5510a7345aa20b44d6a987afb1014ed10eef48a50b658253ea9fdbed3954e"
+        "known": "da56e4f50eeb920a9f28e1b91f661b9a7a9ee7318141197c227a73841be9a83c"
       },
       {
         "key": "fdb-druid-talents",
         "url": "https://foreverdb.net/class/Druid/talents",
         "class": "Druid",
-        "known": "d766d4d85a45fd695c0632178978a5379c6510f70ea6744764e93957caf80348"
+        "known": "b47e8cc2e591ed9cff37d9112a4233f5b1cc6c7ac66b04ee146a814aa0fcd507"
       },
       {
         "key": "fdb-mage-talents",
         "url": "https://foreverdb.net/class/Mage/talents",
         "class": "Mage",
-        "known": "9535548a8689f540bee038eb4556cf422a39dc8df6b4e5426c7b0bb89665b7aa"
+        "known": "e675c3d93ff472ccbbbea085cc6dc104aaec5183e8083af49b6819dea153ef14"
       },
       {
         "key": "fdb-paladin-talents",
         "url": "https://foreverdb.net/class/Paladin/talents",
         "class": "Paladin",
-        "known": "6fb817e618f4b6c647522c7a97e53dae4dcb5b5a6d6f258a181776ba987e5623"
+        "known": "6c6a4dd53d7b426c33cdd6df8a67a8395a75ad4ddc07feb7e61bdd836ace111b"
       },
       {
         "key": "fdb-priest-talents",
         "url": "https://foreverdb.net/class/Priest/talents",
         "class": "Priest",
-        "known": "37fdcf715e8f5dc2d79095ec54e714590ee4f220fb8b4db3d02acaaff25ea6d5"
+        "known": "be78a881c3431a43ca01a9192fbe31150f349bb78b20a522ad1c4db243008eeb"
       },
       {
         "key": "fdb-shaman-talents",
         "url": "https://foreverdb.net/class/Shaman/talents",
         "class": "Shaman",
-        "known": "accf6f97b8152a416a29d75a1669bd79fc93f95e26be878eb6188449e1ef2a2d"
+        "known": "803e0061a9e068add424c19a8c67e419900f7520a32263202ee7f0496585fd6c"
       },
       {
         "key": "fdb-warlock-talents",
         "url": "https://foreverdb.net/class/Warlock/talents",
         "class": "Warlock",
-        "known": "2c26ac9d158618c225fcce5e74712e1c5e33a5b4dd9c4a42150a3cc033c61009"
+        "known": "3fccb1aace5697a488a30b715004b0e7dff067d27f5aaa2ac9b748cd16c57125"
       },
       {
         "key": "fdb-guide-leveling-hunter",
         "url": "https://foreverdb.net/guide/leveling-hunter",
         "class": "Hunter",
-        "known": "a2807b87d69ae320b29f28f9ddd1f38ac62cab37a7803f5ca3631fb918ff98f6"
+        "known": "a5545b7848f2e0fc5a4ab352175b2d8f3b1dbf693316c477ba4d5f853c3a914f"
       },
       {
         "key": "fdb-guide-leveling-rogue",
         "url": "https://foreverdb.net/guide/leveling-rogue",
         "class": "Rogue",
-        "known": "04a95bb0cdd8b99ec0890106186d6407c3d8c8280a62b52cfc4e3a8b0fc015b0"
+        "known": "39ed482f4332db557a6cc9308337a6ceb56258e31b85793ce28c655e97a4fda0"
       },
       {
         "key": "fdb-guide-leveling-warrior",
         "url": "https://foreverdb.net/guide/leveling-warrior",
         "class": "Warrior",
-        "known": "780b7637bbd41ca7812f7f9185dd85c097570aa790eae6b01c75e9f8dd2995ef"
+        "known": "0d2d573dd2d584f377038af7ad29399586d0fd1f7804f05e3a23b04dc7ca4db3"
       },
       {
         "key": "kami-build-chaman-amelioration-leveling",
@@ -351,19 +351,19 @@
         "key": "kami-druide-sorts-et-talents-modifies",
         "url": "https://kami-labs.fr/en/wow-forever/druide-wow-forever-sorts-et-talents-modifies/",
         "class": "Druid",
-        "known": "7b548e70fc024f81b14b79960dcd382d2f9f659d4d50dd0a48bf5684dbbb326b"
+        "known": "06c945bd62012506357db86408772200eb25109861d69e1a807815eee4918d31"
       },
       {
         "key": "kami-pretre-leveling-baguette",
         "url": "https://kami-labs.fr/en/wow-forever/pretre-wow-forever-leveling-baguette/",
         "class": "Priest",
-        "known": "470c5f7167265d5b36c55ca4d355c7093fb530f24ca61b92832d23009d4b82d3"
+        "known": "a51d4b424026450d0a1d86fb6bf170eb2a3dfe4ba6b9585754deffcc7cd9ed5b"
       },
       {
         "key": "kami-chaman-quete-arme-niveau-30",
         "url": "https://kami-labs.fr/en/wow-forever/wow-forever-chaman-quete-arme-niveau-30/",
         "class": "Shaman",
-        "known": "99a9bb248a49d6e4ccf37057370f21a1383a78a03934ba0f9c030eb33bfbdd2f"
+        "known": "078088abc1379085d20c63be279de03793e187a528f48ab859e416c3bb8cf37d"
       },
       {
         "key": "wiki-A_Lesson_in_Divinity",
@@ -439,7 +439,7 @@
         "key": "method-paladin-leveling-guide-and-talents",
         "url": "https://www.method.gg/wow-forever/wow-forever-paladin-leveling-guide-and-talents",
         "class": "Paladin",
-        "known": "a555c0b2853a5b9a937d020d87a019f8d20aae9b568af4e334f1e7a737ca3d82"
+        "known": "645c04f3e116b0dafb0824a4ed2c22b46b092c4252b53948fc5030ce2107cc24"
       },
       {
         "key": "method-priest-leveling-guide-and-talents",
@@ -457,7 +457,7 @@
         "key": "method-shaman-leveling-guide-and-talents",
         "url": "https://www.method.gg/wow-forever/wow-forever-shaman-leveling-guide-and-talents",
         "class": "Shaman",
-        "known": "021f89e2608a0329faa698de7106357acce29275208356a0330c3541f4da54d1"
+        "known": "72ff948b3c71b636385e2fdd545be8d19a6fc71b4cfdda8cfd76b11ce4ac3dd9"
       },
       {
         "key": "method-warlock-leveling-guide-and-talents",
@@ -475,51 +475,51 @@
         "key": "wt-best-hunter-pets",
         "url": "https://www.warcrafttavern.com/forever/guides/best-hunter-pets/",
         "class": "Hunter",
-        "known": "80f11f7953412c2f78c893369a5614618f8ade9bb04cf3430e3c977ceb7b4f8f"
+        "known": "3737ced1926aa43d7fd82ffdaa57ccd2d13e156d0946b3923287f18727a60b0b"
       },
       {
         "key": "wt-priest",
         "url": "https://www.warcrafttavern.com/forever/guides/priest/",
         "class": "Priest",
-        "known": "0226430d54d03fd7773ef8e973c8bb24aea829e3e5387aac908beaa0d40cad2f"
+        "known": "cbbea54651f97961361784203dd9db3ffd4d0aa987b5cb46b81fec0966b6e61a"
       },
       {
         "key": "wt-undead-paladin",
         "url": "https://www.warcrafttavern.com/forever/guides/undead-paladin/",
         "class": "Paladin",
-        "known": "4db2217f7c01201b8dfa4df2168e4d6faafe3c75bada5ba5224dc63cb175b93a"
+        "known": "15fc1e5bcbddc341e9cd8022cb335b0a46c3ba3a5a0d156c6459c3c7e6c5a052"
       },
       {
         "key": "wt-all-changes-to-paladins",
         "url": "https://www.warcrafttavern.com/forever/news/all-changes-to-paladins-in-wow-forever/",
         "class": "Paladin",
-        "known": "e51103a154a43c87e8b6cc4d2e90fa0cd33dd3922e7ef819727b583efee66da1"
+        "known": "625909255f427171b4da96ab9c8ede0e0f2bf1fe385eb22923dc8e815460dd13"
       },
       {
         "key": "wt-powershifting-is-back-sort-of-hunter-druid-deep",
         "url": "https://www.warcrafttavern.com/forever/news/powershifting-is-back-sort-of-hunter-druid-deep-dive-for-wow-forever/",
         "class": "Druid",
-        "known": "262e03e54901e5c5e51dc40ae26acd9333e8336846e339df922979037797ab0d"
+        "known": "863ba09718062af5e2c12b20f0f945579eb08fcaf4975427f5daa6b363b4313f"
       },
       {
         "key": "wt-pre-launch-class-changes-bug-fixes",
         "url": "https://www.warcrafttavern.com/forever/news/wow-forever-pre-launch-class-changes-bug-fixes/",
-        "known": "c4ccf134a414f1c9d3359eddb35fdf715004de88657097faa6a6e3268e3a6942"
+        "known": "9fc7f0c935a31661afd89441605b5200f4fc49e6d13ad66ddfab6a770d7a3bcc"
       },
       {
         "key": "fdb-professions-best",
         "url": "https://foreverdb.net/professions/best",
-        "known": "1febd36665956a95c1c3d10009571bc3f8677990671265e577ba8296244826a9"
+        "known": "f387459d1b92eff005caf59ca1c20981d9ca90e45ba2feedbe994a3ddb96c5dc"
       },
       {
         "key": "kami-tier-list-wow-forever",
         "url": "https://kami-labs.fr/en/tier-list-wow-forever/",
-        "known": "d8911e975f4ce8ee579ab758c7670b705aa7ae6384eec352ac83adc56b2b8893"
+        "known": "40a548af53ab00ac70d7c2cb9339b1198de5551fea86710dc8935995a84eca39"
       },
       {
         "key": "kami-which-class",
         "url": "https://kami-labs.fr/en/wow-forever/quelle-classe-choisir-wow-forever/",
-        "known": "853322d31cf48141dff743dd0a79962f554f289311dc5145c8e1c15e0a086cfe"
+        "known": "0292667d720d304cf457d17a7ec9ddcb931f78d6828a40a916ed544f1d957af8"
       },
       {
         "key": "wowgg-meta-forever",
@@ -530,122 +530,122 @@
         "key": "wt-arms-warrior",
         "url": "https://www.warcrafttavern.com/forever/guides/arms-warrior/",
         "class": "Warrior",
-        "known": "2ab8724b09ec1c985f7249cf76d375def50693dfa0e4a2b9a7b1fa1126b132b1"
+        "known": "13f4dac192b76f9c0e8abc7cdf8966dcad08db0e1fe69c012a73aaa22951c2d2"
       },
       {
         "key": "wt-assassination-rogue",
         "url": "https://www.warcrafttavern.com/forever/guides/assassination-rogue/",
         "class": "Rogue",
-        "known": "50ea4cfe13eb75a2b5351feb87ff08d5e4185e515a0590e9621dd92e3de5e533"
+        "known": "75b4d42f00cb5b67979373b86e4f75e953e220ffcfd48abb658c924ee6ef26a8"
       },
       {
         "key": "wt-balance-druid",
         "url": "https://www.warcrafttavern.com/forever/guides/balance-druid/",
         "class": "Druid",
-        "known": "f97e44dcb77e7b49a282e9736cf156e3c505a850cba4773bbc9220aef27b6686"
+        "known": "f79bb945195f4bd121e0099d8326a648008c55501837024a7737d5b38f93f659"
       },
       {
         "key": "wt-beast-mastery-hunter",
         "url": "https://www.warcrafttavern.com/forever/guides/beast-mastery-hunter/",
         "class": "Hunter",
-        "known": "dc4a761faac33ced05e90261b7e974316d6df0ef651987a670e69648922988e0"
+        "known": "a2493995b4b149f411b3d39af191407048174c7415261890b8e113eecd34e9ab"
       },
       {
         "key": "wt-combat-rogue",
         "url": "https://www.warcrafttavern.com/forever/guides/combat-rogue/",
         "class": "Rogue",
-        "known": "2dbf8ab7cd24f685806c8736591d0f61b9cfb11b08cfaee55734d558fd7ce8c7"
+        "known": "8e74355a409352ad1e80b88d7110ac344f883607d29fea0eb0a7168b564e96b1"
       },
       {
         "key": "wt-demonology-warlock",
         "url": "https://www.warcrafttavern.com/forever/guides/demonology-warlock/",
         "class": "Warlock",
-        "known": "8a17fc722e72866aca87bf35a6764e6080f14dfd4a9e3730871bdf684dd92d08"
+        "known": "ee492fc1cef87d6ea580db4bfbaaf50bc20de14cf9dd3cf490143fa50e5b1c49"
       },
       {
         "key": "wt-destruction-warlock",
         "url": "https://www.warcrafttavern.com/forever/guides/destruction-warlock/",
         "class": "Warlock",
-        "known": "ee419e3b0d86e154016204a19f616a316013e1e4e11cee463f3f2cd139602733"
+        "known": "d7aa1ebc0445ff12a3f6cb044f69c04b4d469c6ac2b82468fb5c8ce94a85e081"
       },
       {
         "key": "wt-discipline-priest",
         "url": "https://www.warcrafttavern.com/forever/guides/discipline-priest/",
         "class": "Priest",
-        "known": "b15f14eb89d2008de122cf818ede11164b4acb58e0c7eae64e5bed2d05a6076f"
+        "known": "a44a3aca5335c10ae7cd216f1674ba91498a3fe3996d9e5084265d32aa839bb9"
       },
       {
         "key": "wt-enhancement-shaman",
         "url": "https://www.warcrafttavern.com/forever/guides/enhancement-shaman/",
         "class": "Shaman",
-        "known": "d5174ca93adce10040e5781612e3cc6ae6ff48369b79862495305c3ecfa87915"
+        "known": "66107ac92337680fbc4e9d8a1f6bf20952ff89e8c690e076484271ad50196377"
       },
       {
         "key": "wt-feral-druid",
         "url": "https://www.warcrafttavern.com/forever/guides/feral-druid/",
         "class": "Druid",
-        "known": "049fdc454a5915d6c606bbbe6919e3ee75da880a3a2c12231f134f86b3c64fab"
+        "known": "5d9fabb7e58d4e0464f3afdd45e95a7b640935f954202beca298cb1927c29d83"
       },
       {
         "key": "wt-frost-mage",
         "url": "https://www.warcrafttavern.com/forever/guides/frost-mage/",
         "class": "Mage",
-        "known": "dca630956ab62b27e5180d7fb6b3d86061e8c9506bb7224589b8ac61c4b591c5"
+        "known": "1c43e468ba3f43a066af1a59e15c0ac1df98fcdf124ff4717bd8fbd13a8801d5"
       },
       {
         "key": "wt-fury-warrior",
         "url": "https://www.warcrafttavern.com/forever/guides/fury-warrior/",
         "class": "Warrior",
-        "known": "b33437426286355d159c628227d70afe1047a14f0e9c1dd77cef99d6f380938e"
+        "known": "45aa7e2dd27e55bef27fbfc6284ea0710a89fbc3f46193b92c3925888252f373"
       },
       {
         "key": "wt-holy-paladin",
         "url": "https://www.warcrafttavern.com/forever/guides/holy-paladin/",
         "class": "Paladin",
-        "known": "9868867eb01d4dc5cff2c1557420bb33a1556ba0f9c1ef33eb313a6bac84f9de"
+        "known": "dc7a78a2ded16336a8542b839f623b72f89ea6b0473b65c695d7582a42eb34f0"
       },
       {
         "key": "wt-holy-priest",
         "url": "https://www.warcrafttavern.com/forever/guides/holy-priest/",
         "class": "Priest",
-        "known": "cb8ccb475ebad746193307e0b124876f5b19b7f4924a181e32962d9014b53f04"
+        "known": "e2744e7aa7f156f9d389dd54fd48147eabe826788170d92b8caa6d093e995894"
       },
       {
         "key": "wt-poisons",
         "url": "https://www.warcrafttavern.com/forever/guides/poisons/",
         "class": "Rogue",
-        "known": "8afe0bd5a011448ff5c4786939f17bc20af269ea10f27f3f78489e1012409248"
+        "known": "9fe0de25a4774bf69f5ef72037b912ced6cb91a5d3e1f12953c6229818efe778"
       },
       {
         "key": "wt-protection-paladin",
         "url": "https://www.warcrafttavern.com/forever/guides/protection-paladin/",
         "class": "Paladin",
-        "known": "d608dd36a0dac68f3b3c6233ff556f5ad515a2f2fff192cebc4d5eb6ff09568a"
+        "known": "2c4fc963b0c9559e7a1e9161d780b567547561190b62c0a583139048043fdd5b"
       },
       {
         "key": "wt-protection-warrior",
         "url": "https://www.warcrafttavern.com/forever/guides/protection-warrior/",
         "class": "Warrior",
-        "known": "8cc762c7ae5f7bf5afbe37b141c2dfc6cf90392874ee12d1393138fb62539ba5"
+        "known": "08ae4d8bb8366f7844aff4baf30bc5f1c57367475d62290af81e8d2243cf9a66"
       },
       {
         "key": "wt-shadow-priest",
         "url": "https://www.warcrafttavern.com/forever/guides/shadow-priest/",
         "class": "Priest",
-        "known": "330f27f5a1411a325e8b3fb000c02a4800181ce6b92de243c3afba7f7b791ced"
+        "known": "7cbc5ecf7cb06522cc449dbafdccbf95242932700fdb5c33fed77c4de9576667"
       },
       {
         "key": "wt-subtlety-rogue",
         "url": "https://www.warcrafttavern.com/forever/guides/subtlety-rogue/",
         "class": "Rogue",
-        "known": "1db09a2080e9934e245ea3b0cac70dba0c8d1be1e6c900953c5c7877f10d1b5a"
+        "known": "7820b6159428ec7f8f9ab441aad152aac0e2994d5cd4b904eeea7db4a61779d7"
       }
     ]
   },
   "foreverdb": {
     "manifest": "https://foreverdb.net/downloads/addon-manifest.json",
     "page": "https://foreverdb.net",
-    "known": "3be9bb14e060eea0",
-    "taken": "2026-11-24"
+    "known": "9e81dcbb36d14aa3",
+    "taken": "2026-11-26"
   }
 }

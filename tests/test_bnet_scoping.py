@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import time
 from types import SimpleNamespace
 
@@ -107,6 +108,22 @@ def test_a_friend_naming_the_owners_character_reads_nothing():
 
 def test_fingerprints_are_per_account():
     assert FakeVM(1).profile_fingerprint() != FakeVM(2).profile_fingerprint()
+
+
+def test_public_profile_marker_uses_the_profile_store_without_market_access(monkeypatch):
+    store = FakeVM(1)
+    store.vm_url = ""
+    def no_market(q):
+        raise AssertionError(q)
+
+    monkeypatch.setattr(store, "vm_query", no_market)
+    first = store.profile_fingerprint()
+    assert first == store.profile_fingerprint()
+    assert store.character_armory(SHARED)["item_level"] == 21
+    rows = [(n, lab, 29 if n == "wow_character_item_level" else value) for n, lab, value in VM]
+    monkeypatch.setattr(sys.modules[__name__], "VM", rows)
+    assert store.character_armory(SHARED)["item_level"] == 29
+    assert store.profile_fingerprint() != first
 
 
 def _people(chars: dict[int, list[str]], owner: int = 0):

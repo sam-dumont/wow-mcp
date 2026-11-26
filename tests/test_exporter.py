@@ -103,6 +103,34 @@ def test_profile_keys_forever_characters_without_realm(monkeypatch):
     assert 'wow_character_profile_found{account_id="0",character="Testpriest-Fixture"} 0.0' in out
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+def test_profile_failure_preserves_the_look_and_reads_the_other_character(monkeypatch, reverse):
+    names = ["Hunter-Fixture", "Priest-Fixture"]
+    if reverse:
+        names.reverse()
+    exporter.configure({"BNET_CLIENT_ID_FILE": "/x", "BNET_CLIENT_SECRET_FILE": "/y",
+                        "PROFILE_CHARACTERS": ",".join(names)})
+    monkeypatch.setattr(exporter, "data", {})
+    broken = "/profile/wow/character/hunter-fixture"
+    def api(path, ns, endpoint):
+        if path.endswith("/appearance"):
+            if path == broken + "/appearance" and fail:
+                raise exporter.ApiError(503, endpoint)
+            return LOOK
+        if endpoint == "profile":
+            return {**PRIEST, "level": 36 if fail else 32}
+        return {}
+
+    fail = False
+    monkeypatch.setattr(exporter, "api_get", api)
+    assert exporter.run_task("profile")
+    fail = True
+    assert not exporter.run_task("profile")
+    rows = profile_lines(exporter.render_data()).splitlines()
+    assert any("wow_character_customization" in r and "Hunter-Fixture" in r for r in rows)
+    assert any(r.startswith("wow_character_profile{") and "Priest-Fixture" in r and r.endswith(" 36.0") for r in rows)
+
+
 def test_profile_reads_guild_and_achievements(monkeypatch):
     """Guild and completed achievements come from Battle.net (owner,
     2026-11-20): the guild on the profile series, each completed

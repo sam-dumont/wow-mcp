@@ -455,6 +455,7 @@ on disk for requests in flight.
 |---|---|---|
 | `PUBLISH_DIR` | `/data/site` | where builds go; `current` points at the live one |
 | `PUBLISH_INTERVAL` | `600` | seconds between checks with `--loop` |
+| `PUBLISH_GEAR_SETTINGS_DIR` | UI state directory if configured | read-only directory holding the owner's `gear-modes.json`. Compose mounts it at `/ui-state/analysis`. Multi-user publishers receive each person's settings from the share port |
 | `ZOGZOG_PATH` | `/zogzog/` | the sealed site's path; empty: not built, not served |
 | `ZOGZOG_KEY_FILE` | `<PUBLISH_DIR>/../zogzog.key` | 43 base64url characters; made (0600) when missing |
 | `HELP_KEY_FILE` | unset: no help page | The MCP help page's own key (`/help/#<key>`, docs/mcp.md), 43 base64url characters; never made: no file, no page |

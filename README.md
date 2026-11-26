@@ -134,8 +134,7 @@ GPL-3.0-only ([LICENSE](LICENSE)). The kit ships route times and gear data
 made from [Polestar](https://github.com/fitzforge/polestar) (GPL-3.0-only) and
 its quest database forever-db (GPL-3.0), so it is GPL too. Thanks to
 fitzforge and Polestar's contributors: the route clock and the gear data
-are theirs. The gear weights and where gear comes from are ForeverDB.net's addon data (GPL-3.0 with an attribution term, [data/foreverdb/](data/foreverdb/README.md)): Data from ForeverDB.net (https://foreverdb.net). The gear data carries parts under MIT, from ForeverLevelingBiS
-v0.12.0-beta by Thunder: its notice is in [THIRD_PARTY.md](THIRD_PARTY.md).
+are theirs. ForeverDB.net supplies the gear weights and additional item sources (GPL-3.0 with an attribution term, [data/foreverdb/](data/foreverdb/README.md)): Data from ForeverDB.net (https://foreverdb.net).
 
 The images (`/app/LICENSE`) and the installed shipper (`LICENSE` next to it)
 carry the license and the source they were built from.
@@ -143,6 +142,6 @@ carry the license and the source they were built from.
 The page's fonts (Cinzel, Alegreya, Alegreya Sans) are under the SIL Open
 Font License, their license files in `web/fonts/`.
 
-World of Warcraft is a trademark of Blizzard Entertainment. Item names,
-icons and models the server fetches stay Blizzard's: this kit doesn't
-bundle them.
+World of Warcraft is a trademark of Blizzard Entertainment. The reference
+files include game names and numbers. Blizzard owns the icons and models
+the server reads at run time and the artwork in the separate 3D demo.

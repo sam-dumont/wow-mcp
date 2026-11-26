@@ -26,7 +26,7 @@ import pytest
 sync_api = pytest.importorskip("playwright.sync_api")
 
 from tests.test_public_view import PoisonStore  # noqa: E402
-from wowstats import armory, itemcard, publish, static, stores, ui  # noqa: E402
+from wowstats import armory, dataversions, itemcard, publish, static, stores, ui  # noqa: E402
 
 FIXTURES = Path(__file__).parent / "fixtures"
 JPEG = (FIXTURES / "icon.jpg").read_bytes() if (FIXTURES / "icon.jpg").is_file() else None
@@ -80,6 +80,9 @@ NO_ICON = 5820  # the client tables have no icon for it: the game's question mar
 
 class Catalog:
     """Every item gets a full card and a real (tiny) JPEG icon, but one."""
+
+    def card(self, item_id):
+        return self.many([item_id]).get(str(item_id))
 
     def many(self, ids):
         out = {str(i): {"n": f"Item {i}", "q": 3, "i": f"inv_test_{i % 7}", "b": "Binds when equipped",
@@ -271,6 +274,22 @@ def test_plausible_sees_the_path_and_never_the_key(served, browser, bundle):
 
 
 @pytest.mark.parametrize("bundle", ["public", "zogzog"])
+def test_published_source_versions_on_mobile(served, browser, bundle):
+    base, key = served
+    c, pg, _, _ = page_with_plausible(browser, viewport={"width": 375, "height": 812})
+    pg.goto(f"{base}/" if bundle == "public" else f"{base}/zogzog/#{key}")
+    details = pg.locator("#foot-sources details")
+    details.locator("summary").click()
+    versions = dataversions.status()
+    assert f"wow-stats {versions['version']}" in details.inner_text()
+    assert "Publisher version" in details.inner_text()
+    for value in (versions["data_versions"]["foreverdb"]["data_version"], versions["data_versions"]["checked"]):
+        assert value in details.inner_text()
+    assert details.evaluate("el => el.scrollWidth <= el.clientWidth")
+    c.close()
+
+
+@pytest.mark.parametrize("bundle", ["public", "zogzog"])
 def test_every_slot_shows_its_icon(served, browser, bundle):
     base, key = served
     c, pg, _, _ = page_with_plausible(browser, viewport={"width": 1280, "height": 900})
@@ -291,10 +310,11 @@ def test_phone_tap_opens_the_tooltip_as_a_bottom_panel(served, browser):
     c, pg, _, _ = page_with_plausible(browser, viewport={"width": 390, "height": 844}, has_touch=True,
                                       is_mobile=True, device_scale_factor=3)
     pg.goto(f"{base}/zogzog/#{key}")
-    wait_count(pg, ".slotitm .ifr.has-icon")
+    wait_count(pg, ".slotitm")
     to_gear(pg)
     first = pg.locator(".slotitm").first
     first.scroll_into_view_if_needed()
+    first.locator(".ifr.has-icon").wait_for(state="visible")
     first.tap()
     tip = pg.locator("#wowtip")
     sync_api.expect(tip).to_be_visible()
@@ -559,7 +579,7 @@ def test_without_our_still_the_paperdoll_shows_no_image(served, browser, case):
     wait_count(pg, ".stage .still .figure", 1)
     if case == "pending":
         wait_count(pg, ".stage .still.pending .stillnote", 1)
-        assert "View it in 3D" in pg.locator(".stage .stillnote").inner_text()
+        assert pg.locator(".stage .stillnote").inner_text() == "Picture on its way."
         assert not [u for u in seen if "/data/render/" in u], seen
     else:
         pg.wait_for_timeout(500)

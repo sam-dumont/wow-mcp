@@ -58,7 +58,7 @@ def plain(value) -> str:
 
 
 def clean_url(u: str) -> str:
-    return u.rstrip(".:*_")
+    return u.rstrip('.:*_"')
 
 
 def cells(line: str) -> list[str]:
@@ -333,7 +333,8 @@ class Lane:
                     refs.append(v)
             urls = []
             for ref in refs:
-                urls += resolve(ref, reg) if not ref.startswith("https://") else [clean_url(ref)]
+                urls += ([clean_url(u) for u in ref.split(" ; ")] if ref.startswith("https://")
+                         else resolve(ref, reg))
             value_known = "value" not in r or r.get("value") is not None or any(
                 k not in PROVENANCE and k not in ("value", "note") and r.get(k) is not None for k in r)
             conf = conf_of(r.get("confidence")) or conf_of(r.get("status")) or (

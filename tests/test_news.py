@@ -210,6 +210,39 @@ def test_a_filter_keeps_what_concerns_it_and_what_concerns_everyone(weeks):
     assert news.digest(week="2026-11-12", today=TODAY)["items"][0]["title"] in ("Launch patch", "Raid opening")
 
 
+@pytest.mark.parametrize("filters", [{"cls": "warrior"}, {"role": "tank"}, {"cls": "warrior", "role": "tank"}])
+def test_unset_news_filters_leave_other_dimensions_open(weeks, filters):
+    rows = news.digest(today=TODAY, **filters)["items"]
+    assert "Shield Slam hits harder" in {r["title"] for r in rows}
+
+
+def test_upcoming_events_and_prep_keep_the_faction_of_the_news_item(monkeypatch):
+    item = ev_item(9, "Horde event", starts="2026-12-01", faction="Horde",
+                   prep=[{"kind": "other", "what": "Visit the camp"}])
+    item["event"]["effects"] = [{"text": "Horde effect"}]
+    monkeypatch.setattr(news, "weeks", lambda: [{"week": "2026-11-19", "items": [item]}])
+    for faction, relevant in (("Alliance", False), ("Horde", True)):
+        char = {**TANK60, "faction": faction}
+        event, = news.upcoming(today=TODAY, char=char)
+        assert event["concerns_you"] is relevant
+        assert event["for_you"] == (["Horde effect"] if relevant else [])
+        assert bool(news.prep_gaps(char, today=TODAY)) is relevant
+
+
+@pytest.mark.parametrize(("spec", "expected"), [
+    (None, ["Tank change", "Damage change"]),
+    ("Protection", ["Tank change"]),
+    ("Arms", ["Damage change"]),
+])
+def test_event_effects_respect_known_roles(monkeypatch, spec, expected):
+    item = ev_item(9, "Upcoming changes", starts="2026-12-01")
+    item["event"]["effects"] = [{"text": "Tank change", "roles": ["tank"]},
+                                {"text": "Damage change", "roles": ["dps"]}]
+    monkeypatch.setattr(news, "weeks", lambda: [{"week": "2026-11-19", "items": [item]}])
+    event, = news.upcoming(today=TODAY, char={"class": "Warrior", "level": 60, "spec": spec})
+    assert event["for_you"] == expected
+
+
 # ---------------------------------------------------------------- events
 
 

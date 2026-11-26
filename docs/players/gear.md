@@ -190,8 +190,8 @@ from `gear` with `export: flb` or `export: pawn`. Data from
    recorded yet".
 4. To see what's for sale: scan the auction house with Auctionator, `/reload`, and an
    **Auction House** group shows within 5 minutes, with prices. On a server you share with
-   friends, a friend's scan counts too: anyone's newest scan of your ruleset and your faction's
-   house (or the neutral one) fills the group, and nobody sees who scanned it.
+   friends, the newest scan with a matching Auctionator ruleset and faction label counts,
+   whoever scanned it. A realm-only scan stays in its owner's private history.
 
 List missing: [A part of my page is empty](troubleshooting.md#a-part-of-my-page-is-empty).
 How the scoring works: [Gear reference](../gear-reference.md).

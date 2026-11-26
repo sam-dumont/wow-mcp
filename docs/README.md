@@ -86,6 +86,7 @@ Look it up:
 - [Addons it reads](reference/addons.md): every addon and what it adds to the page.
 - [Gear upgrades](gear-reference.md), [Route times](route-reference.md),
   [Forever reference](forever-reference.md): the game data the kit ships.
+- [Gear source review](gear-source-review.md) and [recipe acquisition audit](recipe-acquisition-audit.md) give the evidence behind individual drops, trainer ranks and patterns.
 - [Dungeon kill XP](dungeon-xp.md): how a dungeon you haven't run gets its kill XP estimate.
 - [The knowledge base](kb.md): where the game rules your assistant quotes come from.
 

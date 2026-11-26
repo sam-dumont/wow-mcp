@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 import re
 
-from wowstats import ahsource, forever, gearfit
+from wowstats import ahsource, classguide, forever, gearfit, riding
 from wowstats import gear as gearmod
 from wowstats.rates import per_hour
 
@@ -236,6 +236,8 @@ def rate(p: dict, kind: str) -> float:
 def xp_need(inp: dict, level: int) -> tuple[int, bool]:
     """XP level `level` needs: recorded, else extrapolated from the last two
     recorded levels (Forever's table isn't in the data); bool: extrapolated."""
+    if level >= classguide.MAX_LEVEL:
+        return 0, False
     t = {int(k): v for k, v in (inp.get("xp_table") or {}).items()}
     if level in t:
         return t[level], False
@@ -251,7 +253,7 @@ def xp_need(inp: dict, level: int) -> tuple[int, bool]:
 
 def add_xp(inp: dict, level: int, xp: float, gain: float) -> tuple[int, float, bool]:
     guessed = False
-    while gain > 0:
+    while gain > 0 and level < classguide.MAX_LEVEL:
         need, g = xp_need(inp, level)
         guessed |= g
         if xp + gain < need:
@@ -262,7 +264,7 @@ def add_xp(inp: dict, level: int, xp: float, gain: float) -> tuple[int, float, b
 
 
 def lfloat(inp: dict, level: int, xp: float) -> float:
-    return level + xp / max(1, xp_need(inp, level)[0])
+    return min(classguide.MAX_LEVEL, level + xp / max(1, xp_need(inp, level)[0]))
 
 
 # ---------------------------------------------------------------- dungeons
@@ -321,7 +323,7 @@ def _dungeon_item(out: dict, inst: str, levels, u: dict, s: dict) -> None:
     """One upgrade's source under its instance (or wing) in dungeon_items."""
     d = out.setdefault(inst, {"name": inst, "levels": levels, "drops": [], "quests": []})
     row = {"item": u.get("name"), "item_id": u.get("item_id"), "slot": u.get("slot_name"),
-           "gain": round(u.get("value", u.get("gain")) or 0, 1), "req_level": u.get("level"),
+           "gain": u.get("value", u.get("gain")) or 0, "req_level": u.get("level"),
            "now": bool(u.get("now")), **gearmod.badge_of(u), "line": gearmod.gain_words(u)}
     if s["kind"] == "drop":
         d["drops"].append({**row, "boss": s.get("boss") or "trash", "chance": s.get("chance_pct")})
@@ -372,7 +374,7 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
     vs = {pkey(b["name"]): b.get("vs_guide") for b in panel(inp)["dungeons"]}
     by_inst = dungeon_items(inp)
     ts = trip_stats(inp.get("trips") or [])
-    quest_xph = rate(p, "questing") or (p["xp_per_hour"]["value"] or 0)
+    quest_xph = rate(p, "questing") if level < classguide.MAX_LEVEL else 0
     open_ids = {o["quest_id"]: o for o in inp.get("open_quests") or []}
     kb_runs = {dkey(k): v for k, v in (inp.get("dungeon_runs_kb") or {}).items()}
     names = {}
@@ -403,7 +405,7 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
         run = kb_runs.get(k) or {}
         quests_open = [open_ids[qq] for qq in (run.get("objectives") or []) + (run.get("pickups") or [])
                        if qq in open_ids]
-        quest_xp = sum((o.get("xp_full") or 0) * (share(inp, level, o.get("level")) or 1.0) for o in quests_open)
+        quest_xp = sum((o.get("xp_full") or 0) * (share(inp, level, o.get("level")) or 0) for o in quests_open)
         mine = [t for t in inp.get("trips") or [] if dkey(wings.trip_name(t)) == k]
         v = vsguide.named(vs.get(pkey(d["name"])), d["name"])
         # His quests of it in the log count whether or not Polestar has a
@@ -448,8 +450,8 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
     # Rank what fits now: XP/h of the trip against questing, plus the gear an
     # hour brings (points), equal weight per 10% of questing XP and 5 points.
     def score(e):
-        xr = ((e.get("value") or {}).get("xp_per_hour") or 0) / (quest_xph or 1)
-        return (e["fits_now"], xr * 10 + e["value"]["gear_per_hour"] / 5 + e["quest_xp_open"] / max(1, quest_xph) * 10)
+        xp = (e["value"]["xp_per_hour"] or 0) + e["quest_xp_open"]
+        return (e["fits_now"], (xp / quest_xph * 10 if quest_xph else 0) + e["value"]["gear_per_hour"] / 5)
 
     out.sort(key=score, reverse=True)
     for i, e in enumerate(out, 1):
@@ -486,6 +488,8 @@ def share(inp: dict, level: int, qlevel) -> float | None:
     """The hand-in share by the KB's rule, None when the KB has none."""
     from .facts import xp_share
 
+    if level >= classguide.MAX_LEVEL:
+        return 0.0
     return xp_share(level, qlevel, (inp.get("rules") or {}).get("quest_xp_share"))
 
 
@@ -537,7 +541,8 @@ def redo(inp: dict, mine: list[dict], entry: dict, quest_xph: float, mount: dict
     if hours_loop:
         out["loop"] = {"run_s": round(loop_s), "note": "inside time only; the walk out and back in to reset "
                                                         "isn't measured" + (
-                                                            f"; at most {cap} entries an hour, so a run takes "
+                                                            f"; at most {cap} entries an hour to this dungeon, "
+                                                            "so a run takes "
                                                             f"{round(3600 / cap / 60)} minutes at best"
                                                             if cap and loop_s > inside else ""),
                        "xp_per_hour": per_hour(xp_in, loop_s) if xp_in is not None else None,
@@ -555,7 +560,7 @@ def redo(inp: dict, mine: list[dict], entry: dict, quest_xph: float, mount: dict
     xph = out["xp_per_hour_run"] or 0
     loop_gold = (out.get("loop") or {}).get("gold_copper_per_hour") or 0
     gold_rate = ((mount.get("gold_rate") or {}).get("copper_per_hour")) or 0
-    if xph >= 0.9 * quest_xph:
+    if xph and quest_xph and xph >= 0.9 * quest_xph:
         v, why = "worth one more run", "its XP per hour matches your questing"
     elif best and best["gain"] >= 10 and (best["chance"] or 0) >= 20 and best.get("now"):
         v, why = f"only for {best['item']}", "the XP is under your questing; that item is the reason to go"
@@ -576,7 +581,7 @@ def mounts(inp: dict, p: dict) -> dict:
     The savings roll over to the epic once the first is bought."""
     m = inp.get("mount") or {}
     rate_c = (inp.get("gold_rate") or {}).get("copper_per_hour")
-    gold = inp.get("gold_copper") or 0
+    gold = inp.get("gold_copper")
     lf = p["level_factor"]["factor"] or p["overall"]["factor"]
     route = {int(k): v for k, v in (inp.get("route_levels") or {}).items()}
     level, xp = inp["level"], inp["xp"]
@@ -587,38 +592,48 @@ def mounts(inp: dict, p: dict) -> dict:
     # trained at or past its level may be (2026-11-24, the profession caps'
     # blind spot). Under its level it can't be.
     seen_in_game = m.get("riding_from") == "game"
-    savings = gold
+    committed = 0
     missing: list[str] = []
+    log = {o["quest_id"] for o in inp.get("open_quests") or []}
     for t in m.get("tiers") or []:
-        need = t["training_copper"] + (0 if t.get("comes_with_mount") else (t.get("vendor_mount_copper") or 0))
-        bought = bool(t.get("skill")) and have >= t["skill"]
+        quest = riding.class_route(t.get("skill"), inp.get("who") or {}, inp.get("quests_done") or (), log)
+        paid = t["training_copper"] + (0 if t.get("comes_with_mount") else (t.get("vendor_mount_copper") or 0))
+        need = quest["remaining_copper"] if quest else paid
+        bought = bool(t.get("skill") and have >= t["skill"] or quest and quest["fulfilled"])
+        if quest and need is None and not bought:
+            missing.append(f"remaining quest costs for {quest['name']}")
         hrs_to_level = played_to(inp, route, lf, t["level"])
         # No route time to that level (the route stops before it): what is
         # known still comes, the gold at that level is unknown, never guessed.
-        at_level_gold = (savings + (rate_c or 0) * hrs_to_level / 3600
-                         if rate_c is not None and hrs_to_level is not None else None)
+        at_level_gold = (max(0, gold + rate_c * hrs_to_level / 3600 - committed)
+                         if None not in (gold, rate_c, hrs_to_level, committed) else None)
         if hrs_to_level is None and not bought:
             missing.append(f"time to level {t['level']}: the route has no clock that far")
-        left = max(0, need - savings) if not bought else 0
-        eta_s = left / rate_c * 3600 if rate_c and rate_c > 0 and left else (0 if not left else None)
+        target = committed + need if need is not None and committed is not None else None
+        left = max(0, target - gold) if gold is not None and target is not None else None
+        if bought or target == 0:
+            left = 0
+        eta_s = 0 if left == 0 else left / rate_c * 3600 if left is not None and rate_c and rate_c > 0 else None
         tiers.append({"name": t["name"], "level": t["level"], "need_copper": need,
                       # Forever's training comes with a mount: the vendor's
                       # price is then a second, optional mount, not part of need.
-                      "training_copper": t["training_copper"],
+                      "training_copper": 0 if quest else t["training_copper"],
+                      **({"quest": quest, "trainer_alternative_copper": paid} if quest else {}),
                       "mount_copper": None if t.get("comes_with_mount") else t.get("vendor_mount_copper"),
                       "extra_mount_copper": t.get("vendor_mount_copper") if t.get("comes_with_mount") else None,
                       "comes_with_mount": bool(t.get("comes_with_mount")), "bought": bought,
                       "may_be_trained": not bought and not seen_in_game and level >= t["level"],
                       "source": t.get("source"),
-                      "left_copper": left, "eta_played_s": round(eta_s) if eta_s is not None else None,
+                      "prior_cost_copper": committed, "target_copper": target, "left_copper": left,
+                      "eta_played_s": round(eta_s) if eta_s is not None else None,
                       "eta_level": level_at(inp, route, lf, eta_s) if eta_s is not None else None,
                       "played_to_level_s": round(hrs_to_level) if hrs_to_level is not None else None,
                       "gold_at_level_copper": round(at_level_gold) if at_level_gold is not None else None,
-                      "behind": bool(at_level_gold is not None and at_level_gold < need and not bought),
-                      "discounted_copper": round(need * (1 - m["discount"]["pct"] / 100)) if m.get("discount")
-                      else None})
+                      "behind": bool(not bought and None not in (at_level_gold, need) and at_level_gold < need),
+                      "discounted_copper": round(need * (1 - m["discount"]["pct"] / 100))
+                      if m.get("discount") and not quest else None})
         if not bought:
-            savings = max(0, savings - need)  # what is left after buying rolls over
+            committed = target
     current = next((t for t in tiers if not t["bought"]), None)
     if current and current["may_be_trained"]:
         missing.append(f"whether {current['name']} is trained: no read saw it (Altoholic's spellbook, read at each "
@@ -650,7 +665,7 @@ def level_at(inp: dict, route: dict, factor: float, played_s: float) -> float | 
     frac = 1 - inp["xp"] / max(1, xp_need(inp, level)[0])
     left = played_s
     lv = level
-    while lv in route:  # the route's levels, whatever its cap
+    while lv in route and lv < classguide.MAX_LEVEL:
         r = route.get(lv)
         if r is None:
             return None
@@ -660,7 +675,7 @@ def level_at(inp: dict, route: dict, factor: float, played_s: float) -> float | 
             return round(lv + start + (left / (r * (factor or 1))), 1)
         left -= cost
         lv += 1
-    return None  # past the route's last level
+    return float(lv) if lv == classguide.MAX_LEVEL else None
 
 
 # ---------------------------------------------------------------- gear options
@@ -697,7 +712,7 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict, zone: str |
                    "available": "now" if now else f"at {u.get('level')}" if not u.get("now")
                    else "once you can make it",
                    # The ranking's value and who it's built for (wowstats.gearfit).
-                   "value": round(u.get("value", u.get("gain")) or 0, 1),
+                   "value": u.get("value", u.get("gain")) or 0,
                    "fit": gearfit.text(u.get("fit")), "in_current_zone": gearmod.in_zone(s, zone)}
             if with_text(u):
                 row["worn_with"] = with_text(u)
@@ -780,7 +795,8 @@ def default_context(inp: dict) -> str:
     """Levelling while the route still has a level ahead of him; past the
     route's last level, max-level PvE."""
     top = max((int(k) for k in (inp.get("route_levels") or {})), default=None)
-    return "levelling" if top is None or inp["level"] <= top else "max-level-pve"
+    levelling = inp["level"] < classguide.MAX_LEVEL and (top is None or inp["level"] <= top)
+    return "levelling" if levelling else "max-level-pve"
 
 
 def unsupported(inp: dict, context: str) -> dict:
@@ -794,6 +810,8 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
     context = context or default_context(inp)
     if context not in CONTEXTS:
         raise ValueError(f"context is one of {', '.join(CONTEXTS)}")
+    if inp["level"] >= classguide.MAX_LEVEL and context == "levelling":
+        context = "max-level-pve"
     if context != "levelling":
         return unsupported(inp, context)
     # Without the Recorder there is no step to plan from: the plan goes by
@@ -856,12 +874,13 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
     lv, x = level, xp
     group_mode = cons.get("group") and not cons.get("no_dungeons")
     prof = cons.get("profession")
-    best_d = next((d for d in dl if d["fits_now"] and d.get("trip")), None)
+    fitting_trips = [d for d in dl if d["fits_now"] and d.get("trip") and d["trip"]["time_s"] <= play]
+    best_d = next(iter(fitting_trips), None)
 
     def add_block(kind, title, dur, xp_gain, why, extra=None):
         nonlocal t, lv, x, rested
         dur = min(dur, play - t)
-        if dur <= 60:
+        if dur <= 0 or (dur <= 60 and not (extra or {}).get("ding")) or lv >= classguide.MAX_LEVEL:
             return False
         frac = dur / extra.pop("_full", dur) if extra and "_full" in extra else 1.0
         if route_mode:  # levels from the route's clock; XP amounts unknown (no XP table past this level)
@@ -871,8 +890,12 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
         else:
             gain = xp_gain * frac
             bonus = min(rested, gain * kill_share)
-            rested -= bonus
             lv2, x2, guessed = add_xp(inp, lv, x, gain + bonus)
+            if lv2 == classguide.MAX_LEVEL:
+                room = sum(xp_need(inp, i)[0] for i in range(lv, lv2)) - x
+                gain = min(gain, room)
+                bonus = min(bonus, room - gain)
+            rested -= bonus
         b = {"id": f"b{len(blocks) + 1}", "kind": kind, "title": title, "start_s": round(t),
              "dur_s": round(t + dur) - round(t),
              "xp": round(gain) if gain is not None else None,
@@ -940,7 +963,8 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
 
     used = t
     buffer = budget - used
-    gold_end = (inp.get("gold_copper") or 0) + (gold_rate or 0) * used / 3600
+    gold = inp.get("gold_copper")
+    gold_end = round(gold + (gold_rate or 0) * used / 3600) if gold is not None else None
     town = town_stop(inp, p, blocks, mount, cons)
     checkpoints = [{"after": b["id"], "at_s": b["start_s"] + b["dur_s"], "level": b["level_to"],
                     "step": (f"{b.get('guide', '').split('/')[-1]} step {b['step_to']}" if b.get("step_to") else None),
@@ -949,7 +973,7 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
     end = {"level": round(lfloat(inp, lv, x), 2), "level_int": lv, "xp": round(x), "route_clock": route_mode,
            "xp_gained": None if route_mode else round(sum(b["xp"] + b["rested_bonus"] for b in blocks)),
            "rested_used": 0 if route_mode else round(sum(b["rested_bonus"] for b in blocks)),
-        "rested_left": round(rested), "gold_copper": round(gold_end), "played_s": round(used)}
+        "rested_left": round(rested), "gold_copper": gold_end, "played_s": round(used)}
     est = {
         "schema": 1, "char": inp["who"].get("char"), "made_t": inp["now_t"], "hours": hours, "constraints": cons,
         "context": context, "supported": True,
@@ -966,11 +990,11 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
         "blocks": blocks, "town_stop": town, "checkpoints": checkpoints, "end": end, "buffer_s": round(buffer),
         "skip": skips(inp, p, long_ahead), "abandon": abandons(inp, p), "mount": mount,
         "dungeons": [d for i, d in enumerate(dl) if i < 6 or d.get("redo")],
-        "branch": None if cons.get("no_dungeons") or group_mode else branch(dl),
+        "branch": None if cons.get("no_dungeons") or group_mode else branch(fitting_trips),
         # A dungeon loop isn't a gold option for a player who ruled dungeons out.
         "gold_options": gold_options(inp, mount, [] if cons.get("no_dungeons") else dl) if mount.get("behind") else [],
         "logout": logout(inp, blocks), "findings": inp.get("findings") or [], "nudges": inp.get("nudges") or [],
-        "gear_now": gear_now(inp),
+        "gear_now": gear_now(inp), "gear_mode": inp.get("gear_mode"), "gear_spec": inp.get("gear_spec"),
     }
     est["facts"] = facts(est)
     return est
@@ -988,7 +1012,7 @@ def level_blocks(inp: dict, p: dict, play: float, add_block, now, route_mode: bo
     for _ in range(60):  # a session of at most 8 hours: never more than a few levels
         t, lv, x = now()
         left = play - t
-        if left <= 60:
+        if left <= 60 or lv >= classguide.MAX_LEVEL:
             return
         need = xp_need(inp, lv)[0]
         r = route_seconds(inp, lv)
@@ -1078,7 +1102,7 @@ def skips(inp: dict, p: dict, long_ahead: list[dict]) -> list[dict]:
 def abandons(inp: dict, p: dict) -> list[dict]:
     """Open quests from zones he left a while ago that pay little now, or
     want a group he doesn't have: what each is still worth in his minutes."""
-    xph = rate(p, "questing") or (p["xp_per_hour"]["value"] or 1)
+    xph = rate(p, "questing")
     level = inp["level"]
     zone = inp.get("zone")
     last_t = inp.get("data_until_t") or inp["now_t"]
@@ -1090,15 +1114,17 @@ def abandons(inp: dict, p: dict) -> list[dict]:
         sh = share(inp, level, o.get("level"))
         if (sh is None or o.get("xp_full") is None) and not o.get("elite"):
             continue  # no sourced XP rule: its worth now is unknown, so no advice on it
-        worth = (o.get("xp_full") or 0) * (sh if sh is not None else 1.0)
-        mins = worth / xph * 60 if xph else 0
-        if away >= STALE_S and ((sh is not None and sh <= 0.6) or o.get("elite") or mins < 5):
+        worth = o["xp_full"] * sh if o.get("xp_full") is not None and sh is not None else None
+        mins = worth / xph * 60 if worth is not None and xph > 0 else None
+        if away >= STALE_S and ((sh is not None and sh <= 0.6) or o.get("elite")
+                                or (mins is not None and mins < 5)):
             out.append({"quest": o.get("name") or f"quest {o['quest_id']}", "quest_id": o["quest_id"],
-                        "zone": o.get("zone"), "quest_level": o.get("level"), "xp_now": round(worth),
-                        "minutes_of_your_xp": round(mins), "share": sh,
+                        "zone": o.get("zone"), "quest_level": o.get("level"),
+                        "xp_now": round(worth) if worth is not None else None,
+                        "minutes_of_your_xp": round(mins) if mins is not None else None, "share": sh,
                         "why": "needs a group (elite targets)" if o.get("elite") else
                         f"pays {fpct(sh)} of its XP at your level" if sh < 1 else "little XP for the trip back"})
-    out.sort(key=lambda a: a["xp_now"])
+    out.sort(key=lambda a: (a["xp_now"] is None, a["xp_now"]))
     return out[:6]
 
 
@@ -1175,7 +1201,7 @@ def gear_now(inp: dict) -> list[dict]:
         rows.append({"item": u.get("name"), "slot": u.get("slot_name"), "gain": round(u.get("gain") or 0, 1),
                      "line": gearmod.gain_words(u),
                      "where": src_text(srcs[0]) if srcs else None, "worn_with": with_text(u),
-                     "fit": gearfit.text(u.get("fit")), "value": round(u.get("value", u.get("gain")) or 0, 1)})
+                     "fit": gearfit.text(u.get("fit")), "value": u.get("value", u.get("gain")) or 0})
     rows.sort(key=lambda r: -r["value"])
     return rows[:5]
 
@@ -1282,6 +1308,9 @@ def facts(e: dict) -> dict[str, str]:
         f[f"{k}.level"] = str(t["level"])
         f[f"{k}.need"] = fgold(t["need_copper"])
         f[f"{k}.left"] = fgold(t["left_copper"])
+        if quest := t.get("quest"):
+            f[f"{k}.quest"] = f"{quest['name']}. {quest['action']}"
+            f[f"{k}.trainer"] = fgold(t["trainer_alternative_copper"])
         if t.get("eta_played_s") is not None:
             f[f"{k}.eta"] = fdur(t["eta_played_s"])
         if t.get("eta_level") is not None:
@@ -1298,8 +1327,10 @@ def facts(e: dict) -> dict[str, str]:
     for j, sk in enumerate(e["skip"], 1):
         f[f"skip{j}"] = f"{sk['what']}, about {fdur(sk['est_s'])}: {sk['why']}"
     for j, a in enumerate(e["abandon"], 1):
-        f[f"abandon{j}"] = (f"{a['quest']} ({a['zone']}): {fint(a['xp_now'])} XP now, about "
-                            f"{a['minutes_of_your_xp']} min of your XP rate; {a['why']}")
+        minutes = a["minutes_of_your_xp"]
+        pace_text = f", about {minutes} min of your XP rate" if minutes is not None else ""
+        xp_text = f"{fint(a['xp_now'])} XP now" if a["xp_now"] is not None else "XP unknown"
+        f[f"abandon{j}"] = f"{a['quest']} ({a['zone']}): {xp_text}{pace_text}; {a['why']}"
     br = e.get("branch")
     if br:
         f["branch.dungeon"] = br["dungeon"]

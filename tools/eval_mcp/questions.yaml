@@ -33,6 +33,18 @@
 
 # ---------------------------------------------------------------- lookups
 
+- id: wow_stats_version
+  group: lookup
+  persona: leveller
+  difficulty: easy
+  question: Which version of wow-stats is answering this request?
+  answer: wow_stats_version
+  match: text
+  tools: [data_status|character_summary]
+  probes:
+    - {tool: data_status, path: version}
+    - {tool: data_status, path: data_versions.checked, holds: some}
+
 - id: level_now
   group: lookup
   persona: leveller

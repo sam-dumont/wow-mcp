@@ -376,6 +376,12 @@ def current_zone(ctx: Ctx, char: str) -> str | None:
     return zone_now(pick_sheet(sheet_rows(one_row(st), cf(char))), (last or [{}])[0])
 
 
+def t_data_status(ctx: Ctx, args: dict) -> dict:
+    from wowstats import dataversions
+
+    return dataversions.status()
+
+
 def t_character_summary(ctx: Ctx, args: dict) -> dict:
     from wowstats import dataversions
     from wowstats.analysis import pages
@@ -453,7 +459,7 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
         **({"from_level_splits": estimated} if estimated else {}),
         # What the server's static data was built from (wowstats.dataversions):
         # how fresh the item sources, quests and routes behind every answer are.
-        "data_versions": dataversions.versions(),
+        **dataversions.status(),
     }
 
 
@@ -927,6 +933,18 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
                            "item_id": "max", "t": "maxtime"}, start, end)
     from wowstats import storemodels
 
+    char = None
+    explicit = "ruleset" in args or "faction" in args
+    if explicit:
+        faction = str(args.get("faction") or "").title()
+        ruleset = str(args.get("ruleset") or "").strip()
+        if not ruleset or faction not in (*ahshared.SIDES, ahshared.NEUTRAL, "Unknown") or args.get("char"):
+            raise ToolError("Select a character, or give both ruleset and faction for an auction house.")
+        house, rows = ahshared.one_house(rows, (ruleset, "" if faction == "Unknown" else faction), exact=True)
+    else:
+        if rows or args.get("char") or ctx.default_char:
+            char = resolve_char(ctx, args)
+        house, rows = ahshared.for_character(ctx.store.events, char, rows) if char else ahshared.one_house(rows, None)
     out = []
     for key, d in storemodels.prices([{**r, "_time": r.get("t")} for r in rows]).items():
         name = d["price_item"] or f"item {key}"
@@ -941,8 +959,8 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
                     "change_vs_first": gold(d["price_change_copper"]) if d["price_change_copper"] is not None
                     else None})
     out.sort(key=lambda d: d["item"])
-    note = None if out else "no Auctionator scans in that range (feed wow-prices)"
-    return {"items": out[:limit], "total": len(out), "note": note,
+    note = None if out else "No matching Auctionator prices. Select a ruleset and faction to query a specific house."
+    return {"char": char, "items": out[:limit], "total": len(out), "note": note, "house": house or None,
             "prices": "lowest minimum buyout seen that day, per unit"}
 
 
@@ -1163,7 +1181,8 @@ def inventory_answer(held: dict | None, want: str = "", limit: int = 50, now: da
     if held.get("bank") is None:
         notes.append("the bank not seen yet: open it at a banker in game once")
     elif when["bank"] and (now or datetime.now(UTC)) - when["bank"] > timedelta(days=BANK_STALE_DAYS):
-        notes.append(f"the bank as of {when['bank'].date().isoformat()}: open it in game to refresh")
+        notes.append(f"bank contents last observed in the save on {when['bank'].date().isoformat()}: "
+                     "open the bank in game to check them")
     if not rows:
         notes.append(f"nothing matching {want!r} in the bags or the bank" if want else "the bags and bank are empty")
     out = {"items": rows[:limit], "total_items": len(rows), "counts_known": known,
@@ -1243,8 +1262,12 @@ def _gear_inputs(ctx: Ctx, char: str) -> dict:
         # was more than one read may return: the store refused it, and the
         # gear advice lost the auction house (live, 2026-11-24).
         res = {k: st.logs(q) for k, (q, _k, _o) in ahsource.queries(cf(char), rec(char)).items()}
-        res["items"] = _views(ctx).price_rows()
-        market = ahsource.market(res, faction=sheet.get("faction"), money=opt_num(s.get("money_copper")))
+        from wowstats import profcaps
+
+        sheet["professions"] = profcaps.fill(sheet["professions"], profcaps.newest_skills(res.get("skills", [])))
+        res["items"] = _views(ctx).character_price_rows(char)
+        market = ahsource.market(res, faction=sheet.get("faction"), money=opt_num(s.get("money_copper")),
+                                 who=sheet, done=done, log=log)
     except SourceError:
         market = None  # no prices is no reason to lose the advice
     return {"early": None, "rows": rows, "snap": snap, "worn": worn, "worn_from": worn_from, "s": s, "r": r,
@@ -1640,6 +1663,10 @@ TOOLS: tuple[Tool, ...] = (
          "last 3 levels), ETA to the next level, deaths, the kills and quests in named populations (counts: "
          "completed_levels, current_level so far, including_current_level), and the other characters on record.",
          schema({"char": CHAR}), t_character_summary),
+    Tool("data_status", "Version and data sources",
+         "The running wow-stats version and bundled source revisions, client builds, ForeverDB weights fetch date "
+         "and knowledge-base digest weeks. checked is the date of the last accepted watch change. No character needed.",
+         schema({}), t_data_status),
     Tool("levels", "Time per level",
          "Time, XP, quests and kills per level from Polestar's XP splits, with median, fastest and slowest. A level "
          "whose split is missing or partial is timed from the game's /played (`from`: altoholic). The current "
@@ -1685,11 +1712,14 @@ TOOLS: tuple[Tool, ...] = (
     Tool("prices", "Auction scans",
          "Prices from Auctionator scans of the character's ruleset and faction (the player's own, or on a shared "
          "server anyone's): latest, min and max over the range, change since the first scan.",
-         schema({"item": {"type": "string", "description": "Part of an item name, or an item id."},
+         schema({"char": CHAR, "ruleset": {"type": "string", "description": "Auction ruleset for an explicit house."},
+                 "faction": {"type": "string", "enum": ["Alliance", "Horde", "Neutral", "Unknown"],
+                             "description": "Auction house on the selected ruleset."},
+                 "item": {"type": "string", "description": "Part of an item name, or an item id."},
                  "since": SINCE, "until": UNTIL, "limit": lim(20, 100)}), t_prices),
     Tool("inventory", "Bags and bank",
          "What the character holds in its bags and bank, with counts: per item the count in the bags, in the bank "
-         "and the total, and when each was read (the bank is as of the last time the character opened it; `note` "
+         "and the total, and when each container's contents were observed in the save (`note` "
          "says when that is old). `counts_known` false: the IDs only, `unlock` says how to get counts. For 'do I "
          "have X', 'how many X', 'what's in my bank'.",
          schema({"char": CHAR, "item": {"type": "string", "description": "Part of an item name, or an item id."},
@@ -1890,6 +1920,8 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
     extra = sorted(set(args) - allowed)
     if extra:
         raise ToolError(f"unknown argument(s): {', '.join(extra)}")
+    if name == "data_status":  # No account data or character-store dependency.
+        return tool.fn(ctx, args)
     from wowstats import eventcache, itemfacts
     from wowstats.analysis import copies, drive
     from wowstats.stores import SourceError as ViewsSourceError
@@ -2065,7 +2097,7 @@ def missing_for(ctx: Ctx, tool: Tool, args: dict, out: dict) -> list[dict] | Non
 
     try:
         snap = _snapshot(ctx)
-        if "char" in tool.input_schema["properties"]:
+        if "char" in tool.input_schema["properties"] and (tool.name != "prices" or out.get("char")):
             char = out.get("char") if isinstance(out.get("char"), str) else resolve_char(ctx, args)
             gap = missing.for_char(snap, char)
         else:

@@ -263,14 +263,14 @@ def share_open(url: str, env: dict | None = None, timeout: float = 15):
         try:
             headers["Authorization"] = "Bearer " + _read_secret(p, "ANALYSIS_SHARE_TOKEN_FILE")
         except GuardError as e:  # a client logs and tries again next pass
-            raise OSError(str(e.code)) from None
+            raise PermissionError(str(e.code)) from None
     req = urllib.request.Request(url, headers=headers)
     try:
         return urllib.request.urlopen(req, timeout=timeout)  # noqa: S310 - an address from our own env
     except urllib.error.HTTPError as e:
         if e.code == 401:
-            raise OSError(f"{urllib.parse.urlsplit(url).netloc} refused the request (401): set "
-                          "ANALYSIS_SHARE_TOKEN_FILE to the full view's share token file") from None
+            raise PermissionError(f"{urllib.parse.urlsplit(url).netloc} refused the request (401): set "
+                                  "ANALYSIS_SHARE_TOKEN_FILE to the full view's share token file") from None
         raise
 
 

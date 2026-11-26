@@ -883,11 +883,11 @@ class Store:
         It moves when the exporter's daily refresh changes or drops one, so
         the publisher rebuilds then: game events alone don't say so. "" when
         there is no vm-wow; raises SourceError when it doesn't answer."""
-        if not self.vm_url:
+        if not self.profile_vm_url:
             return ""
         rows = []
         for name in self.PROFILE_SERIES:
-            for r in self.vm_query(f"last_over_time({name}{self.profile_sel()}[2d])"):
+            for r in self.profile_query(f"last_over_time({name}{self.profile_sel()}[2d])"):
                 rows.append([name, sorted((r.get("metric") or {}).items()), (r.get("value") or [None, None])[1]])
         rows.sort(key=lambda r: json.dumps(r))
         return hashlib.sha256(json.dumps(rows).encode()).hexdigest()[:16]

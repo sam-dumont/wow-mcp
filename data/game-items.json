@@ -3,7 +3,7 @@
  "source": {
   "via": "wago.tools",
   "product": "wowf",
-  "build": "1.60.1.71037",
+  "build": "1.60.1.71139",
   "tables": [
    "ItemSparse",
    "Item",
@@ -22,12 +22,13 @@
    "ItemEffect",
    "ItemXItemEffect",
    "SpellEffect",
-   "SpellEquippedItems"
+   "SpellEquippedItems",
+   "ItemLimitCategory"
   ],
   "hotfix_cache": {
-   "build": 71037,
-   "items": 6411,
-   "note": "ItemSparse and Item rows of a Forever client's DBCache.bin, same build"
+   "build": 71139,
+   "items": 6420,
+   "note": "ItemSparse, Item and ItemLimitCategory from a same-build Forever DBCache.bin"
   },
   "era": {
    "product": "wow_classic_era",
@@ -12276,6 +12277,8 @@
     25,
     47
    ],
+   "required_skill": 182,
+   "required_skill_rank": 100,
    "stats": {
     "dps": 12.857142857142858
    }
@@ -28448,6 +28451,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 100,
    "stats": {
     "armor": 27,
     "spi": 4,
@@ -28498,6 +28503,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 120,
    "stats": {
     "armor": 31,
     "int": 5,
@@ -28530,6 +28537,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 140,
    "stats": {}
   },
   "4383": {
@@ -28558,6 +28567,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 150,
    "stats": {
     "armor": 35,
     "spi": 7,
@@ -28572,6 +28583,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 185,
    "stats": {
     "armor": 40,
     "int": 15
@@ -28585,6 +28598,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 200,
    "stats": {}
   },
   "4397": {
@@ -28595,6 +28610,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 200,
    "stats": {}
   },
   "4430": {
@@ -29174,6 +29191,8 @@
     53,
     80
    ],
+   "required_skill": 202,
+   "required_skill_rank": 100,
    "stats": {
     "dps": 30.227272727272723,
     "expertise": 10
@@ -38512,6 +38531,8 @@
     7,
     14
    ],
+   "required_skill": 202,
+   "required_skill_rank": 50,
    "stats": {
     "dps": 4.375
    }
@@ -39385,6 +39406,8 @@
     13,
     21
    ],
+   "required_skill": 356,
+   "required_skill_rank": 10,
    "stats": {
     "dps": 5.666666666666667
    }
@@ -39402,6 +39425,8 @@
     28,
     43
    ],
+   "required_skill": 356,
+   "required_skill_rank": 50,
    "stats": {
     "dps": 11.833333333333334
    },
@@ -39420,6 +39445,8 @@
     45,
     69
    ],
+   "required_skill": 356,
+   "required_skill_rank": 100,
    "stats": {
     "dps": 19.0
    }
@@ -45013,6 +45040,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 165,
    "stats": {}
   },
   "7166": {
@@ -46949,6 +46978,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 125,
    "stats": {}
   },
   "7507": {
@@ -49473,6 +49504,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 1,
+   "required_skill": 356,
+   "required_skill_rank": 1,
    "stats": {
     "armor": 26
    }
@@ -50804,7 +50837,8 @@
     "int": 5,
     "sp": 6,
     "sta": 5
-   }
+   },
+   "from": "hotfix"
   },
   "8199": {
    "name": "Battlefield Destroyer",
@@ -52436,6 +52470,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 0,
+   "required_skill": 164,
+   "required_skill_rank": 210,
    "unique": true,
    "stats": {
     "armor": 50
@@ -54036,6 +54072,8 @@
     38,
     71
    ],
+   "required_skill": 186,
+   "required_skill_rank": 175,
    "stats": {
     "agi": 4,
     "dps": 30.27777777777778
@@ -54464,6 +54502,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 75,
    "stats": {
     "armor": 48,
     "heal": 8,
@@ -63246,6 +63286,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 0,
+   "required_skill": 164,
+   "required_skill_rank": 225,
    "stats": {
     "armor": 100
    },
@@ -63329,6 +63371,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 175,
    "stats": {
     "armor": 38,
     "spi": 9,
@@ -63343,6 +63387,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 205,
    "stats": {
     "armor": 44
    }
@@ -63355,6 +63401,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 220,
    "stats": {
     "armor": 47
    }
@@ -63367,6 +63415,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 215,
    "stats": {
     "armor": 46,
     "heal": 21,
@@ -63381,6 +63431,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 230,
    "stats": {
     "armor": 49,
     "int": 12,
@@ -63395,6 +63447,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 245,
    "stats": {
     "armor": 57,
     "sta": 10
@@ -63409,6 +63463,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 230,
    "stats": {
     "armor": 49,
     "sta": 4
@@ -63469,6 +63525,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 225,
    "stats": {
     "agi": 8,
     "armor": 30
@@ -63482,6 +63540,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 3,
+   "required_skill": 202,
+   "required_skill_rank": 205,
    "stats": {
     "armor": 190,
     "sta": 15
@@ -63495,6 +63555,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 205,
    "stats": {
     "armor": 44
    }
@@ -63524,6 +63586,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 210,
    "stats": {
     "agi": 9,
     "armor": 45,
@@ -63753,6 +63817,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 250,
    "stats": {}
   },
   "10577": {
@@ -63763,6 +63829,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 205,
    "stats": {}
   },
   "10578": {
@@ -63866,6 +63934,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 230,
    "stats": {}
   },
   "10588": {
@@ -63876,6 +63946,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 235,
    "stats": {
     "armor": 50,
     "sta": 15
@@ -63906,6 +63978,8 @@
    "quality": 0,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 230,
    "stats": {
     "armor": 44
    }
@@ -64717,6 +64791,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 205,
    "stats": {}
   },
   "10720": {
@@ -64727,6 +64803,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 210,
    "stats": {}
   },
   "10721": {
@@ -64737,6 +64815,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 2,
+   "required_skill": 202,
+   "required_skill_rank": 215,
    "stats": {
     "armor": 66,
     "sta": 6
@@ -64761,6 +64841,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 225,
    "stats": {
     "armor": 41
    }
@@ -64773,6 +64855,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 230,
    "stats": {},
    "from": "hotfix"
   },
@@ -64784,6 +64868,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 215,
    "stats": {
     "armor": 50,
     "spi": 14
@@ -71170,6 +71256,8 @@
     13,
     21
    ],
+   "required_skill": 356,
+   "required_skill_rank": 1,
    "stats": {
     "dps": 5.666666666666667
    }
@@ -73050,7 +73138,8 @@
    "stats": {
     "armor": 427,
     "sta": 14
-   }
+   },
+   "from": "hotfix"
   },
   "12611": {
    "name": "Runic Plate Boots",
@@ -73063,7 +73152,8 @@
    "stats": {
     "armor": 392,
     "sta": 14
-   }
+   },
+   "from": "hotfix"
   },
   "12612": {
    "name": "Runic Plate Helm",
@@ -73089,7 +73179,8 @@
    "stats": {
     "armor": 588,
     "sta": 18
-   }
+   },
+   "from": "hotfix"
   },
   "12614": {
    "name": "Runic Plate Leggings",
@@ -73102,7 +73193,8 @@
    "stats": {
     "armor": 515,
     "sta": 19
-   }
+   },
+   "from": "hotfix"
   },
   "12615": {
    "name": "Savage Mail Tunic",
@@ -78728,7 +78820,8 @@
    "stats": {
     "ap": 78
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 498
   },
   "13210": {
    "name": "Pads of the Dread Wolf",
@@ -80407,6 +80500,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 0,
+   "required_skill": 171,
+   "required_skill_rank": 275,
    "stats": {
     "spi": 4
    }
@@ -94548,7 +94643,8 @@
    "stats": {
     "armor": 148,
     "sta": 11
-   }
+   },
+   "from": "hotfix"
   },
   "15054": {
    "name": "Volcanic Leggings",
@@ -104756,6 +104852,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 270,
    "stats": {
     "armor": 57,
     "heal": 27,
@@ -104806,6 +104904,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 280,
    "stats": {
     "armor": 61,
     "spi": 17,
@@ -104830,6 +104930,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 300,
    "stats": {}
   },
   "16026": {
@@ -118236,6 +118338,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 6,
+   "required_skill": 202,
+   "required_skill_rank": 300,
    "stats": {
     "armor": 2548,
     "sta": 11
@@ -121820,6 +121924,8 @@
    "quality": 1,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 265,
    "stats": {}
   },
   "18596": {
@@ -121955,6 +122061,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 260,
    "stats": {}
   },
   "18637": {
@@ -121965,6 +122073,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 275,
    "stats": {}
   },
   "18638": {
@@ -121975,6 +122085,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 290,
    "stats": {}
   },
   "18639": {
@@ -121985,6 +122097,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 300,
    "stats": {}
   },
   "18644": {
@@ -122485,7 +122599,8 @@
    "stats": {
     "sta": 7
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 718
   },
   "18709": {
    "name": "Arena Wristguards",
@@ -124739,6 +124854,8 @@
     93,
     140
    ],
+   "required_skill": 356,
+   "required_skill_rank": 100,
    "unique": true,
    "stats": {
     "dps": 38.833333333333336
@@ -124754,7 +124871,8 @@
    "subclass": 0,
    "stats": {
     "dodgeRating": 12
-   }
+   },
+   "unique_group": 718
   },
   "19028": {
    "name": "Elegant Dress",
@@ -126965,13 +127083,14 @@
    "quality": 4,
    "class": 4,
    "subclass": 0,
-   "unique": true,
    "stats": {
     "ap": 14,
     "critRating": 14,
     "hitRating": 10,
     "sta": 10
-   }
+   },
+   "from": "hotfix",
+   "unique_group": 722
   },
   "19334": {
    "name": "The Untamed Blade",
@@ -131008,7 +131127,8 @@
    "class": 4,
    "subclass": 0,
    "stats": {},
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 498
   },
   "19822": {
    "name": "Zandalar Vindicator's Breastplate",
@@ -133078,6 +133198,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 356,
+   "required_skill_rank": 1,
    "stats": {
     "armor": 36,
     "sta": 12
@@ -133096,6 +133218,8 @@
     42,
     63
    ],
+   "required_skill": 356,
+   "required_skill_rank": 300,
    "unique": true,
    "stats": {
     "dps": 17.5
@@ -133109,6 +133233,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 356,
+   "required_skill_rank": 1,
    "stats": {
     "armor": 43,
     "sta": 15
@@ -133339,6 +133465,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 2,
+   "required_skill": 202,
+   "required_skill_rank": 300,
    "stats": {
     "armor": 147,
     "critRating": 28,
@@ -133353,6 +133481,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 300,
    "stats": {
     "armor": 75,
     "critRating": 14,
@@ -133962,7 +134092,8 @@
    "subclass": 0,
    "stats": {
     "sta": 12
-   }
+   },
+   "unique_group": 716
   },
   "20072": {
    "name": "Defiler's Talisman",
@@ -133974,7 +134105,8 @@
    "subclass": 0,
    "stats": {
     "sta": 12
-   }
+   },
+   "unique_group": 716
   },
   "20073": {
    "name": "Cloak of the Honor Guard",
@@ -141099,7 +141231,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 716
   },
   "21116": {
    "name": "Defiler's Talisman",
@@ -141111,7 +141244,8 @@
    "subclass": 0,
    "stats": {
     "sta": 8
-   }
+   },
+   "unique_group": 716
   },
   "21117": {
    "name": "Talisman of Arathor",
@@ -141123,7 +141257,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 716
   },
   "21118": {
    "name": "Talisman of Arathor",
@@ -141135,7 +141270,8 @@
    "subclass": 0,
    "stats": {
     "sta": 8
-   }
+   },
+   "unique_group": 716
   },
   "21119": {
    "name": "Talisman of Arathor",
@@ -141147,7 +141283,8 @@
    "subclass": 0,
    "stats": {
     "sta": 6
-   }
+   },
+   "unique_group": 716
   },
   "21120": {
    "name": "Defiler's Talisman",
@@ -141159,7 +141296,8 @@
    "subclass": 0,
    "stats": {
     "sta": 6
-   }
+   },
+   "unique_group": 716
   },
   "21121": {
    "name": "Monster - Item, Flower - Purple",
@@ -141603,7 +141741,8 @@
     "defense": 5,
     "sta": 18,
     "str": 10
-   }
+   },
+   "unique_group": 475
   },
   "21197": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141618,7 +141757,8 @@
     "defense": 5,
     "sta": 19,
     "str": 11
-   }
+   },
+   "unique_group": 475
   },
   "21198": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141633,7 +141773,8 @@
     "defense": 6,
     "sta": 21,
     "str": 12
-   }
+   },
+   "unique_group": 475
   },
   "21199": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141648,7 +141789,8 @@
     "defense": 6,
     "sta": 22,
     "str": 12
-   }
+   },
+   "unique_group": 475
   },
   "21200": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141663,7 +141805,8 @@
     "defense": 7,
     "sta": 24,
     "str": 13
-   }
+   },
+   "unique_group": 475
   },
   "21201": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141678,7 +141821,8 @@
     "agi": 18,
     "hitRating": 10,
     "sta": 8
-   }
+   },
+   "unique_group": 475
   },
   "21202": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141693,7 +141837,8 @@
     "agi": 19,
     "hitRating": 10,
     "sta": 9
-   }
+   },
+   "unique_group": 475
   },
   "21203": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141708,7 +141853,8 @@
     "agi": 21,
     "hitRating": 10,
     "sta": 11
-   }
+   },
+   "unique_group": 475
   },
   "21204": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141723,7 +141869,8 @@
     "agi": 22,
     "hitRating": 10,
     "sta": 11
-   }
+   },
+   "unique_group": 475
   },
   "21205": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141738,7 +141885,8 @@
     "agi": 24,
     "hitRating": 10,
     "sta": 13
-   }
+   },
+   "unique_group": 475
   },
   "21206": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141755,7 +141903,8 @@
     "mp5": 3,
     "sp": 21,
     "sta": 6
-   }
+   },
+   "unique_group": 475
   },
   "21207": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141772,7 +141921,8 @@
     "mp5": 3,
     "sp": 22,
     "sta": 7
-   }
+   },
+   "unique_group": 475
   },
   "21208": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141789,7 +141939,8 @@
     "mp5": 4,
     "sp": 25,
     "sta": 8
-   }
+   },
+   "unique_group": 475
   },
   "21209": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141806,7 +141957,8 @@
     "mp5": 4,
     "sp": 26,
     "sta": 8
-   }
+   },
+   "unique_group": 475
   },
   "21210": {
    "name": "Signet Ring of the Bronze Dragonflight",
@@ -141823,7 +141975,8 @@
     "mp5": 5,
     "sp": 28,
     "sta": 8
-   }
+   },
+   "unique_group": 475
   },
   "21242": {
    "name": "Blessed Qiraji War Axe",
@@ -145207,12 +145360,13 @@
    "quality": 4,
    "class": 4,
    "subclass": 0,
-   "unique": true,
    "stats": {
     "critRating": 14,
     "spellPen": 5,
     "sta": 6
-   }
+   },
+   "from": "hotfix",
+   "unique_group": 722
   },
   "21564": {
    "name": "Monster - Gun, Kaldorei PVP Alliance",
@@ -145241,7 +145395,8 @@
    "subclass": 0,
    "stats": {
     "sta": 8
-   }
+   },
+   "unique_group": 714
   },
   "21566": {
    "name": "Rune of Perfection",
@@ -145253,7 +145408,8 @@
    "subclass": 0,
    "stats": {
     "sta": 4
-   }
+   },
+   "unique_group": 714
   },
   "21567": {
    "name": "Rune of Duty",
@@ -145265,7 +145421,8 @@
    "subclass": 0,
    "stats": {
     "sta": 8
-   }
+   },
+   "unique_group": 714
   },
   "21568": {
    "name": "Rune of Duty",
@@ -145277,7 +145434,8 @@
    "subclass": 0,
    "stats": {
     "sta": 4
-   }
+   },
+   "unique_group": 714
   },
   "21572": {
    "name": "Monster - Shield, Alliance PVP",
@@ -160030,6 +160188,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 3,
+   "required_skill": 164,
+   "required_skill_rank": 100,
    "stats": {
     "armor": 238,
     "hitRating": 10,
@@ -160046,6 +160206,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 197,
+   "required_skill_rank": 100,
    "stats": {
     "armor": 35,
     "heal": 7,
@@ -160098,6 +160260,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 100,
    "stats": {
     "agi": 6,
     "armor": 70,
@@ -160463,6 +160627,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 100,
    "stats": {
     "armor": 70,
     "hitRating": 10,
@@ -162427,6 +162593,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 6,
+   "required_skill": 202,
+   "required_skill_rank": 225,
    "stats": {
     "armor": 1760,
     "blockRating": 5,
@@ -162775,6 +162943,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 197,
+   "required_skill_rank": 225,
    "stats": {
     "armor": 58,
     "heal": 22,
@@ -162818,6 +162988,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 3,
+   "required_skill": 165,
+   "required_skill_rank": 225,
    "stats": {
     "armor": 242,
     "heal": 21,
@@ -162835,6 +163007,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 225,
    "stats": {
     "armor": 40,
     "critRating": 14,
@@ -162867,6 +163041,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 225,
    "stats": {
     "agi": 14,
     "armor": 118,
@@ -163092,6 +163268,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 225,
    "stats": {
     "armor": 118,
     "heal": 21,
@@ -163110,6 +163288,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 3,
+   "required_skill": 165,
+   "required_skill_rank": 225,
    "stats": {
     "ap": 32,
     "armor": 242,
@@ -167841,6 +168021,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 4,
+   "required_skill": 164,
+   "required_skill_rank": 250,
    "stats": {
     "agi": 12,
     "armor": 472,
@@ -167858,6 +168040,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 4,
+   "required_skill": 164,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 472,
     "heal": 31,
@@ -167875,6 +168059,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 4,
+   "required_skill": 164,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 472,
     "critRating": 14,
@@ -167891,6 +168077,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 3,
+   "required_skill": 165,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 268,
     "heal": 20,
@@ -167908,6 +168096,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 3,
+   "required_skill": 165,
+   "required_skill_rank": 250,
    "stats": {
     "agi": 17,
     "armor": 268,
@@ -167924,6 +168114,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 3,
+   "required_skill": 165,
+   "required_skill_rank": 250,
    "stats": {
     "agi": 12,
     "armor": 268,
@@ -167941,6 +168133,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 3,
+   "required_skill": 165,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 268,
     "heal": 31,
@@ -167958,6 +168152,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 129,
     "heal": 20,
@@ -167975,6 +168171,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 250,
    "stats": {
     "agi": 16,
     "armor": 129,
@@ -167991,6 +168189,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 129,
     "heal": 29,
@@ -168007,6 +168207,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 197,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 64,
     "heal": 20,
@@ -168024,6 +168226,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 197,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 64,
     "heal": 18,
@@ -168041,6 +168245,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 197,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 64,
     "heal": 13,
@@ -170275,6 +170481,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 37,
     "heal": 21,
@@ -170292,6 +170500,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 202,
+   "required_skill_rank": 250,
    "stats": {
     "agi": 18,
     "armor": 75,
@@ -170308,6 +170518,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 4,
+   "required_skill": 202,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 275,
     "sta": 12,
@@ -186103,6 +186315,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 290,
    "stats": {
     "agi": 10,
     "armor": 197,
@@ -186120,6 +186334,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 290,
    "stats": {
     "agi": 10,
     "armor": 173,
@@ -186137,6 +186353,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 290,
    "stats": {
     "agi": 17,
     "armor": 111,
@@ -186153,6 +186371,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 3,
+   "required_skill": 164,
+   "required_skill_rank": 290,
    "stats": {
     "ap": 64,
     "armor": 234,
@@ -186168,6 +186388,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 197,
+   "required_skill_rank": 290,
    "stats": {
     "armor": 75,
     "critRating": 14,
@@ -186185,6 +186407,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 290,
    "stats": {
     "agi": 10,
     "armor": 123,
@@ -186201,6 +186425,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 3,
+   "required_skill": 164,
+   "required_skill_rank": 290,
    "stats": {
     "armor": 286,
     "defense": 9,
@@ -186243,6 +186469,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 4,
+   "required_skill": 164,
+   "required_skill_rank": 290,
    "stats": {
     "armor": 415,
     "critRating": 14,
@@ -186259,6 +186487,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 290,
    "stats": {
     "agi": 11,
     "armor": 114,
@@ -186276,6 +186506,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 197,
+   "required_skill_rank": 290,
    "stats": {
     "armor": 69,
     "defense": 12,
@@ -186292,6 +186524,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 4,
+   "required_skill": 164,
+   "required_skill_rank": 290,
    "stats": {
     "agi": 10,
     "armor": 461,
@@ -186308,6 +186542,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 2,
+   "required_skill": 165,
+   "required_skill_rank": 290,
    "stats": {
     "agi": 14,
     "armor": 148,
@@ -186927,6 +187163,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 4,
+   "required_skill": 164,
+   "required_skill_rank": 290,
    "stats": {
     "armor": 553,
     "critRating": 14,
@@ -186976,6 +187214,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 197,
+   "required_skill_rank": 290,
    "stats": {
     "armor": 69,
     "heal": 44,
@@ -187406,6 +187646,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 197,
+   "required_skill_rank": 290,
    "stats": {
     "armor": 75,
     "heal": 59,
@@ -190497,6 +190739,8 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
+   "required_skill": 197,
+   "required_skill_rank": 290,
    "stats": {
     "armor": 56,
     "heal": 25,
@@ -229957,6 +230201,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 250,
    "stats": {
     "armor": 90,
     "spi": 24,
@@ -231379,6 +231625,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 0,
+   "required_skill": 202,
+   "required_skill_rank": 290,
    "stats": {},
    "from": "era"
   },
@@ -246165,6 +246413,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 356,
+   "required_skill_rank": 1,
    "stats": {
     "armor": 51,
     "spi": 13,
@@ -251501,7 +251751,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 715
   },
   "271904": {
    "name": "Volunteer's Lucky Seal",
@@ -251513,7 +251764,8 @@
    "subclass": 0,
    "stats": {
     "sta": 7
-   }
+   },
+   "unique_group": 715
   },
   "271905": {
    "name": "Enriched Seal",
@@ -251525,7 +251777,8 @@
    "subclass": 0,
    "stats": {
     "sta": 7
-   }
+   },
+   "unique_group": 715
   },
   "271906": {
    "name": "Volunteer's Lucky Seal",
@@ -251537,7 +251790,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 715
   },
   "271907": {
    "name": "Expeditionary's Cape",
@@ -252254,7 +252508,8 @@
    "subclass": 0,
    "stats": {
     "sta": 7
-   }
+   },
+   "unique_group": 715
   },
   "272060": {
    "name": "Relentless Raider's Seal",
@@ -252266,7 +252521,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 715
   },
   "272061": {
    "name": "Darkspear Voodoo Seal",
@@ -252278,7 +252534,8 @@
    "subclass": 0,
    "stats": {
     "sta": 10
-   }
+   },
+   "unique_group": 715
   },
   "272062": {
    "name": "Relentless Raider's Seal",
@@ -252290,7 +252547,8 @@
    "subclass": 0,
    "stats": {
     "sta": 7
-   }
+   },
+   "unique_group": 715
   },
   "272063": {
    "name": "Darkspear Raider's Cloak",
@@ -253376,7 +253634,7 @@
    "quality": 4,
    "class": 4,
    "subclass": 1,
-   "allow": 128,
+   "allow": 400,
    "stats": {
     "armor": 52,
     "heal": 19,
@@ -253766,14 +254024,15 @@
    "stats": {}
   },
   "272432": {
-   "name": "Totem of the Storm",
+   "name": "Totem of the Maelstrom",
    "inv": 28,
    "ilvl": 65,
    "req": 60,
    "quality": 3,
    "class": 4,
    "subclass": 9,
-   "stats": {}
+   "stats": {},
+   "from": "hotfix"
   },
   "272433": {
    "name": "Burning Totem",
@@ -253826,7 +254085,8 @@
    "stats": {
     "expertise": 11
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 707
   },
   "272438": {
    "name": "Weakness Analyzer",
@@ -253840,7 +254100,8 @@
     "heal": 18,
     "sp": 18
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 707
   },
   "272439": {
    "name": "Serenity Field",
@@ -253854,7 +254115,8 @@
     "heal": 21,
     "sp": 7
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 707
   },
   "272440": {
    "name": "Defender's Grip Stabilizer",
@@ -253866,7 +254128,8 @@
    "subclass": 0,
    "stats": {
     "defense": 13
-   }
+   },
+   "unique_group": 707
   },
   "272451": {
    "name": "Sergeant's Cloak",
@@ -267784,7 +268047,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 0,
-   "stats": {}
+   "stats": {},
+   "unique_group": 709
   },
   "274760": {
    "name": "Everlook Delivery Bot",
@@ -267794,7 +268058,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 0,
-   "stats": {}
+   "stats": {},
+   "unique_group": 709
   },
   "274761": {
    "name": "Parachute-Priest Pager",
@@ -267804,7 +268069,8 @@
    "quality": 3,
    "class": 4,
    "subclass": 0,
-   "stats": {}
+   "stats": {},
+   "unique_group": 709
   },
   "274915": {
    "name": "Sacristan Band",
@@ -269856,7 +270122,8 @@
     "hitRating": 10,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275969": {
    "name": "Initiate's Signet of Brilliance",
@@ -269872,7 +270139,8 @@
     "sp": 8,
     "sta": 6
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275970": {
    "name": "Initiate's Signet of Resolve",
@@ -269888,7 +270156,8 @@
     "spi": 10,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275971": {
    "name": "Initiate's Signet of Vigilance",
@@ -269903,7 +270172,8 @@
     "expertise": 10,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275972": {
    "name": "Tracker's Signet of Ferocity",
@@ -269918,7 +270188,8 @@
     "hitRating": 10,
     "sta": 11
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275973": {
    "name": "Tracker's Signet of Brilliance",
@@ -269934,7 +270205,8 @@
     "sp": 10,
     "sta": 8
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275974": {
    "name": "Tracker's Signet of Resolve",
@@ -269950,7 +270222,8 @@
     "spi": 11,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275975": {
    "name": "Tracker's Signet of Vigilance",
@@ -269965,7 +270238,8 @@
     "expertise": 10,
     "sta": 14
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275976": {
    "name": "Watcher's Signet of Ferocity",
@@ -269980,7 +270254,8 @@
     "hitRating": 10,
     "sta": 13
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275977": {
    "name": "Watcher's Signet of Brilliance",
@@ -269996,7 +270271,8 @@
     "sp": 15,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275979": {
    "name": "Watcher's Signet of Resolve",
@@ -270012,7 +270288,8 @@
     "spi": 13,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275980": {
    "name": "Watcher's Signet of Vigilance",
@@ -270027,7 +270304,8 @@
     "expertise": 10,
     "sta": 16
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275981": {
    "name": "Warden's Signet of Ferocity",
@@ -270042,7 +270320,8 @@
     "hitRating": 10,
     "sta": 14
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275982": {
    "name": "Warden's Signet of Brilliance",
@@ -270058,7 +270337,8 @@
     "sp": 17,
     "sta": 12
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275983": {
    "name": "Warden's Signet of Resolve",
@@ -270074,7 +270354,8 @@
     "spi": 14,
     "sta": 10
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "275984": {
    "name": "Warden's Signet of Vigilance",
@@ -270089,7 +270370,8 @@
     "expertise": 10,
     "sta": 18
    },
-   "from": "hotfix"
+   "from": "hotfix",
+   "unique_group": 710
   },
   "276069": {
    "name": "Gravetoll Gavel",
@@ -277428,6 +277710,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 175,
    "stats": {
     "armor": 26
    }
@@ -277440,6 +277724,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 2,
+   "required_skill": 202,
+   "required_skill_rank": 175,
    "stats": {
     "armor": 57
    }
@@ -277452,6 +277738,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 3,
+   "required_skill": 202,
+   "required_skill_rank": 175,
    "stats": {
     "armor": 120
    }
@@ -277464,6 +277752,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 1,
+   "required_skill": 202,
+   "required_skill_rank": 200,
    "stats": {
     "armor": 48
    }
@@ -277476,6 +277766,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 2,
+   "required_skill": 202,
+   "required_skill_rank": 200,
    "stats": {
     "armor": 99
    }
@@ -277488,6 +277780,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 3,
+   "required_skill": 202,
+   "required_skill_rank": 200,
    "stats": {
     "armor": 202
    }
@@ -277500,6 +277794,8 @@
    "quality": 2,
    "class": 4,
    "subclass": 4,
+   "required_skill": 202,
+   "required_skill_rank": 200,
    "stats": {
     "armor": 355
    }
@@ -277517,6 +277813,8 @@
     4,
     4
    ],
+   "required_skill": 185,
+   "required_skill_rank": 1,
    "stats": {
     "dps": 2.0
    }
@@ -282772,6 +283070,8 @@
     45,
     69
    ],
+   "required_skill": 356,
+   "required_skill_rank": 50,
    "stats": {
     "dps": 19.0
    },
@@ -283169,6 +283469,8 @@
     11,
     21
    ],
+   "required_skill": 2941,
+   "required_skill_rank": 85,
    "unique": true,
    "stats": {
     "dps": 8.0,
@@ -283188,6 +283490,8 @@
     21,
     40
    ],
+   "required_skill": 2941,
+   "required_skill_rank": 165,
    "unique": true,
    "stats": {
     "dps": 15.25,
@@ -283207,6 +283511,8 @@
     34,
     64
    ],
+   "required_skill": 2941,
+   "required_skill_rank": 230,
    "unique": true,
    "stats": {
     "dps": 24.5,
@@ -283226,6 +283532,8 @@
     42,
     80
    ],
+   "required_skill": 2941,
+   "required_skill_rank": 285,
    "stats": {
     "dps": 30.5,
     "sta": 8
@@ -283262,6 +283570,8 @@
     28,
     53
    ],
+   "required_skill": 2938,
+   "required_skill_rank": 195,
    "stats": {
     "dps": 19.285714285714285,
     "str": 5
@@ -283280,6 +283590,8 @@
     49,
     92
    ],
+   "required_skill": 2938,
+   "required_skill_rank": 270,
    "stats": {
     "dps": 32.04545454545454,
     "spi": 4,

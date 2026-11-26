@@ -43,6 +43,7 @@ def test_demo_events(tmp_path):
     last = max(r["_time"] for r in rows if r["feed"] == "wow-recorder")
     assert datetime.fromisoformat(last.replace("Z", "+00:00")).astimezone(generate.TZ).date().isoformat() == END
     prices = [r for r in rows if r["feed"] == "wow-prices"]
+    assert {(r["realm"], r["faction"]) for r in snaps + prices} == {(generate.DEMO_REALM, "Alliance")}
     days = sorted({r["scan_day"] for r in prices})
     assert days[-1] == END and len(days) == 2
     upgrade = [r for r in prices if r["item_id"] == str(generate.AH_UPGRADE)]

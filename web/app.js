@@ -94,6 +94,14 @@ function coins(copper) {
 // ------------------------------------------------------------ state
 
 const state = { chars: [], char: null, data: null, market: null, config: { view: 'public' }, tab: 'overview', journal: null, advice: null, adviceOrder: 'gain' };
+// One outstanding draw per panel. Changing character invalidates all of them,
+// even if the reader switches straight back to the first character.
+const requests = new Map();
+function latestRequest(panel) {
+  const token = Symbol();
+  requests.set(panel, token);
+  return () => requests.get(panel) === token;
+}
 const feat = (k) => Boolean(state.config && state.config[k]);
 // The public view: the card, the climb, the dungeons and the level snapshots,
 // nothing else (wowstats/redact.py). Its answers carry only those fields.
@@ -694,10 +702,10 @@ function frameRender(box, img) {
 function still(char, g) {
   const box = h('div', { class: 'still' }, figure());
   const r = g && g.render;
-  const meanwhile = () => box.append(h('p', { class: 'stillnote', text: 'Picture on its way. View it in 3D meanwhile.' }));
   if (r && r.pending) {
     box.classList.add('pending');
-    meanwhile();
+    const text = window.wowPastLevel ? 'Picture on its way. View it in 3D meanwhile.' : 'Picture on its way.';
+    box.append(h('p', { class: 'stillnote', text }));
   } else if (r && r.ext === 'webp') {
     renderSrc(char).then((src) => {
       if (!src) return;
@@ -825,8 +833,10 @@ function renderGear(d) {
 // "Two-Hand"; the sheet itself has no inventory type).
 function twoHanded(box, main, off) {
   if (!main || off || !window.wowCard) return;
+  const doll = box.querySelector('.doll');
   window.wowCard(main.item_id).then((c) => {
-    const li = box.querySelector('.weapons .slot[data-slot="17"]');
+    if (!doll.isConnected) return;
+    const li = doll.querySelector('.weapons .slot[data-slot="17"]');
     if (!c || c.s !== 'Two-Hand' || !li || !li.classList.contains('empty')) return;
     const q = main.quality !== null && main.quality !== undefined ? Math.max(0, Math.min(5, main.quality)) : null;
     li.replaceWith(h('li', { class: 'slot twohand' + (q !== null ? ` q${q}` : ''), 'data-slot': 17 },
@@ -1063,18 +1073,20 @@ function renderTalentHistory(name, t) {
   if (old && name === state.char) old.replaceWith(node);
 }
 async function loadTalentHistory(name) {
+  const current = latestRequest('talents');
   let t = null;
   try { t = await getJSON(api('talents', { name })); } catch (e) { t = { available: false, why: 'unreachable' }; }
+  if (!current()) return;
   if (STATIC && !(t && t.available)) {
     // A bundle holds the changes only from WoWSims Exporter's saves
     // (wowstats/publish.py): without them the section stays out.
     const node = h('div', { class: 'thistory', hidden: '' });
     state.thist = { name, node };
     const old = $('#talents .thistory');
-    if (old && name === state.char) old.replaceWith(node);
+    if (old) old.replaceWith(node);
     return;
   }
-  if (name === state.char) renderTalentHistory(name, t);
+  renderTalentHistory(name, t);
 }
 
 // ------------------------------------------------------------ class guide
@@ -1228,9 +1240,10 @@ function renderMetaFull(a) {
   fill(box, metaHead(m), m.summary ? h('p', { class: 'metatext', text: m.summary }) : null, soon, score, gaps, full);
 }
 async function loadMeta(name) {
+  const current = latestRequest('meta');
   try {
     const a = await getJSON(api('meta', { name }));
-    if (name === state.char) renderMetaFull(a);
+    if (current()) renderMetaFull(a);
   } catch (e) { /* the paragraph stays */ }
 }
 
@@ -1296,21 +1309,27 @@ const wh = (kind, id, text, cls) => window.wowLink(kind, id, text, cls);
 // What stands between the character and an item (wowstats/gear.py gates):
 // the level, the profession's skill; "buy" (a crafter or the AH) is not a
 // wait. An older answer without gates: its level.
+function professionRank(profession, rank) {
+  return rank == null ? profession : `${profession} ${rank}`;
+}
+
 function feasible(u, level) {
   const gates = u.gates || (u.now ? [] : [{ kind: 'level', need: u.level, have: level }]);
   const lv = gates.find((g) => g.kind === 'level');
   const sk = gates.find((g) => g.kind === 'skill');
   const buy = gates.find((g) => g.kind === 'buy');
   // The recipe: a pattern in the bags to learn, or one still to find.
-  const rc = gates.find((g) => g.kind === 'learn' || g.kind === 'recipe');
+  const rc = gates.find((g) => ['trainer_recipe', 'learn', 'recipe', 'check_recipe'].includes(g.kind));
+  const labels = { trainer_recipe: 'Visit trainer', learn: 'Learn pattern', recipe: 'Recipe needed', check_recipe: 'Check recipe' };
   if (!lv && !sk && !rc) {
-    return { now: true, text: 'Now', title: buy ? `Made by ${buy.profession} ${buy.need}: buy it from a crafter or the auction house.` : 'You can get and wear it now.' };
+    return { now: true, text: 'Now', title: buy ? `Made by ${professionRank(buy.profession, buy.need)}: buy it from a crafter or the auction house.` : 'You can get and wear it now.' };
   }
-  const text = [lv ? `Level ${lv.need}` : null, sk ? `${sk.profession} ${sk.need}` : null,
-    rc ? (rc.kind === 'learn' ? 'Learn pattern' : 'Recipe needed') : null].filter(Boolean).join(' + ');
+  const text = [lv ? `Level ${lv.need}` : null, sk ? professionRank(sk.profession, sk.need) : null,
+    rc ? labels[rc.kind] : null].filter(Boolean).join(' + ');
   const when = [lv ? `at level ${lv.need}` : null,
-    sk ? `once ${sk.profession} reaches ${sk.need} (you have ${sk.have}, ${sk.need - sk.have} to go)` : null,
-    rc ? (rc.kind === 'learn' ? 'once you learn the pattern in your bags' : `once you find and learn its ${rc.profession} recipe`) : null].filter(Boolean);
+    sk ? (sk.have == null ? `once you have ${professionRank(sk.profession, sk.need)}` : `once ${sk.profession} reaches ${sk.need} (you have ${sk.have}, ${sk.need - sk.have} to go)`) : null,
+    rc ? ({ trainer_recipe: 'once a trainer teaches you the recipe', learn: 'once you learn your pattern',
+      check_recipe: 'once you confirm you know the recipe', recipe: `once you find and learn its ${rc.profession} recipe` })[rc.kind] : null].filter(Boolean);
   return { now: false, text, title: `Opens ${when.join(', ')}.`, level: lv && lv.need, skill: sk };
 }
 function feasEl(u, level) {
@@ -1328,11 +1347,8 @@ const HELD = { bags: 'In your bags: equip it', bank: 'In your bank: take it out 
 const ahAge = (s) => (s.seen_day ? Math.floor((Date.now() - new Date(`${s.seen_day}T00:00:00`).getTime()) / 864e5) : s.seen_days_ago);
 const ahOf = (u) => ((u && u.sources) || []).find((s) => s.kind === 'ah' && ahAge(s) <= 1) || null;
 function primarySource(u) {
-  const srcs = u.sources || [];
-  return srcs.find((s) => HELD[s.kind]) || srcs.find((s) => s.kind === 'quest') || srcs.find((s) => s.kind === 'vendor')
-    || srcs.find((s) => s.kind === 'craft' && s.can_make)
-    || srcs.slice().sort((x, y) => (y.chance_pct || 0) - (x.chance_pct || 0)).find((s) => s.kind === 'drop')
-    || ahOf(u) || srcs[0] || null;
+  // Gear puts the selected route first. A saved page can outlive its listing.
+  return (u.sources || []).find((s) => s.kind !== 'ah' || ahAge(s) <= 1) || null;
 }
 function sourceGroup(s) {
   if (!s) return { key: 'other', title: 'Elsewhere', kind: 'other' };
@@ -1362,11 +1378,13 @@ const SEEN = ['on sale today', 'on sale yesterday'];
 // The price, its share of your gold, when it was listed, and "cheap" when
 // it costs at most what you net in a level.
 function ahEl(sr) {
+  if (ahAge(sr) > 1) return h('span', { class: 'src', text: 'Last auction price ' + priceText(sr.price_copper) +
+    (sr.seen_day ? ' (' + sr.seen_day + ')' : '') + '. No current listing.' });
   const share = sr.gold_share_pct !== null && sr.gold_share_pct !== undefined
     ? ` (${sr.gold_share_pct < 1 ? '<1' : Math.round(sr.gold_share_pct)}% of your gold)` : '';
   const mount = sr.mount_share_pct ? `${sr.mount_share_pct < 1 ? 'Under 1' : Math.round(sr.mount_share_pct)}% of the gold your riding training still needs` : null;
   return h('span', { class: 'src' }, 'Auction House, ', h('b', { class: 'ahprice', text: priceText(sr.price_copper), title: mount }), share,
-    `, ${SEEN[ahAge(sr)] || 'on sale'}`, sr.cheap ? h('span', { class: 'pill cheap', text: 'cheap' }) : null,
+    `, ${SEEN[ahAge(sr)] || 'on sale'}${sr.seen_day ? ' (' + sr.seen_day + ')' : ''}`, sr.cheap ? h('span', { class: 'pill cheap', text: 'cheap' }) : null,
     sr.affordable === false ? h('span', { class: 'sub', text: ' (more than you have)' }) : null);
 }
 
@@ -1390,7 +1408,12 @@ function craftStatus(sr) {
 // link wherever the data shows (GPL-3.0 section 7(b)).
 const SOURCE_CREDIT = { text: 'Source: ForeverDB.net', url: 'https://foreverdb.net' };
 function basisEl(sr) {
-  if (sr.via !== 'foreverdb') return null;
+  if (![sr.via, sr.placement, sr.plan?.learn?.via].includes('foreverdb')) {
+    if (['polestar-recording', 'eg-link', 'reviewed-loot'].includes(sr.via) && !sr.placement) {
+      return h('span', { class: 'sub basis', text: ` (${sr.basis})` });
+    }
+    return null;
+  }
   return h('span', { class: 'sub basis' }, sr.basis ? ` (${sr.basis}) · ` : ' · ',
     h('a', { href: SOURCE_CREDIT.url, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer', text: SOURCE_CREDIT.text }));
 }
@@ -1399,9 +1422,35 @@ const chanceText = (sr) => (sr.chance_pct ? `, ${sr.chance_pct}%${sr.kills ? ` o
 
 // One source in words, with its link and the numbers that decide a trip.
 // ah: the item's auction house listing, for "or buy it" after another source.
+function craftPlan(sr) {
+  const p = sr.plan, mats = p.materials || {}, riding = p.riding || {};
+  const buy = p.buy?.copper ? p.buy : null, historical = p.estimate?.copper ? p.estimate : null;
+  const current = buy && ahAge({ seen_day: buy.seen_day, seen_days_ago: buy.days_ago }) <= 1;
+  const quote = buy || historical, steps = p.steps || [], missing = (p.unpriced || []).join(', ');
+  const learn = p.learn || {};
+  return h('div', { class: 'craftplan' },
+    h('strong', {}, 'Craft ', wh('spell', sr.spell_id, professionRank(sr.profession, sr.skill))),
+    p.blocker ? h('span', { text: p.blocker }) : null,
+    h('b', { text: p.action }),
+    h('span', { text: (p.cost_complete ? 'Estimated cost ' : 'Priced part ') + priceText(p.craft_copper) +
+      (missing ? '. No price for ' + missing : '') }),
+    mats.items ? h('span', { text: mats.covered + ' of ' + mats.items + ' materials covered' +
+      (mats.counts_known ? '.' : '. Some saved stack counts are unknown.') }) : null,
+    quote ? h('span', { class: 'craftbuy', text: (current ? 'Buy on the Auction House for ' : 'Last auction price ') +
+      priceText(quote.copper) + (quote.seen_day ? ' (' + quote.seen_day + ')' : '') +
+      (current ? '.' : '. No current listing.') }) : p.bind_on_pickup ? h('span', { text: 'Binds on pickup.' }) : null,
+    steps.length || riding.left_copper || learn.trainer_skill || learn.pattern_skill ? h('details', {},
+      h('summary', { text: 'Recipe and skill-up details' }),
+      learn.trainer_skill ? h('p', { text: 'Trainer requires ' + sr.profession + ' ' + learn.trainer_skill + '.' }) : null,
+      learn.pattern_skill ? h('p', { text: 'Pattern requires ' + sr.profession + ' ' + learn.pattern_skill + '.' }) : null,
+      steps.length ? h('ul', {}, steps.map((s) => h('li', { text: s.crafts + ' × ' + s.name + ' (' + s.from + '–' + s.to + ')' }))) : null,
+      riding.left_copper ? h('p', { text: 'Riding at level ' + riding.level + ' still needs ' + priceText(riding.left_copper) + '.' }) : null) : null,
+    basisEl(sr));
+}
+
 function sourceEl(sr, level, ah) {
   if (HELD[sr.kind]) return h('span', { class: 'src', text: HELD[sr.kind] });
-  if (sr.kind === 'ah') return ahEl(sr);
+  if (sr.kind === 'ah') return ahAge(sr) <= 1 ? ahEl(sr) : h('span', { class: 'src', text: 'Auction House listing expired' });
   if (sr.kind === 'quest') {
     const chain = sr.part && sr.part.length === 2 && sr.part[1] > 1 ? ` · ${sr.part[0]} of ${sr.part[1]}` : '';
     // What the quest really takes (wowstats/questwork.py says): the route's
@@ -1440,7 +1489,8 @@ function sourceEl(sr, level, ah) {
   }
   if (sr.kind === 'reputation') {
     // What the character holds against it (wowstats/gear.py rep_words).
-    const you = sr.met ? ` (you're ${sr.your_standing})`
+    const you = !('met' in sr) ? ''  // the shared copy withholds personal reputation
+      : sr.met ? ` (you're ${sr.your_standing})`
       : sr.met == null ? " (your standing isn't recorded)"
       : !sr.your_standing ? ' (not met yet)'
       : ` (you're ${sr.your_standing}${sr.rep_to_go ? `: ${sr.rep_to_go.toLocaleString('en')} rep to go` : ''})`;
@@ -1448,22 +1498,24 @@ function sourceEl(sr, level, ah) {
   }
   if (sr.kind === 'pvp') {
     // (wowstats/gear.py pvp_words)
-    const you = sr.your_rank == null ? " (your PvP rank isn't recorded yet)"
-      : sr.met ? ` (you hold rank ${sr.your_rank})`
+    const you = !sr.rank ? '' : sr.your_rank == null ? " (your PvP rank isn't recorded yet)"
+      : sr.your_rank >= sr.rank ? ` (you hold rank ${sr.your_rank})`
       : ` (rank ${sr.rank} needed, ${sr.your_rank === 0 ? 'you have no PvP rank' : `you're rank ${sr.your_rank}`})`;
-    return h('span', { class: 'src' }, `PvP rank ${sr.rank} reward`, you, basisEl(sr));
+    return h('span', { class: 'src' }, sr.rank ? `PvP rank ${sr.rank} reward` : 'PvP rank reward', you, basisEl(sr));
   }
   if (sr.kind === 'container') {
-    return h('span', { class: 'src' }, sr.object ? 'In ' : 'From ', sr.container_item_id ? wh('item', sr.container_item_id, sr.name || 'a container') : (sr.name || 'a container'),
-      chanceText(sr), basisEl(sr));
+    const name = sr.name || 'a container';
+    const link = sr.object_id ? wh('object', sr.object_id, name) : sr.container_item_id ? wh('item', sr.container_item_id, name) : name;
+    return h('span', { class: 'src' }, sr.object ? 'In ' : 'From ', link, sr.zone ? ` in ${sr.zone}` : '', chanceText(sr), basisEl(sr));
   }
   if (sr.kind === 'craft') {
+    if (sr.plan?.materials) return craftPlan(sr);
     const own = craftStatus(sr);
     if (sr.plan && sr.plan.line) {
       // The plan says the auction house price itself (craft or buy).
-      return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, `${sr.profession} ${sr.skill}`), `: ${own}`, basisEl(sr));
+      return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, professionRank(sr.profession, sr.skill)), `: ${own}`, basisEl(sr));
     }
-    return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, `${sr.profession} ${sr.skill}`), ` (${own})`,
+    return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, professionRank(sr.profession, sr.skill)), ` (${own})`,
       ah ? h('span', {}, ', or ', h('b', { class: 'ahprice', text: priceText(ah.price_copper) }), ' on the Auction House') : '', basisEl(sr));
   }
   return h('span', { class: 'src', text: '?' });
@@ -1766,13 +1818,57 @@ function dollBadges(slots, src, mode) {
   }
 }
 
+function scoringControls(a) {
+  const md = a.mode || { key: 'lvl', label: 'Leveling', choices: [] };
+  if (STATIC) {
+    return [h('span', { class: 'specpick', text: `Scored for ${a.spec.label}` }),
+      h('span', { class: 'specpick', text: `${md.label} weights` })];
+  }
+  // "Automatic" drops the page's own choice: Polestar's setting, the
+  // player's pick or the class default decide again.
+  const auto = a.spec.source !== 'page';
+  const sel = h('select', { id: 'gearspec', 'aria-label': 'Score for spec' },
+    h('option', { value: '', text: auto ? `Automatic: ${a.spec.label}` : 'Automatic', selected: auto }),
+    a.spec.choices.map((c) => h('option', { value: c.key, text: c.label, selected: !auto && c.key === a.spec.key })));
+  sel.addEventListener('change', () => {
+    if (state.char !== a.char) return;
+    saveSpec(a.char, sel.value);
+    loadAdvice(a.char);
+  });
+  // Leveling (the default), PvP or PvE: ForeverDB's three weight tables.
+  const msel = h('select', { id: 'gearmode', 'aria-label': 'Weights for' },
+    (md.choices || []).map((c) => h('option', { value: c.key, text: c.label, selected: c.key === md.key })));
+  msel.addEventListener('change', async () => {
+    if (state.char !== a.char) return;
+    const current = latestRequest('save-mode');
+    await saveMode(a.char, msel.value);
+    if (current()) loadAdvice(a.char);
+  });
+  // PvP rewards (honor rank and battleground reputation gear): counted or
+  // not; always counted in the PvP weights, so the box is ticked and locked there.
+  const pr = a.pvp_rewards || { on: false, forced: false };
+  const pbox = h('input', { type: 'checkbox', id: 'gearpvp', checked: !!pr.on, disabled: !!pr.forced });
+  pbox.addEventListener('change', async () => {
+    if (state.char !== a.char) return;
+    const current = latestRequest('save-pvp');
+    await savePvp(a.char, pbox.checked);
+    if (current()) loadAdvice(a.char);
+  });
+  const pvpPick = h('label', {
+    class: 'specpick pvppick',
+    title: pr.forced ? 'PvP weights: PvP rewards always count, and they are easy' : 'Honor rank and battleground reputation gear',
+  }, pbox, h('span', { text: 'PvP rewards' }));
+  return [h('label', { class: 'specpick' }, h('span', { text: 'Scored for' }), sel),
+    h('label', { class: 'specpick' }, h('span', { text: 'Weights' }), msel), pvpPick];
+}
+
 function renderAdvice(a) {
   const box = $('#advice');
   if (!box) return;
   state.advice = a;
   if (!a.available) {
     const name = a.name || (state.data && state.data.header.name) || 'This character';
-    fill(box, h('h3', { class: 'adv-h', text: 'Upgrades' }),
+    fill(box, h('h3', { class: 'adv-h', text: 'Gear advice' }),
       a.polestar === false
         ? h('p', { class: 'empty' }, h('strong', { text: 'Gear advice needs Polestar.' }), ' ',
           `Tick Polestar and Polestar Recorder for ${name} in AddOns at character select, then /reload.`)
@@ -1800,60 +1896,26 @@ function renderAdvice(a) {
     }, true);
   }
   dollBadges(a.slots, a.source, a.mode && a.mode.label);
-  // "Automatic" drops the page's own choice: Polestar's setting, the
-  // player's pick or the class default decide again.
-  const auto = a.spec.source !== 'page';
-  const sel = h('select', { id: 'gearspec', 'aria-label': 'Score for spec' },
-    h('option', { value: '', text: auto ? `Automatic: ${a.spec.label}` : 'Automatic', selected: auto }),
-    a.spec.choices.map((c) => h('option', { value: c.key, text: c.label, selected: !auto && c.key === a.spec.key })));
-  sel.addEventListener('change', () => {
-    saveSpec(state.char, sel.value);
-    loadAdvice(state.char);
-  });
-  // Leveling (the default), PvP or PvE: ForeverDB's three weight tables.
-  const md = a.mode || { key: 'lvl', label: 'Leveling', choices: [] };
-  const msel = h('select', { id: 'gearmode', 'aria-label': 'Weights for' },
-    (md.choices || []).map((c) => h('option', { value: c.key, text: c.label, selected: c.key === md.key })));
-  msel.addEventListener('change', async () => {
-    const c = state.char;
-    await saveMode(c, msel.value);
-    loadAdvice(c);
-  });
-  // PvP rewards (honor rank and battleground reputation gear): counted or
-  // not; always counted in the PvP weights, so the box is ticked and locked there.
-  const pr = a.pvp_rewards || { on: false, forced: false };
-  const pbox = h('input', { type: 'checkbox', id: 'gearpvp', checked: !!pr.on, disabled: !!pr.forced });
-  pbox.addEventListener('change', async () => {
-    const c = state.char;
-    await savePvp(c, pbox.checked);
-    loadAdvice(c);
-  });
-  const pvpPick = STATIC ? null : h('label', {
-    class: 'specpick pvppick',
-    title: pr.forced ? 'PvP weights: PvP rewards always count, and they are easy' : 'Honor rank and battleground reputation gear',
-  }, pbox, h('span', { text: 'PvP rewards' }));
   const view = state.adviceView || 'where';
   const toggle = h('div', { class: 'order', role: 'group', 'aria-label': 'Show upgrades' },
     [['where', 'By where you get it'], ['slot', 'By slot']].map(([k, t]) => {
       const b = h('button', { type: 'button', 'aria-pressed': String(view === k), text: t });
-      b.addEventListener('click', () => { state.adviceView = k; renderAdvice(state.advice); });
+      b.addEventListener('click', () => { state.adviceView = k; if (state.advice) renderAdvice(state.advice); });
       return b;
     }));
   // No character sheet (wowstats/gear.py unknown_worn): the best items for
   // the level (estimated), or Battle.net's worn items; one line, one action.
-  const guess = a.estimated ? `Best for your level (estimated: what you wear isn’t known). ${a.unlock}` : null;
+  const guess = a.estimated ? ['Estimated from your level. Your equipped items are unknown.', STATIC ? null : a.unlock].filter(Boolean).join(' ') : null;
   const head = h('div', { class: 'adv-head' },
     h('div', { class: 'nuhead' }, h('h3', { class: 'adv-h', text: a.estimated ? 'Gear for your level' : 'Upgrades' }), toggle),
-    h('div', { class: 'specpicks' },
-      h('label', { class: 'specpick' }, h('span', { text: 'Scored for' }), sel),
-      STATIC ? h('span', { class: 'specpick', text: `${md.label} weights` })
-        : h('label', { class: 'specpick' }, h('span', { text: 'Weights' }), msel),
-      pvpPick,
-      creditEl(a.source)),
+    h('div', { class: 'specpicks' }, scoringControls(a), creditEl(a.source)),
     h('p', { class: 'sub', text: guess || 'Click an item to compare it with what you wear.' }));
   const smalls = allUps(a).filter((u) => small(u, a));
   const shown = new Set();
-  for (const p of picks.values()) [p.best, ...p.alts].forEach((u) => shown.add(u));
+  for (const { best, alts } of picks.values()) {
+    shown.add(best);
+    if (view === 'where') alts.forEach((u) => shown.add(u));
+  }
   const more = allUps(a).filter((u) => !small(u, a) && !shown.has(u));
   const body = view === 'slot' ? bySlot(a, picks) : byWhere(a, [...shown]);
   // #up-<slot>: where the Overview's upgrade moves lead. The slot's best
@@ -1938,7 +2000,10 @@ function fitEl(f) {
 // hard, long shot), next to its source on every upgrade row (owner,
 // 2026-11-24). At level 60 a long shot can be the pick: the pill says so.
 function effortEl(u) {
-  return u.effort ? h('span', { class: 'pill effort', text: u.effort, title: 'How hard it is to get, from its easiest source' }) : null;
+  const src = primarySource(u);
+  const craft = src?.kind === 'craft' && src.plan?.craft_effort != null;
+  const text = craft ? 'Craft: ' + ['easy', 'some effort', 'hard'][src.plan.craft_effort] : u.effort;
+  return text ? h('span', { class: 'pill effort', text, title: 'How hard it is to get, from its easiest source' }) : null;
 }
 
 function candRow(u, a, extra) {
@@ -1947,7 +2012,7 @@ function candRow(u, a, extra) {
   li.append(
     h('div', { class: 'candmain' }, itemChip(u), partner, fitEl(u.fit)),
     h('div', { class: 'candmeta' }, h('b', { class: 'gain', text: upText(u) }),
-      feasEl(u, a.level), h('span', { class: 'srcline' }, extra || null, effortEl(u))));
+      feasEl(u, a.level), h('div', { class: 'srcline' }, extra || null, effortEl(u))));
   li.querySelector('.candmain .itm').addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -2118,15 +2183,16 @@ function compactList(a, list) {
 }
 
 async function loadAdvice(name) {
+  const current = latestRequest('gear');
   const spec = savedSpec(name);
   const mode = unsavedMode.get(name) || '';
   const pvp = unsavedPvp.has(name) ? (unsavedPvp.get(name) ? '1' : '0') : '';
   try {
     const a = await getJSON(api('gear', STATIC ? { name } : { name, spec, mode, pvp }));
-    if (name === state.char) renderAdvice(a);
+    if (current()) renderAdvice(a);
   } catch (e) {
     const box = $('#advice');
-    if (box && name === state.char) fill(box, h('p', { class: 'err', text: `Couldn’t load gear advice: ${e.message}.` }));
+    if (box && current()) fill(box, h('p', { class: 'err', text: `Couldn’t load gear advice: ${e.message}.` }));
   }
 }
 
@@ -2502,10 +2568,11 @@ function renderDungeons(d) {
 // load, then at most every ten minutes, not on each "Show" of new data.
 const DUNGEONS_EVERY_MS = 10 * 60 * 1000;
 async function loadDungeons(name) {
+  const current = latestRequest('dungeons');
   if (state.dungeons && state.dungeons.char === name && Date.now() - state.dungeonsAt < DUNGEONS_EVERY_MS) return;
   let d = null;
   try { d = await getJSON(api('dungeons', { name })); } catch (e) { d = null; }
-  if (name !== state.char || !d || !d.available) return;  // the runs stay
+  if (!current() || !d || !d.available) return;  // the runs stay
   state.dungeons = d;
   state.dungeonsAt = Date.now();
   renderDungeonPanel(d);
@@ -2540,6 +2607,7 @@ function dropSource(it, dungeon, quests) {
       best.chance_pct ? ` ${best.chance_pct}%` : '',
       // A wing (Scarlet Monastery's Library), not the dungeon's own name again.
       best.wing && best.wing !== dungeon && best.wing.includes(':') ? h('span', { class: 'sub', text: `, ${best.wing.split(':').pop().trim()}` }) : null,
+      best.summon ? h('span', { class: 'sub', text: `, ${best.summon}` }) : null,
       it.drops.length > 1 ? h('span', { class: 'sub', text: ` +${it.drops.length - 1} more` }) : null);
   }
   // A quest's reward: which quest, and the next thing to do for it.
@@ -2929,11 +2997,11 @@ function renderDeaths(d) {
 // (no numbers, times, dates or names: verify.shareable) and the time per
 // level. The public site has neither the section nor the data.
 async function loadAnalysis(name) {
+  const current = latestRequest('analysis');
   const box = $('#analysis');
   if (!box) return;
-  let a = null;
-  a = await getAnalysis(name);
-  if (name !== state.char) return;
+  const a = await getAnalysis(name);
+  if (!current()) return;
   const link = document.querySelector('.sections a[href="#analysis"]');
   const ok = Boolean(a && a.available && (!a.char || a.char === name));
   box.hidden = !ok;
@@ -3029,12 +3097,14 @@ function renderAnalysis(a) {
 // (/zogzog/ and the full view). Green and better items stand out; the rest
 // are summed in one line.
 async function loadLoot(name) {
+  const current = latestRequest('loot');
   const box = $('#loot');
   if (!box) return;
   try {
     const l = await getJSON(api('loot', { name }));
-    if (name === state.char) renderLoot(l);
+    if (current()) renderLoot(l);
   } catch (e) {
+    if (!current()) return;
     box.hidden = false;
     fill($('#loot .body'), h('p', { class: 'err', text: `Couldn’t read the loot: ${e.message}.` }));
   }
@@ -3095,10 +3165,12 @@ function partyLine(r) {
 }
 
 async function loadPeople(name) {
+  const current = latestRequest('people');
   const el = $('#people-runs');
   if (!el) return;
   try {
     const p = await getJSON(api('people', { name }));
+    if (!current()) return;
     const runs = p.runs || [];
     fill(el, h('h3', { text: 'Dungeon groups' }),
       runs.length ? h('ul', { class: 'runs' }, runs.map((r) => h('li', {},
@@ -3107,6 +3179,7 @@ async function loadPeople(name) {
         r.wipes ? `, ${r.wipes} wipes` : '', r.deaths ? `, ${r.deaths} deaths` : '', partyLine(r)))) : h('p', { class: 'sub', text: 'No dungeon runs yet.' }),
       h('p', { class: 'sub', text: p.roster_note }));
   } catch (e) {
+    if (!current()) return;
     fill(el, h('p', { class: 'err', text: `Couldn’t read the dungeon groups: ${e.message}.` }));
   }
 }
@@ -3299,12 +3372,14 @@ function renderJournal(j, err) {
 }
 
 async function loadJournal(quiet) {
+  const current = latestRequest('journal');
   try {
     const j = await getJSON(api('journal', { name: state.char }));
+    if (!current()) return;
     state.journal = j;
     renderJournal(j, null);
   } catch (e) {
-    if (!quiet || !state.journal) renderJournal(null, e.message);
+    if (current() && (!quiet || !state.journal)) renderJournal(null, e.message);
   }
 }
 
@@ -3376,19 +3451,18 @@ function getAnalysis(name) {
   return analysisMemo.p;
 }
 
-let overviewAsked = 0;
 async function loadOverview(quiet) {
+  const current = latestRequest('overview');
   const name = state.char;
-  const n = ++overviewAsked;
   try {
     const [ov, an] = await Promise.all([getJSON(api('overview', { name })), getAnalysis(name)]);
     // Only the last one asked draws: an earlier answer landing after it
     // would redraw the Overview, news and all, from nothing.
-    if (name !== state.char || n !== overviewAsked) return;
+    if (!current()) return;
     state.overview = ov;
     renderOverview(ov, null, an && an.available && (!an.char || an.char === name) ? an : null);
   } catch (e) {
-    if (!quiet || !state.overview) renderOverview(null, e.message);
+    if (current() && (!quiet || !state.overview)) renderOverview(null, e.message);
   }
 }
 
@@ -3507,6 +3581,7 @@ function sourceLine(src) {
   const block = src.blocker ? h('span', { class: 'mblock', text: ` (${src.blocker})` }) : null;
   const how = basisEl(src);
   if (src.kind === 'quest' && src.quest) return h('span', {}, 'Quest ', whRef(src.quest), z ? [' in ', whRef(z)] : null, how, block);
+  if (src.kind === 'ah') return ahEl(src);
   if (src.kind === 'drop') return h('span', {}, `Drops from ${src.boss || 'a creature'}`, z ? [' in ', whRef(z), lv] : null, how, block);
   if (src.kind === 'craft') return h('span', { text: `You can make it with ${src.profession || 'a profession'}` });
   if (HELD[src.kind]) return h('span', { text: HELD[src.kind] });
@@ -3533,6 +3608,7 @@ function met(ok) { return ok ? 'met' : 'not yet'; }
 function withText(it) {
   const w = it.with;
   if (!w || !w.name) return '';
+  if (w.price_copper) return `, with ${w.name} (buy for ${priceText(w.price_copper)} on the Auction House, ${w.seen_day})`;
   const where = { worn: ', which you wear', bags: ', in your bags', bank: ', in your bank' }[w.kind] || '';
   return `, with ${w.name} (${(w.slot_name || '').toLowerCase()}${where})`;
 }
@@ -3708,7 +3784,9 @@ function renderOverview(ov, err, an) {
   // actionable): the analysis' pattern lines describe, and stay folded in
   // the full view's "How you play"; its actions are there and, screened,
   // on /zogzog/.
-  const moves = ov.moves || [];
+  const moves = (ov.moves || []).filter((mv) =>
+    (mv.source?.kind !== 'ah' || ahAge(mv.source) <= 1) &&
+    (!mv.item?.with?.price_copper || ahAge(mv.item.with) <= 1));
   const recent = tr.per_level || [];
   const paceHost = h('div', { class: 'pacehost' });
   paceRedraw = null;
@@ -3738,12 +3816,11 @@ const NEWS_CAT = { opening: 'Opening', phase: 'Phase', event: 'Event', patch: 'P
   meta: 'Meta', 'known-issue': 'Known issue', pvp: 'PvP', economy: 'Economy', announcement: 'Coming' };
 async function loadNews(host, week) {
   const name = state.char;
-  const asked = (host.asked || 0) + 1;
-  host.asked = asked;
+  const current = latestRequest('news');
   try {
     const n = await getJSON(api('news', { name, week }));
-    if (name === state.char && host.asked === asked) renderNews(host, n);  // the last week asked for
-  } catch (e) { if (host.asked === asked) host.hidden = true; }
+    if (current()) renderNews(host, n);  // the last week asked for
+  } catch (e) { if (current()) host.hidden = true; }
 }
 function newsLine(it) {
   // Something to do: a dated event that concerns you (its prep is in the
@@ -3802,12 +3879,14 @@ function renderNews(host, n) {
 
 const TL_NAMES = { level: 'Levels', session: 'Sessions', dungeon: 'Dungeons', death: 'Deaths', gear: 'Gear', profession: 'Professions', guide: 'Guides' };
 async function loadTimeline() {
+  const current = latestRequest('timeline');
   try {
     const t = await getJSON(api('timeline', { name: state.char }));
+    if (!current()) return;
     state.timeline = t;
     renderTimeline(t, null);
   } catch (e) {
-    renderTimeline(null, e.message);
+    if (current()) renderTimeline(null, e.message);
   }
 }
 
@@ -3861,7 +3940,7 @@ function backInTime(t) {
     const l = lv[Number(slider.value)];
     label.textContent = `Level ${l}`;
     clearTimeout(tm);
-    tm = setTimeout(() => loadSnapshot(l, out), 200);
+    tm = setTimeout(() => { if (out.isConnected && state.char === t.char) loadSnapshot(l, out); }, 200);
   });
   loadSnapshot(cur, out);
   return h('section', { class: 'plate snap' }, h('h2', { class: 'rule-title', text: 'Back in time' }),
@@ -3869,15 +3948,16 @@ function backInTime(t) {
 }
 
 async function loadSnapshot(level, out) {
+  const current = latestRequest('snapshot');
   state.snapLevel = level;
   try {
     const sn = await getJSON(api('snapshot', { name: state.char, level }));
-    if (state.snapLevel === level) {
+    if (current()) {
       renderSnapshot(sn, out);
       out.dataset.level = level;
     }
   } catch (e) {
-    fill(out.parts.info, h('p', { class: 'err', text: `Couldn’t read level ${level}: ${e.message}.` }));
+    if (current()) fill(out.parts.info, h('p', { class: 'err', text: `Couldn’t read level ${level}: ${e.message}.` }));
   }
 }
 
@@ -3984,13 +4064,14 @@ function nudgeOff(name) {
 }
 
 async function loadNudge(name) {
+  const current = latestRequest('nudge');
   const box = $('#nudgebox');
   if (!box || PUBLIC || STATIC) return;
   let n = null;
   if (!nudgeOff(name)) {
     try { n = (await getJSON(api('nudge', { name }))).nudge; } catch (e) { n = null; }
   }
-  if (name !== state.char) return;
+  if (!current()) return;
   box.hidden = !n;
   if (!n) { box.replaceChildren(); return; }
   const payer = n.you_pay ? 'your own credit' : `${n.operator}’s credit`;
@@ -4026,11 +4107,12 @@ async function loadNudge(name) {
 // The session planner (wowstats/plan): the mount goal, how the last plan
 // went, and a plan for the next hours. Full view only.
 async function loadPlan(name) {
+  const current = latestRequest('plan');
   const box = $('#planbox');
   if (!box) return;
   let s = null;
   try { s = await getJSON(api('plan', { char: name })); } catch (e) { s = null; }
-  if (name !== state.char) return;
+  if (!current()) return;
   box.hidden = false;
   const out = $('#planstatus');
   if (!s || !s.available) {
@@ -4040,11 +4122,12 @@ async function loadPlan(name) {
   const tiers = (s.tiers || []).filter((t) => !t.bought).slice(0, 2).map((t) => h('div', { class: 'tier' },
     // may_be_trained: no read of the game saw it (the Recorder misses a
     // training it didn't see): a hedge, never "not trained".
-    h('div', { text: `Riding at ${t.level}${t.may_be_trained ? ', if not trained yet' : ''}: ${t.need} needed, ${t.left} to go` +
+    h('div', { text: t.quest ? `${t.quest.name} at level ${t.level}. ${t.quest.action} Paid trainer alternative: ${t.trainer_alternative}.` :
+      `Riding at ${t.level}${t.may_be_trained ? ', if not trained yet' : ''}: ${t.need} needed, ${t.left} to go` +
       (t.eta ? ` (about ${t.eta} of play at ${s.gold_rate}${t.eta_level ? `, level ${t.eta_level}` : ''})` :
         s.gold_rate ? '' : ' (no gold rate measured yet)') + (t.behind ? '. Behind your level pace.' : '.') }),
-    h('div', { class: 'bar', role: 'img', 'aria-label': `${t.pct || 0}% saved` },
-      h('i', { 'width%': Math.max(0, Math.min(100, t.pct || 0)) }))));
+    t.pct != null ? h('div', { class: 'bar', role: 'img', 'aria-label': `${t.pct}% saved` },
+      h('i', { 'width%': Math.max(0, Math.min(100, t.pct)) })) : null));
   const r = s.review;
   const rev = r ? h('p', { text: `Last plan (${r.hours} h): ` + (r.ratio ? `you needed ${r.ratio}× the planned time` :
     'not far enough in to compare') + (r.end_actual != null ? `; level ${r.end_actual} at its end, ${r.end_planned} planned.` :
@@ -4089,6 +4172,7 @@ function initPlan() {
     ev.preventDefault();
     const btn = $('#planbtn');
     const out = $('#planout');
+    const current = latestRequest('plan-submit');
     btn.disabled = true;
     fill(out, h('p', { class: 'loading', text: 'Planning. Up to a minute.' }));
     const release = hold();
@@ -4099,13 +4183,14 @@ function initPlan() {
         body: JSON.stringify({ char: state.char, hours: Number($('#planhours').value), constraints: $('#planwhat').value }),
       });
       const body = await r.json().catch(() => null);
+      if (!current()) return;
       if (!r.ok) throw new Error((body && (body.why || body.error)) || `${r.status} ${r.statusText}`);
       fill(out, h('div', { class: 'plantext' }, ...planNodes(body.markdown || '')));
       loadPlan(state.char);
     } catch (e) {
-      fill(out, h('p', { class: 'err', text: `No plan: ${e.message}.` }));
+      if (current()) fill(out, h('p', { class: 'err', text: `No plan: ${e.message}.` }));
     } finally {
-      btn.disabled = false;
+      if (current()) btn.disabled = false;
       release();
     }
   });
@@ -4129,6 +4214,78 @@ function initDebug() {
 
 // ------------------------------------------------------------ footer
 
+// Config is read once, including on an empty dashboard. Keep this disclosure
+// outside the character footer so switching characters preserves its open state.
+function renderSourceVersions(config) {
+  const { version, data_versions: data = {} } = config;
+  const rows = [];
+  function add(label, value) {
+    if (value != null && value !== '') rows.push(h('dt', { text: label }), h('dd', { text: value }));
+  }
+  const v = data || {};
+  add(STATIC ? 'Publisher version' : 'Server version', version);
+  add('Last accepted source change', v.checked);
+  add('Watched Forever client', v.watched_client_build);
+  const builds = new Map();
+  for (const [name, build] of Object.entries(v.client_build || {})) {
+    if (!builds.has(build)) builds.set(build, []);
+    builds.get(build).push(name);
+  }
+  for (const [build, names] of builds) add('Client tables · ' + names.join(', '), build);
+  add('Spell hotfix push', v.spell_hotfix_push);
+  add('Polestar routes', v.polestar);
+  add('Forever quest database', v.forever_db?.version);
+  add('Quest database client', v.forever_db?.client_build);
+  add('ForeverDB.net item sources', v.foreverdb?.data_version);
+  add('ForeverDB.net addon', v.foreverdb?.addon_version);
+  add('ForeverDB.net client', v.foreverdb?.build);
+  add('ForeverDB.net stat weights', v.foreverdb?.weights_data_version);
+  add('Stat weights fetched', v.foreverdb?.weights_fetched);
+  add('ForeverDB.net fingerprint', v.foreverdb?.fingerprint);
+  add('Oldest KB statement review', v.kb_statement_reviews?.oldest);
+  add('Newest KB statement review', v.kb_statement_reviews?.newest);
+  add('Dungeon XP observations', v.observations?.dungeon_xp_as_of);
+  add('Dungeon XP · EG Link revision', v.observations?.dungeon_eg_link_commit);
+  add('Gear drops reviewed', v.observations?.gear_reviewed);
+  add('Gear drops · EG Link revision', v.observations?.gear_eg_link_commit);
+  add('Profession sources reviewed', v.observations?.profession_reviewed);
+  add('Latest profession capture build', v.observations?.profession_latest_capture_build);
+  add('Profession sources · EG Link revision', v.observations?.profession_eg_link_commit);
+  for (const [name, revision] of Object.entries(v.profession_file_versions || {})) {
+    add('Profession evidence · ForeverDB.net ' + name, revision);
+  }
+  add('News digest week', v.kb_digest_week?.news);
+  add('Community digest week', v.kb_digest_week?.community);
+  for (const [name, release] of Object.entries(v.checked_addons || {})) add(name + ' · watched release', release);
+  for (const [name, revision] of Object.entries(v.wowsims || {})) add('WoWSims ' + name + ' revision', revision);
+  const summary = version ? `wow-stats ${version} · Data sources` : 'Version and data sources';
+  const disclosure = h('details', { class: 'source-versions' }, h('summary', { text: summary }),
+    rows.length ? h('dl', {}, ...rows) : h('p', { text: 'Source information is unavailable.' }),
+    v.observations ? h('p', {}, 'EG Link data from ', h('a', { href: 'https://efficient.games', text: 'Efficient Games' }),
+      ', licensed under ', h('a', { href: 'https://creativecommons.org/licenses/by/4.0/', text: 'CC BY 4.0' }), '.') : null);
+  // Older published HTML has only the footer. Mount both sections on startup.
+  fill($('#foot'), h('div', { id: 'foot-status' }), h('div', { id: 'foot-sources' }, disclosure));
+}
+
+function characterSourceTimes(d) {
+  if (PUBLIC || !d?.coverage) return null;
+  const rows = [];
+  const names = { recorder: 'Polestar Recorder', polestar: 'Polestar character sheet', gear: 'Syndicator',
+    quests: 'Quest history', prices: 'Auctionator scans', battlenet: 'Battle.net' };
+  for (const [key, label] of Object.entries(names)) {
+    const source = d.coverage[key];
+    if (!source?.state) continue;
+    rows.push(h('dt', { text: label }), h('dd', { text: [source.state, source.as_of].filter(Boolean).join(' · ') }));
+    if (key === 'gear') {
+      for (const [part, title] of [['items', 'Equipment'], ['bags', 'Bags'], ['bank', 'Bank']]) {
+        if (source.parts?.[part]) rows.push(h('dt', { text: title }), h('dd', { text: source.parts[part] }));
+      }
+    }
+  }
+  return rows.length ? h('details', { class: 'source-versions' },
+    h('summary', { text: 'Character data sources' }), h('dl', {}, ...rows)) : null;
+}
+
 function renderFoot(d, err) {
   const kids = [];
   if (err) kids.push(h('p', { class: 'warn', text: `Couldn’t refresh: ${err}.` }));
@@ -4136,9 +4293,11 @@ function renderFoot(d, err) {
   if (d && d.sources && d.sources.archive === 'unreachable') {
     kids.push(h('p', { class: 'warn', text: `History older than ${d.sources.archive_after_days} days is missing: the archive VictoriaLogs didn’t answer.` }));
   }
-  if (d) kids.push(h('p', { text: STATIC ? `As of ${day(d.generated_at)} ${timeFmt.format(new Date(d.generated_at))}. Rebuilt after each play session.`
+  if (d) kids.push(h('p', { text: STATIC ? `Character view as of ${day(d.generated_at)} ${timeFmt.format(new Date(d.generated_at))}.`
     : `As of ${timeFmt.format(new Date(d.generated_at))}.` }));
-  fill($('#foot'), ...kids);
+  const sources = characterSourceTimes(d);
+  if (sources) kids.push(sources);
+  fill($('#foot-status'), ...kids);
 }
 
 // ------------------------------------------------------------ new data
@@ -4175,6 +4334,7 @@ function newsSchedule() {
 }
 
 async function newsCheck() {
+  const current = latestRequest('freshness');
   news.timer = null;
   if (document.visibilityState !== 'visible') return;
   news.at = Date.now();
@@ -4184,7 +4344,7 @@ async function newsCheck() {
     // Its own fetch, not getJSON: a lapsed login must not reload the page.
     const r = await fetch(api('char', { name }), { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
     const d = r.ok ? await r.json() : null;
-    if (d && name === state.char && news.shown && newsSig(d) !== news.shown) newsShow();
+    if (d && current() && news.shown && newsSig(d) !== news.shown) newsShow();
   } catch (e) { /* offline or logged out: the next check asks again */ }
   release();
   newsSchedule();
@@ -4259,11 +4419,12 @@ function restoreView(v) {
 }
 
 async function newsApply() {
+  const current = latestRequest('refresh');
   const v = keepView();
   if (news.pill) news.pill.hidden = true;
   await loadChar(state.char, true);
   await state.drawn;
-  restoreView(v);
+  if (current()) restoreView(v);
   news.at = Date.now();
   newsSchedule();
 }
@@ -4289,12 +4450,31 @@ function renderAll(d) {
   document.title = `${d.header.name} ${d.header.level ?? ''}`.trim() + (d.header.title ? ` · ${d.header.title}` : '');
 }
 
+function selectChar(name) {
+  requests.clear();
+  Object.assign(state, { char: name, data: null, advice: null, dungeons: null, thist: null,
+    journal: null, overview: null, timeline: null, snapLevel: null });
+  analysisMemo = { name: null, at: 0, p: null };
+  // While the new character loads (or if it fails), its tabs cannot show
+  // the previous character's content or leave their controls clickable.
+  for (const el of document.querySelectorAll('#gear, #talents, #classguide, #meta, #analysis, #nudgebox, #askbox, #planbox, #loot')) {
+    el.hidden = true;
+  }
+  for (const el of document.querySelectorAll('#main .body, #journal-list, #planout, #foot-status')) el.replaceChildren();
+  for (const el of document.querySelectorAll('#hero, #home, #timeline, #journal-lede')) {
+    fill(el, h('span', { class: 'loading', text: `Reading the logs for ${name.split('-')[0]}` }));
+  }
+  if ($('#planbtn')) $('#planbtn').disabled = false;
+}
+
 async function loadChar(name, quiet) {
+  const current = latestRequest('char');
   try {
     const jobs = [getJSON(api('char', { name }))];
     if (feat('market')) jobs.push(getJSON(api('market')));
     if (feat('prices')) jobs.push(getJSON(api('prices')));
     const [d, m, p] = await Promise.allSettled(jobs);
+    if (!current()) return;
     if (d.status === 'rejected') throw d.reason;
     state.data = d.value;
     renderAll(d.value);
@@ -4321,6 +4501,7 @@ async function loadChar(name, quiet) {
     if (feat('people')) more.push(loadPeople(name));
     state.drawn = Promise.allSettled(more);
   } catch (e) {
+    if (!current()) return;
     if (!quiet || !state.data) {
       fill($('#hero'), h('p', { class: 'err', text: `Couldn’t load ${name}: ${e.message}.` }));
     }
@@ -4396,6 +4577,7 @@ async function start() {
       state.config = { view: 'public' };
     }
   }
+  renderSourceVersions(state.config);
   if (!PUBLIC && feat('plan')) initPlan();
   initDebug();
   let chars;
@@ -4418,11 +4600,7 @@ async function start() {
   state.char = chars.some((c) => c.char === wanted) ? wanted : chars[0].char;
   sel.value = state.char;
   sel.addEventListener('change', () => {
-    state.char = sel.value;
-    state.journal = null;
-    state.overview = null;
-    state.timeline = null;
-    state.snapLevel = null;
+    selectChar(sel.value);
     const u = new URL(location.href);
     u.searchParams.set('char', state.char);
     history.replaceState(null, '', u);
