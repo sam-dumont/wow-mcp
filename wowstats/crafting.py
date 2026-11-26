@@ -61,6 +61,8 @@ def reference() -> dict:
             pats: dict[int, list[int]] = {}
             for item, (spell, _req) in (_ref.get("patterns") or {}).items():
                 pats.setdefault(int(spell), []).append(int(item))
+            obs = p.parent / "kb" / "professions" / "learning.json" if p else None
+            _ref["_observations"] = json.loads(obs.read_text()) if obs and obs.exists() else {}
             _ref["_teaches"] = pats
             _ref["_bop"] = set(_ref.get("bop") or [])
         return _ref
@@ -115,6 +117,7 @@ class Who:
     ids: set = field(default_factory=set)  # item ids in the bags and bank (no counts needed)
     ids_by_place: dict = field(default_factory=dict)  # observed ID lists, independent of stack counts
     prices: dict | None = None  # item id -> {price_copper, seen_day, days_ago}; None: no scan
+    listings: dict = field(default_factory=dict)  # current items from ahsource.on_sale
     money: int | None = None
     goal: dict | None = None  # ahsource.mount_left
 
@@ -169,7 +172,9 @@ def who_from(sheet: dict, held: dict | None, market: dict | None) -> Who:
         bank_days = _days_ago(held_at.get("bank"))
     mk = market or {}
     return Who(ranks=ranks, caps=caps, known=known, side=sheet.get("faction"), held=held, held_at=held_at,
-               bank_days=bank_days, ids=ids, ids_by_place=ids_by_place, prices=mk.get("latest"), money=mk.get("money_copper"),
+               bank_days=bank_days, ids=ids, ids_by_place=ids_by_place, prices=mk.get("latest"),
+               listings=mk.get("items") or {},
+               money=mk.get("money_copper"),
                goal=mk.get("mount"))
 
 
@@ -259,7 +264,8 @@ def mats_summary(rows: list[dict], who: Who) -> dict:
     unpriced = [r for r in rows if r["buy_up_to"] and r["budget_copper"] is None]
     covered = sum(r["buy"] == 0 for r in rows)
     ages = [r["days_ago"] for r in rows if r.get("price_from") == "ah" and r.get("days_ago") is not None]
-    return {"cost_copper": cost, "items": len(rows), "covered": covered, "counts_known": all(r["buy"] is not None for r in rows),
+    return {"cost_copper": cost, "items": len(rows), "covered": covered,
+            "counts_known": all(r["buy"] is not None for r in rows),
             "unpriced": [r["name"] for r in unpriced], "oldest_price_days": max(ages) if ages else None}
 
 
@@ -419,32 +425,51 @@ def recipe_state(line: int, spell: int, who: Who) -> dict:
     """Known, a pattern held, or where a pattern comes from."""
     known = who.knows(line, spell)
     pats = reference().get("_teaches", {}).get(int(spell), [])
-    out: dict = {"known": known, "spell_id": spell}
-    if known:
-        return {**out, "state": "known"}
-    held = next((p for p in pats if who.has(p)), None)
-    if held:
-        return {**out, "state": "in_bags", "pattern_item_id": held, "pattern": name(held)}
-    where = []
+    ref = reference()
+    observed = ref.get("_observations", {})
+    trainer = (ref.get("trainer") or {}).get(str(spell)) or {}
+    trainer_obs = (observed.get("trainer") or {}).get(str(spell)) or {}
+    trainer_skill = trainer_obs.get("skill") or trainer.get("from")
+    paths = []
     for p in pats:
-        pv = (reference().get("pattern_vendor") or {}).get(str(p))
-        if pv:
-            where.append({"kind": "vendor", "pattern_item_id": p, "copper": pv.get("copper"), "skill": pv.get("skill")})
-        ah = ah_price(p, who)
-        if ah:
-            where.append({"kind": "ah", "pattern_item_id": p, "copper": ah["price_copper"],
-                          "seen_day": ah.get("seen_day"), "days_ago": ah.get("days_ago")})
-    tr = (reference().get("trainer") or {}).get(str(spell))
-    if tr:
-        where.append({"kind": "trainer", "copper": tr.get("copper"), "skill": tr.get("from")})
-    elif not pats and (recipe(spell) or {}).get("auto"):
-        where.append({"kind": "skill"})
-    if not pats and not tr and not where:
-        where.append({"kind": "trainer_unpriced"})  # no recipe item teaches it: a trainer does
-    out.update(state="unknown" if known is None else "missing", patterns=pats, where=where)
+        skill = ref["patterns"][str(p)][1]
+        bop = p in ref["_bop"]
+        pattern = {"pattern_item_id": p, "pattern": name(p), "skill": skill, "bind_on_pickup": bop}
+        if who.has(p):
+            paths.append({**pattern, "kind": "held", "location": next(
+                (k for k in ("bags", "bank") if who.minimum(k, p)), None), "copper": 0})
+        vendor = (ref.get("pattern_vendor") or {}).get(str(p))
+        if vendor:
+            paths.append({**pattern, "kind": "vendor", "copper": vendor.get("copper")})
+        listing = who.listings.get(p)
+        if not bop and listing and listing.get("price_copper"):
+            paths.append({**pattern, "kind": "ah", "copper": listing["price_copper"], "seen_day": listing["seen_day"]})
+        drop = (observed.get("pattern_drop") or {}).get(str(p))
+        if drop:
+            paths.append({**pattern, "kind": "drop", **drop})
+    if trainer or trainer_obs:
+        paths.append({"kind": "trainer", "skill": trainer_skill, "copper": trainer.get("copper"),
+                      "source": trainer_obs.get("source")})
+    if not pats and (recipe(spell) or {}).get("auto"):
+        paths.append({"kind": "skill", "copper": 0})
+    rank = who.ranks.get(line) or 0
+    # Prefer a confirmed way the character can use at this rank. A held
+    # pattern costs nothing; a reported drop is a lead rather than stock.
+    def priority(w):
+        costs_too_much = who.money is not None and w.get("copper") is not None and w["copper"] > who.money
+        return (w["kind"] == "drop", costs_too_much, max(0, (w.get("skill") or 0) - rank), w["kind"] != "held",
+                w.get("copper") is None, w.get("copper") or 0)
+    paths.sort(key=priority)
+    selected = paths[0] if paths else {}
+    state = "unknown" if known is None else "missing"
+    if known or selected.get("kind") == "held":
+        state = "known" if known else "in_bags"
+    out = {"state": state, "known": known, "spell_id": spell, "where": paths,
+           "trainer_skill": trainer_skill, "patterns": pats, "selected": selected}
     if pats:
-        out["pattern"] = name(pats[0])
-        out["pattern_item_id"] = pats[0]
+        p = selected.get("pattern_item_id") or pats[0]
+        out.update(pattern_item_id=p, pattern=name(p), pattern_skill=ref["patterns"][str(p)][1],
+                   pattern_bop=p in ref["_bop"])
     sib = sibling_pattern(spell, who)
     if sib:
         out["sibling"] = sib
@@ -480,6 +505,11 @@ def plan(source: dict, item_id: int | None, who: Who) -> dict | None:
     need = int(source.get("skill") or 0)
     rank = who.ranks.get(line)
     rs = recipe_state(line, int(spell), who)
+    selected = rs.get("selected") or {}
+    if rs["state"] != "known" and selected.get("skill"):
+        need = selected["skill"]
+    elif not need:
+        need = rs.get("pattern_skill") or rs.get("trainer_skill") or 0
     led = Ledger(who)
     rt = route(line, rank, need, who, led) if rank is not None and rank < need else None
     learn_cost, learn_unknown = _learn_cost((rt or {}).get("learn") or [])
@@ -489,28 +519,37 @@ def plan(source: dict, item_id: int | None, who: Who) -> dict | None:
     r = recipe(spell) or {}
     item_rows = [led.row(i, n, reserved=led.need.get(i, 0)) for i, n in r.get("r") or []]
     item_mats = mats_summary(item_rows, who)
-    pattern_cost = None
-    if rs["state"] in ("missing", "unknown") and rs.get("where"):
-        priced = [w for w in rs["where"] if w.get("copper") is not None]
-        if priced:
-            pattern_cost = min(w["copper"] for w in priced)
+    pattern_cost = selected.get("copper") if rs["state"] != "known" else 0
     craft_total = (route_mats["cost_copper"] + item_mats["cost_copper"] + learn_cost + train_cost
                    + (pattern_cost or 0))
     bop = int(item_id) in reference().get("_bop", set()) if item_id else None
-    buy = None
+    buy, quote = None, None
     if item_id and bop is False:
-        p = ah_price(int(item_id), who)
-        if p:
-            buy = {"copper": p["price_copper"], "seen_day": p.get("seen_day"), "days_ago": p.get("days_ago")}
+        listing = who.listings.get(int(item_id))
+        if listing and listing.get("price_copper"):
+            buy = {"copper": listing["price_copper"], "seen_day": listing.get("seen_day"),
+                   "days_ago": listing.get("seen_days_ago")}
+        elif p := ah_price(int(item_id), who):
+            quote = {"copper": p["price_copper"], "seen_day": p.get("seen_day"), "days_ago": p.get("days_ago")}
     can_make = bool(rank is not None and rank >= need and rs["state"] == "known")
     out = {"recipe": rs, "skill": {"profession": NAMES[line], "need": need, "have": rank,
                                    "cap": who.caps.get(line)},
            "route": rt, "route_mats": route_rows, "route_mats_summary": route_mats,
            "item_mats": item_rows, "item_mats_summary": item_mats,
            "learn_copper": learn_cost, "train_copper": train_cost, "pattern_copper": pattern_cost,
-           "craft_copper": craft_total, "bind_on_pickup": bop, "buy": buy, "can_make": can_make,
+           "craft_copper": craft_total, "bind_on_pickup": bop, "buy": buy, "estimate": quote, "can_make": can_make,
            "money_copper": who.money, "goal": who.goal}
-    out["effort"] = effort(out, who)
+    unpriced = [*learn_unknown, *route_mats["unpriced"], *item_mats["unpriced"]]
+    unpriced += [f"rank {t['rank']}" for t in (rt or {}).get("train", []) if t.get("copper") is None]
+    if pattern_cost is None and rs["state"] not in ("known", "in_bags"):
+        unpriced.append(rs.get("pattern") or "learning the recipe")
+    if not r.get("r"):
+        unpriced.append("recipe materials")
+    out["unpriced"] = list(dict.fromkeys(unpriced))
+    out["complete_cost"] = (not unpriced and item_mats["counts_known"] and route_mats["counts_known"]
+                            and (not rt or rt["complete"]))
+    out["craft_effort"] = effort(out, who)
+    out["effort"] = EASY if buy and (who.money is None or buy["copper"] <= who.money) else out["craft_effort"]
     out["line"] = line_text(out, who)
     out["action"] = action_text(out, who)
     return out
@@ -522,20 +561,18 @@ def _unpriced(p: dict) -> list[str]:
 
 def effort(p: dict, who: Who) -> int:
     """EASY: makeable now, or the pattern is held (or known) and the
-    skill-up and mats fit the purse with no trainer rank to buy, or the item
-    is listed and affordable; SOME: the recipe can be had (trainer, vendor,
+    skill-up and mats fit the purse with no trainer rank to buy. SOME:
+    the recipe can be had (trainer, vendor,
     auction house) but the gold or a trainer rank stands in the way; HARD:
     where the recipe comes from isn't in our data."""
     affordable = who.money is None or p["craft_copper"] <= who.money
-    if p["can_make"] and affordable:
-        return EASY
-    if p["buy"] and (who.money is None or p["buy"]["copper"] <= who.money):
+    if p["can_make"] and affordable and p["complete_cost"]:
         return EASY
     st = p["recipe"]["state"]
-    if st in ("known", "in_bags") and affordable and not (p.get("route") or {}).get("train"):
+    if st in ("known", "in_bags") and affordable and p["complete_cost"] and not (p.get("route") or {}).get("train"):
         return EASY
-    if st in ("known", "in_bags", "unknown") or any(w["kind"] != "trainer_unpriced" for w in p["recipe"].get("where")
-                                                     or []):
+    available = any(w["kind"] in ("trainer", "vendor", "ah", "skill") for w in p["recipe"].get("where") or [])
+    if st in ("known", "in_bags", "unknown") or available:
         return SOME
     return HARD
 
@@ -545,7 +582,7 @@ def _recipe_words(rs: dict) -> str:
     if st == "known":
         return "You know the recipe."
     if st == "in_bags":
-        return f"You have {rs['pattern']}: learn it."
+        return f"You have {rs['pattern']}."
     out = []
     if st == "missing":
         out.append(f"You don't have {rs['pattern']}." if rs.get("pattern") else "You don't know the recipe.")
@@ -557,14 +594,14 @@ def _recipe_words(rs: dict) -> str:
         if k == "vendor":
             out.append(f"A vendor sells {name(w['pattern_item_id'])}{price}.")
         elif k == "ah":
-            out.append(f"{name(w['pattern_item_id'])} was on the auction house{price} "
-                       f"({days_words(w.get('days_ago'))}).")
+            out.append(f"{name(w['pattern_item_id'])} was listed{price} on {w['seen_day']}.")
         elif k == "trainer":
             out.append(f"A trainer teaches it{' from ' + str(w['skill']) if w.get('skill') else ''}{price}.")
-        elif k == "trainer_unpriced":
-            out.append("A trainer teaches it.")
-    if st == "missing" and rs.get("pattern") and not any(w["kind"] in ("vendor", "ah") for w in rs.get("where") or []):
-        out.append("Where it drops isn't in our data: search the auction house for it with Auctionator.")
+        elif k == "drop":
+            out.append(f"Recorded drop from {w['npc']}. Availability on this build is unverified.")
+    if st == "missing" and rs.get("pattern") and not rs.get("where"):
+        out.append("The pattern binds on pickup. Its source is unverified." if rs.get("pattern_bop") else
+                   "The pattern source is unknown. Check the auction house with Auctionator.")
     if rs.get("sibling"):
         s = rs["sibling"]
         out.append(f"The one you hold, {s['pattern']}, makes {s['makes']}.")
@@ -592,17 +629,13 @@ def line_text(p: dict, who: Who) -> str:
         parts.append(f"Your {sk['profession']} skill isn't on the sheet: it needs {sk['need']}.")
     rm, im = p["route_mats_summary"], p["item_mats_summary"]
     if p["craft_copper"] or rm["items"] or im["items"]:
-        total = f"all {gold_words(p['craft_copper'], who)}."
-        if rm["counts_known"]:
+        total = gold_words(p["craft_copper"], who) + ("." if p["complete_cost"] else " (incomplete estimate).")
+        if rm["counts_known"] and im["counts_known"]:
             parts.append(f"Bags and bank cover {rm['covered'] + im['covered']} of {rm['items'] + im['items']} "
-                         f"mats; in {total}")
+                         f"mats. Estimated cost {total}")
         else:
-            parts.append(f"In {total}")
-    left_out = [f"{sk['profession']} rank {t['rank']}" for t in (rt or {}).get("train") or []
-                if t.get("copper") is None]
-    left_out += [e.get("pattern") or e.get("name") or str(e["spell"]) for e in (rt or {}).get("learn") or []
-                 if e.get("copper") is None and not e.get("held")]
-    miss = list(dict.fromkeys(_unpriced(p) + left_out))
+            parts.append(f"Estimated cost {total}")
+    miss = p["unpriced"]
     if miss:
         more = f" and {len(miss) - 3} more" if len(miss) > 3 else ""
         parts.append(f"No price for {', '.join(miss[:3])}{more}"
@@ -615,6 +648,10 @@ def line_text(p: dict, who: Who) -> str:
         b = p["buy"]
         parts.append(f"Or buy it: {ahsource.price_text(b['copper'])} on the auction house "
                      f"({days_words(b.get('days_ago'))}).")
+    elif p.get("estimate"):
+        quote = p["estimate"]
+        day = quote.get("seen_day") or days_words(quote.get("days_ago"))
+        parts.append(f"Last seen for {ahsource.price_text(quote['copper'])} ({day}). No current listing.")
     elif p["bind_on_pickup"] is False:
         parts.append("Not seen on the auction house in your scans.")
     return " ".join(parts)
@@ -623,14 +660,13 @@ def line_text(p: dict, who: Who) -> str:
 def action_text(p: dict, who: Who) -> str:
     """The one next step."""
     if p["can_make"]:
-        return f"Make it: the materials cost ~{ahsource.price_text(p['item_mats_summary']['cost_copper'])}."
-    b = p.get("buy")
-    if b and b["copper"] < p["craft_copper"] and (who.money is None or b["copper"] <= who.money):
-        return f"Buy it on the auction house (~{ahsource.price_text(b['copper'])})."
+        return ("Check the missing material prices or counts before crafting." if not p["complete_cost"] else
+                f"Make it: the materials cost ~{ahsource.price_text(p['item_mats_summary']['cost_copper'])}.")
     rs = p["recipe"]
-    if rs["state"] == "in_bags":
-        return f"Learn {rs['pattern']} from your bags."
+    selected = rs.get("selected") or {}
     rt = p.get("route") or {}
+    if rs["state"] == "missing" and selected.get("kind") == "drop":
+        return f"Check {selected['npc']}, a recorded drop source unverified on this build."
     first = rt.get("steps") or []
     tr = rt.get("train") or []
     if tr and (not first or first[0]["from"] >= tr[0]["from"]):
@@ -638,11 +674,20 @@ def action_text(p: dict, who: Who) -> str:
     if first:
         s = first[0]
         return f"Craft ~{s['crafts']} {s['name']} ({p['skill']['profession']} {s['from']} → {s['to']})."
+    if rs["state"] == "in_bags":
+        where = selected.get("location")
+        return (f"Take {rs['pattern']} out of the bank and learn it." if where == "bank" else
+                f"Learn {rs['pattern']} from your bags.")
     if rs["state"] == "missing":
-        w = (rs.get("where") or [{}])[0]
-        return {"vendor": f"Buy {rs.get('pattern')} from its vendor.",
-                "ah": f"Buy {rs.get('pattern')} on the auction house."}.get(
-            w.get("kind"), f"Find {rs.get('pattern') or 'the recipe'}: search the auction house with Auctionator.")
+        kind = selected.get("kind")
+        if kind == "trainer":
+            return f"Learn the recipe from a {p['skill']['profession']} trainer."
+        if kind in ("ah", "vendor"):
+            return f"Buy {rs['pattern']} from " + ("the auction house." if kind == "ah" else "its vendor.")
+        if rs.get("pattern_bop"):
+            return f"Look for {rs['pattern']} in game. Its drop source is unverified."
+        if rs.get("pattern"):
+            return f"Check the auction house for {rs['pattern']}."
     return "Check the recipe in your profession window."
 
 
@@ -650,7 +695,28 @@ def brief(p: dict | None) -> dict | None:
     """What a gear source carries of a plan (the professions tool has the rest)."""
     if not p:
         return None
-    return {"line": p["line"], "action": p["action"], "effort": p["effort"], "recipe": p["recipe"]["state"],
+    sk, rs = p["skill"], p["recipe"]
+    blockers = []
+    if sk["have"] is None or sk["have"] < sk["need"]:
+        blockers.append(f"{sk['profession']} {sk['need']} required"
+                        + (f" (you have {sk['have']})" if sk["have"] is not None else ""))
+    if rs["state"] not in ("known", "in_bags"):
+        blockers.append("Recipe knowledge unknown" if rs["state"] == "unknown" else
+                        f"Missing {rs.get('pattern') or 'recipe'}")
+    if rs.get("selected", {}).get("kind") == "drop":
+        blockers.append(f"Reported drop from {rs['selected']['npc']}, unverified for this build")
+    rm, im = p["route_mats_summary"], p["item_mats_summary"]
+    return {"skill": sk, "blocker": ". ".join(blockers), "craft_effort": p["craft_effort"],
+            "cost_complete": p["complete_cost"], "unpriced": p["unpriced"],
+            "materials": {"covered": im["covered"] + rm["covered"], "items": im["items"] + rm["items"],
+                          "counts_known": rm["counts_known"] and im["counts_known"]},
+            "buy": p.get("buy"), "estimate": p.get("estimate"),
+            "steps": [{k: s[k] for k in ("name", "crafts", "from", "to")} for s in (p["route"] or {}).get("steps", [])],
+            "riding": {k: p["goal"].get(k) for k in ("level", "left_copper")} if p.get("goal") else None,
+            "learn": {"trainer_skill": rs.get("trainer_skill"), "pattern_skill": rs.get("pattern_skill"),
+                      "kind": (rs.get("selected") or {}).get("kind"), "pattern_bop": rs.get("pattern_bop"),
+                      "pattern_id": rs.get("pattern_item_id")},
+            "line": p["line"], "action": p["action"], "effort": p["effort"], "recipe": p["recipe"]["state"],
             "craft_copper": p["craft_copper"], "buy_copper": (p.get("buy") or {}).get("copper"),
             "buy_days_ago": (p.get("buy") or {}).get("days_ago"), "bind_on_pickup": p["bind_on_pickup"],
             "can_make": p["can_make"]}

@@ -38,7 +38,7 @@ def test_one_item_craft_or_buy(ctx):
     out = tools.call(ctx, "professions", {"char": fakes.CHAR, "profession": "Tailoring",
                                           "item": "Gloves of Meditation"})
     it = out["professions"][0]["item"]
-    assert (it["item_id"], it["spell_id"], it["needs_skill"]) == (4318, 3852, 125)
+    assert (it["item_id"], it["spell_id"], it["needs_skill"]) == (4318, 3852, 105)
     assert it["bind_on_pickup"] is False
 
 

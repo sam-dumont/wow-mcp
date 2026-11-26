@@ -204,7 +204,7 @@ ZOGZOG_MOVE_KINDS = frozenset({"upgrade", "dungeon", "profession", "riding", "de
                                "enchant"})
 PLACE = {**_keys("name", "id", "url"), "levels": [None]}
 MOVE_ITEM = {**_keys("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct", "url", *BADGE),
-             "with": _keys("item_id", "name", "slot_name", "kind", "url")}
+             "with": _keys("item_id", "name", "slot_name", "kind", "url", "price_copper", "seen_day", "seen_days_ago")}
 TRAINER = {**_keys("npc", "name", "url", "x", "y"), "zone": PLACE}
 # One more run of a dungeon (wowstats.plan.dungeongain): time, XP, pace
 # against the character's own questing, the quests to pick up and who gives
@@ -237,8 +237,8 @@ VS_GUIDE = {**_keys("agrees", "we_say", "reason", "under_floor", "text"), "guide
 MOVE = {**_keys("text", "link", "cite", "kind", "title", "detail", "action", "blocker", "item_id", "skill_id",
                 "weight"),
         "item": MOVE_ITEM, "items": [MOVE_ITEM], "zone": PLACE, "quest_rewards": [QUEST_REWARD],
-        "source": {**_keys("kind", "boss", "profession", "blocker", "price_copper", "seen_day", "seen_days_ago"), "quest": _keys("id", "name", "url"),
-                   "zone": PLACE},
+        "source": {**_keys("kind", "boss", "profession", "blocker", "price_copper", "seen_day", "seen_days_ago"),
+                   "quest": _keys("id", "name", "url"), "zone": PLACE},
         "skill": {**_keys("skill_id", "name", "rank", "max_rank", "next", "need_level", "level_ok", "need_skill",
                           "skill_ok", "cost_copper", "cost_scope", "money_copper", "search_url"),
                   "trainers": [TRAINER]},
@@ -273,8 +273,14 @@ SOURCE = _keys("kind", "quest_id", "name", "zone", "level", "req_level", "dungeo
                                "levels": [None], "part": [None], "levels_drop": [None],
     # What a craft takes, priced (wowstats.crafting.brief): its line, the next
     # step, the gold to craft it and the auction house price the other way.
-    "plan": _keys("line", "action", "effort", "recipe", "craft_copper", "buy_copper", "buy_days_ago",
-                  "bind_on_pickup", "can_make")}
+    "plan": {**_keys("line", "action", "effort", "craft_effort", "recipe", "craft_copper", "buy_copper", "buy_days_ago",
+                     "bind_on_pickup", "can_make", "blocker", "cost_complete"),
+             "skill": _keys("profession", "need", "have", "cap"), "unpriced": [None],
+             "materials": _keys("covered", "items", "counts_known"),
+             "buy": _keys("copper", "seen_day", "days_ago"), "estimate": _keys("copper", "seen_day", "days_ago"),
+             "steps": [_keys("name", "crafts", "from", "to")], "riding": _keys("level", "left_copper"),
+             "learn": _keys("kind", "trainer_skill", "pattern_skill", "pattern_bop")}}
+
 AH = {**_keys("available", "scan_day", "scan_days_ago", "on_sale", "upgrades_on_sale", "money_copper",
               "cheap_under_copper", "notice"), "mount": _keys("name", "level", "need_copper", "left_copper")}
 # `stats`: the item's stats as the scoring reads them (game data), for the
