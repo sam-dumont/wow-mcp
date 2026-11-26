@@ -21,15 +21,19 @@ local function stubs(t)
   return setmetatable(t, { __index = function() return deep end })
 end
 
-local function env()
+local function env(race, state)
   local ns = stubs({ Nav = stubs({ RegisterTravelData = function(d) out.travel = d end }) })
   local e = {
     Polestar = stubs({
+      IsPlayerRace = function(r) return r == race end,
       RegisterGuide = function(g) out.guides[#out.guides + 1] = g end,
       RegisterLegs = function(_, _, list)
         for id, steps in pairs(list) do
           out.legs[id] = out.legs[id] or {}
-          for k, v in pairs(steps) do out.legs[id][string.format("%d", k)] = v end
+          for k, v in pairs(steps) do
+            out.legs[id][string.format("%d", k)] = v
+            state.legs = state.legs + 1
+          end
         end
       end,
       RegisterMapFrames = function(f)
@@ -49,13 +53,14 @@ local function env()
   return e, ns
 end
 
-local function run(path)
+local function run(path, race)
   local f = io.open(path, "rb")
   if not f then return false end
   local src = f:read("*a")
   f:close()
   if src:sub(1, 1) == "\27" then error(path .. ": precompiled chunk refused") end
-  local e, ns = env()
+  local state = { legs = 0 }
+  local e, ns = env(race, state)
   local chunk, err
   if setfenv then
     chunk, err = loadstring(src, "@" .. path)
@@ -65,6 +70,7 @@ local function run(path)
   end
   if not chunk then error(err) end
   chunk("Polestar", ns)
+  if mode == "legs" then assert(state.legs > 0, path .. " registered no travel legs") end
   return true
 end
 
@@ -74,8 +80,25 @@ local function each_dir()
 end
 
 if mode == "legs" then
-  for _, r in ipairs({ "Dwarf", "Gnome", "Human", "NightElf", "Orc", "Scourge", "Skyborne", "Tauren", "Troll" }) do
-    run(addon .. "/Polestar_Guides_" .. r .. "/Legs.lua")
+  local factions = {
+    Alliance = { "Dwarf", "Gnome", "Human", "NightElf", "Skyborne" },
+    Horde = { "Orc", "Scourge", "Skyborne", "Tauren", "Troll" },
+  }
+  local paths, loaded = {}, 0
+  for _, faction in ipairs({ "Alliance", "Horde" }) do
+    for _, race in ipairs(factions[faction]) do
+      local path = addon .. "/Polestar_Guides_" .. faction .. "/Legs_" .. race .. ".lua"
+      if run(path, race) then loaded = loaded + 1 else paths[#paths + 1] = path end
+    end
+  end
+  if loaded == 0 then
+    -- Before 0.4.3 both Skyborne variants occupied the same race pack.
+    for _, race in ipairs({ "Dwarf", "Gnome", "Human", "NightElf", "Orc", "Scourge", "Skyborne", "Tauren", "Troll" }) do
+      local path = addon .. "/Polestar_Guides_" .. race .. "/Legs.lua"
+      assert(run(path, race), path .. " missing")
+    end
+  elseif #paths > 0 then
+    error("Missing faction travel legs: " .. table.concat(paths, ", "))
   end
   out = { legs = out.legs }
 else

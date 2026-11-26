@@ -10,6 +10,7 @@ import hashlib
 import io
 import json
 import re
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -103,15 +104,27 @@ def test_select_reads_the_inputs():
     assert order.index("forever-reference") < order.index("dungeon-quests") < order.index("route-reference")
 
 
-def test_the_check_names_the_file_and_puts_it_back(tmp_path, monkeypatch, capsys):
-    calls = []
-    monkeypatch.setattr(rebuild.subprocess, "run", lambda cmd, **k: calls.append(cmd) or type(
-        "R", (), {"returncode": 0, "stdout": "data/gear-reference.json\n" if cmd[:2] == ["git", "diff"] else "",
-                  "stderr": ""})())
-    gear = [e for e in rebuild.EXPORTS if e.name == "gear-reference"]
-    assert rebuild.run(gear, tmp_path, "lua5.4", tmp_path / "w", check=True) == 1
-    assert "data/gear-reference.json is not what gear-reference builds" in capsys.readouterr().out
-    assert calls[-1][:3] == ["git", "checkout", "--"]
+@pytest.mark.parametrize(("dirty", "exit_code"), [(False, 0), (True, 0), (True, 7)])
+def test_check_preserves_the_tree_and_index(tmp_path, monkeypatch, dirty, exit_code):
+    tree = tmp_path / "caller"
+    tree.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=tree, check=True)
+    output = tree / "data.txt"
+    output.write_text("original")
+    subprocess.run(["git", "add", "data.txt"], cwd=tree, check=True)
+    if dirty:
+        output.write_text("staged")
+        subprocess.run(["git", "add", "data.txt"], cwd=tree, check=True)
+        output.write_text("unstaged")
+    # Even a generator that writes a partial file and then exits can't touch the caller.
+    (tree / "input").write_text("original")
+    cmd = (sys.executable, "-c", "from pathlib import Path; Path('data.txt').write_bytes(Path('input').read_bytes()); "
+           f"raise SystemExit({exit_code})")
+    export = rebuild.Export("test", cmd, ("data.txt",), (), "doc")
+    before = output.read_bytes(), (tree / ".git/index").read_bytes()
+    monkeypatch.setattr(rebuild, "ROOT", tree)
+    assert rebuild.run([export], tmp_path, "lua", tmp_path / "work", check=True) == int(dirty)
+    assert (output.read_bytes(), (tree / ".git/index").read_bytes()) == before
 
 
 # ------------------------------------------------------------------ forever-db
@@ -254,7 +267,9 @@ def test_the_server_says_what_its_data_was_built_from():
     assert v["foreverdb"]["data_version"] == src["data_version"]
     assert v["forever_db"]["version"] == fref["forever_db"]["version"]
     assert re.fullmatch(r"v\d+(\.\d+)+", v["polestar"])
-    assert set(v["client_build"]) == {"zones", "spells", "items"}
+    assert set(v["client_build"]) == {"zones", "spells", "items", "crafting"}
+    craft = json.loads((ROOT / "data/craft-reference.json").read_text())
+    assert v["client_build"]["crafting"] == craft["source"]["client_tables"]["build"]
     assert v["checked"] == state()["checked"]
     pub = redact.public("config", {"view": "public", "debug": True, "data_versions": v})
     assert pub["data_versions"] == v and "debug" not in pub
@@ -295,7 +310,7 @@ def test_an_export_whose_input_moved_runs_again(tmp_path, monkeypatch):
     monkeypatch.setattr(rebuild.subprocess, "run",
                         lambda cmd, **k: type("R", (), {"returncode": 0, "stdout": "", "stderr": ""})())
     monkeypatch.setattr(rebuild, "command", command)
-    monkeypatch.setattr(rebuild, "_digest", lambda paths: tuple(state.get(p, p) for p in paths))
+    monkeypatch.setattr(rebuild, "_digest", lambda root, paths: tuple(state.get(p, p) for p in paths))
     monkeypatch.setitem(rebuild.FETCH, "cmangos", lambda w: w)
     picked = [e for e in rebuild.EXPORTS if e.name in ("route-reference", "dungeon-wings")]
     assert rebuild.run(picked, tmp_path, "lua5.4", tmp_path / "w") == 0

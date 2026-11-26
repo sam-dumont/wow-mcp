@@ -44,6 +44,15 @@ def test_forever_dungeons_are_covered():
     assert dq.dungeons_of(95775) == [2970]  # The Drowned City (Horde): Polestar's cited journal
 
 
+def test_agamaggans_blood_stays_outdoors_after_a_razorfen_downs_run():
+    from wowstats.plan.facts import dungeon_quests
+
+    assert dq.dungeons_of(93604) == []
+    assert dq.attribute([(0, 129, 100, 200)], [("handin", 300, 93604)], {93604: [50]}) == {}
+    checklist = dungeon_quests(None, None, {"Razorfen Downs": {"handins": [93604]}})
+    assert all(q["quest_id"] != 93604 for area in checklist.values() for q in area["quests"])
+
+
 def test_attribution_rule():
     H = 3600
     runs = [(0, DALARAN, 1000, 2000), (1, DALARAN, 5000, 6000), (2, STOCKADE, 3000, 4000)]
