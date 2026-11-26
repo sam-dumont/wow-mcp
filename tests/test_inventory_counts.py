@@ -90,11 +90,11 @@ def test_counts_survive_ingest(shipper, tmp_path):
 
 
 def test_bag_only_save_preserves_the_bank_observation(shipper, tmp_path):
-    from wowstats import eventstore
+    from wowstats import eventstore, stores
 
     es = eventstore.get(f"sqlite:{tmp_path / 'events'}")
     state = {}
-    for day, count in [(1, 1), (19, 2)]:
+    for day, count in [(1, 1), (10, 2), (19, 1)]:
         at = datetime(2026, 11, day, tzinfo=UTC).timestamp()
         acct = _syndicator(tmp_path, [[(LINEN, count)]], [[(SILK, 3)]])
         os.utime(acct / "SavedVariables" / "Syndicator.lua", (at, at))
@@ -102,7 +102,13 @@ def test_bag_only_save_preserves_the_bank_observation(shipper, tmp_path):
         lines, bad = ingest.parse(json.dumps(ev).encode())
         assert not bad and es.append(0, lines) == 1
     now = datetime(2026, 11, 20, tzinfo=UTC)
-    held = gear.newest_bags(es.query(0, "*", datetime(2026, 11, 1, tzinfo=UTC), now, 10))
+    rows = es.query(0, "*", datetime(2026, 11, 1, tzinfo=UTC), now, 10)
+    # The bags returned to their first contents. Readers keep each observation
+    # when the two share a content ID, and still discard a resend.
+    observations = stores.dedupe(rows + rows)
+    assert len(observations) == 3 and len({r["source_id"] for r in observations}) == 2
+    held = gear.newest_bags(observations)
+    assert held["counts"]["bags"] == {LINEN: 1}
     answer = tools.inventory_answer(held, now=now)
     assert answer["bags_at"].startswith("2026-11-19") and answer["bank_at"].startswith("2026-11-01")
     assert "2026-11-01" in answer["note"] and held["counts"]["bank"] == {SILK: 3}
