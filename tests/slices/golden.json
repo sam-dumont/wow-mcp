@@ -95,11 +95,12 @@
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
    "dungeon|Maraudon: Purple",
-   "dungeon|Razorfen Downs",
+   "dungeon|Scarlet Monastery: Cathedral",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
    "upgrade|10771",
-   "upgrade|273806"
+   "upgrade|273806",
+   "upgrade|7685"
   ],
   "next_moves": [
    "#advice",
@@ -176,20 +177,21 @@
   "effects": [],
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
-   "dungeon|Razorfen Downs",
+   "dungeon|Scarlet Monastery: Cathedral",
    "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
-   "upgrade|17755",
-   "upgrade|273806"
+   "upgrade|273806",
+   "upgrade|2816",
+   "upgrade|7685"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#levels",
    "#up-12",
-   "#up-17",
-   "#up-6"
+   "#up-16",
+   "#up-17"
   ],
   "prep": []
  },
