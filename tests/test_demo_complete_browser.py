@@ -4,7 +4,7 @@ Chromium and WebKit (the owner reads it in Safari on an iPhone).
 
 The demo is built the way the pages workflow builds it
 (site/scripts/build-demo.sh: VictoriaLogs, VictoriaMetrics, the renderer,
-the golden game files), unless WOW_DEMO_DIR names one already built
+the pinned client files), unless WOW_DEMO_DIR names one already built
 (the pages workflow, after its build). WOW_DEMO_ENGINES narrows the
 engines (chromium,webkit).
 
@@ -18,11 +18,11 @@ Every tab of the public page and of the friends' page is opened; on each:
   item frame still on its "?" or its slot's glyph, no talent showing its letter,
   no broken `<img>` (naturalWidth 0), and no item on the game's question
   mark (an item the bundle has no card or icon for);
-- each of the nine characters opens its own model through the selector,
-  paints the viewer canvas and offers its class actions and companion controls.
+- each of the nine characters opens its own dressed client model through
+  the selector and plays its class and equipped weapon's animations.
 
 The demo has no degraded section on purpose: a section that falls back is
-a gap in the demo's data (tools/fixtures/generate.py, golden3d.py) or in
+a gap in the demo's data (tools/fixtures/generate.py, demo3d.py) or in
 the publisher, never something to allow here.
 
 Needs the `browser` group and its browsers (`uv run --group browser
@@ -46,7 +46,7 @@ import pytest
 
 sync_api = pytest.importorskip("playwright.sync_api")
 
-from tests.demo_models import PET, ROSTER, check_answer  # noqa: E402
+from tests.demo_models import PET, RANGED, ROSTER, check_answer, check_m2  # noqa: E402
 from tests.test_browser import settled  # noqa: E402
 from tests.test_model3d_browser import COVERED  # noqa: E402
 
@@ -203,15 +203,28 @@ def viewer_state(frame) -> str:
 CLASS_ACTION = {"PRIEST": "Power Word: Shield", "WARRIOR": "Battle Shout", "PALADIN": "Holy Light",
                 "HUNTER": "Hunter's Mark", "ROGUE": "Kick", "SHAMAN": "Lightning Bolt", "MAGE": "Frostbolt",
                 "WARLOCK": "Drain Life", "DRUID": "Rejuvenation"}
+# The human female M2 aliases its omni precast (52) to its directed precast (51).
+CLASS_CLIPS = {"PRIEST": [54], "WARRIOR": [55], "PALADIN": [51, 54], "HUNTER": [53], "ROGUE": [95],
+               "SHAMAN": [51, 53], "MAGE": [51, 53], "WARLOCK": [124], "DRUID": [52, 54]}
+RANGED_ACTION = {2: ("Shoot bow", [46]), 3: ("Fire gun", [49]), 19: ("Shoot wand", [53])}
+
+
+def play_clips(frame, label, clips):
+    """Record the M2 animation the renderer entered after the button click.
+    A bow or gun can also have an optional ready pose before its release."""
+    frame.evaluate("window.demoClips = []")
+    frame.get_by_role("button", name=label, exact=True).click(timeout=30000)
+    frame.wait_for_function("clips => clips.every(id => window.demoClips.includes(id))", arg=clips, timeout=30000)
 
 
 @pytest.mark.parametrize("which", ["public", "friends"])
-@pytest.mark.parametrize("name", list(ROSTER))
-def test_each_demo_character_draws(browser, base, name, which):
-    with browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce") as ctx:
+@pytest.mark.parametrize(("name", "width"), [(name, 1280) for name in ROSTER] + [("Flintwick-Bearhide", 390)])
+def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):
+    with browser.new_context(viewport={"width": width, "height": 900}, reduced_motion="reduce") as ctx:
         page = ctx.new_page()
         served = set()
-        page.on("response", lambda r: served.add(r.url) if r.ok and "/model3d/file/" in r.url else None)
+        page.on("response", lambda r: served.add(int(r.url.rsplit("/", 1)[1]))
+                if r.ok and "/model3d/file/" in r.url else None)
         page.goto(base + ("friends/" if which == "friends" else ""))
         select = page.get_by_role("combobox", name="Character", exact=True)
         select.locator("option").nth(8).wait_for(state="attached")
@@ -222,27 +235,48 @@ def test_each_demo_character_draws(browser, base, name, which):
         page.locator("#hero").get_by_role("heading", name=name.split("-")[0], exact=True).wait_for()
         answer = page.evaluate("name => window.wowGetJSON(window.wowApi('model3d', {name}))", name)
         recipe = check_answer(name, answer)
+        files = (demo_dir / "zogzog" if which == "friends" else demo_dir) / "model3d" / "file"
+        for part in (recipe, recipe.get("companion")):
+            if part:
+                with (files / str(part["model"])).open("rb") as stream:
+                    check_m2(part["model"], stream)
         page.locator("#gear").get_by_role("button", name="View in 3D").click(timeout=30000)
         iframe = page.wait_for_selector(f"#gear iframe.m3dframe[data-name='{name}']", timeout=30000)
         frame = iframe.content_frame()
         assert viewer_state(frame) == "drawn", frame.locator("#status").inner_text()
         hit, colours = frame.evaluate(COVERED)
         assert hit > 20 and colours >= 3, (name, hit, colours)
-        assert any(url.endswith(f"/model3d/file/{recipe['model']}") for url in served), name
+        outfit = {layer["file"] for mat in recipe["materials"] for layer in mat["layers"]}
+        outfit.update(a["model"] for a in recipe["attachments"] + recipe["collections"])
+        assert {recipe["model"], *outfit} <= served, (name, outfit - served)
 
         cls = ROSTER[name][0]
-        frame.get_by_role("button", name=CLASS_ACTION[cls], exact=True).wait_for(timeout=30000)
-        if cls == "PRIEST":
-            frame.get_by_role("button", name="Shoot wand", exact=True).click()
         if cls in PET:
             toggle = frame.get_by_role("checkbox", name=PET[cls][1])
             assert toggle.is_checked()
             toggle.uncheck()
-            assert not toggle.is_checked()
+            assert frame.evaluate(COVERED) != [hit, colours], name
             toggle.check()
-            assert any(url.endswith(f"/model3d/file/{recipe['companion']['model']}") for url in served), name
+            pet = recipe["companion"]
+            assert {pet["model"], *pet["textures"].values()} <= served, name
         else:
             assert not frame.locator("#companion-control").is_visible()
+
+        frame.evaluate("""() => {
+          window.demoClips = [];
+          const proto = M3D.M2RendererGL.prototype, play = proto.playAnimation;
+          proto.playAnimation = async function(index) {
+            await play.call(this, index);
+            window.demoClips.push(this._current_anim().id);
+          };
+        }""")
+        play_clips(frame, CLASS_ACTION[cls], CLASS_CLIPS[cls])
+        if cls in RANGED:
+            play_clips(frame, *RANGED_ACTION[RANGED[cls][0]])
+        else:
+            assert not frame.locator('button[data-action="ranged"]').count()
+        if cls == "HUNTER":
+            play_clips(frame, "Arcane Shot", [49])
 
 
 @pytest.mark.parametrize("width", WIDTHS)

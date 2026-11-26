@@ -106,6 +106,10 @@ def outfits() -> list[list[dict]]:
     return out
 
 
+def roster_outfits() -> dict[Profile, list[list[dict]]]:
+    return {NIBBET: outfits(), **{p: [roster.worn(c)] for p, c in zip(profiles()[1:], roster.CHARACTERS, strict=True)}}
+
+
 # ------------------------------------------------------------------ recording lookups
 
 class Seen(dict):
@@ -284,20 +288,22 @@ def pack(store: Path, archive: Path) -> str:
 def read_looks(root: Path) -> dict[str, list[dict]]:
     """Read the personalized roster used by the demo. Reject incomplete or legacy stores."""
     store = assets.Store(root)
-    meta = json.loads((root / "roster.json").read_text())
+    try:
+        meta = json.loads((root / "roster.json").read_text())
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"demo3d: {root} needs roster.json from demo3d.py build-roster: {exc}") from exc
     build = store.build()
     if not isinstance(meta, dict) or meta.get("version") != 1 or not build or meta.get("build") != build:
         raise ValueError("demo3d: roster.json needs version 1 and the client build from tables/build.json")
-    people = profiles()
+    sheets = roster_outfits()
     looks = meta.get("looks")
-    if not isinstance(looks, dict) or set(looks) != {p.name for p in people}:
+    if not isinstance(looks, dict) or set(looks) != {p.name for p in sheets}:
         raise ValueError("demo3d: roster.json needs the appearance of every demo character")
     tables = character3d.load_tables(store)
     if tables.problems:
         raise ValueError(f"demo3d: unreadable roster tables: {tables.problems}")
     ix = character3d.index(tables)
-    have = store.have()
-    for p in people:
+    for p in sheets:
         rid = character3d.race_id(tables, p.race)
         model = ix.race_models.get((rid, p.sex))
         options = {oid for oid, _ in ix.options.get(model, [])}
@@ -307,14 +313,21 @@ def read_looks(root: Path) -> dict[str, list[dict]]:
             or c.get("choiceId") not in ix.choices.get(c["optionId"], ()) for c in choices
         ):
             raise ValueError(f"demo3d: {p.name} needs choices for its own model")
-        recipe = character3d.assemble(tables, rid, p.sex, character3d.class_id(p.cls), choices, [], "hd")["recipe"]
-        if not recipe or recipe["model"] not in have:
-            raise ValueError(f"demo3d: missing player model for {p.name}")
-        if p.companion:
-            pet = character3d.companion(tables, p.companion)
-            if not pet or not {pet["model"], *pet["textures"].values()} <= have:
-                raise ValueError(f"demo3d: missing companion for {p.name}")
+    # A local store may be from an older roster or may have lost a file.
+    # Follow both model styles, gear history, companion textures and animations.
+    assembled = answers(tables, looks, sheets)
+    require_equipment(assembled)
+    need = {f for answer in assembled for f in answer.get("needs", ())}
+    _, missing = assets.closure(need, store.read)
+    if missing:
+        raise ValueError(f"demo3d: {root} is missing client files {sorted(missing)[:20]}; rerun build-roster")
     return looks
+
+
+def require_equipment(assembled: list[dict]) -> None:
+    missing = {(m["item_id"], m["why"]) for a in assembled for m in a.get("missing", ())}
+    if missing:
+        raise ValueError(f"demo3d: unresolved roster equipment: {sorted(missing)}")
 
 
 def build(wow_root: Path, out: Path, *, roster_models: bool = False) -> int:
@@ -326,16 +339,12 @@ def build(wow_root: Path, out: Path, *, roster_models: bool = False) -> int:
     if lost:
         raise SystemExit(f"demo3d: tables not in this install: {lost} ({missing})")
     rows = parse({n: got[f] for n, f in by_table.items()}, casc.version)
-    sheets = {NIBBET: outfits()}
-    if roster_models:
-        for profile, c in zip(profiles()[1:], roster.CHARACTERS, strict=True):
-            sheets[profile] = [roster.worn(c)]
+    sheets = roster_outfits() if roster_models else {NIBBET: outfits()}
     tables = character3d.Tables(rows, casc.version)
     looks = {p.name: pick_look(tables, p) for p in sheets}
     full = answers(tables, looks, sheets)
-    missing_items = {(m["item_id"], m["why"]) for a in full for m in a.get("missing", ())}
-    if roster_models and missing_items:
-        raise ValueError(f"demo3d: unresolved roster equipment: {sorted(missing_items)}")
+    if roster_models:
+        require_equipment(full)
     small = trim(rows, looks, sheets)
     archive = ROSTER_ARCHIVE if roster_models else ARCHIVE
 

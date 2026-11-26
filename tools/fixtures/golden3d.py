@@ -4,14 +4,8 @@ in the formats a player's shipper sends (wowstats.assets): client tables
 
     uv run python tools/fixtures/golden3d.py <store dir>   # a person's store: tables/, files/
 
-They serve twice:
-
-- the docs site's demo (site/scripts/demo.py) draws Nibbet with them, live,
-  through the product's own path: the store, character3d's assembly, the
-  publisher's copy into the bundle and the viewer;
-- the 3D tests (tests/test_golden3d.py in CI, tests/test_golden3d_browser.py
-  in the local browser gate), which can never have real game files,
-  assemble and draw them end to end in Chromium and WebKit.
+The 3D unit and browser tests assemble and draw these fixtures end to end.
+The docs site's test mode can run its publisher and viewer on them offline.
 
 Nothing in them comes from the game: the meshes are boxes, the textures
 are drawn here pixel by pixel, and every id the files and tables make up
@@ -32,8 +26,7 @@ The items: every piece the demo character wears in his history, plus a
 helmet and a shield the tests put on (TEST_HELM, TEST_SHIELD).
 
 Deterministic: the same bytes every run (tests/test_golden3d.py checks).
-Small (about 200 kB in all), so only this generator is committed; the demo
-build and the tests run it.
+Small (about 200 kB in all). The tests run the generator.
 """
 
 from __future__ import annotations

@@ -81,8 +81,8 @@ def to_vl(vl: str, rows: list[dict]) -> None:
     post(f"{vl}/internal/force_flush", b"", {})
 
 
-def to_vm(vm: str, rows: list[dict]) -> int:
-    series = generate.demo_series(rows, datetime.now(UTC).timestamp())
+def to_vm(vm: str, rows: list[dict], looks: dict[str, list[dict]] | None) -> int:
+    series = generate.demo_series(rows, datetime.now(UTC).timestamp(), looks)
     post(f"{vm}/api/v1/import", "".join(json.dumps(s, separators=(",", ":")) + "\n" for s in series).encode(), {})
     return sum(len(s["values"]) for s in series)
 
@@ -97,15 +97,25 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--vm", metavar="URL", default="http://127.0.0.1:8428", help="VictoriaMetrics, with --metrics")
     ap.add_argument("--end-day", metavar="YYYY-MM-DD", help="his last evening (default: yesterday, UTC)")
     a = ap.parse_args(argv)
+    looks = None
     if a.fixture_dir:
+        import demo3d
         import roster
-        import roster3d
+        import roster_asset
 
         from wowstats import talents
 
         root = Path(a.fixture_dir)
         root.mkdir(parents=True, exist_ok=True)
-        roster3d.write_store(root / "assets")
+        source = os.environ.get("DEMO_3D_STORE")
+        store = Path(source).resolve() if source else roster_asset.fetch(root / "roster-archives")
+        looks = demo3d.read_looks(store)
+        # All three services see an optional host bind at /demo-store. Fetched
+        # artwork lives in ui-state, which publish mounts under a different path.
+        with tempfile.TemporaryDirectory(dir=root) as tmp:
+            ref = Path(tmp) / "store"
+            ref.symlink_to(store if source else store.relative_to(root), target_is_directory=True)
+            ref.replace(root / "client-assets")
         # If the service already has a newer catalog, keep it. At the first
         # daily refresh it can fetch the full grid and icons as usual.
         path = root / "talent-catalog.json"
@@ -127,7 +137,7 @@ def main(argv: list[str]) -> int:
         to_vl(a.vl.rstrip("/"), rows)
         print(f"{len(rows)} events for 9 demo characters into {a.vl}")
     if a.metrics:
-        print(f"{to_vm(a.vm.rstrip('/'), rows)} Battle.net samples into {a.vm}")
+        print(f"{to_vm(a.vm.rstrip('/'), rows, looks)} simulated armory samples into {a.vm}")
     return 0
 
 

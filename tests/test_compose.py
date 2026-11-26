@@ -118,7 +118,16 @@ def test_isolated_demo_uses_the_chosen_image_and_its_own_armory():
         assert "victoriametrics" in services["demo"]["depends_on"]
         assert all(v["type"] == "volume" for v in services["ui"]["volumes"])
         fixture_mounts = {v["target"] for v in services["demo"]["volumes"] if v["type"] == "bind"}
-        assert fixture_mounts == {"/src/dev/seed.py", "/src/tools", "/src/tests/data", "/src/data"}
+        assert fixture_mounts == {"/src/dev/seed.py", "/src/tools", "/src/tests/data", "/src/data",
+                                  "/src/site/demo3d-roster.sha256"}
+
+    supplied = config("demo", COMPOSE_FILE="compose.yaml,compose.demo.yaml", COMPOSE_PATH_SEPARATOR=",",
+                      DEMO_3D_STORE=str(ROOT / ".demo3d" / "store"))
+    for service in ("ui", "demo", "publish"):
+        mount = next(v for v in supplied[service]["volumes"] if v["target"] == "/demo-store")
+        assert mount["read_only"] and mount["type"] == "bind"
+        assert Path(mount["source"]) == ROOT / ".demo3d" / "store"
+    assert supplied["demo"]["environment"]["DEMO_3D_STORE"] == "/demo-store"
 
 
 def kit_app(**env):

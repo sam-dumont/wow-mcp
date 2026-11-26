@@ -11,7 +11,7 @@ Nibbet is a Gnome priest on WoW Forever who doesn't exist. A script plays the ch
 
 The character selector also opens eight shorter sessions, one for each other Forever class. All nine characters have different races. Flintwick, the Dwarf Beast Mastery hunter, carries a Glass Shooter and travels with a bear. Duskwick, the Undead Affliction warlock, carries a Firebelcher wand and summons a Voidwalker. Each character has their own equipment and spent talent points. The demo draws its own 2D icons. [Blizzard’s Forever race and class table](https://worldofwarcraft.blizzard.com/en-us/news/24304075/)
 
-The eight new characters and both companions use original block models. The repository generates their meshes, textures and game tables. Your browser draws them through the same viewer that draws a player's own model.
+All nine character models, the equipped gear, Flintwick's bear and Duskwick's Voidwalker come from the Forever client. In the 3D view, use the companion control to hide the bear or the demon. Characters with a ranged weapon can draw it and shoot.
 
 ## The two pages
 
@@ -21,7 +21,7 @@ The eight new characters and both companions use original block models. The repo
 
 The Battle.net side is made up too: a profile with a guild, the look, the talents read once a day (a Discipline start, then a respec into Shadow at 30) and one Legacy point. Nibbet's player has WoWSims Exporter, so the talent changes go back to level 22, not only 3 weeks.
 
-Open **View in 3D** to turn Nibbet around. The published demo uses Blizzard's character model and gear from a separate demo archive. The play history is invented. If the archive is unavailable, the build draws a blocky gnome from the test fixtures. [Artwork and credits](../../THIRD_PARTY.md).
+Open **View in 3D** on the character's gear panel to turn the model around. Nibbet wears Blizzard's models and textures from the Forever client. His play history is invented. [Artwork and credits](../../THIRD_PARTY.md).
 
 ## What the demo can't do
 

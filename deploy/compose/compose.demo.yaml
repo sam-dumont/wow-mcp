@@ -2,27 +2,36 @@
 # From deploy/compose: docker compose -f compose.yaml -f compose.demo.yaml run --rm demo
 name: wow-stats-demo
 
+# All three services resolve the seed's client-assets symlink. With a prepared
+# store this mount is the host directory. Otherwise the seed uses ui-state.
+x-demo-store: &demo-store ${DEMO_3D_STORE:-ui-state}:/demo-store:ro
+
 services:
   ui:
     image: ${WOW_STATS_IMAGE:-wow-stats:demo}
-    volumes: !override [ui-state:/data]
+    volumes: !override [ui-state:/data, *demo-store]
     environment:
       DEFAULT_CHAR: Nibbet-Gearholt
       MODEL3D_CACHE_DIR: /data/demo-fixtures
-      MODEL3D_ASSETS_DIR: /data/demo-fixtures/assets
+      MODEL3D_ASSETS_DIR: /data/demo-fixtures/client-assets
       VM_URL: http://victoriametrics:8428
 
   publish:
+    volumes:
+      - *demo-store
     image: ${WOW_STATS_IMAGE:-wow-stats:demo}
     environment:
       DEFAULT_CHAR: Nibbet-Gearholt
       MODEL3D_CACHE_DIR: /ui-state/demo-fixtures
-      MODEL3D_ASSETS_DIR: /ui-state/demo-fixtures/assets
+      MODEL3D_ASSETS_DIR: /ui-state/demo-fixtures/client-assets
       VM_URL: http://victoriametrics:8428
 
   demo:
     image: ${WOW_STATS_IMAGE:-wow-stats:demo}
     depends_on: [ui, victoriametrics]
+    environment:
+      DEMO_3D_STORE: ${DEMO_3D_STORE:+/demo-store}
+      DEMO_3D_URL: ${DEMO_3D_URL:-}
     command: ["--fixture-dir", "/data/demo-fixtures", "--ingest", "http://ui:8080/ingest", "--metrics", "--vm", "http://victoriametrics:8428"]
     # The seed imports the matching image's app and reads only its fixture inputs.
     volumes: !override
@@ -30,6 +39,8 @@ services:
       - ../../tools:/src/tools:ro
       - ../../tests/data:/src/tests/data:ro
       - ../../data:/src/data:ro
+      - ../../site/demo3d-roster.sha256:/src/site/demo3d-roster.sha256:ro
+      - *demo-store
       - ui-state:/data
 
   site:

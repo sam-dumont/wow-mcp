@@ -99,6 +99,28 @@ def test_actions_start_at_their_first_rank_and_use_the_equipped_weapon_clip():
     assert releases == [46, 49, 107, 49, 53]
 
 
+@needs_node
+def test_renderer_plays_client_animation_aliases_but_rejects_stand_and_broken_aliases():
+    script = """
+    const base = process.argv[1];
+    for (const file of ['core', 'gl', 'm2renderer']) require(base + '/' + file + '.js');
+    const model = Object.create(M3D.M2RendererGL.prototype);
+    model.updateAnimation = () => {};
+    model.m2 = { animations: [
+        {id: 0, flags: 32, duration: 500}, {id: 51, flags: 32, duration: 1000},
+        {id: 52, flags: 64, aliasNext: 1}, {id: 95, flags: 64, aliasNext: 0},
+        {id: 46, flags: 64, aliasNext: 4}, {id: 49, flags: 64, aliasNext: 9}
+    ] };
+    (async () => {
+        const playable = await Promise.all([2,3,4,5].map(index => model.prepareAnimation(index)));
+        await model.playAnimation(2);
+        console.log(JSON.stringify([playable, model._current_anim().id, model.animation_duration(2)]));
+    })();
+    """
+    out = subprocess.run([NODE, "-e", script, str(M3D)], check=True, capture_output=True, timeout=10)
+    assert json.loads(out.stdout) == [[True, False, False, False], 51, 1]
+
+
 NODE_READERS = r"""
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const [m3d, dir] = process.argv.slice(2);

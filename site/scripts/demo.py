@@ -13,12 +13,8 @@ them as VM_URL, RENDER_URL and RENDER_TOKEN_FILE. Steps:
 3. the Battle.net exporter's series for each character (demo_series:
    profile, look, equipment, talents, the Legacy achievement) into
    VictoriaMetrics, as vm-wow holds them;
-4. the game files, as the person's store (MODEL3D_ASSETS_DIR): Nibbet's
-   real model and gear when DEMO_3D_STORE names a store from the `demo-3d`
-   release (tools/fixtures/demo3d.py, fetched by site/scripts/demo3d-asset.sh),
-   else the made-up gnome. roster3d adds eight synthetic characters and two
-   companions, in the formats
-   the shipper sends (WDC5 tables, M2, skins, BLP);
+4. the nine characters' models, gear and companions from the same read-only
+   client store as the local demo (DEMO_3D_STORE);
 5. wowstats.publish, as `wow-stats publish --force`: item cards from the catalog, original
    2D symbols, 3D files from the store and portraits from the renderer;
 6. <out>/ the public bundle, <out>/zogzog/ the sealed one, <out>/friends/
@@ -48,8 +44,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools" / "fixtures"))
 
+import demo3d  # noqa: E402
 import generate  # noqa: E402
-import roster3d  # noqa: E402
 
 from wowstats import ingest, publish  # noqa: E402
 
@@ -109,38 +105,35 @@ def friends_page(key: str) -> bytes:
 """.encode()
 
 
-def real_store() -> Path | None:
-    """DEMO_3D_STORE: the real model's store (tables/, files/, look.json),
-    or None for golden3d's."""
-    p = Path(os.environ.get("DEMO_3D_STORE") or "")
-    if os.environ.get("DEMO_3D_STORE") and (p / "look.json").is_file() and (p / "tables" / "build.json").is_file():
-        return p
-    return None
-
-
 def main(argv: list[str]) -> int:
     vl, out = argv[0], Path(argv[1])
-    real = real_store()
-    look = json.loads((real / "look.json").read_text()) if real else None
     end = argv[2] if len(argv) > 2 else (datetime.now(UTC) - timedelta(days=1)).date().isoformat()
     vm = os.environ.get("VM_URL", "").rstrip("/")
-    rows = generate.demo_roster(end)
-    n = send(vl, rows)
-    print(f"demo: {n} events for nine characters, last session {end}")
-    if vm:
-        n = send_metrics(vm, generate.demo_series(rows, time.time(), look=look))
-        print(f"demo: {n} Battle.net samples")
-    else:
-        print("demo: no VM_URL, so no Battle.net profile, talents or look")
     with tempfile.TemporaryDirectory() as tmp:
+        if os.environ.get("DEMO_3D_TEST_FIXTURES") == "1":
+            import roster3d
+
+            store = Path(tmp) / "test-assets"
+            looks = {generate.DEMO: roster3d.write_store(store)["look"]}
+        else:
+            if not os.environ.get("DEMO_3D_STORE"):
+                raise SystemExit("demo: provide a prepared DEMO_3D_STORE or run site/scripts/build-demo.sh")
+            store = Path(os.environ["DEMO_3D_STORE"]).resolve()
+            looks = demo3d.read_looks(store)
+        rows = generate.demo_roster(end)
+        n = send(vl, rows)
+        print(f"demo: {n} events for nine characters, last session {end}")
+        if vm:
+            n = send_metrics(vm, generate.demo_series(rows, time.time(), looks))
+            print(f"demo: {n} simulated armory samples")
+        else:
+            print("demo: no VM_URL, so no armory profiles, talents or looks")
         key_file = Path(tmp) / "zogzog.key"
         key_file.write_text(DEMO_KEY + "\n")
-        g = roster3d.write_store(Path(tmp) / "assets", real)
-        print(f"demo: synthetic roster models and {len(g['tables'])} tables, Nibbet from {real or 'golden3d'}")
         env = {**os.environ, "VL_URL": vl, "VL_ARCHIVE_URL": "", "VM_URL": vm, "PUBLISH_DIR": f"{tmp}/site",
                "ZOGZOG_KEY_FILE": str(key_file), "PLAUSIBLE_DOMAIN": "", "ANALYSIS_SHARE_URL": "",
                "HELP_KEY_FILE": "", "PUBLISH_PUSH_URL": "", "USERS_URL": "", "DEFAULT_CHAR": generate.DEMO,
-               "MODEL3D": "on", "MODEL3D_CACHE_DIR": f"{tmp}/model3d", "MODEL3D_ASSETS_DIR": f"{tmp}/assets",
+               "MODEL3D": "on", "MODEL3D_CACHE_DIR": f"{tmp}/model3d", "MODEL3D_ASSETS_DIR": str(store),
                # Every level's picture in this one build: the publisher's
                # budget is for a server that builds again in ten minutes.
                "RENDER_URL": os.environ.get("RENDER_URL", ""), "RENDER_BUDGET_S": "900"}

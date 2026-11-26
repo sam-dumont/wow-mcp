@@ -315,7 +315,7 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' -H "X-Forwarded-User: owner" "http://127.0.0.1:$fport/full/")" = 403
           docker rm -f ui-public ui-full
       # The isolated demo from docs/self-host/demo.md, with this build in place of the release digest.
-      - name: The compose kit's nine-character demo, end to end
+      - name: The compose kit serves all nine dressed client models
         working-directory: deploy/compose
         env:
           COMPOSE_FILE: compose.yaml,compose.demo.yaml

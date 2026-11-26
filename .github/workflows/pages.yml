@@ -24,6 +24,8 @@ on:
       - docs/**
       - site/**
       - tools/fixtures/**
+      - tests/demo_models.py
+      - tests/test_demo_complete_browser.py
       - web/model3d/**
       - web/app.js
       - web/items.js
@@ -151,15 +153,14 @@ jobs:
             echo "SITE_BASE=/${GITHUB_REPOSITORY#*/}"
           } >> "$GITHUB_ENV"
       # VictoriaLogs and VictoriaMetrics in Docker, the item tables from
-      # wago.tools, the game files for the 3D view and the pictures: Nibbet's
-      # real model from the `demo-3d` release asset, checked against
-      # site/demo3d.sha256 (site/scripts/demo3d-asset.sh), else the made-up
-      # ones (tools/fixtures/golden3d.py). All copied into the bundle.
+      # wago.tools, and the nine characters' client files for the 3D view
+      # and pictures. The archive must match site/demo3d-roster.sha256.
       - run: site/scripts/build-demo.sh
       # Every section of the demo shows data: a fallback fails the build. The
       # local demo too (dev/seed.py through a ui's /ingest), but for the three
       # parts the compose kit doesn't run (docs/self-host/demo.md).
-      - run: >-
+      - name: Check the nine client models, class actions and demo pages
+        run: >-
           uv run --frozen --extra render --group browser pytest -q -rA -m browser
           tests/test_demo_complete_browser.py tests/test_local_demo_complete_browser.py
         env:

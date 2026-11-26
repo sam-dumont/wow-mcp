@@ -1,15 +1,13 @@
-"""Original box models for the class demo. No client install is read."""
+"""Original box models for tests of the class demo and viewer."""
 
 from __future__ import annotations
 
-import json
-import shutil
 from pathlib import Path
 
 import golden3d as g
 import roster
 
-from wowstats import assets, db2, gear
+from wowstats import gear
 
 # Each race has its own proportions and skin. Additional blocks give the
 # Tauren its muzzle and horns, the Troll and Orc their tusks, the Skyborne wings.
@@ -136,36 +134,13 @@ def add_pets(golden):
                                                            "TextureVariationFileDataID": [texture, 0, 0, 0]}
 
 
-def write_store(root: Path, nibbet: Path | None = None):
-    """The existing Nibbet store plus synthetic rows at reserved IDs. Only
-    the Nibbet release supplies a real model, including its original look."""
+def write_store(root: Path):
+    """Write an isolated fixture in the test FileDataID range."""
     shapes = {kind: weapon_parts(kind) for kind in ("bow", "gun", "blade", "axe", "dagger")}
     golden = g.build(item_looks(), shapes)
-    if not nibbet:
-        golden["files"].update(g.character(gestures=gestures("PRIEST")))
+    golden["files"].update(g.character(gestures=gestures("PRIEST")))
     for index, c in enumerate(roster.CHARACTERS, 1):
         add_body(golden, c, index)
     add_pets(golden)
-    t = golden["tables"]
-    if nibbet:
-        # The pinned release contains the full race-to-model index but only
-        # Nibbet's files. Its other mappings would win by their lower row IDs.
-        t["ChrRaceXChrModel"].pop(g.rid(10))
-        existing = assets.Store(nibbet)
-        for table, rows in t.items():
-            if blob := existing.table(table):
-                supplied = db2.Table(blob, table, existing.build()).rows
-                if table == "ChrRaceXChrModel":
-                    supplied = {k: r for k, r in supplied.items() if (r["ChrRacesID"], r["Sex"]) == (g.GNOME, g.MALE)}
-                if table == "ItemModifiedAppearance":
-                    # Keep original looks where supplied. The pinned store
-                    # predates drawable wands, so they keep their generated looks.
-                    supplied_items = {r["ItemID"] for r in supplied.values()}
-                    for k in [k for k, r in rows.items() if r["ItemID"] in supplied_items]:
-                        del rows[k]
-                rows.update(supplied)
-        shutil.copytree(nibbet / "files", root / "files", dirs_exist_ok=True)
     g.write_store(root, golden)
-    if nibbet:
-        (root / "tables" / "build.json").write_text(json.dumps({"build": existing.build()}))
     return golden
