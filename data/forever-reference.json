@@ -114512,6 +114512,16 @@
    [],
    0
   ],
+  "82084": [
+   0,
+   null,
+   [
+    221359,
+    221361,
+    221360
+   ],
+   3
+  ],
   "82208": [
    0,
    null,
@@ -114619,6 +114629,14 @@
    null,
    [
     246780
+   ],
+   1
+  ],
+  "91608": [
+   0,
+   null,
+   [
+    238503
    ],
    1
   ],
@@ -115015,6 +115033,12 @@
    [],
    0
   ],
+  "93383": [
+   0,
+   null,
+   [],
+   0
+  ],
   "93404": [
    0,
    null,
@@ -115233,6 +115257,14 @@
    [],
    2
   ],
+  "95027": [
+   0,
+   null,
+   [
+    253341
+   ],
+   1
+  ],
   "95064": [
    0,
    256749,
@@ -115343,6 +115375,12 @@
    ],
    1
   ],
+  "95483": [
+   0,
+   null,
+   [],
+   0
+  ],
   "95508": [
    0,
    261367,
@@ -115390,6 +115428,14 @@
    null,
    [
     270333
+   ],
+   1
+  ],
+  "95790": [
+   0,
+   null,
+   [
+    271972
    ],
    1
   ],
@@ -115534,6 +115580,12 @@
    [],
    0
   ],
+  "96077": [
+   0,
+   null,
+   [],
+   0
+  ],
   "96078": [
    0,
    null,
@@ -115642,6 +115694,12 @@
    ],
    1
   ],
+  "96674": [
+   0,
+   265962,
+   [],
+   1
+  ],
   "96800": [
    0,
    null,
@@ -115716,6 +115774,12 @@
     276070
    ],
    1
+  ],
+  "97007": [
+   0,
+   null,
+   [],
+   0
   ],
   "97010": [
    0,
@@ -116161,13 +116225,6 @@
    0,
    "Elwynn Forest"
   ],
-  "98": [
-   "Riverpaw Taskmaster",
-   17,
-   18,
-   0,
-   "Westfall"
-  ],
   "100": [
    "Gruff Swiftbite",
    12,
@@ -116259,13 +116316,6 @@
    0,
    "Westfall"
   ],
-  "154": [
-   "Greater Fleshripper",
-   16,
-   17,
-   0,
-   "Westfall"
-  ],
   "171": [
    "Murloc Warrior",
    15,
@@ -116308,26 +116358,12 @@
    0,
    "Duskwood"
   ],
-  "210": [
-   "Bone Chewer",
-   26,
-   27,
-   0,
-   null
-  ],
   "212": [
    "Splinter Fist Warrior",
    29,
    30,
    0,
    null
-  ],
-  "213": [
-   "Starving Dire Wolf",
-   19,
-   20,
-   0,
-   "Duskwood"
   ],
   "217": [
    "Venom Web Spider",
@@ -116369,13 +116405,6 @@
    9,
    9,
    0,
-   null
-  ],
-  "335": [
-   "Singe",
-   24,
-   24,
-   1,
    null
   ],
   "345": [
@@ -116473,13 +116502,6 @@
    "Rabid Shadowhide Gnoll",
    21,
    22,
-   0,
-   null
-  ],
-  "435": [
-   "Blackrock Champion",
-   24,
-   25,
    0,
    null
   ],
@@ -116609,12 +116631,12 @@
    0,
    "Westfall"
   ],
-  "505": [
-   "Greater Tarantula",
-   19,
-   20,
-   0,
-   null
+  "506": [
+   "Sergeant Brashclaw",
+   18,
+   18,
+   4,
+   "Westfall"
   ],
   "507": [
    "Fenros",
@@ -116629,6 +116651,13 @@
    12,
    0,
    null
+  ],
+  "517": [
+   "Murloc Oracle",
+   16,
+   18,
+   0,
+   "Westfall"
   ],
   "518": [
    "Yowler",
@@ -116665,19 +116694,19 @@
    0,
    "Duskwood"
   ],
-  "534": [
-   "Nefaru",
-   34,
-   34,
-   4,
-   null
-  ],
   "539": [
    "Pygmy Venom Web Spider",
    18,
    19,
    0,
    "Duskwood"
+  ],
+  "544": [
+   "Murloc Nightcrawler",
+   21,
+   22,
+   0,
+   null
   ],
   "548": [
    "Murloc Minor Tidecaller",
@@ -116699,6 +116728,13 @@
    25,
    0,
    null
+  ],
+  "569": [
+   "Green Recluse",
+   21,
+   22,
+   0,
+   "Duskwood"
   ],
   "570": [
    "Brain Eater",
@@ -116782,6 +116818,13 @@
    18,
    18,
    2,
+   null
+  ],
+  "597": [
+   "Bloodscalp Berserker",
+   36,
+   37,
+   0,
    null
   ],
   "598": [
@@ -116971,7 +117014,7 @@
    43,
    44,
    1,
-   null
+   "Stranglethorn Vale"
   ],
   "681": [
    "Young Stranglethorn Tiger",
@@ -117162,12 +117205,12 @@
    0,
    "Stranglethorn Vale"
   ],
-  "752": [
-   "Marsh Oracle",
-   43,
-   45,
+  "761": [
+   "Lost One Seer",
+   37,
+   38,
    0,
-   "Swamp of Sorrows"
+   null
   ],
   "769": [
    "Deathstrike Tarantula",
@@ -117302,13 +117345,6 @@
    0,
    "Westfall"
   ],
-  "854": [
-   "Young Jungle Stalker",
-   36,
-   37,
-   0,
-   "Stranglethorn Vale"
-  ],
   "871": [
    "Saltscale Warrior",
    35,
@@ -117386,13 +117422,6 @@
    0,
    "Dun Morogh"
   ],
-  "948": [
-   "Rotted One",
-   25,
-   26,
-   0,
-   null
-  ],
   "949": [
    "Carrion Recluse",
    25,
@@ -117404,13 +117433,6 @@
    "Mosshide Gnoll",
    20,
    21,
-   0,
-   "Wetlands"
-  ],
-  "1008": [
-   "Mosshide Mongrel",
-   21,
-   22,
    0,
    "Wetlands"
   ],
@@ -117428,6 +117450,13 @@
    0,
    "Wetlands"
   ],
+  "1016": [
+   "Highland Lashtail",
+   24,
+   25,
+   0,
+   "Wetlands"
+  ],
   "1018": [
    "Highland Razormaw",
    27,
@@ -117439,13 +117468,6 @@
    "Elder Razormaw",
    29,
    29,
-   0,
-   "Wetlands"
-  ],
-  "1020": [
-   "Mottled Raptor",
-   22,
-   23,
    0,
    "Wetlands"
   ],
@@ -117519,10 +117541,24 @@
    0,
    "Wetlands"
   ],
+  "1043": [
+   "Lost Whelp",
+   24,
+   25,
+   0,
+   "Wetlands"
+  ],
   "1051": [
    "Dark Iron Dwarf",
    27,
    28,
+   1,
+   "Wetlands"
+  ],
+  "1052": [
+   "Dark Iron Saboteur",
+   28,
+   29,
    1,
    "Wetlands"
   ],
@@ -117531,13 +117567,6 @@
    29,
    30,
    1,
-   "Wetlands"
-  ],
-  "1057": [
-   "Dragonmaw Bonewarder",
-   27,
-   28,
-   0,
    "Wetlands"
   ],
   "1069": [
@@ -117600,13 +117629,6 @@
    "Rockjaw Skullthumper",
    8,
    9,
-   0,
-   "Dun Morogh"
-  ],
-  "1116": [
-   "Rockjaw Ambusher",
-   9,
-   10,
    0,
    "Dun Morogh"
   ],
@@ -117708,6 +117730,13 @@
    0,
    "Stranglethorn Vale"
   ],
+  "1157": [
+   "Cursed Sailor",
+   26,
+   27,
+   0,
+   "Wetlands"
+  ],
   "1158": [
    "Cursed Marine",
    27,
@@ -117741,7 +117770,7 @@
    15,
    16,
    0,
-   "Loch Modan"
+   null
   ],
   "1166": [
    "Stonesplinter Seer",
@@ -117862,13 +117891,6 @@
    0,
    "Dun Morogh"
   ],
-  "1258": [
-   "Black Ravager Mastiff",
-   25,
-   26,
-   0,
-   "Duskwood"
-  ],
   "1260": [
    "Great Father Arctikus",
    11,
@@ -117895,7 +117917,7 @@
    34,
    34,
    1,
-   null
+   "Wetlands"
   ],
   "1388": [
    "Vagash",
@@ -117953,8 +117975,22 @@
    4,
    null
   ],
+  "1489": [
+   "Zanzil Hunter",
+   43,
+   44,
+   0,
+   "Stranglethorn Vale"
+  ],
   "1490": [
    "Zanzil Witch Doctor",
+   44,
+   44,
+   0,
+   "Stranglethorn Vale"
+  ],
+  "1491": [
+   "Zanzil Naga",
    44,
    44,
    0,
@@ -118035,13 +118071,6 @@
    6,
    7,
    4,
-   "Tirisfal Glades"
-  ],
-  "1534": [
-   "Wailing Ancestor",
-   9,
-   10,
-   0,
    "Tirisfal Glades"
   ],
   "1535": [
@@ -118310,13 +118339,6 @@
    1,
    null
   ],
-  "1779": [
-   "Moonrage Glutton",
-   12,
-   13,
-   0,
-   "Silverpine Forest"
-  ],
   "1780": [
    "Moss Stalker",
    12,
@@ -118342,6 +118364,20 @@
    "Skeletal Executioner",
    53,
    55,
+   0,
+   "Western Plaguelands"
+  ],
+  "1789": [
+   "Skeletal Acolyte",
+   55,
+   56,
+   0,
+   "Western Plaguelands"
+  ],
+  "1791": [
+   "Slavering Ghoul",
+   50,
+   52,
    0,
    "Western Plaguelands"
   ],
@@ -118471,13 +118507,6 @@
    0,
    "Teldrassil"
   ],
-  "1997": [
-   "Strigid Hunter",
-   8,
-   9,
-   0,
-   "Teldrassil"
-  ],
   "2000": [
    "Webwood Silkspinner",
    8,
@@ -118492,13 +118521,6 @@
    0,
    "Teldrassil"
   ],
-  "2009": [
-   "Gnarlpine Shaman",
-   7,
-   8,
-   0,
-   "Teldrassil"
-  ],
   "2011": [
    "Gnarlpine Augur",
    8,
@@ -118510,6 +118532,13 @@
    "Timberling Mire Beast",
    9,
    10,
+   0,
+   "Teldrassil"
+  ],
+  "2030": [
+   "Elder Timberling",
+   10,
+   11,
    0,
    "Teldrassil"
   ],
@@ -118632,13 +118661,6 @@
    0,
    null
   ],
-  "2172": [
-   "Strider Clutchmother",
-   20,
-   20,
-   4,
-   null
-  ],
   "2176": [
    "Cursed Highborne",
    10,
@@ -118688,13 +118710,6 @@
    4,
    null
   ],
-  "2203": [
-   "Greymist Seer",
-   13,
-   14,
-   0,
-   "Darkshore"
-  ],
   "2231": [
    "Pygmy Tide Crawler",
    9,
@@ -118716,26 +118731,12 @@
    0,
    null
   ],
-  "2235": [
-   "Reef Crawler",
-   15,
-   17,
-   0,
-   "Darkshore"
-  ],
   "2236": [
    "Raging Reef Crawler",
    20,
    21,
    0,
    "Darkshore"
-  ],
-  "2240": [
-   "Syndicate Footpad",
-   31,
-   33,
-   0,
-   null
   ],
   "2241": [
    "Syndicate Thief",
@@ -118811,13 +118812,6 @@
    "Hillsbrad Farmer",
    23,
    24,
-   0,
-   null
-  ],
-  "2268": [
-   "Hillsbrad Footman",
-   24,
-   26,
    0,
    null
   ],
@@ -118911,13 +118905,6 @@
    23,
    0,
    null
-  ],
-  "2369": [
-   "Daggerspine Shorehunter",
-   30,
-   31,
-   0,
-   "Hillsbrad Foothills"
   ],
   "2371": [
    "Daggerspine Siren",
@@ -119073,6 +119060,13 @@
    0,
    "Arathi Highlands"
   ],
+  "2561": [
+   "Highland Fleshstalker",
+   36,
+   37,
+   0,
+   "Arathi Highlands"
+  ],
   "2563": [
    "Plains Creeper",
    32,
@@ -119136,13 +119130,6 @@
    0,
    null
   ],
-  "2581": [
-   "Dabyrie Militia",
-   31,
-   32,
-   0,
-   "Arathi Highlands"
-  ],
   "2586": [
    "Syndicate Highwayman",
    30,
@@ -119184,6 +119171,13 @@
    34,
    4,
    null
+  ],
+  "2602": [
+   "Ruul Onestone",
+   39,
+   39,
+   2,
+   "Arathi Highlands"
   ],
   "2603": [
    "Kovork",
@@ -119227,22 +119221,15 @@
    1,
    null
   ],
-  "2643": [
-   "Vilebranch Berserker",
-   47,
-   48,
-   1,
-   null
-  ],
-  "2645": [
-   "Vilebranch Shadow Hunter",
-   48,
-   49,
-   1,
-   null
-  ],
   "2646": [
    "Vilebranch Blood Drinker",
+   49,
+   50,
+   1,
+   null
+  ],
+  "2647": [
+   "Vilebranch Soul Eater",
    49,
    50,
    1,
@@ -119308,6 +119295,13 @@
    "Ridge Stalker Patriarch",
    40,
    41,
+   0,
+   null
+  ],
+  "2735": [
+   "Lesser Rock Elemental",
+   37,
+   39,
    0,
    null
   ],
@@ -119577,13 +119571,6 @@
    0,
    null
   ],
-  "3131": [
-   "Lightning Hide",
-   10,
-   11,
-   0,
-   null
-  ],
   "3183": [
    "Yarrog Baneshadow",
    5,
@@ -119710,13 +119697,6 @@
    0,
    "The Barrens"
   ],
-  "3258": [
-   "Bristleback Hunter",
-   17,
-   18,
-   0,
-   null
-  ],
   "3260": [
    "Bristleback Water Seeker",
    16,
@@ -119724,10 +119704,10 @@
    0,
    null
   ],
-  "3265": [
-   "Razormane Hunter",
-   11,
-   12,
+  "3261": [
+   "Bristleback Thornweaver",
+   18,
+   19,
    0,
    null
   ],
@@ -119798,13 +119778,6 @@
    "Bael'dun Excavator",
    21,
    22,
-   0,
-   null
-  ],
-  "3375": [
-   "Bael'dun Foreman",
-   22,
-   23,
    0,
    null
   ],
@@ -119941,13 +119914,6 @@
    0,
    null
   ],
-  "3461": [
-   "Oasis Snapjaw",
-   15,
-   16,
-   0,
-   null
-  ],
   "3470": [
    "Rathorian",
    15,
@@ -119995,13 +119961,6 @@
    19,
    19,
    2,
-   null
-  ],
-  "3631": [
-   "Deviate Stinglash",
-   16,
-   17,
-   1,
    null
   ],
   "3636": [
@@ -120137,13 +120096,6 @@
    0,
    "Ashenvale"
   ],
-  "3820": [
-   "Wildthorn Venomspitter",
-   24,
-   25,
-   0,
-   "Ashenvale"
-  ],
   "3823": [
    "Ghostpaw Runner",
    19,
@@ -120172,31 +120124,10 @@
    1,
    null
   ],
-  "3851": [
-   "Shadowfang Whitescalp",
-   18,
-   19,
-   1,
-   null
-  ],
-  "3853": [
-   "Shadowfang Moonwalker",
-   20,
-   20,
-   1,
-   null
-  ],
   "3857": [
    "Shadowfang Glutton",
    21,
    21,
-   1,
-   null
-  ],
-  "3862": [
-   "Slavering Worg",
-   18,
-   18,
    1,
    null
   ],
@@ -120282,13 +120213,6 @@
    32,
    32,
    0,
-   null
-  ],
-  "3947": [
-   "Goblin Shipbuilder",
-   19,
-   20,
-   1,
    null
   ],
   "3974": [
@@ -120410,13 +120334,6 @@
    0,
    null
   ],
-  "4094": [
-   "Galak Scout",
-   24,
-   25,
-   0,
-   null
-  ],
   "4096": [
    "Galak Windchaser",
    24,
@@ -120447,6 +120364,13 @@
   ],
   "4107": [
    "Highperch Wyvern",
+   28,
+   29,
+   0,
+   null
+  ],
+  "4109": [
+   "Highperch Consort",
    28,
    29,
    0,
@@ -120536,13 +120460,6 @@
    0,
    null
   ],
-  "4248": [
-   "Pesterhide Hyena",
-   26,
-   27,
-   0,
-   "Thousand Needles"
-  ],
   "4249": [
    "Pesterhide Snarler",
    28,
@@ -120599,6 +120516,13 @@
    1,
    null
   ],
+  "4288": [
+   "Scarlet Beastmaster",
+   34,
+   35,
+   1,
+   null
+  ],
   "4289": [
    "Scarlet Evoker",
    36,
@@ -120627,6 +120551,13 @@
    1,
    null
   ],
+  "4293": [
+   "Scarlet Scryer",
+   30,
+   31,
+   1,
+   null
+  ],
   "4294": [
    "Scarlet Sorcerer",
    37,
@@ -120638,13 +120569,6 @@
    "Scarlet Myrmidon",
    37,
    38,
-   1,
-   null
-  ],
-  "4296": [
-   "Scarlet Adept",
-   33,
-   34,
    1,
    null
   ],
@@ -120678,13 +120602,6 @@
   ],
   "4302": [
    "Scarlet Champion",
-   39,
-   40,
-   1,
-   null
-  ],
-  "4303": [
-   "Scarlet Abbot",
    39,
    40,
    1,
@@ -120935,13 +120852,6 @@
    1,
    null
   ],
-  "4519": [
-   "Death's Head Seer",
-   28,
-   29,
-   1,
-   null
-  ],
   "4522": [
    "Razorfen Dustweaver",
    28,
@@ -120953,13 +120863,6 @@
    "Razorfen Groundshaker",
    27,
    28,
-   1,
-   null
-  ],
-  "4525": [
-   "Razorfen Earthbreaker",
-   30,
-   31,
    1,
    null
   ],
@@ -121040,6 +120943,13 @@
    0,
    null
   ],
+  "4637": [
+   "Kolkar Destroyer",
+   32,
+   33,
+   0,
+   null
+  ],
   "4639": [
    "Magram Outrunner",
    32,
@@ -121054,10 +120964,10 @@
    0,
    null
   ],
-  "4641": [
-   "Magram Windchaser",
-   33,
-   34,
+  "4644": [
+   "Magram Marauder",
+   35,
+   36,
    0,
    null
   ],
@@ -121109,6 +121019,13 @@
    33,
    0,
    "Desolace"
+  ],
+  "4726": [
+   "Raging Thunder Lizard",
+   33,
+   34,
+   0,
+   null
   ],
   "4788": [
    "Fallenroot Satyr",
@@ -121229,6 +121146,13 @@
    1,
    null
   ],
+  "4841": [
+   "Deadmire",
+   45,
+   45,
+   0,
+   null
+  ],
   "4844": [
    "Shadowforge Surveyor",
    35,
@@ -121247,20 +121171,6 @@
    "Shadowforge Archaeologist",
    43,
    44,
-   1,
-   null
-  ],
-  "4850": [
-   "Stonevault Cave Lurker",
-   37,
-   39,
-   1,
-   null
-  ],
-  "4851": [
-   "Stonevault Rockchewer",
-   36,
-   37,
    1,
    null
   ],
@@ -121320,6 +121230,20 @@
    0,
    null
   ],
+  "5226": [
+   "Murk Worm",
+   47,
+   48,
+   1,
+   null
+  ],
+  "5232": [
+   "Gordunni Brute",
+   42,
+   43,
+   0,
+   "Feralas"
+  ],
   "5234": [
    "Gordunni Mauler",
    43,
@@ -121340,13 +121264,6 @@
    44,
    0,
    "Feralas"
-  ],
-  "5243": [
-   "Cursed Atal'ai",
-   45,
-   46,
-   1,
-   "Swamp of Sorrows"
   ],
   "5245": [
    "Zukk'ash Wasp",
@@ -121390,20 +121307,6 @@
    1,
    null
   ],
-  "5272": [
-   "Grizzled Ironfur Bear",
-   44,
-   45,
-   0,
-   "Feralas"
-  ],
-  "5278": [
-   "Sprite Darter",
-   43,
-   45,
-   0,
-   null
-  ],
   "5280": [
    "Nightmare Wyrmkin",
    50,
@@ -121422,13 +121325,6 @@
    "Feral Scar Yeti",
    43,
    44,
-   0,
-   null
-  ],
-  "5295": [
-   "Enraged Feral Scar",
-   44,
-   45,
    0,
    null
   ],
@@ -121460,6 +121356,13 @@
    4,
    null
   ],
+  "5358": [
+   "Cliff Giant",
+   49,
+   50,
+   1,
+   "Feralas"
+  ],
   "5402": [
    "Khan Hratha",
    42,
@@ -121485,13 +121388,6 @@
    "Roc",
    41,
    43,
-   0,
-   "Tanaris"
-  ],
-  "5429": [
-   "Fire Roc",
-   43,
-   45,
    0,
    "Tanaris"
   ],
@@ -121541,13 +121437,6 @@
    "Wastewander Rogue",
    43,
    44,
-   0,
-   "Tanaris"
-  ],
-  "5623": [
-   "Wastewander Assassin",
-   44,
-   45,
    0,
    "Tanaris"
   ],
@@ -121628,17 +121517,17 @@
    1,
    null
   ],
+  "5720": [
+   "Weaver",
+   51,
+   51,
+   1,
+   null
+  ],
   "5722": [
    "Hazzas",
    53,
    53,
-   1,
-   null
-  ],
-  "5756": [
-   "Deviate Venomwing",
-   20,
-   21,
    1,
    null
   ],
@@ -121719,6 +121608,13 @@
    2,
    null
   ],
+  "5826": [
+   "Geolord Mottle",
+   9,
+   9,
+   4,
+   null
+  ],
   "5827": [
    "Brontus",
    27,
@@ -121782,6 +121678,20 @@
    2,
    null
   ],
+  "5842": [
+   "Takk the Leaper",
+   19,
+   19,
+   2,
+   null
+  ],
+  "5843": [
+   "Slave Worker",
+   44,
+   47,
+   0,
+   null
+  ],
   "5846": [
    "Dark Iron Taskmaster",
    46,
@@ -121838,6 +121748,13 @@
    2,
    null
   ],
+  "5860": [
+   "Twilight Dark Shaman",
+   47,
+   48,
+   1,
+   null
+  ],
   "5863": [
    "Geopriest Gukk'rok",
    19,
@@ -121865,13 +121782,6 @@
    48,
    0,
    "Blasted Lands"
-  ],
-  "5984": [
-   "Starving Snickerfang",
-   45,
-   46,
-   0,
-   null
   ],
   "5992": [
    "Ashmane Boar",
@@ -121908,13 +121818,6 @@
    4,
    null
   ],
-  "6123": [
-   "Dark Iron Spy",
-   9,
-   11,
-   0,
-   "Dun Morogh"
-  ],
   "6168": [
    "Roogug",
    28,
@@ -121950,11 +121853,11 @@
    1,
    null
   ],
-  "6223": [
-   "Leprous Defender",
-   28,
+  "6224": [
+   "Leprous Machinesmith",
    29,
-   1,
+   30,
+   0,
    null
   ],
   "6226": [
@@ -122020,6 +121923,13 @@
    0,
    null
   ],
+  "6391": [
+   "Holdout Warrior",
+   29,
+   30,
+   1,
+   "Dun Morogh"
+  ],
   "6487": [
    "Arcanist Doan",
    37,
@@ -122046,20 +121956,6 @@
    33,
    33,
    2,
-   null
-  ],
-  "6509": [
-   "Bloodpetal Lasher",
-   48,
-   49,
-   0,
-   null
-  ],
-  "6511": [
-   "Bloodpetal Thresher",
-   49,
-   50,
-   0,
    null
   ],
   "6514": [
@@ -122188,13 +122084,6 @@
    0,
    null
   ],
-  "7011": [
-   "Earthen Rocksmasher",
-   42,
-   43,
-   0,
-   null
-  ],
   "7012": [
    "Earthen Sculptor",
    42,
@@ -122237,6 +122126,20 @@
    0,
    null
   ],
+  "7055": [
+   "Blackrock Worg",
+   54,
+   55,
+   0,
+   null
+  ],
+  "7078": [
+   "Cleft Scorpid",
+   35,
+   36,
+   0,
+   null
+  ],
   "7079": [
    "Viscous Fallout",
    30,
@@ -122244,8 +122147,15 @@
    1,
    null
   ],
-  "7115": [
-   "Jaedenar Adept",
+  "7104": [
+   "Dessecus",
+   56,
+   56,
+   2,
+   null
+  ],
+  "7112": [
+   "Jaedenar Cultist",
    51,
    52,
    0,
@@ -122382,6 +122292,13 @@
    10,
    10,
    0,
+   null
+  ],
+  "7320": [
+   "Stonevault Mauler",
+   44,
+   45,
+   1,
    null
   ],
   "7327": [
@@ -122531,13 +122448,6 @@
    0,
    null
   ],
-  "7397": [
-   "Earthen Stonecarver",
-   44,
-   45,
-   0,
-   null
-  ],
   "7405": [
    "Deadly Cleft Scorpid",
    42,
@@ -122636,13 +122546,6 @@
    0,
    "Tanaris"
   ],
-  "7864": [
-   "Lingering Highborne",
-   48,
-   50,
-   0,
-   "Azshara"
-  ],
   "7872": [
    "Death's Head Cultist",
    33,
@@ -122706,6 +122609,13 @@
    2,
    null
   ],
+  "8202": [
+   "Cyclok the Mad",
+   48,
+   48,
+   4,
+   null
+  ],
   "8207": [
    "Greater Firebird",
    46,
@@ -122733,6 +122643,13 @@
    48,
    4,
    "Searing Gorge"
+  ],
+  "8283": [
+   "Slave Master Blackheart",
+   50,
+   50,
+   4,
+   null
   ],
   "8311": [
    "Slime Maggot",
@@ -122766,6 +122683,13 @@
    "Lathoric the Black",
    51,
    52,
+   1,
+   null
+  ],
+  "8438": [
+   "Hakkari Bloodkeeper",
+   49,
+   50,
    1,
    null
   ],
@@ -122860,6 +122784,13 @@
    0,
    "Azshara"
   ],
+  "8889": [
+   "Anvilrage Overseer",
+   48,
+   49,
+   1,
+   null
+  ],
   "8890": [
    "Anvilrage Warden",
    49,
@@ -122893,6 +122824,13 @@
    53,
    54,
    1,
+   null
+  ],
+  "8897": [
+   "Doomforge Craftsman",
+   52,
+   54,
+   0,
    null
   ],
   "8898": [
@@ -122948,6 +122886,13 @@
    "Twilight's Hammer Torturer",
    50,
    51,
+   1,
+   null
+  ],
+  "8914": [
+   "Twilight Bodyguard",
+   53,
+   54,
    1,
    null
   ],
@@ -123133,8 +123078,22 @@
    1,
    null
   ],
+  "9096": [
+   "Rage Talon Dragonspawn",
+   58,
+   59,
+   1,
+   null
+  ],
   "9097": [
    "Scarshield Legionnaire",
+   54,
+   55,
+   1,
+   null
+  ],
+  "9098": [
+   "Scarshield Spellbinder",
    54,
    55,
    1,
@@ -123182,6 +123141,13 @@
    1,
    null
   ],
+  "9200": [
+   "Spirestone Reaver",
+   54,
+   56,
+   1,
+   null
+  ],
   "9236": [
    "Shadow Hunter Vosh'gajin",
    58,
@@ -123224,17 +123190,17 @@
    1,
    null
   ],
-  "9262": [
-   "Firebrand Invoker",
-   56,
-   57,
-   1,
-   null
-  ],
   "9268": [
    "Smolderthorn Berserker",
    57,
    58,
+   1,
+   null
+  ],
+  "9269": [
+   "Smolderthorn Seer",
+   56,
+   57,
    1,
    null
   ],
@@ -123256,13 +123222,6 @@
    "Blazerunner",
    56,
    56,
-   1,
-   null
-  ],
-  "9445": [
-   "Dark Guard",
-   53,
-   54,
    1,
    null
   ],
@@ -123378,6 +123337,13 @@
    0,
    null
   ],
+  "9716": [
+   "Bloodaxe Warmonger",
+   57,
+   58,
+   1,
+   null
+  ],
   "9736": [
    "Quartermaster Zigris",
    59,
@@ -123432,6 +123398,13 @@
    54,
    54,
    0,
+   null
+  ],
+  "10080": [
+   "Sandarr Dunereaver",
+   45,
+   45,
+   2,
    null
   ],
   "10081": [
@@ -123546,6 +123519,13 @@
    1,
    null
   ],
+  "10382": [
+   "Mangled Cadaver",
+   55,
+   56,
+   1,
+   null
+  ],
   "10390": [
    "Skeletal Guardian",
    55,
@@ -123567,6 +123547,13 @@
    2,
    null
   ],
+  "10394": [
+   "Black Guard Sentry",
+   58,
+   59,
+   1,
+   null
+  ],
   "10398": [
    "Thuzadin Shadowcaster",
    58,
@@ -123581,6 +123568,20 @@
    0,
    null
   ],
+  "10400": [
+   "Thuzadin Necromancer",
+   59,
+   61,
+   1,
+   null
+  ],
+  "10405": [
+   "Plague Ghoul",
+   57,
+   58,
+   1,
+   null
+  ],
   "10407": [
    "Fleshflayer Ghoul",
    59,
@@ -123588,8 +123589,15 @@
    1,
    null
   ],
-  "10409": [
-   "Rockwing Screecher",
+  "10408": [
+   "Rockwing Gargoyle",
+   57,
+   58,
+   1,
+   null
+  ],
+  "10412": [
+   "Crypt Crawler",
    58,
    59,
    1,
@@ -123616,6 +123624,13 @@
    1,
    null
   ],
+  "10419": [
+   "Crimson Conjuror",
+   57,
+   58,
+   1,
+   null
+  ],
   "10421": [
    "Crimson Defender",
    58,
@@ -123634,6 +123649,20 @@
    "Crimson Priest",
    58,
    59,
+   1,
+   null
+  ],
+  "10425": [
+   "Crimson Battle Mage",
+   59,
+   60,
+   1,
+   null
+  ],
+  "10426": [
+   "Crimson Inquisitor",
+   59,
+   60,
    1,
    null
   ],
@@ -123721,10 +123750,31 @@
    1,
    null
   ],
+  "10470": [
+   "Scholomance Neophyte",
+   57,
+   58,
+   1,
+   null
+  ],
   "10476": [
    "Scholomance Necrolyte",
    57,
    58,
+   1,
+   null
+  ],
+  "10477": [
+   "Scholomance Necromancer",
+   58,
+   59,
+   1,
+   null
+  ],
+  "10478": [
+   "Splintered Skeleton",
+   59,
+   60,
    1,
    null
   ],
@@ -123735,9 +123785,23 @@
    1,
    null
   ],
+  "10491": [
+   "Risen Bonewarder",
+   58,
+   59,
+   1,
+   null
+  ],
   "10498": [
    "Spectral Tutor",
    58,
+   60,
+   1,
+   null
+  ],
+  "10502": [
+   "Lady Illucia Barov",
+   60,
    60,
    1,
    null
@@ -124008,6 +124072,13 @@
    1,
    null
   ],
+  "11257": [
+   "Scholomance Handler",
+   59,
+   60,
+   1,
+   null
+  ],
   "11261": [
    "Doctor Theolen Krastinov",
    60,
@@ -124022,10 +124093,10 @@
    1,
    null
   ],
-  "11319": [
-   "Ragefire Shaman",
+  "11320": [
+   "Earthborer",
    13,
-   15,
+   14,
    1,
    null
   ],
@@ -124047,6 +124118,13 @@
    "Searing Blade Enforcer",
    13,
    15,
+   1,
+   null
+  ],
+  "11440": [
+   "Gordok Enforcer",
+   53,
+   54,
    1,
    null
   ],
@@ -124176,6 +124254,13 @@
    1,
    null
   ],
+  "11551": [
+   "Necrofiend",
+   58,
+   60,
+   1,
+   null
+  ],
   "11560": [
    "Magrami Spectre",
    38,
@@ -124230,6 +124315,13 @@
    41,
    42,
    0,
+   "Desolace"
+  ],
+  "11688": [
+   "Cursed Centaur",
+   43,
+   43,
+   4,
    "Desolace"
   ],
   "11698": [
@@ -124330,12 +124422,26 @@
    0,
    null
   ],
+  "11778": [
+   "Shadowshard Smasher",
+   41,
+   42,
+   1,
+   "Desolace"
+  ],
   "11788": [
    "Rock Worm",
    41,
    42,
    1,
    "Desolace"
+  ],
+  "11789": [
+   "Deep Borer",
+   46,
+   48,
+   0,
+   null
   ],
   "11790": [
    "Putridus Satyr",
@@ -124463,13 +124569,6 @@
    1,
    null
   ],
-  "12207": [
-   "Thessala Hydra",
-   46,
-   47,
-   1,
-   null
-  ],
   "12216": [
    "Poison Sprite",
    42,
@@ -124512,13 +124611,6 @@
    1,
    null
   ],
-  "12223": [
-   "Cavern Lurker",
-   45,
-   46,
-   1,
-   null
-  ],
   "12224": [
    "Cavern Shambler",
    46,
@@ -124535,13 +124627,6 @@
   ],
   "12236": [
    "Lord Vyletongue",
-   47,
-   47,
-   1,
-   null
-  ],
-  "12243": [
-   "Spirit of Veng",
    47,
    47,
    1,
@@ -124715,10 +124800,10 @@
    1,
    null
   ],
-  "13142": [
-   "Deeprot Tangler",
+  "13141": [
+   "Deeprot Stomper",
+   43,
    44,
-   45,
    1,
    null
   ],
@@ -124785,12 +124870,12 @@
    1,
    null
   ],
-  "14221": [
-   "Gravis Slipknot",
-   36,
-   36,
-   4,
-   null
+  "14123": [
+   "Steeljaw Snapper",
+   42,
+   43,
+   0,
+   "Tanaris"
   ],
   "14267": [
    "Emogg the Crusher",
@@ -124831,13 +124916,6 @@
    "Boulderheart",
    25,
    25,
-   4,
-   null
-  ],
-  "14277": [
-   "Lady Zephris",
-   33,
-   33,
    4,
    null
   ],
@@ -124918,6 +124996,13 @@
    4,
    "Teldrassil"
   ],
+  "14431": [
+   "Fury Shelda",
+   8,
+   8,
+   4,
+   "Teldrassil"
+  ],
   "14432": [
    "Threggil",
    6,
@@ -124936,13 +125021,6 @@
    "Roloch",
    38,
    38,
-   4,
-   "Stranglethorn Vale"
-  ],
-  "14492": [
-   "Verifonix",
-   42,
-   42,
    4,
    "Stranglethorn Vale"
   ],
@@ -125282,13 +125360,6 @@
    0,
    null
   ],
-  "211965": [
-   "Carrodin",
-   25,
-   25,
-   4,
-   "Wetlands"
-  ],
   "212753": [
    "Tortured Soul",
    20,
@@ -125317,17 +125388,17 @@
    4,
    "Arathi Highlands"
   ],
+  "236867": [
+   "Legashi Soulstealer",
+   53,
+   54,
+   0,
+   null
+  ],
   "243509": [
    "Noxious Slime",
    56,
    57,
-   0,
-   null
-  ],
-  "246008": [
-   "Mana Devourer",
-   0,
-   0,
    0,
    null
   ],
@@ -125359,8 +125430,29 @@
    0,
    null
   ],
+  "246664": [
+   "Fragmented Sentry",
+   0,
+   0,
+   0,
+   null
+  ],
   "246888": [
    "Arcane Elemental",
+   0,
+   0,
+   0,
+   null
+  ],
+  "246890": [
+   "Arcane Manaling",
+   0,
+   0,
+   0,
+   null
+  ],
+  "246990": [
+   "Phantasm",
    0,
    0,
    0,
@@ -125387,8 +125479,29 @@
    0,
    null
   ],
+  "247198": [
+   "Bonesnout the Unbroken",
+   0,
+   0,
+   0,
+   null
+  ],
   "247206": [
    "Impaan the Imprisoner",
+   0,
+   0,
+   0,
+   null
+  ],
+  "247209": [
+   "Elder Shaman Bloodmane",
+   0,
+   0,
+   0,
+   null
+  ],
+  "247231": [
+   "Unbound Spirit",
    0,
    0,
    0,
@@ -125398,6 +125511,20 @@
    "Varrox Bleakhoof",
    0,
    0,
+   0,
+   null
+  ],
+  "247237": [
+   "Blackmaw Berserker",
+   55,
+   57,
+   1,
+   null
+  ],
+  "248395": [
+   "Tainted Shrubbery",
+   55,
+   56,
    0,
    null
   ],
@@ -125428,6 +125555,13 @@
    59,
    0,
    null
+  ],
+  "250023": [
+   "Blackmaw Thrall",
+   55,
+   57,
+   1,
+   "Azshara"
   ],
   "250187": [
    "Bladetooth Frenzy",
@@ -125462,13 +125596,6 @@
    0,
    0,
    0,
-   null
-  ],
-  "250626": [
-   "Skeletal Soldier",
-   0,
-   0,
-   1,
    null
   ],
   "250631": [
@@ -125562,6 +125689,13 @@
    1,
    null
   ],
+  "252664": [
+   "Al'Aketh Stormchaser",
+   10,
+   11,
+   0,
+   null
+  ],
   "252666": [
    "Commander Belguilos",
    10,
@@ -125590,10 +125724,31 @@
    0,
    null
   ],
+  "253201": [
+   "Titanosaur",
+   0,
+   0,
+   0,
+   null
+  ],
+  "253215": [
+   "Ravasaur Matriarch",
+   0,
+   0,
+   0,
+   null
+  ],
   "253511": [
    "Al'Aketh Pillager",
    8,
    9,
+   0,
+   null
+  ],
+  "253524": [
+   "Bristleback Nomad",
+   42,
+   43,
    0,
    null
   ],
@@ -125625,8 +125780,15 @@
    0,
    "Riverglades"
   ],
-  "255065": [
-   "Risen Terror",
+  "254567": [
+   "Terrible Tulip",
+   41,
+   42,
+   0,
+   null
+  ],
+  "255068": [
+   "Mindless Horror",
    0,
    0,
    0,
@@ -125641,6 +125803,13 @@
   ],
   "255070": [
    "Skeletal Warder",
+   0,
+   0,
+   0,
+   null
+  ],
+  "255072": [
+   "Dark Caster",
    0,
    0,
    0,
@@ -125715,6 +125884,13 @@
    0,
    0,
    null
+  ],
+  "255394": [
+   "Blackmaw Champion",
+   57,
+   57,
+   1,
+   "Azshara"
   ],
   "255702": [
    "Blazeroar",
@@ -126066,6 +126242,13 @@
    0,
    "Riverglades"
   ],
+  "259055": [
+   "Wildplains Huntress",
+   38,
+   39,
+   0,
+   "Riverglades"
+  ],
   "259267": [
    "Plains Coyote",
    36,
@@ -126078,6 +126261,13 @@
    0,
    0,
    0,
+   null
+  ],
+  "259385": [
+   "Tel'daeor the Stormspeaker",
+   13,
+   13,
+   4,
    null
   ],
   "259394": [
@@ -126178,13 +126368,6 @@
    0,
    null
   ],
-  "260801": [
-   "Thicket Hunter",
-   0,
-   0,
-   0,
-   null
-  ],
   "260803": [
    "Highland Spider",
    27,
@@ -126220,13 +126403,6 @@
    1,
    null
   ],
-  "261319": [
-   "Durgen Dirgehammer",
-   0,
-   0,
-   1,
-   null
-  ],
   "261367": [
    "Terry Longdrink",
    19,
@@ -126234,8 +126410,57 @@
    0,
    null
   ],
+  "261809": [
+   "Nanaya",
+   0,
+   0,
+   0,
+   null
+  ],
+  "261811": [
+   "Tor'Rel",
+   0,
+   0,
+   0,
+   null
+  ],
+  "261812": [
+   "Thunderhoof",
+   0,
+   0,
+   0,
+   null
+  ],
+  "261813": [
+   "Venomridge",
+   0,
+   0,
+   0,
+   null
+  ],
+  "261974": [
+   "Cinder",
+   0,
+   0,
+   0,
+   null
+  ],
   "262065": [
    "Riding Wolf",
+   0,
+   0,
+   0,
+   null
+  ],
+  "262081": [
+   "Bolt",
+   0,
+   0,
+   0,
+   null
+  ],
+  "262127": [
+   "Direhorn Matriarch",
    0,
    0,
    0,
@@ -126247,6 +126472,20 @@
    41,
    0,
    "Riverglades"
+  ],
+  "262297": [
+   "Snowtalon",
+   0,
+   0,
+   0,
+   null
+  ],
+  "262301": [
+   "Eastgrotto Silverback",
+   0,
+   0,
+   0,
+   null
   ],
   "262716": [
    "Kroog",
@@ -126297,10 +126536,10 @@
    1,
    null
   ],
-  "263470": [
-   "Bloodhound Runt",
-   0,
-   0,
+  "263681": [
+   "Bear",
+   41,
+   42,
    0,
    null
   ],
@@ -126353,6 +126592,13 @@
    0,
    null
   ],
+  "265962": [
+   "Escaped Sheep",
+   5,
+   5,
+   0,
+   null
+  ],
   "267006": [
    "Dark Neophyte",
    11,
@@ -126395,13 +126641,6 @@
    0,
    null
   ],
-  "269175": [
-   "Carnivorous Weed",
-   36,
-   38,
-   0,
-   "Stranglethorn Vale"
-  ],
   "269185": [
    "Headsplitter",
    15,
@@ -126423,13 +126662,6 @@
    4,
    "Tirisfal Glades"
   ],
-  "271348": [
-   "Dragonmaw Soulbinder",
-   29,
-   30,
-   1,
-   "Wetlands"
-  ],
   "271351": [
    "Dragonmaw Reclaimer",
    29,
@@ -126448,6 +126680,13 @@
    "Befouled Webwood",
    10,
    11,
+   0,
+   null
+  ],
+  "272561": [
+   "Vitrix",
+   0,
+   0,
    0,
    null
   ],
@@ -126485,6 +126724,13 @@
    10,
    4,
    null
+  ],
+  "276111": [
+   "Ghostfang",
+   10,
+   10,
+   4,
+   "Dun Morogh"
   ],
   "276189": [
    "Matriarch Bristlefur",
