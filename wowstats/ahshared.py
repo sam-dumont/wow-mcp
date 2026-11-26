@@ -37,8 +37,8 @@ race (RACE_SIDE). A scan whose side stays unknown (a Skyborne without a
 faction record, say) is kept in the person's own store only.
 
 Reads (scans): the caller's own characters' (ruleset, side) pairs, from
-their own store (homes), each with the neutral house of that ruleset; the
-shared rows of exactly those houses, merged with nothing else. A Horde
+their own store (homes), each with the neutral house of that ruleset.
+A character record naming only the ruleset can use its neutral house. A Horde
 character never reads an Alliance house, two rulesets never mix.
 
 Retention: PRICE_DAYS (90) days, then pruned (prune_daily, from the
@@ -61,6 +61,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from wowstats import ahsource
+from wowstats.eventcache import norm_char, spellings
 from wowstats.stores import lq, merge_rows
 
 # A tenant no person ever gets: the registry counts friends up from 1
@@ -75,6 +76,9 @@ FEED = "wow-prices"
 SHARED_FIELDS = ("item_id", "item_key", "item_name", "price_copper", "price_high_copper", "available", "scan_day")
 SIDES = ("Alliance", "Horde")
 NEUTRAL = "Neutral"
+# A wow-player race belongs to someone the character met. A wow-prices faction belongs to the house.
+_SIDE_FEEDS = ("wow-character", "wow-gear", "wow-recorder")
+_CHARACTER_SIDE = f'feed:in({", ".join(map(lq, _SIDE_FEEDS))}) (faction:in("Alliance", "Horde") or race:*)'
 # Classic's eight races, as the addons save them (with and without the space).
 RACE_SIDE = {"human": "Alliance", "dwarf": "Alliance", "night elf": "Alliance", "nightelf": "Alliance",
              "gnome": "Alliance", "orc": "Horde", "undead": "Horde", "scourge": "Horde", "tauren": "Horde",
@@ -117,11 +121,15 @@ def shared_event(ev: dict, faction: str | None) -> dict | None:
     return out
 
 
+def _char_filter(char: str) -> str:
+    return "char:in(" + ", ".join(lq(n) for n in spellings(char)) + ")"
+
+
 def _side_in_store(own, char: str) -> str | None:
     """The character's side from the person's own store: the newest event
     with a faction, else with a race."""
-    rows = own.vl_direct(f'{own.stream} char:={lq(char)} -feed:="{FEED}" (faction:in("Alliance", "Horde") or race:*) '
-                         f"| stats by (faction, race) max(_time) as t", ("faction", "race"), {"t": "maxtime"},
+    rows = own.vl_direct(f'{own.stream} {_char_filter(char)} {_CHARACTER_SIDE} '
+                         "| stats by (faction, race) max(_time) as t", ("faction", "race"), {"t": "maxtime"},
                          limit=1000)
     for r in sorted(rows, key=lambda r: r.get("t") or "", reverse=True):
         if s := side(r.get("faction"), r.get("race")):
@@ -141,16 +149,18 @@ def share(loc: str, lines: list[bytes], own) -> int:
         return 0
     known: dict[str, str | None] = {}
     for e in evs:  # the upload's own records first: a session or a sheet names the side
-        if e.get("feed") != FEED and isinstance(e.get("char"), str) and (s := side(e.get("faction"), e.get("race"))):
-            known.setdefault(e["char"], s)
+        ch = e.get("char")
+        if e.get("feed") in _SIDE_FEEDS and isinstance(ch, str) and (s := side(e.get("faction"), e.get("race"))):
+            known.setdefault(norm_char(ch), s)
     out = []
     for e in prices:
         f = None
-        if not str(e.get("faction") or "").strip():
-            ch = e.get("char")
-            if isinstance(ch, str) and ch not in known:
+        ch = e.get("char")
+        if isinstance(ch, str) and not str(e.get("faction") or "").strip():
+            ch = norm_char(ch)
+            if ch not in known:
                 known[ch] = _side_in_store(own, ch)
-            f = known.get(ch) if isinstance(ch, str) else None
+            f = known[ch]
         if (s := shared_event(e, f)) is not None:
             out.append(json.dumps(s, ensure_ascii=False, separators=(",", ":")).encode())
     if out:
@@ -161,20 +171,27 @@ def share(loc: str, lines: list[bytes], own) -> int:
 def homes(own) -> set[tuple[str, str]]:
     """The (ruleset, side) pairs of the person's own characters: each
     character's ruleset from its records' `realm` (Altoholic's character
-    records, its own scans), its side from its faction or race."""
+    records, its own scans), its side from its faction or race. A known
+    character realm alone grants access to its neutral house."""
     st = own.stream
-    realms = own.vl_direct(f'{st} feed:in("wow-character", "{FEED}") realm:* char:* | stats by (char, realm, faction) '
-                           f"max(_time) as t", ("char", "realm", "faction"), {"t": "maxtime"}, limit=10000)
-    sides = own.vl_direct(f'{st} char:* (faction:in("Alliance", "Horde") or race:*) | stats by (char, faction, race) '
-                          f"max(_time) as t", ("char", "faction", "race"), {"t": "maxtime"}, limit=10000)
+    realms = own.vl_direct(f'{st} feed:in("wow-character", "{FEED}") realm:* char:* '
+                           "| stats by (char, realm, faction, feed) max(_time) as t",
+                           ("char", "realm", "faction", "feed"), {"t": "maxtime"}, limit=10000)
+    sides = own.vl_direct(f'{st} char:* {_CHARACTER_SIDE} | stats by (char, faction, race) max(_time) as t',
+                          ("char", "faction", "race"), {"t": "maxtime"}, limit=10000)
     side_of: dict[str, tuple[str, str]] = {}
     for r in sides:
         s, t = side(r.get("faction"), r.get("race")), r.get("t") or ""
-        if s and t > side_of.get(r["char"], ("", ""))[1]:
-            side_of[r["char"]] = (s, t)
+        char = norm_char(r["char"])
+        if s and t > side_of.get(char, ("", ""))[1]:
+            side_of[char] = (s, t)
     out = set()
     for r in realms:
-        s = side(r.get("faction")) or side_of.get(r.get("char"), (None,))[0]
+        s = str(r.get("faction") or "").strip().title()
+        if s not in (*SIDES, NEUTRAL):
+            s = side_of.get(norm_char(r["char"]), (None,))[0]
+        if not s and r["feed"] == "wow-character":
+            s = NEUTRAL  # Both sides can use a known ruleset's neutral house.
         if r.get("realm") and s:
             # The ruleset as Auctionator spells it: a character record's
             # realm is the client's long name (wowstats.ahsource.ruleset_key).
@@ -208,9 +225,7 @@ def one_house(rows: list[dict], home: tuple[str, str | None] | None, *, exact: b
 
 def character_house(own, char: str) -> tuple[str, str | None] | None:
     """Read the character's own realm and side. Scanning a house can't change either."""
-    names = sorted({char, char.replace("-", " "), char.replace(" ", "-")})
-    filt = "char:in(" + ", ".join(lq(n) for n in names) + ")"
-    rows = own.vl_direct(f'{own.stream} {filt} feed:="wow-character" realm:* '
+    rows = own.vl_direct(f'{own.stream} {_char_filter(char)} feed:="wow-character" realm:* '
                          "| stats by (char, realm, faction, race) max(_time) as t",
                          ("char", "realm", "faction", "race"), {"t": "maxtime"})
     current = max((r for r in rows if r.get("realm")), key=lambda r: r.get("t") or "", default=None)

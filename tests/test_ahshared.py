@@ -135,6 +135,39 @@ def test_market_trends_and_planned_loot_stay_in_one_house(lab, shared):
     assert facts.prices(own, shared=loc, char="Unknown-Fixture") == {}
 
 
+@pytest.mark.parametrize("shared", [False, True])
+@pytest.mark.parametrize("alias", [False, True], ids=["same-spelling", "spaced-and-dashed"])
+@pytest.mark.parametrize("side_fields", [{"race": "Gnome"}, {"faction": "Alliance"}], ids=["race", "faction"])
+@pytest.mark.parametrize("scan_faction", [None, "Alliance"], ids=["ruleset-key", "faction-key"])
+def test_scanning_another_house_cannot_change_the_characters_side(lab, shared, alias, side_fields, scan_faction):
+    from types import SimpleNamespace
+
+    from wowstats.mcp import tools
+    from wowstats.plan import facts
+
+    loc, people, upload = lab
+    name = ADA.replace("-", " ") if alias else ADA
+    upload(ADA, character(ADA, "Fixture Realm 1 Normal"),
+           {"_time": (DAY + timedelta(minutes=30)).isoformat(), "char": ADA, "feed": "wow-player", "race": "Orc"},
+           {"_time": T, "char": name, "feed": "wow-recorder", "kind": "session", **side_fields},
+           price(ADA, "Hardcore", 505, 99000, "Horde") | {"_time": (DAY + timedelta(hours=1)).isoformat()})
+    if shared:
+        scanner = DORA.replace("-", " ") if alias else DORA
+        upload(DORA, {"_time": T, "char": DORA, "feed": "wow-player", "race": "Orc"},
+               character(scanner, "Normal", **side_fields), price(DORA, "Normal", 505, 10000, scan_faction))
+        assert ahshared.homes(people[ADA]) == {("Normal", "Alliance"), ("Hardcore", "Horde")}
+    else:
+        upload(ADA, price(ADA, "Normal", 505, 10000, scan_faction))
+    own = people[ADA]
+    loc = loc if shared else ""
+    ctx = tools.Ctx(store=SimpleNamespace(events=own), default_char=ADA, env={"AH_SHARED_STORE": loc})
+    result = tools.t_prices(ctx, {"item": "505", "char": name})
+    assert result["house"] == {"ruleset": "Normal", "faction": "Alliance"}
+    assert result["items"][0]["latest_copper"] == facts.prices(own, shared=loc, char=name)[505]["copper"] == 10000
+    hardcore = tools.t_prices(ctx, {"item": "505", "ruleset": "Hardcore", "faction": "Horde"})
+    assert hardcore["items"][0]["latest_copper"] == 99000
+
+
 def test_neutral_market_is_a_fallback_and_never_merged_with_a_side():
     rows = [{"ruleset": "Normal", "faction": s} for s in ("Alliance", "Neutral")]
     assert ahshared.one_house(rows, ("Normal", "Alliance"))[1] == rows[:1]
@@ -142,16 +175,19 @@ def test_neutral_market_is_a_fallback_and_never_merged_with_a_side():
     assert ahshared.one_house(rows, None)[1] == []
 
 
-def test_an_unknown_side_still_has_a_known_ruleset(lab):
+@pytest.mark.parametrize("shared", [False, True])
+def test_an_unknown_side_still_has_a_known_ruleset(lab, shared):
     from wowstats.plan import facts
 
-    _, people, upload = lab
+    loc, people, upload = lab
     own = people[ADA]
+    loc = loc if shared else ""
     upload(ADA, character(ADA, "Fixture Realm 1 Normal", race="Skyborne"),
            price(ADA, "Hardcore", 505, 99000))
-    assert facts.prices(own, char=ADA) == {}
-    upload(ADA, price(ADA, "Normal", 505, 3000, faction="Neutral"))
-    assert facts.prices(own, char=ADA)[505]["copper"] == 3000
+    assert facts.prices(own, shared=loc, char=ADA) == {}
+    scanner = DORA if shared else ADA
+    upload(scanner, price(scanner, "Normal", 505, 3000, faction="Neutral"))
+    assert facts.prices(own, shared=loc, char=ADA)[505]["copper"] == 3000
 
     legacy = [{"ruleset": "Normal"}]
     assert ahshared.one_house(legacy, ("Normal", None))[1] == legacy
