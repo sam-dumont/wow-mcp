@@ -68,7 +68,8 @@ def key(req: dict, scope: str = "") -> str:
     """The picture's name: the renderer's revision and the recipe (the race,
     look and gear), plus `scope` when the picture belongs to one character
     (the paperdoll's still: tenant and character, wowstats.publish.put_still)."""
-    parts = [renderer.REV, req, scope] if scope else [renderer.REV, req]
+    # Earlier cache entries did not record missing drawing inputs.
+    parts = [2, renderer.REV, req, scope]
     return hashlib.sha256(json.dumps(parts, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
@@ -90,7 +91,20 @@ class Pictures:
         self.down = False  # the renderer failed this run: no more asks
         self.used: set[str] = set()
         self.pending: set[str] = set()
-        self._this_run: dict[str, bytes] = {}  # recipe key -> drawn in this run
+        self._this_run: dict[str, tuple[bytes, dict]] = {}
+        self.missing: dict[str, str | None] = {}
+        self._checked: dict[str, str | None] = {}
+
+    def files_changed(self, missing: dict, read: Callable[[int], bytes | None]) -> bool:
+        """One check per missing file per pass. A refused file is retried
+        only when its bytes change."""
+        for fdid, before in missing.items():
+            if fdid not in self._checked:
+                data = read(int(fdid))
+                self._checked[fdid] = hashlib.sha256(data).hexdigest() if data is not None else None
+            if self._checked[fdid] != before:
+                return True
+        return False
 
     def get(self, answer: dict | None, read: Callable[[int], bytes | None] | None = None,
             scope: str = "") -> bytes | None | str:
@@ -104,6 +118,7 @@ class Pictures:
         if req is None:
             return None
         k, same = key(req, scope), key(req)
+        read = read or (lambda fdid: None)
         self.used.add(k)
         f = self.dir / f"{k}.{EXT}"
         # The same drawing kept under another name (a level's picture, the
@@ -112,37 +127,52 @@ class Pictures:
             try:
                 at = src.stat().st_mtime
                 if time.time() - at < MAX_AGE_S:
+                    meta = src.with_suffix(".missing")
+                    missing = json.loads(meta.read_text()) if meta.exists() else {}
+                    if self.files_changed(missing, read):
+                        continue
+                    self.missing.update(missing)
                     body = src.read_bytes()
                     if src != f:
-                        self._keep(f, body, at)  # its age too: MAX_AGE_S counts from the drawing
+                        self._keep(f, body, missing, at)  # its age too
                     return body
-            except OSError:
+            except (OSError, ValueError):
                 pass
         if same in self._this_run:
-            self._keep(f, self._this_run[same])
-            return self._this_run[same]
+            body, missing = self._this_run[same]
+            self._keep(f, body, missing)
+            return body
         if self.down or self.spent >= self.budget:
             self.pending.add(k)
             return "pending"
         t0 = time.time()
-        body = self._ask(req, read or (lambda fdid: None))
+        rendered = self._ask(req, read)
         self.spent += time.time() - t0
-        if body is None:
+        if rendered is None:
             self.pending.add(k)
             return "pending"
-        self._keep(f, body)
-        self._this_run[same] = body
+        body, missing = rendered
+        self._keep(f, body, missing)
+        self._this_run[same] = rendered
         self.drawn += 1
         self.pending.discard(k)
         return body
 
-    def _keep(self, f: Path, body: bytes, at: float | None = None) -> None:
+    def _keep(self, f: Path, body: bytes, missing: dict, at: float | None = None) -> None:
         self.dir.mkdir(parents=True, exist_ok=True)
+        meta = f.with_suffix(".missing")
+        if missing:
+            self.missing.update(missing)
+            tmp_meta = meta.with_suffix(".missing.part")
+            tmp_meta.write_text(json.dumps(missing))
+            os.replace(tmp_meta, meta)
         tmp = f.with_suffix(".part")
         tmp.write_bytes(body)
         if at is not None:
             os.utime(tmp, (at, at))
         os.replace(tmp, f)
+        if not missing:
+            meta.unlink(missing_ok=True)
 
     def _post(self, path: str, body: bytes, headers: dict) -> tuple[int, bytes]:
         r = urllib.request.Request(self.url + path, data=body, method="POST",
@@ -153,9 +183,9 @@ class Pictures:
         except urllib.error.HTTPError as e:
             return e.code, e.read(64 * 1024)
 
-    def _ask(self, req: dict, read: Callable[[int], bytes | None]) -> bytes | None:
+    def _ask(self, req: dict, read: Callable[[int], bytes | None]) -> tuple[bytes, dict] | None:
         """POST /render; on 428, send the files it lacks and ask again."""
-        absent: set[int] = set()
+        absent: dict[int, str | None] = {}
         try:
             for _ in range(ROUNDS):
                 code, body = self._post("/render", json.dumps({**req, "absent": sorted(absent),
@@ -171,16 +201,20 @@ class Pictures:
                     for fdid in lack:
                         data = read(fdid)
                         if data is None:
-                            absent.add(fdid)
+                            absent[fdid] = None
                             continue
                         sha = hashlib.sha256(data).hexdigest()
                         c, msg = self._post(f"/file/{fdid}", data, {"Content-Type": "application/octet-stream",
                                                                      "X-Content-SHA256": sha,
                                                                      "X-Render-Scope": self.scope})
-                        if c != 204:
-                            absent.add(fdid)  # refused (not a game file): drawn without it
+                        if c in (400, 413, 415, 422):
+                            absent[fdid] = sha  # refused (not a game file): drawn without it
                             self.log(f"picture: the renderer refused file {fdid} ({c}): "
                                      f"{msg[:200].decode(errors='replace').strip()}")
+                        elif c != 204:
+                            self.log(f"picture: file upload returned {c}")
+                            self.down = True
+                            return None
                     continue
                 if code != 200:
                     self.log(f"picture: the renderer answered {code}: {body[:200].decode(errors='replace').strip()}")
@@ -190,7 +224,7 @@ class Pictures:
                     self.log("picture: the renderer didn't answer a WebP image")
                     self.down = True
                     return None
-                return body
+                return body, {str(f): digest for f, digest in absent.items()}
         except (OSError, TimeoutError) as e:
             self.log(f"picture: the renderer is unreachable: {e}")
             self.down = True
@@ -206,7 +240,7 @@ class Pictures:
         if not self.on or not self.used or not self.dir.is_dir():
             return n
         for f in self.dir.iterdir():
-            if (f.suffix == f".{EXT}" and f.stem not in self.used) or f.suffix == ".part":
+            if (f.suffix in (f".{EXT}", ".missing") and f.stem not in self.used) or f.suffix == ".part":
                 try:
                     f.unlink()
                     n += 1
@@ -217,7 +251,5 @@ class Pictures:
     def state(self) -> dict:
         """What publish() keeps between passes: how many are pending and
         when to try again."""
-        if not self.pending:
-            return {"pictures_pending": 0, "pictures_retry_at": 0}
-        return {"pictures_pending": len(self.pending),
-                "pictures_retry_at": time.time() + (0 if self.drawn else RETRY_S)}
+        return {"pictures_pending": len(self.pending), "pictures_missing": self.missing,
+                "pictures_retry_at": time.time() + (0 if self.drawn else RETRY_S) if self.pending else 0}

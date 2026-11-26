@@ -109,7 +109,8 @@ def settings_from_env(env: dict, view: str = "full") -> Settings:
                     price_days=int(env.get("PRICE_DAYS", str(ahshared.PRICE_DAYS))),
                     weights=parse_weights(env.get("WEIGHTS", "")),
                     ah_shared=ahshared.location(env),
-                    state={k: env[k] for k in ("ANALYSIS_STATE_DIR", "WOW_STATE_DIR") if env.get(k)})
+                    state={k: env[k] for k in ("ANALYSIS_STATE_DIR", "WOW_STATE_DIR", gearmode.PUBLISHED)
+                           if env.get(k)})
 
 
 def norm_char(c: str) -> str:
