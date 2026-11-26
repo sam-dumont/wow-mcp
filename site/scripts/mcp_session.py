@@ -39,11 +39,12 @@ TEXT_MAX = 400
 
 # (what the player asks, the tool an assistant picks, its arguments)
 ASKS = [
-    ("Where does Nibbet stand?", "character_summary", {}),
-    ("Besides following Polestar, what should I do now?", "next_moves", {}),
-    ("Is a dungeon worth it at my level?", "dungeons", {"options": True}),
-    ("Plan my next two hours.", "plan_session", {"hours": 2}),
-    ("Am I doing anything stupid?", "sanity_check", {}),
+    ("Where does Nibbet stand?", "character_summary", {"char": DEMO}),
+    ("Which version is running, and where does its data come from?", "data_status", {}),
+    ("Besides following Polestar, what should I do now?", "next_moves", {"char": DEMO}),
+    ("Is a dungeon worth it at my level?", "dungeons", {"char": DEMO, "options": True}),
+    ("Plan my next two hours.", "plan_session", {"char": DEMO, "hours": 2}),
+    ("Am I doing anything stupid?", "sanity_check", {"char": DEMO}),
 ]
 
 
@@ -92,23 +93,25 @@ async def record(vl: str) -> str:
         env = {k: v for k, v in os.environ.items() if not k.startswith(("MCP_", "OIDC_", "WOW_STATE"))}
         # VM_URL: the demo's Battle.net series (build-demo.sh), so the
         # answers carry his talents and look as the pages do.
-        env |= {"VL_URL": vl, "VM_URL": os.environ.get("VM_URL", ""), "ANALYSIS_STATE_DIR": state,
+        env |= {"VL_URL": vl, "VL_ARCHIVE_URL": "", "VM_URL": os.environ.get("VM_URL", ""), "ANALYSIS_STATE_DIR": state,
                 "FASTMCP_CHECK_FOR_UPDATES": "off",
                 "DEFAULT_CHAR": DEMO}
         t = StdioTransport(command=sys.executable, args=["-m", "wowstats", "mcp-stdio"], env=env, cwd=str(ROOT))
         async with Client(t) as c:
+            version = c.server_info.version
             tools = sorted(x.name for x in await c.list_tools())
             parts = []
             for ask, tool, args in ASKS:
-                args = {"char": DEMO, **args}
-                res = await c.call_tool(tool, args, raise_on_error=False)
+                res = await c.call_tool(tool, args)
                 got = answer(res)
+                if tool == "character_summary":
+                    last_seen = got["last_seen"][:10]
                 # A plan comes with its own Markdown draft: shown as the page
                 # would, not as one long JSON string.
                 md = got.pop("markdown", None) if isinstance(got, dict) else None
                 body = json.dumps(trim(got), indent=1, ensure_ascii=False)
                 parts.append(f"## {ask}\n\nThe assistant calls `{tool}`:\n\n```json\n{json.dumps(args)}\n```\n\n"
-                             + reply('The server refuses' if res.is_error else 'The server answers', body))
+                             + reply('The server answers', body))
                 if md:
                     # Its headings as bold lines: they'd fill the page's own contents.
                     lines = [re.sub(r"^#+ +(.*)$", r"**\1**", ln) for ln in md.strip().splitlines()]
@@ -116,15 +119,18 @@ async def record(vl: str) -> str:
                     parts.append(f"Its `markdown` field, the draft the assistant starts from:\n\n{quoted}\n")
     return f"""# An MCP session, recorded
 
-The MCP server can't run on GitHub Pages, so this page shows it instead: the
-questions a player might ask about Nibbet, [the demo character](demo.md), the
-tool their assistant picks for each, and what the server answers, from the
-same data the demo pages show. Long lists are cut to their first {LIST_MAX}
-items. The assistant's own reply isn't here: that part depends on your
-model, the answers don't.
+This recording uses `wow-stats mcp-stdio` {version} and the play history of
+[Nibbet, the demo priest](demo.md), through {last_seen}. Each question shows
+the tool call and the reply an assistant gets. Long lists stop after {LIST_MAX} items.
 
-[Ask your assistant](../../docs/mcp.md) explains how to connect yours. The
-server has {len(tools)} tools: {", ".join(f"`{t}`" for t in tools)}.
+<details>
+<summary>All {len(tools)} tools the server listed</summary>
+
+{", ".join(f"`{t}`" for t in tools)}.
+
+</details>
+
+[Connect your own assistant](../../docs/mcp.md).
 
 <!-- Written by site/scripts/mcp_session.py: rerun it, don't edit by hand. -->
 

@@ -257,7 +257,7 @@ def test_nothing_on_the_denylist():
 # Every image the docs show and what makes it: made-up data only (the demo
 # character, the demo lab's invented people), never a real install. A new
 # image goes in with its producer; an image nobody can remake fails.
-SHOTS = ("overview", "next-moves", "gear", "upgrades", "dungeons", "climb", "model3d", "timeline", "journal")
+SHOTS = ("overview", "next-moves", "gear", "upgrades", "craft", "dungeons", "climb", "model3d", "timeline", "journal")
 IMAGES = {
     **{f"{n}{d}.webp": "site/scripts/screenshots.py" for n in SHOTS for d in ("", "-dark")},
     "social.png": "site/scripts/screenshots.py",

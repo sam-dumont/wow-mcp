@@ -8,23 +8,23 @@ own tabs).
 
 ## The climb
 
-![The climb of the demo priest: a step chart of level against played time from level 22 to 46, then one bar per level with its kills, quests, date and played time](../images/climb.webp)
+![Nibbet’s climb from level 22 to 46. A dashed line shows Polestar’s route from the same start. Each recorded level has bars for played and planned time.](../images/climb.webp)
 
-Your level against played time (**Show dates** switches to the calendar), then one bar per
-level with its kills, quests, date and time played. A **striped bar** is a level the tracking
-only caught part of: it doesn't count in your pace.
+The solid line follows your played time. The dashed line follows Polestar's route from the
+same starting level. **Show dates** switches to the calendar. Below the chart, each level
+has a played-time bar and, when Polestar has a time for it, a thin route bar underneath.
+A striped bar means recording started partway through that level. It doesn't count in your pace.
 
-The line above the chart says what its totals count: "2,255 kills and 141 quests handed in over
-the completed levels (levels 22–45)", then the level you're in on its own ("Level 46 so far: 101
-kills and 5 quests, not in those totals"). Your assistant gives the same three numbers
-(completed levels, current level, both together), so its count and the page's match.
+Nibbet handed in 155 quests across levels 22–45 and another five at level 46. The chart
+counts finished levels together and shows the current level separately. Ask your assistant
+for `character_summary` to see both counts and their total.
 
 Find the long bars, then open those days in the Journal. The Character tab's **Where the time
 went** and **Guide steps** say which zone or step ate the time.
 
 ## Timeline
 
-![The Timeline tab: "Back in time" at level 46, with time, route plan, quests, kills, deaths, item level, zones, the gear worn then and the best upgrades at the time ("0% → 100% on your trinket"), and the character at that level](../images/timeline.webp)
+![Back in time at level 46. Nibbet played 2h 28m against a route plan of 2h 28m. The snapshot shows the gear worn and Guardian Talisman as a trinket upgrade.](../images/timeline.webp)
 
 Everything recorded, newest first: levels, deaths, dungeon runs, sessions.
 
@@ -42,7 +42,7 @@ your game's model files, which the program on your computer sends after your fir
 
 ## Journal
 
-![The Journal: one entry for the evening of Mon 23 Nov, 19:30 to 21:50, level 46 in Tanaris, with played time, XP, quests, deaths, gold, zones and the quests handed in](../images/journal.webp)
+![Nibbet’s November 25 session in Tanaris, from 19:30 to 21:50. The journal records 39.1k XP, four quests and one death.](../images/journal.webp)
 
 One entry per play session: when, the levels, where, played time, XP, quests, deaths, gold, the
 time per zone and the quests you handed in. Click an older entry to open it.

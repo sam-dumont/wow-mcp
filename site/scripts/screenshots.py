@@ -69,6 +69,19 @@ def tab(page, name: str) -> None:
     settle(page)
 
 
+def craft(page, path: Path) -> None:
+    """The mask's auction quote and craft estimate, with its pattern rank open."""
+    viewport = page.viewport_size
+    page.set_viewport_size({**viewport, "width": 640})
+    page.locator("#advice .candmain").get_by_role("button", name="Shadoweave Mask").click()
+    comparison = page.get_by_role("region", name="Compare Shadoweave Mask")
+    sources = comparison.locator(".cmpwhere")
+    sources.get_by_text("Recipe and skill-up details", exact=True).click()
+    section(page, sources, path)
+    comparison.get_by_role("button", name="Close the comparison").click()
+    page.set_viewport_size(viewport)
+
+
 @contextlib.contextmanager
 def full_view():
     """The demo character's full view, as its player sees it: the same
@@ -153,6 +166,7 @@ def main(base: str) -> None:
             y = top["y"] - 16 + page.evaluate("scrollY")
             clip = {"x": gear["x"], "y": y, "width": gear["width"], "height": 900}
             full_page_clip(page, shot(f"upgrades{suffix}"), clip)
+            craft(page, shot(f"craft{suffix}"))
             section(page, "#levels", shot(f"climb{suffix}"), 760)
             page.locator("#gear").get_by_role("button", name="View in 3D").first.click()
             page.wait_for_timeout(5000)

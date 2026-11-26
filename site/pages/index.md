@@ -27,31 +27,31 @@
 
 <div class="feature">
 
-![The Next moves box: equip the Deathmage Sash from your bags (42% → 50% on your waist), then Razorfen Downs, a 35-minute trip with the quests to pick up first and a drop you could wear now, then Apprentice Riding at level 40 if not trained yet](../../docs/images/next-moves.webp)
+![Nibbet’s next moves. Equip Deathmage Sash for a waist upgrade from 42% to 50%, run Scarlet Monastery Cathedral, then check Apprentice Riding.](../../docs/images/next-moves.webp)
 
 <div>
 <p class="eyebrow">Before you log in</p>
 <h3>What to do with the next hour</h3>
-<p>The Overview puts your pace against <a href="https://github.com/fitzforge/polestar">Polestar</a>'s route (2.0× is twice the route's time) and the hours of play to your next level. Under that, up to three next moves: the upgrade and who drops it, the dungeon worth a run with the quests to grab first, the talent points you forgot to spend.</p>
+<p>Nibbet already has a better belt in the bags. Equipping it is the first move. The next is a trip to Scarlet Monastery Cathedral. The Overview also shows how long the next level should take at your pace.</p>
 <p><a href="../../docs/players/overview.md">Overview and next moves →</a></p>
 </div>
 </div>
 
 <div class="feature flip">
 
-![The Upgrades list grouped by where you get them: Tailoring crafts, each with its badge, its slot's share before and after ("42% → 100% on your waist"), its source and how hard it is to get, then two Auction House buys with their prices, then vendors in Ashenvale and Arathi Highlands](../../docs/images/upgrades.webp)
+![The auction house list starts with Shadoweave Shoulders, Shadoweave Mask and Underworld Band. Dungeon and world drops appear in their own groups below.](../../docs/images/upgrades.webp)
 
 <div>
 <p class="eyebrow">Gear</p>
-<h3>Every slot, its next upgrade, and where it drops</h3>
-<p>The best item you can wear now and within 3 levels, what it does to the slot ("70% → 91% on your chest": its share of the best item for that slot, before and after), and where to get it: a boss, a quest, or the auction house at yesterday's price. If it's already in your bags, the page tells you to equip it. Scores use <a href="https://foreverdb.net">ForeverDB.net</a>'s weights, for levelling by default, PvP or PvE if you pick it.</p>
+<h3>Gear you can get at your level</h3>
+<p>Find a drop by dungeon, check a craft's recipe and materials, or compare auction listings by price and scan date. Each upgrade shows what you'd gain in that slot. Gear scores use <a href="https://foreverdb.net">ForeverDB.net</a>'s levelling, PvP or PvE weights.</p>
 <p><a href="../../docs/players/gear.md">Gear and upgrades →</a></p>
 </div>
 </div>
 
 <div class="feature">
 
-![Two dungeon cards from the demo: Zul'Farrak and Uldaman, each with a "Worth a run for its quests" line, the next quest to pick up, the quests left, the quest rewards and drops you could use with their badges, and what a trip is worth, including a quest turned in outside; under Zul'Farrak, your run with who was in the party: name, level, class and role](../../docs/images/dungeons.webp)
+![Zul’Farrak lists gear drops, a quest handed in outside and the party from Nibbet’s last run. Uldaman lists Explorer’s League Lodestar as a quest reward.](../../docs/images/dungeons.webp)
 
 <div>
 <p class="eyebrow">Dungeons</p>
@@ -108,8 +108,8 @@ How the pieces fit: [How it works](../../docs/explanation/how-it-works.md). Ques
 Why a levelling log grew an MCP server and signed releases in six days:
 [How this was built](../../docs/how-this-was-built.md).
 
-<p class="fineprint">Free software under the GPL-3.0. The route times come from
-<a href="https://github.com/fitzforge/polestar">Polestar</a> and its contributors, the gear weights
-and where gear comes from from <a href="https://foreverdb.net">ForeverDB.net</a>; other credits in
-<a href="../../THIRD_PARTY.md">THIRD_PARTY.md</a>. World of Warcraft is a trademark of Blizzard
-Entertainment; this project isn't affiliated with Blizzard.</p>
+<p class="fineprint">The software is licensed under GPL-3.0.
+<a href="https://github.com/fitzforge/polestar">Polestar</a> supplies the route times.
+Gear weights and additional item sources: Data from <a href="https://foreverdb.net">ForeverDB.net</a>.
+Blizzard Entertainment owns the artwork in the separate 3D demo. World of Warcraft is its trademark.
+This is an independent project. <a href="../../THIRD_PARTY.md">Third-party credits and licences</a>.</p>

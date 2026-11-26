@@ -31,19 +31,24 @@ mkdir -p "$out"
 cd "$here/.."
 
 pids=()
+tape_pid=
 finish() {
+  # VHS drives a terminal in another process. Let its last command exit
+  # before removing the fake HOME and setup script, even after Ctrl+C.
+  trap '' INT TERM
+  if [[ -n $tape_pid ]]; then wait "$tape_pid" 2>/dev/null || true; fi
   if [[ ${KEEP:-0} == 1 ]]; then echo "KEEP=1: lab left running, state in $state"; return; fi
   for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
   rm -rf "$state" "$here/tapes/.settings.tape"
 }
 trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 echo "== the lab"
 SITES=1 source "$here/stack/up.sh"
 source "$here/stack/friend.sh"
-mkdir -p "$state/bin"
-printf '#!/bin/sh\n# demo/record.sh: launchd stays untouched in the takes.\nexit 0\n' > "$state/bin/launchctl"
-chmod 755 "$state/bin/launchctl"
+shim="$here/stack/shims"
 
 theme() {
   if [[ $1 == dark ]]; then
@@ -65,7 +70,16 @@ for kv in subs:
     text = text.replace(k, v)
 open(dst, "w", encoding="utf-8").write(f'Output "{mp4}"\n' + text)
 PY
-  vhs "$state/$name.tape" >/dev/null
+  # The terminal inherits the fake HOME and the repository's shim even
+  # before the tape types anything, or if its setup file disappears.
+  (
+    source "$state/shell.sh" || exit 1
+    cd "$repo"
+    exec vhs "$state/$name.tape"
+  ) >/dev/null &
+  tape_pid=$!
+  wait "$tape_pid"
+  tape_pid=
   echo "  $name-$mode.mp4 ($(ffprobe -v error -show_entries format=duration -of csv=p=0 "$out/$name-$mode.mp4" | cut -c1-5) s)"
 }
 
@@ -91,12 +105,12 @@ for mode in ${MODES:-dark light}; do
   mkdir -p "$home"
   uv run --frozen python demo/stack/fake_wow.py "$wow" "$char" "Pellwick-${char#*-}"
   cat > "$state/shell.sh" <<SH
-export HOME='$home' WOW_STATS_WOW_DIR='$wow' PATH='$state/bin':"\$PATH"
+export HOME='$home' WOW_STATS_WOW_DIR='$wow' PATH='$shim':"\$PATH"
 export UV_CACHE_DIR='$(uv cache dir)' UV_PYTHON_INSTALL_DIR='$(uv python dir)'
-[ "\$(command -v launchctl)" = '$state/bin/launchctl' ] || exit 1  # never the real launchd
+[ "\$(command -v launchctl)" = '$shim/launchctl' ] || exit 1  # never the real launchd
 cd "\$HOME"
 SH
-  [[ $(bash -c "source '$state/shell.sh' >/dev/null && command -v launchctl") == "$state/bin/launchctl" ]] \
+  [[ $(bash -c "source '$state/shell.sh' >/dev/null && command -v launchctl") == "$shim/launchctl" ]] \
     || { echo "the takes' launchctl isn't the shim: stopping before any take" >&2; exit 1; }
   sed -e "s|@THEME@|$(theme "$mode")|" -e "s|@STATE@|$state|" -e "s|@MODE@|$mode|" \
     "$here/tapes/settings.tape.in" > "$here/tapes/.settings.tape"

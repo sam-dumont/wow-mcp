@@ -12,7 +12,7 @@ Set Theme @THEME@
 Set TypingSpeed 30ms
 Set Framerate 30
 Hide
-Type "source @STATE@/shell.sh && export PS1='❯ ' && clear"
+Type "source @STATE@/shell.sh || exit; export PS1='❯ ' && clear"
 Enter
 Sleep 300ms
 Show
