@@ -21,12 +21,32 @@ local function stubs(t)
   return setmetatable(t, { __index = function() return deep end })
 end
 
+local function text_chunk(src, name, globals)
+  if src:sub(1, 1) == "\27" then error(name .. ": precompiled chunk refused") end
+  if setfenv then
+    local chunk = assert(loadstring(src, "@" .. name))
+    setfenv(chunk, globals)
+    return chunk
+  end
+  return assert(load(src, "@" .. name, "t", globals))
+end
+
+local function register_guide(g)
+  -- Pack format 8 stores unopened guides as Lua data returned from an empty environment.
+  if g.stepsSrc then
+    g.steps = text_chunk(g.stepsSrc, g.id, {})()
+    assert(type(g.steps) == "table" and #g.steps == g.stepCount, g.id .. ": wrong deferred step count")
+    g.stepsSrc = nil
+  end
+  out.guides[#out.guides + 1] = g
+end
+
 local function env(race, state)
   local ns = stubs({ Nav = stubs({ RegisterTravelData = function(d) out.travel = d end }) })
   local e = {
     Polestar = stubs({
       IsPlayerRace = function(r) return r == race end,
-      RegisterGuide = function(g) out.guides[#out.guides + 1] = g end,
+      RegisterGuide = register_guide,
       RegisterLegs = function(_, _, list)
         for id, steps in pairs(list) do
           out.legs[id] = out.legs[id] or {}
@@ -58,18 +78,9 @@ local function run(path, race)
   if not f then return false end
   local src = f:read("*a")
   f:close()
-  if src:sub(1, 1) == "\27" then error(path .. ": precompiled chunk refused") end
   local state = { legs = 0 }
   local e, ns = env(race, state)
-  local chunk, err
-  if setfenv then
-    chunk, err = loadstring(src, "@" .. path)
-    if chunk then setfenv(chunk, e) end
-  else
-    chunk, err = load(src, "@" .. path, "t", e)
-  end
-  if not chunk then error(err) end
-  chunk("Polestar", ns)
+  text_chunk(src, path, e)("Polestar", ns)
   if mode == "legs" then assert(state.legs > 0, path .. " registered no travel legs") end
   return true
 end

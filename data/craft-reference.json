@@ -2,8 +2,8 @@
  "schema": 1,
  "source": {
   "polestar": {
-   "tag": "v0.4.2.2",
-   "commit": "bf2acf45dc639adc4437405ce440b06437cc5342",
+   "tag": "v0.4.3",
+   "commit": "3cf9e32bb38b8d73164acea249039d010e03d2c5",
    "licence": "GPL-3.0",
    "files": [
     "addon/Polestar_Guides/Guides.lua"
@@ -13,7 +13,7 @@
   "client_tables": {
    "via": "wago.tools",
    "product": "wowf",
-   "build": "1.60.1.71091",
+   "build": "1.60.1.71139",
    "tables": [
     "SkillLineAbility",
     "SpellReagents",
@@ -236,9 +236,13 @@
     {
      "n": 11,
      "title": "Heavy Linen Bandage (50-80)",
-     "note": "Heavy Linen Bandage is yellow from 50 (yellow at 50, green at 75, grey at 100): about 46 crafts to 80. Bandages need no fire: craft them anywhere. Herbalists: Lesser Healing Potion (from 55, 1s 50c; Briarthorn, two Mild Spices and an Empty Vial) is orange to 85.",
+     "note": "Heavy Linen Bandage is yellow from 50 (yellow at 50, green at 75, grey at 100): about 46 crafts to 80. Bandages need no fire: craft them anywhere. If you got here without learning it, learn it now: any First Aid trainer of your faction teaches it for 1s; the arrow picks the nearest. Herbalists: Lesser Healing Potion (from 55, 1s 50c; Briarthorn, two Mild Spices and an Empty Vial) is orange to 85.",
      "section": 3,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 3276
+      },
       {
        "t": "craft",
        "spell": 3276,
@@ -415,9 +419,13 @@
     {
      "n": 21,
      "title": "Heavy Wool Bandage (125-150)",
-     "note": "Heavy Wool Bandage is yellow from 125 (yellow at 115, green at 150, grey at 185): about 38 crafts to 150. Bandages need no fire: craft them anywhere.",
+     "note": "Heavy Wool Bandage is yellow from 125 (yellow at 115, green at 150, grey at 185): about 38 crafts to 150. Bandages need no fire: craft them anywhere. If you got here without learning it, learn it now: any First Aid trainer of your faction teaches it for 10s; the arrow picks the nearest.",
      "section": 6,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 3278
+      },
       {
        "t": "craft",
        "spell": 3278,
@@ -667,9 +675,14 @@
     {
      "n": 37,
      "title": "Mageweave Bandage (225-240)",
-     "note": "Mageweave Bandage is yellow from 225 (yellow at 210, green at 240, grey at 270): about 24 crafts to 240. Bandages need no fire: craft them anywhere. Mageweave Bandage turns green at 240: switch to Heavy Mageweave there, which costs less cloth than green Mageweave Bandages to 260.",
+     "note": "Mageweave Bandage is yellow from 225 (yellow at 210, green at 240, grey at 270): about 24 crafts to 240. Bandages need no fire: craft them anywhere. If you got here without learning it, learn it now: read the Manual: Mageweave Bandage (the vendor who sold you the Expert First Aid book sells it). Mageweave Bandage turns green at 240: switch to Heavy Mageweave there, which costs less cloth than green Mageweave Bandages to 260.",
      "section": 10,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 10840,
+       "item": 16113
+      },
       {
        "t": "craft",
        "spell": 10840,
@@ -741,9 +754,27 @@
     {
      "n": 41,
      "title": "Heavy Mageweave Bandage (240-260)",
-     "note": "Heavy Mageweave Bandage is yellow from 240 (yellow at 240, green at 270, grey at 300): about 25 crafts to 260. Bandages need no fire: craft them anywhere.",
+     "note": "Heavy Mageweave Bandage is yellow from 240 (yellow at 240, green at 270, grey at 300): about 25 crafts to 260. Bandages need no fire: craft them anywhere. If you got here without learning it, learn it now: only the Triage doctor teaches it (Doctor Gustaf VanHowzen in Theramore, Doctor Gregory Victor in Hammerfall).",
      "section": 11,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 10841,
+       "only": {
+        "factions": [
+         "Alliance"
+        ]
+       }
+      },
+      {
+       "t": "learn",
+       "spell": 10841,
+       "only": {
+        "factions": [
+         "Horde"
+        ]
+       }
+      },
       {
        "t": "craft",
        "spell": 10841,
@@ -815,9 +846,27 @@
     {
      "n": 45,
      "title": "Runecloth Bandage (260-300)",
-     "note": "Runecloth Bandage is yellow from 260 (yellow at 260, green at 290, grey at 320): about 65 crafts to 300. Bandages need no fire: craft them anywhere. Runecloth Bandage turns green at 290, yet to 300 it takes about the same Runecloth as switching to Heavy Runecloth Bandage (the doctor teaches it at 290): one recipe is enough.",
+     "note": "Runecloth Bandage is yellow from 260 (yellow at 260, green at 290, grey at 320): about 65 crafts to 300. Bandages need no fire: craft them anywhere. If you got here without learning it, learn it now: only the Triage doctor teaches it (Doctor Gustaf VanHowzen in Theramore, Doctor Gregory Victor in Hammerfall). Runecloth Bandage turns green at 290, yet to 300 it takes about the same Runecloth as switching to Heavy Runecloth Bandage (the doctor teaches it at 290): one recipe is enough.",
      "section": 12,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 18629,
+       "only": {
+        "factions": [
+         "Alliance"
+        ]
+       }
+      },
+      {
+       "t": "learn",
+       "spell": 18629,
+       "only": {
+        "factions": [
+         "Horde"
+        ]
+       }
+      },
       {
        "t": "craft",
        "spell": 18629,
@@ -1256,9 +1305,13 @@
     {
      "n": 27,
      "title": "Rough Grinding Stone to 83",
-     "note": "Rough Grinding Stone is green at 75 (yellow 45, green 65, grey 85): about 58 crafts to 83. Each takes 2 Rough Stone. Two Rough Stone a craft. Grinding stones are parts for later plans; the extras sell to vendors.",
+     "note": "Rough Grinding Stone is green at 75 (yellow 45, green 65, grey 85): about 58 crafts to 83. Each takes 2 Rough Stone. Two Rough Stone a craft. Grinding stones are parts for later plans; the extras sell to vendors. If you got here without learning Rough Grinding Stone, learn it now: an earlier step teaches it.",
      "section": 2,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 3320
+      },
       {
        "t": "craft",
        "spell": 3320,
@@ -1819,7 +1872,7 @@
     {
      "n": 51,
      "title": "Plans: Ornate Thorium Handaxe",
-     "note": "Plans: Ornate Thorium Handaxe teaches Ornate Thorium Handaxe (Blacksmithing 250) for 1g 60s. Sold by Magnus Frostwake (Western Plaguelands).",
+     "note": "Plans: Ornate Thorium Handaxe teaches Ornate Thorium Handaxe (Blacksmithing 250) for 1g 60s. Sold by Magnus Frostwake (Western Plaguelands). Magnus Frostwake is a ghost: you see him only with the Spectral Essence on (from Eva Sarkhoff's Scholomance chain, level 55, a group), so skip this without it.",
      "section": 4,
      "goals": [
       {
@@ -1831,7 +1884,7 @@
     {
      "n": 52,
      "title": "Plans: Huge Thorium Battleaxe",
-     "note": "Plans: Huge Thorium Battleaxe teaches Huge Thorium Battleaxe (Blacksmithing 255) for 2g. Sold by Magnus Frostwake (Western Plaguelands).",
+     "note": "Plans: Huge Thorium Battleaxe teaches Huge Thorium Battleaxe (Blacksmithing 255) for 2g. Sold by Magnus Frostwake (Western Plaguelands). Magnus Frostwake is a ghost: you see him only with the Spectral Essence on (from Eva Sarkhoff's Scholomance chain, level 55, a group), so skip this without it.",
      "section": 4,
      "goals": [
       {
@@ -2239,7 +2292,7 @@
     {
      "n": 72,
      "title": "Huge Thorium Battleaxe to 285",
-     "note": "Huge Thorium Battleaxe is orange at 255 (yellow 280, green 292, grey 305): about 31 crafts to 285. Each takes 40 Thorium Bar, 6 Dense Grinding Stone and 6 Rugged Leather. Make the 186 Dense Grinding Stone first. Plans from Magnus Frostwake (Caer Darrow, Western Plaguelands), unlimited stock, but they bind when picked up. Forty Thorium Bars and six Dense Grinding Stones a craft: the dearest stretch, so stop where the Imperial Plate Boots take over. Other ways through: world-drop plans from the Auction House (the Radiant pieces: about 820 Thorium Bars and 190 Hearts of Fire for the Radiant route) or the Merchant's Favor sets. Needs an anvil nearby.",
+     "note": "Huge Thorium Battleaxe is orange at 255 (yellow 280, green 292, grey 305): about 31 crafts to 285. Each takes 40 Thorium Bar, 6 Dense Grinding Stone and 6 Rugged Leather. Make the 186 Dense Grinding Stone first. Plans from Magnus Frostwake in Caer Darrow (Western Plaguelands): he is a ghost you see only with the Spectral Essence trinket on (put it on inside Caer Darrow), the reward of Eva Sarkhoff's Scholomance chain that ends with Kirtonos the Herald (level 55, a dungeon group). Unlimited stock, but the plans bind when picked up. Forty Thorium Bars and six Dense Grinding Stones a craft: the dearest stretch, so stop where the Imperial Plate Boots take over. Without the trinket, the other ways through: world-drop plans from the Auction House (the Radiant pieces: about 820 Thorium Bars and 190 Hearts of Fire for the Radiant route) or the Merchant's Favor sets. Needs an anvil nearby.",
      "section": 4,
      "goals": [
       {
@@ -2406,7 +2459,7 @@
     {
      "n": 4,
      "title": "Light Leather (Elwynn Forest)",
-     "note": "349 Light Leather for Light Armor Kit, Embossed Leather Gloves and Fine Leather Belt (210 of them for 75-150: pick them all now): Skinning: beasts of level 5-20. Skin Gray Forest Wolf, Mangy Wolf, Prowler, Rockhide Boar, Stonetusk Boar and Young Forest Bear here (level 5-20); the Skinning guide routes this.",
+     "note": "349 Light Leather for Light Armor Kit, Embossed Leather Gloves and Fine Leather Belt (210 of them for 75-150: pick them all now): Skinning: beasts of level 5-20. Skin Gray Forest Wolf, Prowler, Rockhide Boar, Stonetusk Boar and Young Forest Bear here (level 5-20); the Skinning guide routes this.",
      "section": 1,
      "goals": [
       {
@@ -2977,9 +3030,13 @@
     {
      "n": 38,
      "title": "Heavy Armor Kit to 158",
-     "note": "Heavy Armor Kit is yellow at 150 (yellow 145, green 155, grey 165): about 15 crafts to 158. Each takes 5 Heavy Leather and 1 Fine Thread. Five Heavy Leather a craft (beasts of level 28-40); the kits sell to vendors.",
+     "note": "Heavy Armor Kit is yellow at 150 (yellow 145, green 155, grey 165): about 15 crafts to 158. Each takes 5 Heavy Leather and 1 Fine Thread. Five Heavy Leather a craft (beasts of level 28-40); the kits sell to vendors. If you got here without learning Heavy Armor Kit, learn it now: an earlier step teaches it.",
      "section": 3,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 3780
+      },
       {
        "t": "craft",
        "spell": 3780,
@@ -4287,9 +4344,13 @@
     {
      "n": 54,
      "title": "Lesser Troll's Blood Elixir to 160",
-     "note": "Lesser Troll's Blood Elixir is yellow at 150 (yellow 150, green 170, grey 190): about 12 crafts to 160. Each takes 2 Bruiseweed, 2 Briarthorn and 1 Leaded Vial. Two Bruiseweed and two Briarthorn a craft; Bruiseweed grows in the 15-30 zones.",
+     "note": "Lesser Troll's Blood Elixir is yellow at 150 (yellow 150, green 170, grey 190): about 12 crafts to 160. Each takes 2 Bruiseweed, 2 Briarthorn and 1 Leaded Vial. Two Bruiseweed and two Briarthorn a craft; Bruiseweed grows in the 15-30 zones. If you got here without learning Lesser Troll's Blood Elixir, learn it now: an earlier step teaches it.",
      "section": 3,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 3176
+      },
       {
        "t": "craft",
        "spell": 3176,
@@ -4555,9 +4616,13 @@
     {
      "n": 69,
      "title": "Elixir of Defense to 230",
-     "note": "Elixir of Defense is yellow at 225 (yellow 215, green 235, grey 255): about 8 crafts to 230. Each takes 1 Wild Steelbloom, 1 Goldthorn and 1 Leaded Vial. Wild Steelbloom and Goldthorn are the herbs of the 30-45 zones (Stranglethorn, Arathi, the Badlands).",
+     "note": "Elixir of Defense is yellow at 225 (yellow 215, green 235, grey 255): about 8 crafts to 230. Each takes 1 Wild Steelbloom, 1 Goldthorn and 1 Leaded Vial. Wild Steelbloom and Goldthorn are the herbs of the 30-45 zones (Stranglethorn, Arathi, the Badlands). If you got here without learning Elixir of Defense, learn it now: an earlier step teaches it.",
      "section": 4,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 11450
+      },
       {
        "t": "craft",
        "spell": 11450,
@@ -4998,8 +5063,8 @@
     },
     {
      "n": 22,
-     "title": "Goldthorn & Khadgar's Whisker: Feralas (185-200)",
-     "note": "Pick every Wild Steelbloom (115, green, rare), Liferoot (150, yellow), Goldthorn (170, orange), Khadgar's Whisker (185, orange) you pass and circle the waypoints until Herbalism 200. Zone level 40-50. Expect about 20 herbs for these 15 points.",
+     "title": "Goldthorn & Khadgar's Whisker: Swamp of Sorrows (185-200)",
+     "note": "Pick every Kingsblood (125, green), Liferoot (150, yellow), Fadeleaf (160, yellow), Goldthorn (170, orange), Khadgar's Whisker (185, orange) you pass and circle the waypoints until Herbalism 200. Zone level 35-45. Expect about 20 herbs for these 15 points.",
      "section": 6,
      "goals": [
       {
@@ -5023,8 +5088,8 @@
     },
     {
      "n": 24,
-     "title": "Goldthorn & Khadgar's Whisker: Feralas (200-210) cont.",
-     "note": "Pick every Wild Steelbloom (115, green, rare), Liferoot (150, green), Goldthorn (170, yellow), Khadgar's Whisker (185, orange) you pass and circle the waypoints until Herbalism 210. Zone level 40-50. Expect about 20 herbs for these 10 points.",
+     "title": "Goldthorn & Khadgar's Whisker: Swamp of Sorrows (200-210) cont.",
+     "note": "Pick every Kingsblood (125, green), Liferoot (150, green), Fadeleaf (160, yellow), Goldthorn (170, yellow), Khadgar's Whisker (185, orange) you pass and circle the waypoints until Herbalism 210. Zone level 35-45. Expect about 20 herbs for these 10 points.",
      "section": 6,
      "goals": [
       {
@@ -5071,8 +5136,8 @@
     },
     {
      "n": 28,
-     "title": "Dreamfoil & Plaguebloom: Western Plaguelands (285-300)",
-     "note": "Pick every Arthas' Tears (220, green), Sungrass (230, green), Dreamfoil (270, orange), Mountain Silversage (280, orange), Plaguebloom (285, orange) you pass and circle the waypoints until Herbalism 300. Zone level 51-58. Expect about 20 herbs for these 15 points.",
+     "title": "Dreamfoil & Plaguebloom: Felwood (285-300)",
+     "note": "Pick every Arthas' Tears (220, green), Sungrass (230, green), Gromsblood (250, yellow), Golden Sansam (260, yellow), Dreamfoil (270, orange), Mountain Silversage (280, orange), Plaguebloom (285, orange) you pass and circle the waypoints until Herbalism 300. Gromsblood grows near demon and satyr camps: pull carefully. Quests here that need Herbalism: Salve via Gathering (level 55, Arathandris Silversky; Alliance), Salve via Gathering (level 55, Maybess Riverbreeze; Horde). Zone level 48-55. Expect about 20 herbs for these 15 points.",
      "section": 10,
      "goals": [
       {
@@ -6807,7 +6872,7 @@
     {
      "n": 28,
      "title": "Mithril & Dark Iron: Searing Gorge (230-245)",
-     "note": "Mine every Gold (155, green), Mithril (175, green), Dark Iron (230, orange), Truesilver (230, orange) node you pass and circle the waypoints until Mining 245. Smelting gives no points from here (the higher smelts are grey once learned): smelt to craft or sell, or sell the ore. Dark Iron Ore smelts only at the Black Forge in Blackrock Depths (8 ore a bar). Zone level 43-50. Expect about 40 nodes for these 15 points.",
+     "note": "Mine every Gold (155, green, rare), Mithril (175, green), Dark Iron (230, orange), Truesilver (230, orange) node you pass and circle the waypoints until Mining 245. Smelting gives no points from here (the higher smelts are grey once learned): smelt to craft or sell, or sell the ore. Dark Iron Ore smelts only at the Black Forge in Blackrock Depths (8 ore a bar). Zone level 43-50. Expect about 40 nodes for these 15 points.",
      "section": 6,
      "goals": [
       {
@@ -6830,8 +6895,8 @@
     },
     {
      "n": 30,
-     "title": "Small Thorium & Rich Thorium: Winterspring (275-300)",
-     "note": "Mine every Truesilver (230, yellow), Small Thorium (245, yellow), Rich Thorium (275, orange) node you pass and circle the waypoints until Mining 300. Smelting gives no points from here (the higher smelts are grey once learned): smelt to craft or sell, or sell the ore. Zone level 55-60. Expect about 40 nodes for these 25 points.",
+     "title": "Small Thorium & Rich Thorium: Eastern Plaguelands (275-300)",
+     "note": "Mine every Truesilver (230, yellow), Small Thorium (245, yellow), Rich Thorium (275, orange) node you pass and circle the waypoints until Mining 300. Smelting gives no points from here (the higher smelts are grey once learned): smelt to craft or sell, or sell the ore. Zone level 53-60. Expect about 30 nodes for these 25 points.",
      "section": 8,
      "goals": [
       {
@@ -7389,13 +7454,17 @@
     {
      "n": 24,
      "title": "Azure Silk Cloak to 170",
-     "note": "Azure Silk Cloak is orange at 150 (yellow 160, green 175, grey 190): about 22 crafts to 170. Each takes 3 Bolt of Silk Cloth, 2 Blue Dye and 2 Fine Thread. Make the 66 Bolt of Silk Cloth first. Its recipe is the one bought above; it is the cheapest way through these points in the data.",
+     "note": "Azure Silk Cloak is orange at 150 (yellow 160, green 175, grey 190): about 22 crafts to 170. Each takes 3 Bolt of Silk Cloth, 2 Blue Dye and 2 Fine Thread. Make the 66 Bolt of Silk Cloth first. Its recipe is the one bought above; it is the cheapest way through these points in the data. If you got here without learning Bolt of Silk Cloth, learn it now: an earlier step teaches it.",
      "section": 3,
      "goals": [
       {
        "t": "learn",
        "spell": 8786,
        "item": 7089
+      },
+      {
+       "t": "learn",
+       "spell": 3839
       },
       {
        "t": "craft",
@@ -8437,9 +8506,13 @@
     {
      "n": 33,
      "title": "Copper Tube to 100",
-     "note": "Copper Tube is yellow at 94 (yellow 80, green 95, grey 110): about 14 crafts to 100. Each takes 2 Copper Bar and 1 Weak Flux. Two Copper Bars and a Weak Flux a craft (blacksmithing and engineering suppliers). Needs an anvil nearby.",
+     "note": "Copper Tube is yellow at 94 (yellow 80, green 95, grey 110): about 14 crafts to 100. Each takes 2 Copper Bar and 1 Weak Flux. Two Copper Bars and a Weak Flux a craft (blacksmithing and engineering suppliers). Needs an anvil nearby. If you got here without learning Copper Tube, learn it now: an earlier step teaches it.",
      "section": 2,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 3924
+      },
       {
        "t": "craft",
        "spell": 3924,
@@ -8475,9 +8548,13 @@
     {
      "n": 35,
      "title": "Practice Lock to 125",
-     "note": "Practice Lock is orange at 100 (yellow 115, green 122, grey 130): about 31 crafts to 125. Each takes 1 Bronze Bar, 2 Handful of Copper Bolts and 1 Weak Flux. Make the 29 Handful of Copper Bolts first. Use the 33 Handful of Copper Bolts you made earlier; the counts above leave them out. Practice Locks sell to rogues, or open them yourself. Needs an anvil nearby.",
+     "note": "Practice Lock is orange at 100 (yellow 115, green 122, grey 130): about 31 crafts to 125. Each takes 1 Bronze Bar, 2 Handful of Copper Bolts and 1 Weak Flux. Make the 29 Handful of Copper Bolts first. Use the 33 Handful of Copper Bolts you made earlier; the counts above leave them out. Practice Locks sell to rogues, or open them yourself. Needs an anvil nearby. If you got here without learning Handful of Copper Bolts, learn it now: an earlier step teaches it.",
      "section": 2,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 3922
+      },
       {
        "t": "craft",
        "spell": 3922,
@@ -8757,7 +8834,7 @@
     {
      "n": 47,
      "title": "Coarse Stone (Horde)",
-     "note": "31 Coarse Stone for Aquadynamic Fish Attractor: Mining: Tin Vein (skill 65) in The Barrens (10-25), Ashenvale (18-30) and Hillsbrad Foothills (20-30). The densest cluster of Tin Vein in Ashenvale is marked.",
+     "note": "31 Coarse Stone for Aquadynamic Fish Attractor: Mining: Tin Vein (skill 65) in The Barrens (10-25), Ashenvale (18-30) and Hillsbrad Foothills (20-30). The densest cluster of Tin Vein in The Barrens is marked.",
      "section": 3,
      "goals": [
       {
@@ -8874,9 +8951,13 @@
     {
      "n": 56,
      "title": "Aquadynamic Fish Attractor to 166",
-     "note": "Aquadynamic Fish Attractor is yellow at 150 (yellow 150, green 160, grey 170): about 31 crafts to 166. Each takes 2 Bronze Bar, 1 Nightcrawlers and 1 Coarse Blasting Powder and makes 3. Make the 31 Coarse Blasting Powder first. Nightcrawlers come from trade and fishing suppliers; the attractors sell to fishermen.",
+     "note": "Aquadynamic Fish Attractor is yellow at 150 (yellow 150, green 160, grey 170): about 31 crafts to 166. Each takes 2 Bronze Bar, 1 Nightcrawlers and 1 Coarse Blasting Powder and makes 3. Make the 31 Coarse Blasting Powder first. Nightcrawlers come from trade and fishing suppliers; the attractors sell to fishermen. If you got here without learning Coarse Blasting Powder, learn it now: an earlier step teaches it.",
      "section": 3,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 3929
+      },
       {
        "t": "craft",
        "spell": 3929,
@@ -8992,9 +9073,17 @@
     {
      "n": 61,
      "title": "Big Iron Bomb to 210",
-     "note": "Big Iron Bomb is yellow at 191 (yellow 190, green 210, grey 230): about 27 crafts to 210. Each takes 3 Iron Bar, 3 Heavy Blasting Powder and 1 Silver Contact and makes 2. Make the 74 Heavy Blasting Powder and 30 Silver Contact (6 crafts) first. Use the 7 Heavy Blasting Powder you made earlier; the counts above leave them out. A Silver Bar makes five Silver Contacts (grey by now: no points, but no trip to a vendor either); the Heavy Blasting Powder comes from Heavy Stone. Each craft makes two bombs. Specialisation (optional): at 200 and character level 30, Springspindle Fizzlegear (Ironforge), Lilliam Sparkspindle (Stormwind City), Graham Van Talen (Undercity) or Tinkerwiz (Ratchet) sends you to Gnomish Engineering (Tinkmaster Overspark, Ironforge, or Oglethorpe Obnoticus, Booty Bay: 6 Mithril Tubes, an Accurate Scope and 2 Advanced Target Dummies) or Goblin Engineering (Nixx Sprocketspring, Gadgetzan: 20 Big Iron Bombs, 20 Solid Dynamite and 5 Explosive Sheep). The Accurate Scope schematic now binds when picked up, but the quest takes a scope someone else made. The membership card lasts 14 days of play; renewing it costs 2g. You can take only one; neither is needed for 300, and the beta never tested them (it stopped at level 30). Needs an anvil nearby.",
+     "note": "Big Iron Bomb is yellow at 191 (yellow 190, green 210, grey 230): about 27 crafts to 210. Each takes 3 Iron Bar, 3 Heavy Blasting Powder and 1 Silver Contact and makes 2. Make the 74 Heavy Blasting Powder and 30 Silver Contact (6 crafts) first. Use the 7 Heavy Blasting Powder you made earlier; the counts above leave them out. A Silver Bar makes five Silver Contacts (grey by now: no points, but no trip to a vendor either); the Heavy Blasting Powder comes from Heavy Stone. Each craft makes two bombs. Specialisation (optional): at 200 and character level 30, Springspindle Fizzlegear (Ironforge), Lilliam Sparkspindle (Stormwind City), Graham Van Talen (Undercity) or Tinkerwiz (Ratchet) sends you to Gnomish Engineering (Tinkmaster Overspark, Ironforge, or Oglethorpe Obnoticus, Booty Bay: 6 Mithril Tubes, an Accurate Scope and 2 Advanced Target Dummies) or Goblin Engineering (Nixx Sprocketspring, Gadgetzan: 20 Big Iron Bombs, 20 Solid Dynamite and 5 Explosive Sheep). The Accurate Scope schematic now binds when picked up, but the quest takes a scope someone else made. The membership card lasts 14 days of play; renewing it costs 2g. You can take only one; neither is needed for 300, and the beta never tested them (it stopped at level 30). Needs an anvil nearby. If you got here without learning Heavy Blasting Powder and Silver Contact, learn them now: an earlier step teaches them.",
      "section": 3,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 3945
+      },
+      {
+       "t": "learn",
+       "spell": 3973
+      },
       {
        "t": "craft",
        "spell": 3945,
@@ -9222,9 +9311,17 @@
     {
      "n": 73,
      "title": "Hi-Impact Mithril Slugs to 245",
-     "note": "Hi-Impact Mithril Slugs is yellow at 225 (yellow 210, green 230, grey 250): about 62 crafts to 245. Each takes 1 Mithril Bar and 1 Solid Blasting Powder and makes 200. Make the 50 Solid Blasting Powder first. Use the 12 Solid Blasting Powder you made earlier; the counts above leave them out. One Mithril Bar and one Solid Blasting Powder a craft; hunters buy the slugs. Needs an anvil nearby.",
+     "note": "Hi-Impact Mithril Slugs is yellow at 225 (yellow 210, green 230, grey 250): about 62 crafts to 245. Each takes 1 Mithril Bar and 1 Solid Blasting Powder and makes 200. Make the 50 Solid Blasting Powder first. Use the 12 Solid Blasting Powder you made earlier; the counts above leave them out. One Mithril Bar and one Solid Blasting Powder a craft; hunters buy the slugs. Needs an anvil nearby. If you got here without learning Solid Blasting Powder and Hi-Impact Mithril Slugs, learn them now: an earlier step teaches them.",
      "section": 4,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 12585
+      },
+      {
+       "t": "learn",
+       "spell": 12596
+      },
       {
        "t": "craft",
        "spell": 12585,
@@ -9272,9 +9369,13 @@
     {
      "n": 75,
      "title": "Mithril Gyro-Shot to 265",
-     "note": "Mithril Gyro-Shot is yellow at 245 (yellow 245, green 265, grey 285): about 28 crafts to 265. Each takes 2 Mithril Bar and 2 Solid Blasting Powder and makes 200. Make the 56 Solid Blasting Powder first. Two Mithril Bars and two Solid Blasting Powder a craft. Needs an anvil nearby.",
+     "note": "Mithril Gyro-Shot is yellow at 245 (yellow 245, green 265, grey 285): about 28 crafts to 265. Each takes 2 Mithril Bar and 2 Solid Blasting Powder and makes 200. Make the 56 Solid Blasting Powder first. Two Mithril Bars and two Solid Blasting Powder a craft. Needs an anvil nearby. If you got here without learning Solid Blasting Powder, learn it now: an earlier step teaches it.",
      "section": 4,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 12585
+      },
       {
        "t": "craft",
        "spell": 12585,
@@ -9660,9 +9761,13 @@
     {
      "n": 15,
      "title": "Enchant Chest - Inferior Stamina to 90",
-     "note": "Enchant Chest - Inferior Stamina is yellow at 75 (yellow 70, green 90, grey 110): about 22 crafts to 90. Each takes 1 Strange Dust. One Strange Dust a craft: the dust most level 5-20 greens break into, armour above all. Lesser Magic Essence (from weapons) does the same job through Bracer - Minor Deflect or Chest - Minor Absorption if you have more of it. Enchant any item for that slot in your bags, even a grey one.",
+     "note": "Enchant Chest - Inferior Stamina is yellow at 75 (yellow 70, green 90, grey 110): about 22 crafts to 90. Each takes 1 Strange Dust. One Strange Dust a craft: the dust most level 5-20 greens break into, armour above all. Lesser Magic Essence (from weapons) does the same job through Bracer - Minor Deflect or Chest - Minor Absorption if you have more of it. Enchant any item for that slot in your bags, even a grey one. If you got here without learning Enchant Chest - Inferior Stamina, learn it now: an earlier step teaches it.",
      "section": 2,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 7420
+      },
       {
        "t": "craft",
        "spell": 7420,
@@ -9945,9 +10050,13 @@
     {
      "n": 29,
      "title": "Enchant Bracer - Lesser Stamina to 160",
-     "note": "Enchant Bracer - Lesser Stamina is orange at 150 (yellow 155, green 175, grey 195): about 11 crafts to 160. Each takes 1 Soul Dust. One Soul Dust a craft (level 21-30 greens). Make the Runed Golden Rod now, while it still gives a point: a later recipe needs it in your bags, so keep it there. Enchant any item for that slot in your bags, even a grey one.",
+     "note": "Enchant Bracer - Lesser Stamina is orange at 150 (yellow 155, green 175, grey 195): about 11 crafts to 160. Each takes 1 Soul Dust. One Soul Dust a craft (level 21-30 greens). Make the Runed Golden Rod now, while it still gives a point: a later recipe needs it in your bags, so keep it there. Enchant any item for that slot in your bags, even a grey one. If you got here without learning Enchant Bracer - Lesser Stamina, learn it now: an earlier step teaches it.",
      "section": 3,
      "goals": [
+      {
+       "t": "learn",
+       "spell": 13501
+      },
       {
        "t": "craft",
        "spell": 13628,
@@ -10841,7 +10950,7 @@
     {
      "n": 10,
      "title": "Beasts 10-15: Westfall (50-100)",
-     "note": "Kill and skin Coyote (10), Coyote Packleader (11), Young Goretusk (12), Goretusk (14), Great Goretusk (15) along the loop until Skinning 100; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 10-20. Expect about 120 beasts for these 50 points.",
+     "note": "Kill and skin Coyote (10), Coyote Packleader (10), Young Goretusk (12), Goretusk (14), Great Goretusk (15) along the loop until Skinning 100; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 10-20. Expect about 120 beasts for these 50 points.",
      "section": 2,
      "goals": [
       {
@@ -10913,7 +11022,7 @@
     {
      "n": 16,
      "title": "Beasts 19-21: Ashenvale (100-125)",
-     "note": "Kill and skin Ghostpaw Runner (19), Ashenvale Bear (21, needs 105), Shadowhorn Stag (21, needs 105) along the loop until Skinning 125; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 18-30. Expect about 30 beasts for these 25 points.",
+     "note": "Kill and skin Ghostpaw Runner (19), Ashenvale Bear (20), Shadowhorn Stag (21, needs 105) along the loop until Skinning 125; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 18-30. Expect about 30 beasts for these 25 points.",
      "section": 3,
      "goals": [
       {
@@ -10925,7 +11034,7 @@
     {
      "n": 17,
      "title": "Beasts 19-21: Ashenvale (100-125)",
-     "note": "Kill and skin Ghostpaw Runner (19), Ashenvale Bear (21, needs 105), Shadowhorn Stag (21, needs 105) along the loop until Skinning 125; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 18-30. Expect about 30 beasts for these 25 points.",
+     "note": "Kill and skin Ghostpaw Runner (19), Ashenvale Bear (20), Shadowhorn Stag (21, needs 105) along the loop until Skinning 125; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 18-30. Expect about 30 beasts for these 25 points.",
      "section": 3,
      "goals": [
       {
@@ -10986,7 +11095,7 @@
     {
      "n": 22,
      "title": "Beasts 19-29: Ashenvale (125-150)",
-     "note": "Kill and skin Ghostpaw Runner (19), Ashenvale Bear (21), Shadowhorn Stag (21), Elder Ashenvale Bear (25), Elder Shadowhorn Stag (26, needs 130), Giant Ashenvale Bear (29, needs 145) along the loop until Skinning 150; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 18-30. Expect about 40 beasts for these 25 points.",
+     "note": "Kill and skin Ghostpaw Runner (19), Ashenvale Bear (20), Shadowhorn Stag (21), Elder Ashenvale Bear (25), Elder Shadowhorn Stag (26, needs 130), Giant Ashenvale Bear (29, needs 145) along the loop until Skinning 150; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 18-30. Expect about 40 beasts for these 25 points.",
      "section": 4,
      "goals": [
       {
@@ -10998,7 +11107,7 @@
     {
      "n": 23,
      "title": "Beasts 19-29: Ashenvale (125-150)",
-     "note": "Kill and skin Ghostpaw Runner (19), Ashenvale Bear (21), Shadowhorn Stag (21), Elder Ashenvale Bear (25), Elder Shadowhorn Stag (26, needs 130), Giant Ashenvale Bear (29, needs 145) along the loop until Skinning 150; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 18-30. Expect about 40 beasts for these 25 points.",
+     "note": "Kill and skin Ghostpaw Runner (19), Ashenvale Bear (20), Shadowhorn Stag (21), Elder Ashenvale Bear (25), Elder Shadowhorn Stag (26, needs 130), Giant Ashenvale Bear (29, needs 145) along the loop until Skinning 150; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 18-30. Expect about 40 beasts for these 25 points.",
      "section": 4,
      "goals": [
       {
@@ -11033,8 +11142,8 @@
     },
     {
      "n": 26,
-     "title": "Beasts 30-39: Stranglethorn Vale (175-200)",
-     "note": "Kill and skin River Crocolisk (30), Young Panther (30), Young Stranglethorn Raptor (30), Young Stranglethorn Tiger (30), Stone Maw Basilisk (31), Mistvale Gorilla (32), Panther (32), Stranglethorn Tiger (32), Stranglethorn Raptor (33), Crystal Spine Basilisk (34), Elder Stranglethorn Tiger (34), Lashtail Raptor (35), Saltwater Crocolisk (35), Snapjaw Crocolisk (35), Young Jungle Stalker (36, needs 180), Shadowmaw Panther (37, needs 185), Cold Eye Basilisk (39, needs 195) along the loop until Skinning 200; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 30-45. Expect about 30 beasts for these 25 points.",
+     "title": "Beasts 29-39: Stranglethorn Vale (175-200)",
+     "note": "Kill and skin Young Stranglethorn Tiger (29), River Crocolisk (30), Young Panther (30), Young Stranglethorn Raptor (30), Stone Maw Basilisk (31), Mistvale Gorilla (32), Panther (32), Stranglethorn Tiger (32), Stranglethorn Raptor (33), Crystal Spine Basilisk (34), Elder Stranglethorn Tiger (34), Lashtail Raptor (35), Saltwater Crocolisk (35), Snapjaw Crocolisk (35), Young Jungle Stalker (36, needs 180), Shadowmaw Panther (37, needs 185), Cold Eye Basilisk (39, needs 195) along the loop until Skinning 200; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 30-45. Expect about 30 beasts for these 25 points.",
      "section": 6,
      "goals": [
       {
@@ -11070,8 +11179,8 @@
     },
     {
      "n": 29,
-     "title": "Beasts 45-48: Azshara (225-250)",
-     "note": "Kill and skin Mosshoof Runner (45), Thunderhead Hippogryph (46, needs 230), Thunderhead Stagwing (48, needs 240) along the loop until Skinning 250; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 45-55. Expect about 30 beasts for these 25 points.",
+     "title": "Beasts 42-49: The Hinterlands (225-250)",
+     "note": "Kill and skin Vicious Owlbeast (42), Silvermane Wolf (43), Primitive Owlbeast (44), Savage Owlbeast (46, needs 230), Silvermane Stalker (47, needs 235), Saltwater Snapjaw (49, needs 245) along the loop until Skinning 250; loot each corpse, then skin it, and skin the highest-level beasts your skill allows. A beast of level L needs skill (L-10)x10 up to level 20 and Lx5 above. Zone level 40-50. Expect about 40 beasts for these 25 points.",
      "section": 8,
      "goals": [
       {
@@ -66154,6 +66263,24 @@
     ]
    ]
   },
+  "1294289": {
+   "p": 165,
+   "name": "Centaur Hoofwarmers",
+   "y": 170,
+   "g": 180,
+   "r": [
+    [
+     4304,
+     12
+    ],
+    [
+     8343,
+     2
+    ]
+   ],
+   "i": 274490,
+   "n": 1
+  },
   "1295805": {
    "p": 185,
    "name": "Briny Seafood Stew",
@@ -76912,6 +77039,10 @@
    1294054,
    295
   ],
+  "274491": [
+   1294289,
+   165
+  ],
   "274972": [
    1295805,
    200
@@ -78724,6 +78855,7 @@
   274401,
   274415,
   274424,
+  274491,
   274972,
   274977,
   275580,
