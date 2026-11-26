@@ -53,6 +53,8 @@ import threading
 import time
 from pathlib import Path
 
+from wowstats import talent_hotfixes, upstream
+
 _HERE = Path(__file__).resolve()
 DATA_DIRS = (_HERE.parents[1] / "data", _HERE.parents[2] / "data")
 DAY = 86400
@@ -113,12 +115,15 @@ class GameTables:
                         body = fetch(table_url(self.wago, t, build), timeout=180)
                         tables[t] = list(csv.DictReader(io.StringIO((body or b"").decode("utf-8-sig"))))
                     docs = game_docs(tables, f"Forever client tables {build} (wago.tools, product {self.product})")
+                    if self.product == upstream.PRODUCT and build == talent_hotfixes.BUILD:
+                        docs = talent_hotfixes.game_docs(docs)
             except (Upstream, ValueError, KeyError, TypeError):
                 return (cached["docs"], cached["build"]) if cached else ([], None)
             if self.cache:
                 with contextlib.suppress(OSError):
                     _write(self.cache / "kb-game.json.gz", gzip.compress(json.dumps(
-                        {"build": build, "checked": time.time(), "docs": docs}, separators=(",", ":")).encode(),
+                        {"build": build, "checked": time.time(), "docs": docs, "format": 2},
+                        separators=(",", ":")).encode(),
                         mtime=0))
             return docs, build
 
@@ -129,6 +134,8 @@ class GameTables:
         with contextlib.suppress(OSError, ValueError, KeyError):
             d = json.loads(gzip.decompress(p.read_bytes()))
             d["checked"] = float(d["checked"])
+            if d.get("format") != 2 and self.product == upstream.PRODUCT and d["build"] == talent_hotfixes.BUILD:
+                d["docs"] = talent_hotfixes.game_docs(d["docs"])
             return d
         return None
 

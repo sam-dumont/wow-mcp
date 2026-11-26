@@ -28,7 +28,11 @@
     "Talent",
     "TalentTab",
     "TraitEdge"
-   ]
+   ],
+   "hotfix": {
+    "push": 114344,
+    "url": "https://us.forums.blizzard.com/en/wow/t/2403040/16"
+   }
   },
   "note": "trainers and training lists: Forever's (sniffed TrinityCore data, as Polestar ships them); costs in copper before reputation discounts; names and talents from the client build above; a level the lists miss from the client's class abilities, marked from: client, no cost"
  },
@@ -15654,6 +15658,14 @@
      "spell": 16940,
      "needs": null
     },
+    "Dreamstate": {
+     "tree": "Balance",
+     "max": 5,
+     "row": 5,
+     "col": 1,
+     "spell": 408258,
+     "needs": null
+    },
     "Eclipse": {
      "tree": "Balance",
      "max": 3,
@@ -15734,14 +15746,6 @@
      "spell": 16918,
      "needs": null
     },
-    "Improved Moonfire": {
-     "tree": "Balance",
-     "max": 2,
-     "row": 1,
-     "col": 1,
-     "spell": 16821,
-     "needs": null
-    },
     "Improved Regrowth": {
      "tree": "Restoration",
      "max": 5,
@@ -15760,7 +15764,7 @@
     },
     "Improved Starfire": {
      "tree": "Balance",
-     "max": 5,
+     "max": 2,
      "row": 3,
      "col": 2,
      "spell": 16850,
@@ -15772,14 +15776,6 @@
      "row": 4,
      "col": 3,
      "spell": 17123,
-     "needs": null
-    },
-    "Improved Wrath": {
-     "tree": "Balance",
-     "max": 5,
-     "row": 0,
-     "col": 1,
-     "spell": 16814,
      "needs": null
     },
     "Insect Swarm": {
@@ -15814,12 +15810,12 @@
      "spell": 1309631,
      "needs": null
     },
-    "Moonfury": {
+    "Moon and Stars": {
      "tree": "Balance",
-     "max": 5,
-     "row": 5,
+     "max": 2,
+     "row": 1,
      "col": 1,
-     "spell": 16896,
+     "spell": 16821,
      "needs": null
     },
     "Moonglow": {
@@ -15998,6 +15994,14 @@
      "spell": 16966,
      "needs": null
     },
+    "Starlight Wrath": {
+     "tree": "Balance",
+     "max": 5,
+     "row": 0,
+     "col": 1,
+     "spell": 16814,
+     "needs": null
+    },
     "Subtlety": {
      "tree": "Restoration",
      "max": 3,
@@ -16036,7 +16040,7 @@
      "row": 3,
      "col": 1,
      "spell": 16909,
-     "needs": "Improved Moonfire"
+     "needs": "Moon and Stars"
     },
     "Wild Growth": {
      "tree": "Restoration",

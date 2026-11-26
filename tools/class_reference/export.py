@@ -213,7 +213,7 @@ def main(argv: list[str]) -> int:
                     "`latest`: wago.tools' newest)")
     a = ap.parse_args(argv)
     root = a.polestar
-    from wowstats import talents
+    from wowstats import talent_hotfixes, talents
 
     if a.build == "latest":
         cat_obj = talents.shared()
@@ -221,7 +221,7 @@ def main(argv: list[str]) -> int:
         build = cat_obj.build
     else:
         build = a.build or json.loads(WATCH.read_text(encoding="utf-8"))["client_build"]["known"]
-        cat = talents.catalog_from(lambda name: wago_rows(name, build))
+        cat = talents.catalog_from(lambda name: wago_rows(name, build), build)
     if not cat:
         raise SystemExit("no talent catalog: wago.tools unreachable?")
     guides = (root / "addon" / "Polestar_Guides" / "Guides.lua").read_text(encoding="utf-8")
@@ -262,6 +262,8 @@ def main(argv: list[str]) -> int:
                     for c in CLASSES},
         "zones": {str(k): v for k, v in sorted(zones.items())},
     }
+    if build == talent_hotfixes.BUILD:
+        doc["source"]["client"]["hotfix"] = {"push": talent_hotfixes.PUSH, "url": talent_hotfixes.SOURCE}
     a.out.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     if a.handoff:
         a.handoff.write_text(json.dumps({"client-build": {"build": str(build)}}) + "\n", encoding="utf-8")
