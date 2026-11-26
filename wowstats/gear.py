@@ -1783,7 +1783,9 @@ def held_items(held: dict | None) -> list[dict]:
             if held.get(k) is None:
                 row[k] = None
             elif c is None:
-                row[k], known = None, False
+                row[k] = None if i in held[k] else 0
+                if row[k] is None:
+                    known = False
             else:
                 # In the list but not in the counts: one (a slot without a count).
                 row[k] = c.get(i, 1 if i in held[k] else 0)

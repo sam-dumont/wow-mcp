@@ -113,6 +113,7 @@ class Who:
     held_at: dict = field(default_factory=dict)  # {"bags": iso, "bank": iso}
     bank_days: int | None = None  # how old the bank read is
     ids: set = field(default_factory=set)  # item ids in the bags and bank (no counts needed)
+    ids_by_place: dict = field(default_factory=dict)  # observed ID lists, independent of stack counts
     prices: dict | None = None  # item id -> {price_copper, seen_day, days_ago}; None: no scan
     money: int | None = None
     goal: dict | None = None  # ahsource.mount_left
@@ -123,18 +124,21 @@ class Who:
             return None
         return int(spell) in got
 
-    def holds(self, item_id: int) -> tuple[int, int] | None:
-        """(bags, bank) counts of an item; None when counts aren't known."""
-        if not self.held:
-            return None
-        b, k = self.held.get("bags"), self.held.get("bank")
-        if b is None:
-            return None
-        return int(b.get(item_id, 0)), int((k or {}).get(item_id, 0))
+    def quantity(self, where: str, item_id: int) -> int | None:
+        counts = (self.held or {}).get(where)
+        ids = self.ids_by_place.get(where)
+        if counts is not None:
+            return counts.get(item_id, 1 if ids is not None and item_id in ids else 0)
+        if ids is not None and item_id not in ids:
+            return 0
+        return None
+
+    def minimum(self, where: str, item_id: int) -> int:
+        n = self.quantity(where, item_id)
+        return n if n is not None else int(item_id in self.ids_by_place.get(where, ()))
 
     def has(self, item_id: int) -> bool:
-        h = self.holds(item_id)
-        return bool(sum(h)) if h is not None else item_id in self.ids
+        return item_id in self.ids or any(self.minimum(k, item_id) for k in ("bags", "bank"))
 
 
 def who_from(sheet: dict, held: dict | None, market: dict | None) -> Who:
@@ -155,18 +159,17 @@ def who_from(sheet: dict, held: dict | None, market: dict | None) -> Who:
         if ln and isinstance(r.get("known"), list):
             known[ln] = {int(x) for x in r["known"] if isinstance(x, (int, float)) or str(x).isdigit()}
     held_obj, held, held_at, ids, bank_days = held, None, {}, set(), None
+    ids_by_place = {}
     if held_obj:
         counts = held_obj.get("counts") or {}
-        if counts.get("bags") is not None:
-            held = {"bags": {int(k): int(v) for k, v in counts["bags"].items()},
-                    "bank": {int(k): int(v) for k, v in (counts.get("bank") or {}).items()}
-                    if counts.get("bank") is not None else None}
+        ids_by_place = {k: set(held_obj[k]) for k in ("bags", "bank") if held_obj.get(k) is not None}
+        held = {k: {int(i): int(n) for i, n in c.items()} for k, c in counts.items() if c is not None} or None
         held_at = dict(held_obj.get("at") or {})
         ids = {int(i) for k in ("bags", "bank") for i in held_obj.get(k) or []}
         bank_days = _days_ago(held_at.get("bank"))
     mk = market or {}
     return Who(ranks=ranks, caps=caps, known=known, side=sheet.get("faction"), held=held, held_at=held_at,
-               bank_days=bank_days, ids=ids, prices=mk.get("latest"), money=mk.get("money_copper"),
+               bank_days=bank_days, ids=ids, ids_by_place=ids_by_place, prices=mk.get("latest"), money=mk.get("money_copper"),
                goal=mk.get("mount"))
 
 
@@ -228,37 +231,35 @@ class Ledger:
             self.order.append(item_id)
         self.need[item_id] = self.need.get(item_id, 0) + n
 
-    def held_left(self, item_id: int) -> int | None:
-        """How many of an item the holdings still cover beyond what is booked."""
-        h = self.who.holds(item_id)
-        if h is None:
-            return None
-        return max(0, sum(h) - self.need.get(item_id, 0))
+    def held_left(self, item_id: int) -> int:
+        stock = sum(self.who.minimum(k, item_id) for k in ("bags", "bank"))
+        return max(0, stock - self.need.get(item_id, 0))
+
+    def row(self, i: int, n: int, reserved: int = 0) -> dict:
+        bags, bank = (self.who.quantity(k, i) for k in ("bags", "bank"))
+        minimum = sum(self.who.minimum(k, i) for k in ("bags", "bank"))
+        shortage = max(0, n - max(0, minimum - reserved))
+        buy = shortage if shortage == 0 or (bags is not None and bank is not None) else None
+        price = unit_price(i, self.who) if shortage else None
+        cost = price["copper"] * shortage if price else (0 if not shortage else None)
+        row = {"item_id": i, "name": name(i), "need": n, "bags": bags, "bank": bank, "buy": buy,
+               "buy_up_to": shortage, "unit_copper": price["copper"] if price else None,
+               "price_from": price["from"] if price else None,
+               "cost_copper": cost if buy is not None else None, "budget_copper": cost}
+        if price and price["from"] == "ah":
+            row.update(seen_day=price.get("seen_day"), days_ago=price.get("days_ago"))
+        return row
 
     def rows(self) -> list[dict]:
-        out = []
-        for i in self.order:
-            n = self.need[i]
-            h = self.who.holds(i)
-            bags, bank = (h if h is not None else (None, None))
-            have = None if h is None else min(n, bags + bank)
-            buy = n - (have or 0)
-            p = unit_price(i, self.who) if buy else None
-            row = {"item_id": i, "name": name(i), "need": n, "bags": bags, "bank": bank, "buy": buy,
-                   "unit_copper": p["copper"] if p else None, "price_from": p["from"] if p else None,
-                   "cost_copper": p["copper"] * buy if p else (0 if not buy else None)}
-            if p and p.get("from") == "ah":
-                row.update(seen_day=p.get("seen_day"), days_ago=p.get("days_ago"))
-            out.append(row)
-        return out
+        return [self.row(i, self.need[i]) for i in self.order]
 
 
 def mats_summary(rows: list[dict], who: Who) -> dict:
-    cost = sum(r["cost_copper"] or 0 for r in rows)
-    unpriced = [r for r in rows if r["buy"] and r["cost_copper"] is None]
-    covered = sum((r["bags"] or 0) + (r["bank"] or 0) >= r["need"] for r in rows if r["bags"] is not None)
+    cost = sum(r["budget_copper"] or 0 for r in rows)
+    unpriced = [r for r in rows if r["buy_up_to"] and r["budget_copper"] is None]
+    covered = sum(r["buy"] == 0 for r in rows)
     ages = [r["days_ago"] for r in rows if r.get("price_from") == "ah" and r.get("days_ago") is not None]
-    return {"cost_copper": cost, "items": len(rows), "covered": covered, "counts_known": who.held is not None,
+    return {"cost_copper": cost, "items": len(rows), "covered": covered, "counts_known": all(r["buy"] is not None for r in rows),
             "unpriced": [r["name"] for r in unpriced], "oldest_price_days": max(ages) if ages else None}
 
 
@@ -485,25 +486,8 @@ def plan(source: dict, item_id: int | None, who: Who) -> dict | None:
     train_cost = sum(t.get("copper") or 0 for t in (rt or {}).get("train") or [])
     route_rows = led.rows()
     route_mats = mats_summary(route_rows, who)
-    item_led = Ledger(who)
-    item_led.need = dict(led.need)  # the route takes from the same stacks first
-    item_led.order = []
     r = recipe(spell) or {}
-    for i, n in r.get("r") or []:
-        if i not in item_led.order:
-            item_led.order.append(i)
-        item_led.need[i] = item_led.need.get(i, 0) + n
-    item_rows = []
-    for row in item_led.rows():
-        own = dict(r.get("r") or [])
-        if row["item_id"] in own:
-            n = own[row["item_id"]]
-            covered = max(0, (sum(who.holds(row["item_id"]) or (0, 0))) - led.need.get(row["item_id"], 0))
-            buy = max(0, n - covered)
-            p = unit_price(row["item_id"], who) if buy else None
-            item_rows.append({**row, "need": n, "buy": buy, "unit_copper": p["copper"] if p else None,
-                              "price_from": p["from"] if p else None,
-                              "cost_copper": p["copper"] * buy if p else (0 if not buy else None)})
+    item_rows = [led.row(i, n, reserved=led.need.get(i, 0)) for i, n in r.get("r") or []]
     item_mats = mats_summary(item_rows, who)
     pattern_cost = None
     if rs["state"] in ("missing", "unknown") and rs.get("where"):
@@ -623,7 +607,7 @@ def line_text(p: dict, who: Who) -> str:
         more = f" and {len(miss) - 3} more" if len(miss) > 3 else ""
         parts.append(f"No price for {', '.join(miss[:3])}{more}"
                      + (": scan the auction house with Auctionator." if _unpriced(p) else "."))
-    if not rm["counts_known"] and (rm["items"] or im["items"]):
+    if not (rm["counts_known"] and im["counts_known"]) and (rm["items"] or im["items"]):
         parts.append("Bag counts unknown: update the shipper.")
     if p["bind_on_pickup"]:
         parts.append("It binds when picked up: nobody sells it.")

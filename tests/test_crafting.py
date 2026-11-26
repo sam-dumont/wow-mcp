@@ -126,3 +126,20 @@ def test_dated_export_and_recorder_cap_survive_a_zero_and_an_unlearn():
     assert not crafting.route(TAILORING, 143, 190, who)["train"]
     reset = {TAILORING: {"t": "2026-11-26T12:00:00Z", "rank": 1, "max_rank": 75}}
     assert profcaps.cap_of(143, reset[TAILORING], before) == (1, 75, "recorder")
+
+
+def test_dated_id_only_bank_preserves_counted_bags_and_marks_unknown_shortage():
+    from wowstats.mcp.proftools import _inventory
+
+    held = {"bags": [2324, 2321], "bank": [2592], "counts": {"bags": {2324: 34, 2321: 27}, "bank": None},
+            "at": {"bank": "2026-11-22T12:00:00Z"}}
+    who = crafting.who_from({}, held, None)
+    inv = _inventory(who)
+    assert inv["containers"] == {"bags": "counted", "bank": "ids_only"} and inv["bank_at"] == held["at"]["bank"]
+    led = crafting.Ledger(who)
+    for i, n in [(2324, 18), (2321, 9), (2592, 12)]:
+        led.add(i, n)
+    bleach, thread, wool = led.rows()
+    assert bleach["buy"] == thread["buy"] == 0
+    assert wool["bank"] is None and wool["bags"] == 0 and wool["buy"] is None and wool["buy_up_to"] == 11
+    assert not crafting.mats_summary(led.rows(), who)["counts_known"]
