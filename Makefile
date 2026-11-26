@@ -11,7 +11,8 @@ test-changed:
 
 # The whole fast suite (no browsers, nothing CI-only), in parallel.
 test:
-	uv run pytest -q -rs -n $(TEST_WORKERS)
+	uv run pytest -q -rs tests/test_eval_mcp.py
+	uv run pytest -q -rs -n $(TEST_WORKERS) --ignore=tests/test_eval_mcp.py
 
 # tests/test_logsql.py: the Python LogsQL engine against a real VictoriaLogs,
 # the image the compose kit pins (a container started here, stopped after).

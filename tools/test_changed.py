@@ -243,9 +243,14 @@ def main() -> int:
         return 0
 
     rc = 0
+    eval_file = "tests/test_eval_mcp.py"
+    if full or eval_file in fast:
+        # Its questions share real stdio servers, one per scenario.
+        rc |= subprocess.run(["uv", "run", "pytest", "-q", "-rs", eval_file], cwd=ROOT).returncode
+        fast = [t for t in fast if t != eval_file]
     if full or fast:
         # pyproject's addopts keep browser and ci_only tests out of this run.
-        cmd = ["uv", "run", "pytest", "-q", "-rs", "-n", WORKERS, *([] if full else fast)]
+        cmd = ["uv", "run", "pytest", "-q", "-rs", "-n", WORKERS, *([f"--ignore={eval_file}"] if full else fast)]
         rc |= subprocess.run(cmd, cwd=ROOT).returncode
     if browser:
         # A whole file per worker: each file shares one server and one browser per engine.

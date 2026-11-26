@@ -9,12 +9,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import sys
-import time
 import urllib.parse
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
+from functools import cache
 from pathlib import Path
 
 import pytest
@@ -41,92 +39,40 @@ def _load_run():
 
 
 run = _load_run()
+QUESTIONS = run.load_questions()
+question_cases = pytest.mark.parametrize("q", QUESTIONS, ids=[q["id"] for q in QUESTIONS])
 
 
 # ---------------------------------------------------------------- the questions and their answers
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def questions():
-    return run.load_questions()
+    return QUESTIONS
 
 
-def _check(questions: list[dict], state: str) -> dict:
-    """The answers and the probes' problems, from one server per scenario:
-    each scenario's answers are computed on its server, then its questions'
-    probes run on it, as a model would ask after them. The scenarios run
-    side by side (one server process each; a degraded scenario only reads
-    the full one)."""
-    servers = answers.Servers(answers.scenarios(questions), state)
-
-    def one(s: str) -> tuple[dict, list[str]]:
-        qs = [q for q in questions if q.get("scenario", "full") == s]
-        got = answers.compute(qs, servers)
-        problems = []
-        for q in qs:
-            want = got[q["id"]]["answer"]
-            for res in probes.run(servers.tools[s].raw, q["probes"]):
-                problems += [f"{q['id']}: {p}" for p in probes.check(res, want, q["match"], q.get("tolerance", 0))]
-        return got, problems
-
-    try:
-        with ThreadPoolExecutor(max_workers=len(servers.tools)) as pool:
-            parts = list(pool.map(one, answers.scenarios(questions)))
-    finally:
-        servers.close()
-    return {"computed": {k: v for got, _ in parts for k, v in got.items()},
-            "problems": [p for _, problems in parts for p in problems]}
-
-
-# The longest a worker waits for another worker's _check before failing:
-# pytest-timeout (CI's --timeout 300) stops it first; this bounds a local
-# run without --timeout when the worker doing it died.
-WAIT_S = 900
-
-
-@pytest.fixture(scope="session")
-def checked(questions, tmp_path_factory):
-    """_check once per run, whichever worker asks first; the others read its
-    result. Each xdist worker that got one of the tests below used to
-    compute the answers on its own servers, and the probes started a second
-    set: 188 s of setup on CI's part 2 and the probes test at pytest's 300 s
-    limit (#250, 2026-11-25). The run's temp folder is shared by its
-    workers; a lock directory (mkdir is atomic) says who does it."""
+@pytest.fixture(scope="module")
+def servers(questions, tmp_path_factory):
     pytest.importorskip("fastmcp")
-    if not os.environ.get("PYTEST_XDIST_WORKER"):
-        return _check(questions, str(tmp_path_factory.mktemp("eval-mcp")))
-    shared = tmp_path_factory.getbasetemp().parent
-    out = shared / "eval-mcp.json"
+    fixtures = answers.Servers(answers.scenarios(questions), str(tmp_path_factory.mktemp("eval-mcp")))
     try:
-        (shared / "eval-mcp.lock").mkdir()
-    except FileExistsError:
-        deadline = time.monotonic() + WAIT_S
-        while not out.exists():
-            if time.monotonic() > deadline:
-                pytest.fail(f"no eval-mcp result after {WAIT_S} s from the worker computing it")
-            time.sleep(0.5)
-        got = json.loads(out.read_text(encoding="utf-8"))
-        if "error" in got:
-            pytest.fail(f"the worker computing the eval-mcp answers failed: {got['error']}")
-        return got["result"]
-    try:
-        result = _check(questions, str(tmp_path_factory.mktemp("eval-mcp")))
-    except BaseException as e:  # pytest-timeout's stop too: the others must not wait for nothing
-        _write(out, {"error": f"{type(e).__name__}: {e}"[:2000]})
-        raise
-    _write(out, {"result": result})
-    return result
+        yield fixtures
+    finally:
+        fixtures.close()
 
 
-def _write(path: Path, data: dict) -> None:
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data), encoding="utf-8")
-    tmp.replace(path)
+@pytest.fixture(scope="module")
+def answer_for(questions, servers):
+    """Each question computes its reference once, on the same server its probes will query."""
+    by_id = {q["id"]: q for q in questions}
 
+    @cache
+    def one(qid):
+        got = answers.compute([by_id[qid]], servers)
+        assert set(got) == {qid}
+        return got[qid]
 
-@pytest.fixture(scope="session")
-def computed(checked):
-    return checked["computed"]
+    return one
 
 
 def test_the_questions_span_the_product(questions):
@@ -143,42 +89,42 @@ def test_the_questions_span_the_product(questions):
         assert q.get("probes"), f"{q['id']}: no probe"
 
 
-def test_each_question_has_one_computed_answer(questions, computed):
-    assert set(computed) == {q["id"] for q in questions}
-    for q in questions:
-        v = computed[q["id"]]["answer"]
-        assert v not in (None, "", []), q["id"]
-        # The answer grades as right against itself, written the way a model would.
-        assert G.grade(f"{v}", v, q["match"], q.get("tolerance", 0)), q["id"]
-        # ...and is none of the answers the question calls telling: the gear
-        # advice's first pick is no long shot, an unknown name gets no count.
-        assert not G.forbidden(f"ANSWER: {v}", f"{v}", q, computed[q["id"]]["forbid_answers"]), q["id"]
+@question_cases
+def test_each_question_has_one_computed_answer(q, answer_for):
+    computed = answer_for(q["id"])
+    v = computed["answer"]
+    assert v not in (None, "", [])
+    assert G.grade(f"{v}", v, q["match"], q.get("tolerance", 0))
+    assert not G.forbidden(f"ANSWER: {v}", f"{v}", q, computed["forbid_answers"])
 
 
-def test_answers_on_the_demo(computed):
+def test_answers_on_the_demo(answer_for):
     rows = D.rows_for("full")
     # Deaths at a level: each death's level from the level splits.
     by_level = {}
     for r in answers.deaths(rows):
         lv = answers.level_at(rows, answers.parse_t(r["_time"]))
         by_level[lv] = by_level.get(lv, 0) + 1
-    a = {k: v["answer"] for k, v in computed.items()}
-    assert a["deaths_at_level"] == by_level.get(32, 0) > 0
-    assert a["deaths_metric"] == by_level.get(23, 0) > 0
-    assert sum(by_level.values()) == len(answers.deaths(rows)) == a["total_deaths"] == a["fr_total_deaths"]
-    assert isinstance(a["level_time"], int) and a["level_time"] > 0
-    assert a["polestar_only_level_time"] == a["level_time"]  # the splits alone hold it
-    assert a["recorder_missed"] in ("Yes", "No")
-    assert isinstance(a["route_next_step"], int)
-    assert a["tonight_plan_start"] == a["route_next_step"]  # the plan starts where next_step does
-    assert G.pct_pair(a["zone_quest_upgrade"]) is not None
-    assert a["longest_break"] > 3  # a night between evenings at least
-    assert a["injected_player_name"] == a["players_seen"] + 1  # the injected name counts as a player
-    assert computed["first_upgrade"]["forbid_answers"], "the demo has long shots: the check means something"
+
+    def value(qid):
+        return answer_for(qid)["answer"]
+
+    assert value("deaths_at_level") == by_level.get(32, 0) > 0
+    assert value("deaths_metric") == by_level.get(23, 0) > 0
+    assert sum(by_level.values()) == len(answers.deaths(rows)) == value("total_deaths") == value("fr_total_deaths")
+    assert isinstance(value("level_time"), int) and value("level_time") > 0
+    assert value("polestar_only_level_time") == value("level_time")  # the splits alone hold it
+    assert value("recorder_missed") in ("Yes", "No")
+    assert isinstance(value("route_next_step"), int)
+    assert value("tonight_plan_start") == value("route_next_step")  # the plan starts where next_step does
+    assert G.pct_pair(value("zone_quest_upgrade")) is not None
+    assert value("longest_break") > 3  # a night between evenings at least
+    assert value("injected_player_name") == value("players_seen") + 1  # the injected name counts as a player
+    assert answer_for("first_upgrade")["forbid_answers"], "the demo has long shots: the check means something"
     # The auction upgrade, through the stdio server: an item of the newest
     # day's scan (the gear advice saw it, as the model's server does).
     newest = max(r["scan_day"] for r in rows if r["feed"] == "wow-prices")
-    assert str(a["ah_upgrade"]) in {str(r["item_key"]) for r in rows
+    assert str(value("ah_upgrade")) in {str(r["item_key"]) for r in rows
                                     if r["feed"] == "wow-prices" and r["scan_day"] == newest}
 
 
@@ -200,13 +146,14 @@ def test_the_store_counts_back_from_the_server_clock():
     assert got and len(got) == len(logsql.parse(scans).run(rows, now=D.now()))
 
 
-def test_a_full_scan_on_one_instant_through_stdio(tmp_path, computed):
+def test_a_full_scan_on_one_instant_through_stdio(tmp_path, answer_for):
     """A full Auctionator scan writes every item at the scan day's midnight:
     live, 2026-11-24, thousands at one instant were more than a raw read may
     return, so `prices` refused and the gear advice dropped the auction
     house. Both read stats rows (one per item, house and day) now; here
     through the stdio server, as an MCP client runs it."""
     pytest.importorskip("fastmcp")
+    upgrade = answer_for("ah_upgrade")["answer"]
     rows = D.rows_for("full")
     scans = [r for r in rows if r["feed"] == "wow-prices"]
     days = sorted({(r["scan_day"], r["_time"]) for r in scans})
@@ -219,22 +166,24 @@ def test_a_full_scan_on_one_instant_through_stdio(tmp_path, computed):
     vl = answers.store(rows + filler)
     t = answers.Tools(vl.url, str(tmp_path))
     try:
-        assert t("prices", item=str(computed["ah_upgrade"]["answer"]))["items"]
+        assert t("prices", item=str(upgrade))["items"]
         g = t("gear")
     finally:
         t.close()
         vl.close()
     assert g["auction_house"]["last_scan_day"] == days[-1][0]
     cheapest = min(g["buy_now"], key=lambda u: u["auction_house"]["price_copper"])
-    assert cheapest["item_id"] == computed["ah_upgrade"]["answer"]
+    assert cheapest["item_id"] == upgrade
 
 
-def test_probes_hold_the_answers(checked):
-    """The deterministic tier: every question's probes on the fixture
-    server, no model. Each call takes its arguments, errors when it should,
-    marks text other people wrote, and holds the answer where it says.
-    The probes run in `checked`, on the servers the answers came from."""
-    assert not checked["problems"], "\n".join(checked["problems"])
+@question_cases
+def test_probes_hold_the_answers(q, answer_for, servers):
+    """Run the whole probe sequence through stdio under this question's own test timeout."""
+    want = answer_for(q["id"])["answer"]
+    call = servers.tools[q.get("scenario", "full")].raw
+    problems = [p for res in probes.run(call, q["probes"])
+                for p in probes.check(res, want, q["match"], q.get("tolerance", 0))]
+    assert not problems, "\n".join(problems)
 
 
 # ---------------------------------------------------------------- coverage
@@ -277,30 +226,18 @@ def test_the_coverage_matrix_lists_every_tool(questions):
     assert "not evaluated" in text
 
 
-def test_play_sql_route_position_is_next_steps_rule():
-    """One next-step rule (eval-mcp 2026-11-22, route_next_step): on the
-    demo Polestar fell back from Tanaris's step 29 to 19 and stopped at 28, so the
-    newest step record says 28; play_sql's route_position and the next_step tool both say 29."""
-    pytest.importorskip("fastmcp")
-    import tempfile
-
-    rows = D.rows_for("full")
-    vl = answers.store(rows)
-    try:
-        with tempfile.TemporaryDirectory() as state:
-            t = answers.Tools(vl.url, state)
-            pos = t.sql("SELECT shown_step, furthest_step, next_step FROM route_position")
-            assert len(pos) == 1
-            shown, furthest, nxt = (int(pos[0][k]) for k in ("shown_step", "furthest_step", "next_step"))
-            assert shown < furthest <= nxt  # the fallback the demo seeds
-            newest = t.sql("SELECT step FROM records WHERE kind = 'step' AND guide LIKE 'forever/alliance/%' "
-                           "ORDER BY t DESC, rec_id DESC LIMIT 1")
-            assert int(newest[0]["step"]) == shown
-            first = t("next_step")["blocks"][0]["what"]
-            t.close()
-            assert f"steps {nxt} " in first or f"step {nxt} " in first, first
-    finally:
-        vl.close()
+def test_play_sql_route_position_is_next_steps_rule(servers):
+    """The demo fell back from Tanaris step 29 to 19 and stopped at 28. Both tools must give 29."""
+    t = servers.tools["full"]
+    pos = t.sql("SELECT shown_step, furthest_step, next_step FROM route_position")
+    assert len(pos) == 1
+    shown, furthest, nxt = (int(pos[0][k]) for k in ("shown_step", "furthest_step", "next_step"))
+    assert shown < furthest <= nxt
+    newest = t.sql("SELECT step FROM records WHERE kind = 'step' AND guide LIKE 'forever/alliance/%' "
+                   "ORDER BY t DESC, rec_id DESC LIMIT 1")
+    assert int(newest[0]["step"]) == shown
+    first = t("next_step")["blocks"][0]["what"]
+    assert f"steps {nxt} " in first or f"step {nxt} " in first, first
 
 
 def test_level_at_reads_the_splits():
