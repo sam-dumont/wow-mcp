@@ -179,6 +179,15 @@ with the App's token and no model):
   fetched);
 - the job is red while a PR still waits; the run's own work goes on anyway.
 
+**The App's token lasts an hour, the gates about as long.** So no step holds
+a token across the gates: when main moved, the rebase and the gates again run
+in a step of their own with no token (`land.py --rebase-out`), and each step
+that writes (landing a PR, staying with the PRs, the issues) gets a token
+minted just before it (`land.py --prepared` reads the rebase's result).
+`tests/test_kb_land.py` checks the workflow keeps it that way. Before
+2026-11-26 one token was minted per job, and every watch run from 2026-11-23
+failed on it after an hour of gates.
+
 Why: on 2026-11-25 a watch PR (#249) went CONFLICTING after its run's 45
 minutes with it ran out and sat there until a person rebased it, and two
 issues (#212, #171) stayed open a day after their PRs merged. Only the same

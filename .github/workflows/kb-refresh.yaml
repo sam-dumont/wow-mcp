@@ -150,9 +150,10 @@ jobs:
     if: github.repository_id == '1465633168' && (github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     environment: main-only
-    # A remake (the lane and its gates, about 30 minutes), then up to 45
-    # minutes with it, then 45 with the other PRs.
-    timeout-minutes: 150
+    # A remake (the lane and its gates, up to an hour), the gates again if
+    # main moved meanwhile (an hour), up to 45 minutes with the PR, then 45
+    # with the other PRs.
+    timeout-minutes: 240
     permissions:
       contents: read
     env:
@@ -214,20 +215,55 @@ jobs:
             git log --reverse --format='- %s' "$base..HEAD"
             cat "$RUNNER_TEMP/kb-foreverdb.md" 2>/dev/null || true
           } > "$RUNNER_TEMP/remake-body.md"
+      # An App token lasts an hour; the remake and the gates after a rebase
+      # take about that each on this runner. So every step that writes gets a
+      # token minted just before it, and the rebase and its gates run in a
+      # step of their own, before it (tools/kb/land.py --rebase-out). 2026-11-24
+      # and 11-25: the push and the issues failed on an expired token.
+      - name: Rebased on main, the gates again (no token)
+        if: steps.remake.outcome == 'success'
+        env:
+          BRANCH: kb-watch
+          BASE: ${{ steps.remake.outputs.base }}
+        run: uv run --frozen python tools/kb/land.py --branch "$BRANCH" --base "$BASE" --rebase-out "$RUNNER_TEMP/land-prep.json"
+      - name: A fresh token to land it
+        id: token_land
+        if: steps.remake.outcome == 'success'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: sam-dumont
+          repositories: wow-mcp
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
       - name: Land it
         if: steps.remake.outcome == 'success'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ steps.token_land.outputs.token }}
           TITLE: ${{ steps.remake.outputs.title }}
           BASE: ${{ steps.remake.outputs.base }}
         run: >-
           uv run --frozen python tools/kb/land.py --mode watch --branch kb-watch --regen --last
           --base "$BASE" --gates "$RUNNER_TEMP/gates-remake.json" --gates-md "$RUNNER_TEMP/gates-remake.md"
-          --title "$TITLE" --body-file "$RUNNER_TEMP/remake-body.md"
-      - name: Stay with the open PRs, close the issues main settled
+          --title "$TITLE" --body-file "$RUNNER_TEMP/remake-body.md" --prepared "$RUNNER_TEMP/land-prep.json"
+      - name: A fresh token to stay with the PRs
+        id: token_settle
         if: always() && steps.token.outcome == 'success'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: sam-dumont
+          repositories: wow-mcp
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+      - name: Stay with the open PRs, close the issues main settled
+        if: always() && steps.token_settle.outcome == 'success'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ steps.token_settle.outputs.token }}
         run: uv run --frozen python tools/kb/reconcile.py --settle
 
   run:
@@ -235,10 +271,12 @@ jobs:
     # After reconcile, red or not: what this run does is its own.
     if: always() && github.repository_id == '1465633168' && (github.ref == 'refs/heads/main') && needs.reconcile.result != 'cancelled'
     runs-on: ubuntu-24.04
-    # The mirror runs the full pytest suite on one runner (51 to 61 minutes
-    # on Nov 24–25). The Nov 26 rebuild took 14 minutes before the gates,
-    # and the old 75-minute job expired before it could record a verdict.
-    timeout-minutes: 120
+    # The gates run the whole suite in one job here (pytest alone 51 minutes
+    # on 2026-11-25; CI splits it over 4): the step took 33 minutes on 11-23,
+    # 62 on 11-24, and passed 61 on 11-26, when the old 75-minute limit
+    # cancelled the run after a 13-minute daily rebuild. A Polestar bump adds
+    # a 450 MB clone and the exports.
+    timeout-minutes: 150
     # GH_TOKEN (the mirror's token: it only reads) is given to the steps
     # that read GitHub and to no other: never to the model passes, which
     # handle outside text, nor to the gates, which run the tests. The
@@ -563,11 +601,11 @@ jobs:
     if: github.repository_id == '1465633168' && (always() && github.ref == 'refs/heads/main' && needs.run.result != 'cancelled' && needs.run.result != 'skipped')
     runs-on: ubuntu-24.04
     environment: main-only
-    # The gates again after a rebase (about 25 minutes since 2026-11-22), then
-    # up to 45 minutes with the PR until it merges (tools/kb/land.py
-    # SHEPHERD_S); a change made again on a moved main adds a lane and its
-    # gates (about 30 minutes) per try.
-    timeout-minutes: 180
+    # Per try: the gates again after a rebase (up to an hour since
+    # 2026-11-24), then up to 45 minutes with the PR until it merges
+    # (tools/kb/land.py SHEPHERD_S); a change made again on a moved main adds
+    # a lane and its gates (up to an hour). Three tries: GitHub's 6 hours.
+    timeout-minutes: 360
     permissions:
       contents: read
     env:
@@ -643,11 +681,29 @@ jobs:
       # its checks, no App token in reach of Polestar's code, the gates on
       # what it made), then lands again; the third try's `moved` is red, and
       # the next run's reconcile makes it again, whatever its mode.
+      - name: Rebased on main, the gates again (no token)
+        id: prep
+        if: needs.run.result == 'success'
+        env:
+          BASE: ${{ needs.run.outputs.base }}
+        run: uv run --frozen python tools/kb/land.py --branch "$BRANCH" --base "$BASE" --rebase-out "$RUNNER_TEMP/land-prep.json"
+      - name: A fresh token to land
+        id: token_land
+        if: needs.run.result == 'success'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: sam-dumont
+          repositories: wow-mcp
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
       - name: Land (merge when the gates passed)
         id: land
         if: needs.run.result == 'success'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ steps.token_land.outputs.token }}
           TITLE: ${{ needs.run.outputs.title }}
           KINDS: ${{ needs.run.outputs.kinds }}
           REGEN: ${{ env.MODE == 'watch' && '1' || '' }}
@@ -656,6 +712,7 @@ jobs:
           --base "$BASE" --gates "$HANDOFF/gates.json" --gates-md "$HANDOFF/gates.md"
           --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
           --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
+          --prepared "$RUNNER_TEMP/land-prep.json"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.land.outputs.outcome == 'moved'
         with:
@@ -667,11 +724,29 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         # The kinds of the commits it couldn't land (HEAD), not a fresh look.
         run: GATES_OUT="$RUNNER_TEMP/gates-regen.json" uv run --frozen python tools/kb/reconcile.py --remake HEAD
+      - name: Rebased on main, the gates again (1, no token)
+        id: prep1
+        if: steps.regen1.outcome == 'success'
+        env:
+          BASE: ${{ steps.regen1.outputs.base }}
+        run: uv run --frozen python tools/kb/land.py --branch "$BRANCH" --base "$BASE" --rebase-out "$RUNNER_TEMP/land-prep1.json"
+      - name: A fresh token to land again (1)
+        id: token_land1
+        if: steps.regen1.outcome == 'success'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: sam-dumont
+          repositories: wow-mcp
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
       - name: Land again (1)
         id: land1
         if: steps.regen1.outcome == 'success'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ steps.token_land1.outputs.token }}
           TITLE: ${{ needs.run.outputs.title }}
           KINDS: ${{ needs.run.outputs.kinds }}
           BASE: ${{ steps.regen1.outputs.base }}
@@ -680,6 +755,7 @@ jobs:
           --base "$BASE" --gates "$RUNNER_TEMP/gates-regen.json" --gates-md "$RUNNER_TEMP/gates-regen.md"
           --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
           --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
+          --prepared "$RUNNER_TEMP/land-prep1.json"
       - name: Made again on the current main (2)
         id: regen2
         if: steps.land1.outputs.outcome == 'moved'
@@ -687,11 +763,29 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         # The kinds of the commits it couldn't land (HEAD), not a fresh look.
         run: GATES_OUT="$RUNNER_TEMP/gates-regen.json" uv run --frozen python tools/kb/reconcile.py --remake HEAD
+      - name: Rebased on main, the gates again (2, no token)
+        id: prep2
+        if: steps.regen2.outcome == 'success'
+        env:
+          BASE: ${{ steps.regen2.outputs.base }}
+        run: uv run --frozen python tools/kb/land.py --branch "$BRANCH" --base "$BASE" --rebase-out "$RUNNER_TEMP/land-prep2.json"
+      - name: A fresh token to land again (2)
+        id: token_land2
+        if: steps.regen2.outcome == 'success'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: sam-dumont
+          repositories: wow-mcp
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
       - name: Land again (2, the last)
         id: land2
         if: steps.regen2.outcome == 'success'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ steps.token_land2.outputs.token }}
           TITLE: ${{ needs.run.outputs.title }}
           KINDS: ${{ needs.run.outputs.kinds }}
           BASE: ${{ steps.regen2.outputs.base }}
@@ -700,14 +794,27 @@ jobs:
           --base "$BASE" --gates "$RUNNER_TEMP/gates-regen.json" --gates-md "$RUNNER_TEMP/gates-regen.md"
           --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
           --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
+          --prepared "$RUNNER_TEMP/land-prep2.json"
 
       # Last, whatever happened: a kind main still doesn't know keeps one
       # issue that says why (a step's reason, or this run's link when it
       # stopped early); a kind main now knows closes its issue.
+      - name: A fresh token for the issues
+        id: token_issues
+        if: always()
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: sam-dumont
+          repositories: wow-mcp
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
       - name: Issues
         if: always() && (env.MODE == 'watch' || env.MODE == 'review')
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ steps.token_issues.outputs.token }}
           # Each mode keeps its own kinds' issues only.
           WATCH: ${{ env.MODE == 'watch' && 'versions' || 'official' }}
         run: |
@@ -736,7 +843,7 @@ jobs:
       - name: The run failed before landing
         if: needs.run.result == 'failure' && env.MODE != 'watch'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ steps.token_issues.outputs.token }}
         run: uv run --frozen python tools/kb/land.py --failed --mode "$MODE" --branch "$BRANCH"
       - name: Red when the daily rebuild failed
         if: always() && env.MODE == 'watch'

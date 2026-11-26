@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- The daily KB watch run failed every day since 2026-11-23: it minted the App's token once per job, and by the time it pushed or wrote the issues, after an hour or more of gates, the token had expired (an installation token lasts an hour). The rebase and its gates now run before the token is minted, and each step that writes gets a fresh one. The jobs' time limits follow the gates' real length too: the suite takes about 50 minutes in one job, and the 75-minute limit cancelled the 2026-11-26 run during its gates.
 - The Climb shows Polestar's planned time beside the recorded time on the owner, friends and public dashboards. The friends export uses the owner's saved gear settings. A late level record rebuilds the published chart even when the newest event hasn't changed.
 - Switching characters drops late replies for the one you left. The friends dashboard shows the published spec, gear estimates and requirement status. Both static dashboards respect the 3D setting for current and historical equipment.
 - Next Moves checks how the character can get an item. A hard drop needs an easier alternative to make the list. An auction purchase carries its price and scan date. Gear checks faction, race, class, quest and equip-skill requirements even for an item already in the bank.
@@ -12,7 +13,7 @@
 - Auctionator trends, dungeon loot and planner valuations use one auction house. The MCP `prices` tool also takes an explicit ruleset and faction. Saved gear findings flag a change of PvP setting, stat weights or source data for revalidation.
 - Bags and bank keep separate observation dates. Combat records follow character changes and log rotation. An appearance failure for one character allows the next character's refresh to run, and a missing portrait layer can be picked up on a later build.
 - Item and craft data now identify client build 71091. The route exporter reads both Polestar race-pack layouts. The dungeon checklist accounts for the Agamaggan quest moving outdoors, and the reset rule cites Blizzard's November 20 update. Forum evidence distinguishes a player's report from a staff reply.
-- The scheduled reference refresh has 120 minutes for source preparation and verification. It reports test progress and identifies a timed-out test in the job log.
+- The scheduled reference refresh reports test progress and identifies timed-out tests in the job log.
 
 ### Upgrading
 
