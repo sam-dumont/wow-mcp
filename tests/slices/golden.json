@@ -139,9 +139,10 @@
   ],
   "effects": [],
   "moves": [
-   "dungeon|Maraudon: Orange",
    "dungeon|Razorfen Downs",
+   "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
+   "upgrade|17745",
    "upgrade|2549"
   ],
   "next_moves": [
@@ -179,8 +180,8 @@
   "effects": [],
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
-   "dungeon|Maraudon: Purple",
    "dungeon|Razorfen Downs",
+   "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
    "upgrade|1713",
