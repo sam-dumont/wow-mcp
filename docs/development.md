@@ -196,14 +196,13 @@ the length of the build it starts an empty VictoriaLogs (the character's events)
 (the Battle.net series, as the exporter writes them: `bnet_series`) and the picture renderer
 (`wow-stats render`).
 
-The published demo uses Nibbet's model and gear from the separate `demo-3d-2` release.
-`site/scripts/demo3d-asset.sh` checks the archive against `site/demo3d.sha256`. Blizzard
-owns the artwork. The source repository contains the checksum and the build scripts.
-See the [third-party notices](../THIRD_PARTY.md).
+The demo reads Blizzard character models and gear from a separate archive.
+`site/scripts/demo3d-asset.sh` verifies its SHA-256 before use. The source
+repository holds the checksum and build scripts. [Artwork and credits](../THIRD_PARTY.md).
 
-For a build with invented artwork, set `DEMO_3D=golden`. The build also takes this path
-when it can't verify the archive. `tools/fixtures/golden3d.py` generates a blocky gnome,
-its gear and about 200 kB of client-format data. The 3D tests use the same fixture.
+In 0.13.0 the archive is `demo-3d-2`. It contains Nibbet. That release falls
+back to the generated gnome when the archive is missing. The 3D tests use
+`tools/fixtures/golden3d.py` for their small, reproducible models.
 The publisher sends the model recipe to the renderer and caches the portrait by character
 and recipe. A gear change gets a new picture.
 

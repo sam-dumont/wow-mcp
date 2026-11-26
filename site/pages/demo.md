@@ -15,7 +15,7 @@ Nibbet is a made-up Gnome priest. The journal records 34 sessions from level 22 
 
 The Battle.net side is made up too: a profile with a guild, the look, the talents read once a day (a Discipline start, then a respec into Shadow at 30) and one Legacy point. Nibbet's player has WoWSims Exporter, so the talent changes go back to level 22, not only 3 weeks.
 
-Open **View in 3D** to turn Nibbet around. The published demo uses Blizzard's character model and gear from a separate demo archive. The play history is invented. If the archive is unavailable, the build draws a blocky gnome from the test fixtures. [Artwork and credits](../../THIRD_PARTY.md).
+Open **View in 3D** on the character's gear panel to turn the model around. Nibbet wears Blizzard's models and textures from the Forever client. His play history is invented. [Artwork and credits](../../THIRD_PARTY.md).
 
 ## What the demo can't do
 
