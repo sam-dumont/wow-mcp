@@ -59,10 +59,14 @@ def quest(qid) -> dict | None:
 
 
 def quest_gates(qid) -> tuple[int, int, int]:
-    """Side, race mask and class mask from the same Forever quest record."""
+    """Side, race mask and class mask for a gear or dungeon quest."""
     d = data()
     q = str(qid)
     row = (d.get("gear_quests") or {}).get(q) or (d.get("quest_gates") or {}).get(q)
+    if not row:
+        from . import dungeonquests
+
+        row = dungeonquests.data().get("quest_gates", {}).get(q)
     return tuple(row[:3]) if row else (0, 0, 0)
 
 

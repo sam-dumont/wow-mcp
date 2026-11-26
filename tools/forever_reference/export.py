@@ -516,7 +516,7 @@ def main(argv: list[str]) -> int:
         # quest id -> [side, race mask, class mask, [item rewards], [choice rewards]] (reward_quests)
         "gear_quests": gear_quests,
         # Quests without a reward row still gate gear found by other sources.
-        "quest_gates": {k: quest_gates[k] for k in sorted(quest_gates, key=int)
+        "quest_gates": {k: quest_gates[k] for k in sorted(wanted & quest_gates.keys(), key=int)
                         if k not in gear_quests and any(quest_gates[k])},
         # quest id -> [type (1 group, 41 PvP, 62 raid, 81 dungeon, else 0), foe npc id, [items to bring],
         # objectives]

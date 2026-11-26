@@ -199,6 +199,14 @@ def build(ps: Path, db: Path | None = None) -> dict:
         out_d[str(m)] = d
     order = ("zone", "boss", "journal", "route", "flag")
     pkg = json.loads((db / "datapackage.json").read_text(encoding="utf-8"))
+    # Gear already carries these restrictions for its own quests.
+    covered = ref.get("gear_quests", {}).keys() | ref.get("quest_gates", {}).keys()
+    gates = {}
+    for qid in sorted(found):
+        if str(qid) not in covered and qid in quests:
+            restrictions = [quests[qid].get(k) or 0 for k in ("side", "races", "classes")]
+            if any(restrictions):
+                gates[str(qid)] = restrictions
     return {
         "about": "Which dungeon (instance map) each quest belongs to, so its hand-in counts toward the run it came "
                  "from (wowstats.dungeonquests). quests: {quest id: [[map, [sources]]]}; sources: zone (forever-db "
@@ -211,6 +219,7 @@ def build(ps: Path, db: Path | None = None) -> dict:
                    "licence": "GPL-3.0 (forever-db and Polestar's data, THIRD_PARTY.md)"},
         "outdoor": OUTDOOR,
         "dungeons": out_d,
+        "quest_gates": gates,
         "quests": {str(q): [[m, [s for s in order if s in found[q][m]]] for m in sorted(found[q])]
                    for q in sorted(found)},
     }

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fixed
+
+- The Climb shows Polestar's planned time beside the recorded time on the owner, friends and public dashboards. The friends export uses the owner's saved gear settings. A late level record rebuilds the published chart even when the newest event hasn't changed.
+- Next Moves checks how the character can get an item. A hard drop needs an easier alternative to make the list. An auction purchase carries its price and scan date. Gear checks faction, race, class, quest and equip-skill requirements even for an item already in the bank.
+- Auctionator trends, dungeon loot and planner valuations use one auction house. The MCP `prices` tool also takes an explicit ruleset and faction. Saved gear findings flag a change of PvP setting, stat weights or source data for revalidation.
+- Bags and bank keep separate observation dates. Combat records follow character changes and log rotation. An appearance failure for one character allows the next character's refresh to run, and a missing portrait layer can be picked up on a later build.
+- Item and craft data now identify client build 71091. The route exporter reads both Polestar race-pack layouts. The dungeon checklist accounts for the Agamaggan quest moving outdoors, and the reset rule cites Blizzard's November 20 update. Forum evidence distinguishes a player's report from a staff reply.
+
+### Upgrading
+
+Compose passes the owner's `WEIGHTS` to the publisher and reads saved gear settings from the existing read-only UI state volume. For a separately configured publisher, set `PUBLISH_GEAR_SETTINGS_DIR` to the directory containing the owner's `gear-modes.json`.
+
 ## 0.12.0 (2026-11-25)
 
 What this release changes, in short. Advice says what it really takes: a quest reward rates its effort on the route, the chain and the foe instead of calling everything easy, and a craft says whether you hold the pattern, what the mats cost against your bags, bank and the auction house, and when buying beats crafting. A new `professions` tool prices a skill-up from your skill to a target, and `inventory` counts what your bags and bank hold. Forever's new zones and dungeons read their real names (The Drowned City, Riverglades), and the bundled data follows ForeverDB, forever-db and Polestar every day. The MCP serves six skills and hands back a task for a character's first, slow analysis call. Every change follows.
