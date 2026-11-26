@@ -223,10 +223,11 @@ def test_demo_has_no_gap(browser, base, which, width):
             hi = int(slider.first.get_attribute("max"))
             for i in range(hi + 1):
                 slider.first.fill(str(i))
-                page.wait_for_timeout(300)
+                level = int(page.locator(".snapctl output").inner_text().split()[-1])
+                page.locator(f".snapbody[data-level='{level}']").wait_for(timeout=30000)
                 with contextlib.suppress(sync_api.TimeoutError):
                     wait_stills(page)
-                got += [f"level {i}: {g}" for g in gaps(page) + icon_gaps(page)]
+                got += [f"level {level}: {g}" for g in gaps(page) + icon_gaps(page)]
         for i in range(page.locator("button.m3dtoggle:visible").count()):
             state = open_3d(page, i)
             if not state.startswith("drawn"):
