@@ -231,6 +231,11 @@
       "npc_id": 2836,
       "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
     },
+    "9931": {
+      "skill": 185,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
     "9935": {
       "skill": 190,
       "npc_id": 2836,
@@ -238,6 +243,11 @@
     },
     "9959": {
       "skill": 205,
+      "npc_id": 2836,
+      "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
+    },
+    "9968": {
+      "skill": 210,
       "npc_id": 2836,
       "source": "https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json"
     },

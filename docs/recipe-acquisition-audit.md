@@ -140,6 +140,10 @@ The trainer column gives the required skill, NPC ID and short build. The pattern
 | 1257430 | [Golden Slippers](https://wowforever.ninja/professions/tailoring/1257430-golden-slippers/) | [150 · NPC 3363 · 71091][source1] | 254010 · 140 | Origin unverified |
 | 1257431 | [Radiant Slippers](https://wowforever.ninja/professions/tailoring/1257431-radiant-slippers/) | [150 · NPC 3363 · 71091][source1] | 254012 · 140 | Origin unverified |
 
+## Installed addon comparison
+
+Rerunning `tools/craft_reference/audit.py` on November 26 with the installed addon and this checkout matched 450 spells and flagged 120 raw gear-record differences. This comparison adds two spells to the original cohort. Radiant Slippers (1257431), covered above, now agrees. Both additions have an offer recorded at NPC 2836 in build 1.60.1.71037. Mithril Plate Pants (9931) requires Blacksmithing 185. Heavy Mithril Boots (9968) requires 210, matching the Polestar guide. [Trainer capture](https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json) · [Mithril Plate Pants](https://wowforever.ninja/professions/blacksmithing/9931-mithril-scale-pants/) · [Heavy Mithril Boots](https://wowforever.ninja/professions/blacksmithing/9968-heavy-mithril-boots/)
+
 [source1]: https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71091/trainers.json
 [source2]: https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.71037/trainers.json
 [source3]: https://github.com/JIVESCORP/eg-link-output-wowf/blob/f25e0efde0c8490e4e6f356a68f7a81a703fa21c/data/wowf/1.60.1.70959/trainers.json
