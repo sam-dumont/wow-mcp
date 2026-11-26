@@ -86,6 +86,8 @@ def open_page(pw, engine, url, width):
 def test_at_most_three_candidates_in_view_per_slot(site, pw, engine, width):
     url, gear = site
     b, pg, _ = open_page(pw, engine, url, width)
+    slot_picks = [u for sl in gear["slots"] for u in (sl["best"], sl["next"]) if u]
+    expected = {f"{u['slot']}-{u['item_id']}" for u in [*gear["upgrades"], *slot_picks]}
     try:
         for view in ("By where you get it", "By slot"):
             pg.locator("#advice .order button", has_text=view).click()
@@ -101,15 +103,15 @@ def test_at_most_three_candidates_in_view_per_slot(site, pw, engine, width):
             cut = pg.locator("#advice .cand:visible .itm .iname").evaluate_all(
                 "els => els.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent)")
             assert not cut, f"{view} at {width}: names cut short: {cut}"
+            # Every candidate appears once, either in view or in a fold.
+            rows = pg.locator("#advice .cand").evaluate_all("els => els.map(e => e.dataset.up)")
+            assert sorted(rows) == sorted(expected), view
             if view == "By slot" and width > 640:
                 # A table, not a grid a row (.cand's list style once made it
                 # one: every cell its own line, the columns adrift).
                 shown = pg.locator("#advice .byslot tr.cand").evaluate_all(
                     "els => els.map(e => getComputedStyle(e).display)")
                 assert shown and set(shown) == {"table-row"}, shown
-        # Nothing dropped: the rest is behind "N more" and "N small upgrades".
-        hidden = pg.locator("#advice details.upmore .cand").count()
-        assert hidden + len(slots) >= len(gear["upgrades"]) - 3
     finally:
         b.close()
 

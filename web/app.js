@@ -1901,7 +1901,10 @@ function renderAdvice(a) {
     h('p', { class: 'sub', text: guess || 'Click an item to compare it with what you wear.' }));
   const smalls = allUps(a).filter((u) => small(u, a));
   const shown = new Set();
-  for (const p of picks.values()) [p.best, ...p.alts].forEach((u) => shown.add(u));
+  for (const { best, alts } of picks.values()) {
+    shown.add(best);
+    if (view === 'where') alts.forEach((u) => shown.add(u));
+  }
   const more = allUps(a).filter((u) => !small(u, a) && !shown.has(u));
   const body = view === 'slot' ? bySlot(a, picks) : byWhere(a, [...shown]);
   // #up-<slot>: where the Overview's upgrade moves lead. The slot's best
