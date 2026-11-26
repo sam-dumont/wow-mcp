@@ -13,11 +13,11 @@
    "what": "quests, objectives and item sources",
    "version": "2026.11.2",
    "polestar": {
-    "version": "0.4.2.2",
-    "tag": "v0.4.2.2",
-    "commit": "bf2acf45dc639adc4437405ce440b06437cc5342",
+    "version": "0.4.3",
+    "tag": "v0.4.3",
+    "commit": "3cf9e32bb38b8d73164acea249039d010e03d2c5",
     "license": "GPL-3.0-only",
-    "forever_db": "2026.11.1"
+    "forever_db": "2026.11.2"
    }
   }
  },
@@ -3211,6 +3211,11 @@
        []
       ]
      ]
+    },
+    "93404": {
+     "wings": [],
+     "how": "outside",
+     "by": []
     },
     "96776": {
      "wings": [],

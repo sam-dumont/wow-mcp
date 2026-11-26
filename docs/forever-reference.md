@@ -56,7 +56,7 @@ game's question mark (`inv_misc_questionmark`), never an empty frame.
 ## New zones and dungeons
 
 Forever adds zones and dungeons faster than Polestar's addon releases
-carry them: Polestar v0.4.2.2 bundles forever-db 2026.11.1, made from
+can carry them. The addon previously bundled forever-db 2026.11.1, made from
 client 1.60.1.70532, which has no Drowned City at all (its Map 2970 came
 later), and its quests stop before Saving Sunnyglade or The Saltseer
 Captain. forever-db's own release 2026.11.2 has both. So forever-db comes

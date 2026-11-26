@@ -98,7 +98,7 @@ EXPORTS: tuple[Export, ...] = (
            ("data/kb-reference.json.gz",), ("polestar", "forever-db"), "docs/kb.md"),
     Export("class-reference", (*PY, "tools/class_reference/export.py", "--polestar", "{polestar}"),
            ("data/class-reference.json",), ("polestar", "client-build"), "docs/kb.md"),
-    Export("trainers", (*PY, "tools/trainers/export.py", "--polestar", "{polestar}"),
+    Export("trainers", (*PY, "tools/trainers/export.py", "--polestar", "{polestar}", "--lua", "{lua}"),
            ("data/trainers-reference.json",), ("polestar",), "docs/kb.md"),
     # Polestar's profession guides and the client tables at data/game-items.json's
     # build (#267): it moves with Polestar here, and with the item table by hand.

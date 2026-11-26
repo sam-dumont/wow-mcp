@@ -5,11 +5,11 @@ wow-stats is GPL-3.0-only (`LICENSE`). It ships these parts made by others.
 | Component | Used for | Licence | Where |
 |---|---|---|---|
 | [Polestar](https://github.com/fitzforge/polestar) by fitzforge and contributors | Route times (its route planner on its guides); gear advice (where gear comes from, and the class rules: who wears what, from `Gear/Weights.lua`, plus the class masks the client leaves open; none of its weights, and its item stats aren't read since 2026-11-24); class and profession trainers, what each trains and its cost (`Core/ClassTrainers.lua`, `QoL/ClassSpells.lua`, `QoL/Riding.lua`, `Polestar_Guides/Guides.lua`: Forever's trainer lists, from ForeverTDB, used as facts); the profession guides' routes, the recipes they teach and buy with their prices, and the vendor goods' prices, for the skill-up costs (`Polestar_Guides/Guides.lua`); each quest's usual entry level (`data/codex/levels.json`, and `recorded.json`: the 25th percentile of players' recorded entry levels); which dungeon a quest belongs to (its cited dungeon journal `data/codex/journal-quests.json`, its dungeon runs `data/dungeon-runs.json`, the dungeons' map ids in `Dungeons/Art.lua`) | GPL-3.0-only | `data/route-reference.json`, `data/dungeons/quests.json`, `data/gear-reference.json`, `data/class-reference.json`, `data/trainers-reference.json`, `data/craft-reference.json`, `data/forever-reference.json` (level floors), `wowstats/gear.py`; `docs/route-reference.md`, `docs/gear-reference.md` |
-| forever-db, Polestar's quest database (Polestar v0.4.2.2, built from its own sources: notice below) | Quests, NPCs and items behind the route times; every quest's and item's name, quest level and zone, so the page never shows a bare id; the faction, race and class restrictions on gear and dungeon quests (`quest.jsonl`), and each quest's gear rewards (`gear_quests`), where gear comes from when Polestar's sources don't say. Polestar publishes it on its own releases (`data-v*`, ahead of the addon's); we read it at the release in `tools/forever-db-tag` (2026.11.2, client build 1.60.1.70888), its zip checked against the release's `SHA256SUMS`. The route times still read the copy Polestar's addon tag carries | GPL-3.0, with CC BY 4.0 and MIT parts, notice below | `data/route-reference.json`, `data/forever-reference.json` (`quests`, `items`, `gear_quests`, `quest_gates`), `data/dungeons/wings.json` (quest objectives and item sources behind each quest's wing), `data/dungeons/quests.json` (each quest's dungeon and `quest_gates`); `docs/forever-reference.md` |
+| forever-db, Polestar's quest database (Polestar v0.4.3, built from its own sources: notice below) | Quests, NPCs and items behind the route times; every quest's and item's name, quest level and zone, so the page never shows a bare id; the faction, race and class restrictions on gear and dungeon quests (`quest.jsonl`), and each quest's gear rewards (`gear_quests`), where gear comes from when Polestar's sources don't say. Polestar publishes it on its own releases (`data-v*`, ahead of the addon's); we read it at the release in `tools/forever-db-tag` (2026.11.2, client build 1.60.1.70888), its zip checked against the release's `SHA256SUMS`. The route times still read the copy Polestar's addon tag carries | GPL-3.0, with CC BY 4.0 and MIT parts, notice below | `data/route-reference.json`, `data/forever-reference.json` (`quests`, `items`, `gear_quests`, `quest_gates`), `data/dungeons/wings.json` (quest objectives and item sources behind each quest's wing), `data/dungeons/quests.json` (each quest's dungeon and `quest_gates`); `docs/forever-reference.md` |
 | Forever client tables AreaTable, Map, GroupFinderActivity via wago.tools | Zone names, which areas are dungeons, a dungeon's level range | Game data © Blizzard Entertainment, used as facts | `data/forever-reference.json` (`areas`) |
 | Forever client tables Item, ItemModifiedAppearance, ItemAppearance via wago.tools, read at run time | Which icon an item has, including Forever's new items whose icon is only on their appearance | Game data © Blizzard Entertainment, used as facts | `wowstats/itemcard.py` (cache only, nothing committed) |
 | Item, spell and talent icons from wow.zamimg.com (Wowhead's image host), fetched at run time | The icons on the pages | Blizzard's art, served by Wowhead; not shipped, no licence of ours covers them | `wowstats/itemcard.py`, `wowstats/talents.py` (cache only) |
-| [ForeverLevelingBiS](https://www.curseforge.com/wow/addons/forever-leveling-bis) **v0.12.0-beta** by Thunder (data 2026-10-13), as Polestar generated it into `Polestar_ItemDB/Forever.lua` | Where leveling gear comes from (quests, drops, crafts) | MIT (Copyright (c) 2026 Thunder), notice below | `data/gear-reference.json` (`items`, `sources`, `quests`) |
+| [Polestar's Codex gear data](https://github.com/fitzforge/polestar/blob/v0.4.3/addon/Polestar_ItemDB/LICENSE-DATA.txt) | Item stats in `Polestar_ItemDB/Items.lua` and `Forever.lua` come from Blizzard's Classic Era and Forever clients. Quest rewards and sources come from the Codex, built from client tables, QuestieDB facts, pfQuest, web database facts and Polestar's recordings and guides | Blizzard game facts, Polestar GPL-3.0-only, pfQuest MIT (notice under forever-db below). QuestieDB credited per its maintainers | `data/gear-reference.json` |
 | [ForeverDB.net](https://foreverdb.net), the ForeverDB addon's data files (`Data/GearSources.lua`, `Loot.lua`, `GearFinder.lua`, `Meta.lua`), from its manifest | Where each piece of gear comes from (quests, vendors, drops with players' measured chances, rares, crafts, reputation, PvP, containers), each labelled seen in Forever, Forever client, Classic data or clue; the stat weights per class and spec with its Leveling and PvP tables, scoring formula and set bonus shares. Credited with a link wherever a score ("Weights: ForeverDB.net") or a source ("Source: ForeverDB.net") shows. **Data from ForeverDB.net (https://foreverdb.net)** | GPL-3.0 with an attribution term (section 7(b)): keep the files' notice line and show the line above; its `LICENSE.txt`, `NOTICE.txt` and `COPYING.txt` ship byte for byte in `data/foreverdb/`. Its Classic-labelled entries come from CMaNGOS classic-db (GPL-3.0), next row | `data/foreverdb/item-sources.json` (`tools/foreverdb_sources/export.py`), `data/foreverdb-weights.json` (`tools/foreverdb_weights/export.py`), `wowstats/gear.py`; `docs/gear-reference.md` |
 | [CMaNGOS classic-db](https://github.com/cmangos/classic-db), Copyright (C) the CMaNGOS project and its contributors, through ForeverDB's data | Item sources labelled Classic data (`k`, `c`) in `item-sources.json`: drop chances and sources from Classic 1.12, said so wherever they show | GPL-3.0 | `data/foreverdb/item-sources.json` |
 | [WoWSims Exporter](https://github.com/wowsims/exporter) by General Wrex and the wowsims team (commit ce873f7d5aed) | How to read its saved talent string: each class's three trees of TraitDefinition IDs in the sim's order (`Flavors/Forever/Talents.lua`, `tools/wowsims_talents.py`); the shape of its SavedVariables, which the shipper reads | MIT (Copyright (c) 2022 General Wrex), notice below | `data/wowsims-talents.json`, `wowstats/wowsims.py`, `shipper/wow_stats.py` (`wowsims_saves`) |
@@ -39,8 +39,6 @@ The gear tests compare five specs against the [ForeverDB.net best-in-slot page](
 The recorded ladders and expected picks live in `tests/data/foreverdb-ladders.json.gz` and `tests/data/foreverdb-picks.json`.
 The site and API have their own terms. [Data from ForeverDB.net](https://foreverdb.net) · [API terms](https://foreverdb.net/developers)
 
-The bundled ForeverLevelingBiS data comes from v0.12.0-beta. Its 1.x releases are All Rights Reserved.
-
 The public demo's 3D model is Blizzard's art: Nibbet's character model,
 his gear's models and textures, and the client table rows that dress him,
 read from a Forever client by `tools/fixtures/demo3d.py`. They are © Blizzard
@@ -56,30 +54,6 @@ them): `tests/fixtures/plausible-script.manual.js` is
 unmodified, MIT (Copyright 2020 Plausible Insights OÜ), notice at the top of
 the file. `tests/fixtures/icon.jpg` was drawn for these tests (a few shapes);
 it is part of wow-stats.
-
-## ForeverLevelingBiS v0.12.0-beta
-
-MIT License
-
-Copyright (c) 2026 Thunder
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 
 ## WoWSims Exporter
 

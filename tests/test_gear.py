@@ -8,6 +8,7 @@ The numbers below are worked out by hand from ForeverDB's formula
 item). The character is a level 32 Gnome Priest, Shadow, Leveling weights,
 wearing a two-handed staff and one trinket."""
 
+import json
 import time
 from dataclasses import replace
 
@@ -40,12 +41,13 @@ def priest_gear(ref):
     return w, worn
 
 
-def test_the_file_is_polestars(ref):
-    d = ref.data
+def test_the_file_is_polestars():
+    d = json.loads(next(p for p in gear.BUNDLED if p.is_file()).read_text())
     assert d["polestar"]["license"] == "GPL-3.0-only" and d["polestar"]["tag"].startswith("v")
-    assert d["leveling"]["source"] == "ForeverLevelingBiS" and d["leveling"]["version"] == "v0.12.0-beta"
-    assert d["leveling"]["licence"] == "MIT"
-    assert len(d["items"]) > 9000 and len(d["sources"]) > 3000
+    assert d["leveling"]["source"] == "Codex" and d["leveling"]["version"]
+    assert d["leveling"]["author"] is None and d["leveling"]["licence"] is None
+    assert len(d["items"]) > 9000 and len(d["sources"]) == d["leveling"]["items"] > 0
+    assert len(d["quests"]) == d["leveling"]["quests"] > 0
 
 
 def test_leveling_weights(ref):

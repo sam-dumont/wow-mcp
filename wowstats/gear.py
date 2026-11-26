@@ -11,8 +11,7 @@ piece's stats, level, slot and class rules, worked out the way the game does
 (owner, 2026-11-24: "can we get them from the game data instead? We do that
 already for 3D"). data/gear-reference.json, exported from a Polestar release
 by tools/gear_reference/: where gear comes from (its quests, drops and
-crafts; Polestar's leveling data, generated from ForeverLevelingBiS
-v0.12.0-beta, MIT) and the class rules (who wears what); its own item table
+crafts; Polestar's release Codex) and the class rules (who wears what); its own item table
 isn't read. The quest rewards it leaves out come from forever-db
 (data/forever-reference.json `gear_quests`). data/foreverdb-weights.json,
 written by tools/foreverdb_weights/: the stat weights per class, spec and
