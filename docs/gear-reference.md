@@ -117,9 +117,12 @@ it too: "seen in Forever" (players' addons recorded it), "Forever client",
 unconfirmed". Every source shown links ForeverDB.net ("Source: ForeverDB.net"
 on the page, `where_source` in MCP answers).
 
-Polestar's sources and forever-db's quest rewards
-(`data/forever-reference.json` `gear_quests`) fill in only for items
-ForeverDB has no source for.
+Polestar's sources, forever-db's quest rewards and placed dungeon loot
+fill gaps. For crafted gear the Forever client's create-item spell identifies
+the recipe. A trainer, an automatically learned recipe or a guide's pattern
+vendor gives a standing source. Other recipes enter a character's options
+when learned, when the pattern is in their bags or bank, or when a tradable
+pattern is listed on their auction house.
 
 A reputation source is checked against the character's standings: the
 Recorder's rep records and Altoholic's reputation snapshot, the newest per

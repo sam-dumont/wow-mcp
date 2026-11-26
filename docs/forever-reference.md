@@ -53,10 +53,11 @@ game's question mark (`inv_misc_questionmark`), never an empty frame.
 | `quest_work`: for every quest that gives gear, `[type, foe, bring, objectives]`: forever-db's quest type (1 group, 41 PvP, 62 raid, 81 dungeon, else 0), the strongest creature its objectives send you to (a kill target, or the one creature that drops a collected item; by rank, then level), the items to bring that no creature drops and no object gives, and how many objectives it lists. `npcs`: those creatures and every creature ForeverDB.net names as a drop source, as `[name, level min, level max, rank, zone]` (rank 0 normal, 1 elite, 2 rare elite, 3 boss, 4 rare; the zone for a drop source when one zone map alone holds all its spawns). The gear advice's quest work (`wowstats/questwork.py`) | forever-db's `quest.jsonl`, `quest_objective.jsonl`, `item_source.jsonl`, `npc.jsonl`, `spawn.jsonl` and `ui_map.jsonl`; the gear data's and ForeverDB.net's quests and creatures (`data/gear-reference.json`, `data/foreverdb/item-sources.json`); zone names from Forever's client table UiMap on wago.tools | GPL-3.0, with CC BY 4.0 and MIT parts (`THIRD_PARTY.md`); ForeverDB.net's data GPL-3.0 with its attribution term |
 | `factions`: every reputation's name and side (Alliance, Horde, or none for a neutral one like Ratchet): a reputation's quartermaster sells to its side (`wowstats/gear.py` `side_of_gate`) | Forever's client table Faction on wago.tools, same build: the side of the faction it sits under (Alliance or Alliance Forces, Horde or Horde Forces) | Game data © Blizzard Entertainment, used as facts |
 
-The `recorded_drops` fallback covers otherwise unsourced gear. A drop must
-be marked trusted in Polestar's recording summary and its NPC must be
-a boss in one dungeon in our run or spawn data. The row records how many
-people saw the drop. A missing rate stays unknown.
+The `dungeon_drops` fallback covers otherwise unsourced gear. Each NPC must
+appear in a single dungeon in the run or spawn data. Polestar's trusted boss
+recordings supply the observer count and a measured rate when available.
+The separate forever-db release supplies designed loot rates. Each drop
+identifies which source supplied it.
 [Polestar recording format](https://github.com/fitzforge/polestar/blob/v0.4.3/rust/crates/forge-data/src/codex/recorded.rs)
 
 ## New zones and dungeons

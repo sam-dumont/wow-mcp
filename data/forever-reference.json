@@ -22,7 +22,7 @@
    "note": "Game data (c) Blizzard Entertainment, used as facts"
   },
   "levels_exceptions": "Polestar data/codex/levels.json (max, floor)",
-  "recorded_drops": "Polestar data/codex/recorded.json (trusted), dungeon bosses from kill-xp.json",
+  "dungeon_drops": "Polestar trusted boss recordings and forever-db item_source (table rates), matched to NPCs in kill-xp.json",
   "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)"
  },
  "quests": {
@@ -86479,7 +86479,7 @@
   "286743": 99156,
   "286744": 99156
  },
- "recorded_drops": {
+ "dungeon_drops": {
   "1155": [
    {
     "kind": "drop",
@@ -86709,6 +86709,198 @@
     "pct": null,
     "voters": 4,
     "via": "polestar-recording"
+   }
+  ],
+  "16668": [
+   {
+    "kind": "drop",
+    "npc": 10440,
+    "npc_name": "Baron Rivendare",
+    "zone": 2017,
+    "pct": 11.1,
+    "via": "forever-db"
+   }
+  ],
+  "16673": [
+   {
+    "kind": "drop",
+    "npc": 9257,
+    "npc_name": "Scarshield Warlock",
+    "zone": 1583,
+    "pct": 2,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9262,
+    "npc_name": "Firebrand Invoker",
+    "zone": 1583,
+    "pct": 1.2,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9264,
+    "npc_name": "Firebrand Pyromancer",
+    "zone": 1583,
+    "pct": 2.4,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9266,
+    "npc_name": "Smolderthorn Witch Doctor",
+    "zone": 1583,
+    "pct": 4.4,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9693,
+    "npc_name": "Bloodaxe Evoker",
+    "zone": 1583,
+    "pct": 2.5,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9736,
+    "npc_name": "Quartermaster Zigris",
+    "zone": 1583,
+    "pct": 1.5,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 10083,
+    "npc_name": "Rage Talon Flamescale",
+    "zone": 1583,
+    "pct": 3.8,
+    "via": "forever-db"
+   }
+  ],
+  "16688": [
+   {
+    "kind": "drop",
+    "npc": 10363,
+    "npc_name": "General Drakkisath",
+    "zone": 1583,
+    "pct": 11.1,
+    "via": "forever-db"
+   }
+  ],
+  "16700": [
+   {
+    "kind": "drop",
+    "npc": 10363,
+    "npc_name": "General Drakkisath",
+    "zone": 1583,
+    "pct": 11.1,
+    "via": "forever-db"
+   }
+  ],
+  "16706": [
+   {
+    "kind": "drop",
+    "npc": 10363,
+    "npc_name": "General Drakkisath",
+    "zone": 1583,
+    "pct": 11.1,
+    "via": "forever-db"
+   }
+  ],
+  "16715": [
+   {
+    "kind": "drop",
+    "npc": 10596,
+    "npc_name": "Mother Smolderweb",
+    "zone": 1583,
+    "pct": 15,
+    "via": "forever-db"
+   }
+  ],
+  "16717": [
+   {
+    "kind": "drop",
+    "npc": 9096,
+    "npc_name": "Rage Talon Dragonspawn",
+    "zone": 1583,
+    "pct": 3.8,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9258,
+    "npc_name": "Scarshield Raider",
+    "zone": 1583,
+    "pct": 2.1,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9262,
+    "npc_name": "Firebrand Invoker",
+    "zone": 1583,
+    "pct": 1.3,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9264,
+    "npc_name": "Firebrand Pyromancer",
+    "zone": 1583,
+    "pct": 2.4,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9268,
+    "npc_name": "Smolderthorn Berserker",
+    "zone": 1583,
+    "pct": 4.5,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9269,
+    "npc_name": "Smolderthorn Seer",
+    "zone": 1583,
+    "pct": 0.8,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9692,
+    "npc_name": "Bloodaxe Raider",
+    "zone": 1583,
+    "pct": 2.1,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 9736,
+    "npc_name": "Quartermaster Zigris",
+    "zone": 1583,
+    "pct": 1,
+    "via": "forever-db"
+   },
+   {
+    "kind": "drop",
+    "npc": 10516,
+    "npc_name": "The Unforgiven",
+    "zone": 2017,
+    "pct": 20,
+    "via": "forever-db"
+   }
+  ],
+  "16719": [
+   {
+    "kind": "drop",
+    "npc": 10440,
+    "npc_name": "Baron Rivendare",
+    "zone": 2017,
+    "pct": 11.1,
+    "via": "forever-db"
    }
   ],
   "17744": [

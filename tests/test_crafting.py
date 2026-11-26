@@ -229,3 +229,15 @@ def test_only_a_current_finished_listing_can_lower_effort():
     assert p["effort"] == crafting.EASY and p["craft_effort"] == crafting.HARD
     assert p["buy"]["copper"] == 500
     assert not crafting.brief(p)["cost_complete"]
+
+
+def test_client_recipe_alone_cannot_make_a_gear_upgrade_available():
+    # Admiral's Hat is made by 12081; the client names its pattern, not how to get it.
+    item, spell, pattern = "10030", 12081, 10318
+    assert item not in crafting.gear_sources()
+    missing = crafting.Who(known={197: set()}, prices={pattern: {"price_copper": 100}})
+    assert item not in crafting.gear_sources(missing)
+    for evidence in (crafting.Who(known={197: {spell}}), crafting.Who(ids={pattern}),
+                     crafting.Who(listings={pattern: {"price_copper": 100}})):
+        assert crafting.gear_sources(evidence)[item][0]["spell"] == spell
+    assert item not in crafting.gear_sources(crafting.Who(known={333: {spell}}))

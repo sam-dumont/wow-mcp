@@ -178,6 +178,39 @@ def who_from(sheet: dict, held: dict | None, market: dict | None) -> Who:
                goal=mk.get("mount"))
 
 
+def gear_sources(who: Who | None = None) -> dict[str, list[dict]]:
+    """Client create-item spells with a way to learn them. Without a character use
+    trainers, auto-learned recipes and guide vendors. With one, add the recipes
+    they know and the patterns in their bags, bank or current auction listings."""
+    data = reference()
+    recipes, patterns = data.get("recipes") or {}, data.get("patterns") or {}
+    if who is None:
+        trainer = data.get("trainer") or {}
+        observed = (data.get("_observations") or {}).get("trainer") or {}
+        skills = {s: r.get("from") for s, r in trainer.items()}
+        skills.update({s: r["skill"] for s, r in observed.items()})
+        skills.update({s: 1 for s, r in recipes.items() if r.get("auto")})
+        found = data.get("pattern_vendor") or {}
+    else:
+        skills = {str(s): None for line, spells in who.known.items() for s in spells
+                  if (recipes.get(str(s)) or {}).get("p") == line}
+        found = {str(i) for i in who.ids}
+        found.update(str(i) for i, listing in who.listings.items()
+                     if listing.get("price_copper") and i not in data.get("_bop", set()))
+    for item in found:
+        if item in patterns:
+            spell, required = patterns[item]
+            skills.setdefault(str(spell), required)
+    out = {}
+    for spell, required in sorted(skills.items(), key=lambda x: int(x[0])):
+        r = recipes.get(spell) or {}
+        if r.get("i") and r.get("p") in NAMES:
+            row = {"kind": "craft", "profession": NAMES[r["p"]], "spell": int(spell),
+                   "skill": required, "via": "client-recipe"}
+            out.setdefault(str(r["i"]), []).append(row)
+    return out
+
+
 def _days_ago(t) -> int | None:
     import time
 

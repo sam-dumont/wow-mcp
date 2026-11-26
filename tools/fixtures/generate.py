@@ -2025,7 +2025,8 @@ def in_forever(rows: list[dict]) -> None:
 
     fdb = (gear.sources_data() or {}).get("items") or {}
     polestar = json.loads((ROOT / "data" / "gear-reference.json").read_text(encoding="utf-8"))["sources"]
-    polestar.update(forever.data().get("recorded_drops") or {})
+    polestar.update({iid: drops for iid, drops in (forever.data().get("dungeon_drops") or {}).items()
+                     if any(d["via"] == "polestar-recording" for d in drops)})
     bad = {}
     for r in rows:
         if r.get("feed") != "wow-gear" or not r.get("items"):

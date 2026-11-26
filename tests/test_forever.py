@@ -23,6 +23,16 @@ def test_spyglass_has_a_recorded_dungeon_source_without_a_measured_percentage():
     assert cookie["chance_pct"] is None
 
 
+def test_designed_dungeon_loot_preserves_its_source_and_zone():
+    ref = gear.reference()
+    source = ref.data["sources"]["16668"][0]
+    assert source["via"] == "forever-db" and source["npc"] == 10440
+    who = gear.Who(cls="SHAMAN", level=60, side=2, race_id=2, professions={}, done=set(), zone=None)
+    drop = gear._source(ref, source, who, ref.item(16668))
+    assert drop["basis"] == "forever-db loot table" and drop["chance_pct"] == 11.1
+    assert drop["dungeon"] and "Stratholme" in drop["zone"]
+
+
 def test_name_quests_keeps_the_shipped_name_then_forever_db_then_the_recorder(capsys):
     rows = [{"quest_id": 631, "name": "Shipped"}, {"quest_id": 98246, "name": None},
             {"quest_id": 9999999, "name": None}, {"quest_id": 9999998, "name": None}]

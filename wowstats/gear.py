@@ -44,7 +44,7 @@ import math
 import os
 import re
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from wowstats import ahsource, classguide, crafting, endgame, forever, quests, questwork, stores
@@ -287,9 +287,12 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
             got = sources.setdefault(iid, [])
             if not any(x.get("kind") == "quest" and str(x.get("quest")) == qid for x in got):
                 got.append({"kind": "quest", "quest": int(qid)})
-    for iid, drops in (forever.data().get("recorded_drops") or {}).items():
+    for iid, drops in (forever.data().get("dungeon_drops") or {}).items():
         if iid in items and not sources.get(iid):
             sources[iid] = drops
+    for iid, crafts in crafting.gear_sources().items():
+        if iid in items and not sources.get(iid):
+            sources[iid] = crafts
     # All gear sources share one quest record. Fill the requirements even
     # when Polestar or a ForeverDB source installed a record first.
     for qid in quests:
@@ -1390,6 +1393,10 @@ def by_effort(srcs: list[dict]) -> list[dict]:
 def _basis(s: dict) -> dict:
     """A ForeverDB source's credit and how sure it is (its label), in the
     answer: `via`, `label`, `basis` (words), and a drop's looted kills."""
+    if s.get("via") == "forever-db":
+        return {"via": "forever-db", "basis": "forever-db loot table"}
+    if s.get("via") == "client-recipe":
+        return {"via": "client-recipe", "basis": "Forever client recipe"}
     if s.get("via") == "polestar-recording":
         return {"via": s["via"], "basis": "seen in Polestar recordings", "voters": s["voters"]}
     if s.get("via") != "foreverdb":
@@ -1896,6 +1903,10 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     # skill-up on Polestar's route, the mats against the bags and bank, the
     # auction house the other way. Once per recipe and item.
     crafter = crafting.who_from(sheet, held, market)
+    sources = ref.data.get("sources") or {}
+    personal = {i: c for i, c in crafting.gear_sources(crafter).items() if i not in sources and ref.item(i)}
+    if personal:
+        ref = replace(ref, data={**ref.data, "sources": sources | personal}, nowhere=None)
     bind_on_pickup = crafting.reference().get("_bop", set())
     plans: dict[tuple, dict | None] = {}
     for item_id, where in holding.items():
