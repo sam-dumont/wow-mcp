@@ -217,6 +217,23 @@ def play_clips(frame, label, clips):
     frame.wait_for_function("clips => clips.every(id => window.demoClips.includes(id))", arg=clips, timeout=30000)
 
 
+def test_switching_a_published_character_reads_its_file_once(browser, base):
+    with browser.new_context(viewport={"width": 390, "height": 844}) as ctx:
+        page = ctx.new_page()
+        page.clock.install()
+        page.goto(base)
+        page.locator("#hero").get_by_role("heading", name="Nibbet", exact=True).wait_for()
+        name = "Flintwick-Bearhide"
+        path = page.evaluate("name => new URL(window.wowApi('char', {name}), document.baseURI).href", name)
+        requests = []
+        page.on("request", lambda request: requests.append(request.url) if request.url == path else None)
+        page.get_by_role("combobox", name="Character", exact=True).select_option(name)
+        page.locator("#hero").get_by_role("heading", name="Flintwick", exact=True).wait_for()
+        page.clock.run_for(3 * 60 * 1000 + 1000)
+        assert requests == [path]
+        assert not page.locator(".newspill:visible").count()
+
+
 @pytest.mark.parametrize("which", ["public", "friends"])
 @pytest.mark.parametrize(("name", "width"), [(name, 1280) for name in ROSTER] + [("Flintwick-Bearhide", 390)])
 def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):

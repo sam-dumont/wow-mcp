@@ -4310,6 +4310,7 @@ function newsWatch() {
 // One timer, only while the tab is visible: a hidden tab asks nothing, and
 // one that comes back late asks once, right away.
 function newsSchedule() {
+  if (STATIC) return;  // Switching characters also calls newsHide; a bundle has no live feed.
   clearTimeout(news.timer);
   news.timer = null;
   if (document.visibilityState !== 'visible' || (news.pill && !news.pill.hidden)) return;
@@ -4435,6 +4436,7 @@ function renderAll(d) {
 
 function selectChar(name) {
   requests.clear();
+  news.shown = null;  // Compare the new character only after its own answer is on screen.
   Object.assign(state, { char: name, data: null, advice: null, dungeons: null, thist: null,
     journal: null, overview: null, timeline: null, snapLevel: null });
   analysisMemo = { name: null, at: 0, p: null };
