@@ -56,6 +56,8 @@ CHECKED_FIXED = {
     "https://docs.astral.sh/uv/",
     # The weights' credit (web/app.js WEIGHTS_CREDIT): the site tools/foreverdb_weights reads.
     "https://foreverdb.net",
+    # The EG Link data credit and its license, checked on 2026-11-26.
+    "https://efficient.games", "https://creativecommons.org/licenses/by/4.0/",
     # wowstats/account.py's pinned uv, UV_URL: fetched and checked against UV_SHA256.
     "https://github.com/astral-sh/uv/releases/download/",
     *CHECKED_ADDONS.values(),
