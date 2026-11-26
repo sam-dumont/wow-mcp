@@ -195,7 +195,24 @@ def test_the_real_release_pr_body_is_short(real_tree):
     # The notes it links are the whole section, uncut, under the release body's limit.
     notes = release.notes(tree, final, URL)
     assert release.size(notes) <= release.NOTES_LIMIT < release.RELEASE_BODY_LIMIT
-    assert notes.split("\n\n", 1)[0] in pr  # the section's opening paragraph is the summary
+
+
+@pytest.mark.parametrize(("opening", "quotes"), [
+    ("One change for players.\nIt spans two lines.", ["> One change for players. It spans two lines."]),
+    ("### Fixed", []),
+    ("### Knowledge base", []),
+])
+def test_release_pr_quotes_only_an_opening_paragraph(tree, opening, quotes):
+    section = f"{opening}\n\n- A fix for players."
+    (tree / "CHANGELOG.md").write_text(CHANGELOG.replace("**A new page.** It shows things.", section))
+    version = V("1.2.0")
+    release.apply(tree, version, dt.date(2026, 1, 5))
+    pr = release.pr_body(tree, version, URL)
+    assert [line for line in pr.splitlines() if line.startswith("> ")] == quotes
+    assert "- A fix for players." not in pr
+    if not quotes:
+        assert opening not in pr
+    assert release.notes(tree, version, URL).startswith(section)
 
 
 def test_the_pr_body_does_not_grow_with_the_notes(tree):
