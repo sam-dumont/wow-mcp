@@ -81,9 +81,10 @@ FORUMS = {"us.forums.blizzard.com", "eu.forums.blizzard.com"}
 
 
 def forum_post(url: str) -> tuple[str, str, int] | None:
+    """Only a numbered reply identifies which author and text the record cites."""
     parts = urllib.parse.urlsplit(url)
-    if parts.hostname in FORUMS and (m := re.fullmatch(r"/en/wow/t/(?:(?!\d+/)[^/]+/)?(\d+)(?:/(\d+))?/?", parts.path)):
-        return parts.hostname, m[1], int(m[2] or 1)
+    if parts.hostname in FORUMS and (m := re.fullmatch(r"/en/wow/t/(?:[^/]+/)?(\d+)/(\d+)/?", parts.path)):
+        return parts.hostname, m[1], int(m[2])
     return None
 
 
