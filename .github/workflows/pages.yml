@@ -25,6 +25,8 @@ on:
       - site/**
       - tools/fixtures/**
       - web/model3d/**
+      - web/app.js
+      - web/items.js
       - wowstats/publish.py
       - tools/docs_values.py
       - tools/polestar-tag

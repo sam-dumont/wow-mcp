@@ -127,7 +127,7 @@
   // icon names are metadata. No art is downloaded to illustrate them.
   const iconFamilies = [
     [/helm|helmet|crown|hat_/, 'head'], [/neck|amulet/, 'neck'], [/shoulder|pauldron/, 'shoulder'],
-    [/cape|cloak/, 'back'], [/chest|robe|armor/, 'chest'], [/bracer|wrist/, 'wrist'],
+    [/cape|cloak/, 'back'], [/shirt/, 'shirt'], [/tabard/, 'tabard'], [/chest|robe|armor/, 'chest'], [/bracer|wrist/, 'wrist'],
     [/glove|gauntlet/, 'hands'], [/belt|girdle/, 'waist'], [/pants|leg|kilt/, 'legs'],
     [/boot|shoe/, 'feet'], [/ring|jewelry/, 'finger'], [/shield|buckler/, 'off'],
     [/bow|rifle|gun|wand|crossbow/, 'ranged'], [/sword|axe|hammer|mace|staff|dagger|weapon/, 'main'],
@@ -140,11 +140,16 @@
     holy: 'M10 3h4v6h6v4h-6v8h-4v-8H4V9h6z',
   };
   const drawings = new Map();
-  function drawnIcon(name) {
+  function drawnPath(name) {
+    // A missing card has its own mark. Known items can share a category drawing.
+    if (name === QUESTION) return 'M8 8a4 4 0 0 1 8 0c0 3-4 3-4 6 M12 18v1';
     const school = name.split('_')[1];
     const family = iconFamilies.find(([pattern]) => pattern.test(name));
-    const path = school && Object.hasOwn(spellPaths, school) ? spellPaths[school]
+    return school && Object.hasOwn(spellPaths, school) ? spellPaths[school]
       : glyphPaths[family ? family[1] : 'trinket'];
+  }
+  function drawnIcon(name) {
+    const path = drawnPath(name);
     if (!drawings.has(path)) {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="3" fill="#292018"/><path d="${path}" fill="none" stroke="#e7c581" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
       drawings.set(path, 'data:image/svg+xml,' + encodeURIComponent(svg));
