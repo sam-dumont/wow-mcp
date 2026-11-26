@@ -2541,7 +2541,9 @@ def extract_inventory(acct: Path, chars: dict[str, dict], state: dict, out: Out)
             continue
         at, basis = dated(*observed(acct / "SavedVariables" / "Syndicator.lua"))
         fields = {field: inv[field] if k in changed else None for k in ("bags", "bank") for field in (k, k + "_n")}
-        out.emit({"_time": iso(at), "feed": "wow-bags", "char": char, "source_id": f"bags:{char}:{digest}:{int(at)}",
+        # Keep the content ID stable when an old archive has only the commit's
+        # time. Readers use _time alongside this ID for repeated observations.
+        out.emit({"_time": iso(at), "feed": "wow-bags", "char": char, "source_id": f"bags:{char}:{digest}",
                   "at_basis": basis,
                   "_msg": f"{char}: " + ", ".join(f"{len(inv[k])} items in {k}" for k in changed),
                   **fields})

@@ -1345,22 +1345,6 @@ def test_a_stored_crafted_name_is_skipped_never_written(tmp_path, monkeypatch, c
     assert not any("victim" in p.as_posix().lower() for p in written)
 
 
-class EmptyStore(PoisonStore):
-    """A new account: the store answers, with nothing in it yet."""
-
-    def vl(self, query, keys=(), ops=None, limit=0):
-        return []
-
-    def vl_raw(self, base, query, start, end, limit=0):
-        return []
-
-    def vm_query(self, q):
-        return []
-
-    def vm_range(self, q, start, end, step):
-        return []
-
-
 def multi_get(site_dir: Path):
     """A several-people static server on site_dir; get(path, host)."""
     s = static.Site({"SITE_DIR": str(site_dir), "ZOGZOG_PATH": "/zogzog/", "SITE_DOMAIN": "m.example"})
@@ -1380,18 +1364,16 @@ def multi_get(site_dir: Path):
 
 
 @pytest.mark.parametrize("public_on", [False, True])
-def test_a_person_without_characters_gets_the_empty_page(tmp_path, monkeypatch, public_on):
+def test_a_person_without_characters_gets_the_empty_page(tmp_path, public_on):
     """A new account had a bare "Not found" at its own address until its
     first character arrived (samwow, 2026-11-19). Now the empty page, public
     page on or off, naming nobody; an unknown slug still gets a 404; the
     build that brings the first character replaces it with the real page."""
-    from wowstats.plan import facts
+    from wowstats import eventstore
 
-    store = {"cls": EmptyStore}
-    monkeypatch.setattr(ui, "Store", lambda *a, **k: store["cls"]())
-    monkeypatch.setattr(facts, "store_for", lambda env, like=None: like)
     site_dir = tmp_path / "site"
-    env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "off",
+    where = f"sqlite:{tmp_path / 'events'}"
+    env = {"EVENTS_STORE": where, "MODEL3D": "off",
            "PUBLISH_DIR": str(site_dir / "newbie"), "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key")}
     with redirect_stdout(io.StringIO()):
         res = publish.publish(env, public=public_on, slug="newbie")
@@ -1418,10 +1400,11 @@ def test_a_person_without_characters_gets_the_empty_page(tmp_path, monkeypatch, 
             assert get(path, "nobody-wow.m.example")[0] == 404, path
 
         # The first character arrives: the next build is the normal one.
-        store["cls"] = PoisonStore
+        eventstore.get(where).append(0, [{"_time": "2026-11-19T12:00:00Z", "char": "Hero-Test",
+                                          "feed": "wow-recorder", "kind": "level", "level": 12, "source_id": "ding:12"}])
         with redirect_stdout(io.StringIO()):
             res = publish.publish(env, public=public_on, slug="newbie")
-        assert res["built"] and res["chars"] == 1
+        assert res["built"] and res["why"] == "new events" and res["chars"] == 1
         code, _, body = get("/", "newbie-wow.m.example")
         if public_on:
             assert code == 200 and b'data-static="1"' in body and b"No character yet" not in body
