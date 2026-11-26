@@ -38,9 +38,14 @@ ROOT = Path(__file__).resolve().parents[1]
 warnings.filterwarnings("ignore", module="boring_semantic_layer")
 
 
+@pytest.fixture(scope="module")
+def events(tmp_path_factory):
+    return seed_rows(tmp_path_factory.mktemp("demo-populations"))
+
+
 @pytest.fixture
-def seeded(monkeypatch, tmp_path):
-    fake = SeedVL(seed_rows(tmp_path))
+def seeded(monkeypatch, tmp_path, events):
+    fake = SeedVL(events)
     monkeypatch.setattr(stores, "http_get", fake)
     monkeypatch.setattr(MStore, "_get", lambda self, url, params, extra=None: fake(url, params))
     monkeypatch.setattr(eventcache, "_SHARED", {})
@@ -72,7 +77,7 @@ def test_a_semantic_failure_keeps_the_last_good_answer_stale_and_says_so(seeded,
     a = app(seeded)
     assert a.prebuilt.check() == "first build"
     good = a.api_char(CHAR)
-    assert good["header"]["counts"]["completed_levels"]["kills"] == 2255 and not good.get("stale")
+    assert good["header"]["counts"]["completed_levels"]["kills"] > 0 and not good.get("stale")
     assert pages.health() == {"semantic": "ok"}
 
     broken(monkeypatch)
@@ -168,18 +173,23 @@ def test_the_fallback_formulas_do_not_come_back():
 # ------------------------------------------------------------- 2. populations
 
 
-def test_both_consumers_name_each_population_and_agree(seeded):
+def test_both_consumers_name_each_population_and_agree(seeded, events):
     page = app(seeded).api_char(CHAR)["header"]["counts"]
     ctx = T.Ctx(store=MStore(vl_url="http://vl.invalid"), default_char=CHAR)
     mcp = T.call(ctx, "character_summary", {"char": CHAR})
     assert "kills" not in mcp and "quests_turned_in" not in mcp  # no bare total to confuse
     assert mcp["counts"] == page
-    assert page == {
-        "completed_levels": {"from_level": 22, "to_level": 45, "kills": 2255, "quests": 141},
-        # Troll Temper, handed in at Gadgetzan after Zul'Farrak, is level 46's sixth.
-        "current_level": {"level": 46, "kills": 101, "quests": 6},
-        "including_current_level": {"kills": 2356, "quests": 147},
-    }
+    # Completed levels carry their own totals. The current level starts at the
+    # last ding, including kills and turn-ins stamped at that same instant.
+    mine = [r for r in events if r.get("char") == CHAR]
+    splits = [r for r in mine if r["feed"] == "wow-level"]
+    last_ding = max(r["_time"] for r in splits)
+    current = [r["kind"] for r in mine if r["feed"] == "wow-recorder" and r["_time"] >= last_ding]
+    assert set(page) == {"completed_levels", "current_level", "including_current_level"}
+    assert page["completed_levels"] == {"from_level": 22, "to_level": 45,
+                                        "kills": sum(int(r["kills"]) for r in splits),
+                                        "quests": sum(int(r["quests"]) for r in splits)}
+    assert page["current_level"] == {"level": 46, "kills": current.count("kill"), "quests": current.count("turnin")}
     # The parts add up: one definition, two populations.
     for k in ("kills", "quests"):
         assert page["completed_levels"][k] + page["current_level"][k] == page["including_current_level"][k]
