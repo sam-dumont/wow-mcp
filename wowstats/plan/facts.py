@@ -1160,10 +1160,12 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
                     "even_ding_t": ding_even},
         "trips": tr, "dungeons": sorted(dungeons, key=lambda d: (d["min"], d["name"])), "dungeon_runs_kb": runs,
         "upgrades": [{k: u.get(k) for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_share_pct",
-                                            "level", "now", "fills_empty", "sources", "ah_copper", *BADGE)} | (
+                                            "level", "now", "fills_empty", "sources", "ah_copper", "value", "fit",
+                                            "effort", *BADGE)} | (
             {"with_item_id": (u.get("with") or {}).get("item_id"), "with": _partner(u["with"])} if u.get("with")
             else {}) for u in ups],
         "gear_spec": ((advice or {}).get("spec") or {}).get("label"),
+        "gear_mode": (advice or {}).get("mode"),
         "worn_ids": worn_ids,
         # The dungeon panel's (wowstats.plan.dungeonview): every item each
         # dungeon gives him, what he has, the quests he handed in.

@@ -19,7 +19,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
-from . import forever, profcaps, trainers
+from . import forever, profcaps, riding, trainers
 from . import gear as gearmod
 from . import timebounds as tb
 from .analysis import kb
@@ -797,7 +797,7 @@ def profession_claims(level: int | None, gear_profs: list[dict], skills: dict[in
     return out
 
 
-def riding_claims(level: int | None, header: dict | None, skills: dict[int, dict]) -> list[dict]:
+def riding_claims(level: int | None, header: dict | None, skills: dict[int, dict], done=()) -> list[dict]:
     """Riding, from RIDING_AHEAD levels before its tier: the race's trainer,
     the level, and the price against the gold the character holds. Riding's
     entry in `skills` is wowstats.riding.merge's (the spellbook, the
@@ -806,7 +806,30 @@ def riding_claims(level: int | None, header: dict | None, skills: dict[int, dict
     see), so the move then says "if not trained yet" and what was read when."""
     hd = header or {}
     rd = (skills or {}).get(RIDING_SKILL) or {}
-    if level is None or rd.get("rank"):
+    if level is None:
+        return []
+    rank = rd.get("rank") or 0
+    for skill, name in ((75, "riding.apprentice"), (150, "riding.journeyman")):
+        if rank >= skill:
+            continue
+        quest = riding.class_route(skill, hd, done)
+        if not quest:
+            break
+        if quest["fulfilled"]:
+            continue
+        rule = kb.static_rule(name)
+        if not rule or level < rule["value"]["level"] - RIDING_AHEAD:
+            return []
+        tier = rule["value"]
+        title = quest["name"]
+        alternative = tier["training_copper"]
+        return [claim(f"{title} at level {tier['level']}. {quest['action']} "
+                      f"The riding trainer is an alternative at {_coins(alternative)}.", "#gear",
+                      quest["source_url"], kind="riding", title=title, weight=2.5,
+                      skill={"name": "Riding", "next": title, "need_level": tier["level"],
+                             "level_ok": level >= tier["level"], "quest": quest, "trainers": [],
+                             "cost_copper": quest["remaining_copper"], "trainer_alternative_copper": alternative})]
+    if rank:
         return []
     r = trainers.riding(hd.get("race"), hd.get("faction"))
     rule = kb.static_rule("riding.apprentice")
@@ -970,7 +993,7 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]]) -> list[di
 
 
 def next_moves(level: int | None, advice: dict | None, header: dict, track: dict, follow: dict,
-               gear_profs: list[dict], skills: dict[int, dict]) -> dict:
+               gear_profs: list[dict], skills: dict[int, dict], *, done=()) -> dict:
     """Besides following Polestar: what pays now."""
     reach = in_reach(advice, level)
     # The best for each slot: two pairs of trousers for the same legs are one
@@ -984,7 +1007,7 @@ def next_moves(level: int | None, advice: dict | None, header: dict, track: dict
              for u, s in list(best.values())[:3]]
     moves += dungeon_claims(level, reach)
     moves += profession_claims(level, gear_profs, skills, header)
-    moves += riding_claims(level, header, skills)
+    moves += riding_claims(level, header, skills, done)
     rested = opt_num(header.get("rested_xp"))
     if rested:
         of = f" ({rested / header['xp_max']:.2f} of level {level})" if header.get("xp_max") else ""

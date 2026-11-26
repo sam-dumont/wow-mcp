@@ -4074,11 +4074,12 @@ async function loadPlan(name) {
   const tiers = (s.tiers || []).filter((t) => !t.bought).slice(0, 2).map((t) => h('div', { class: 'tier' },
     // may_be_trained: no read of the game saw it (the Recorder misses a
     // training it didn't see): a hedge, never "not trained".
-    h('div', { text: `Riding at ${t.level}${t.may_be_trained ? ', if not trained yet' : ''}: ${t.need} needed, ${t.left} to go` +
+    h('div', { text: t.quest ? `${t.quest.name} at level ${t.level}. ${t.quest.action} Paid trainer alternative: ${t.trainer_alternative}.` :
+      `Riding at ${t.level}${t.may_be_trained ? ', if not trained yet' : ''}: ${t.need} needed, ${t.left} to go` +
       (t.eta ? ` (about ${t.eta} of play at ${s.gold_rate}${t.eta_level ? `, level ${t.eta_level}` : ''})` :
         s.gold_rate ? '' : ' (no gold rate measured yet)') + (t.behind ? '. Behind your level pace.' : '.') }),
-    h('div', { class: 'bar', role: 'img', 'aria-label': `${t.pct || 0}% saved` },
-      h('i', { 'width%': Math.max(0, Math.min(100, t.pct || 0)) }))));
+    t.pct != null ? h('div', { class: 'bar', role: 'img', 'aria-label': `${t.pct}% saved` },
+      h('i', { 'width%': Math.max(0, Math.min(100, t.pct)) })) : null));
   const r = s.review;
   const rev = r ? h('p', { text: `Last plan (${r.hours} h): ` + (r.ratio ? `you needed ${r.ratio}× the planned time` :
     'not far enough in to compare') + (r.end_actual != null ? `; level ${r.end_actual} at its end, ${r.end_planned} planned.` :

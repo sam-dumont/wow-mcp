@@ -1258,7 +1258,8 @@ def _gear_inputs(ctx: Ctx, char: str) -> dict:
 
         sheet["professions"] = profcaps.fill(sheet["professions"], profcaps.newest_skills(res.get("skills", [])))
         res["items"] = _views(ctx).price_rows()
-        market = ahsource.market(res, faction=sheet.get("faction"), money=opt_num(s.get("money_copper")))
+        market = ahsource.market(res, faction=sheet.get("faction"), money=opt_num(s.get("money_copper")),
+                                 who=sheet, done=done, log=log)
     except SourceError:
         market = None  # no prices is no reason to lose the advice
     return {"early": None, "rows": rows, "snap": snap, "worn": worn, "worn_from": worn_from, "s": s, "r": r,

@@ -433,3 +433,12 @@ def test_every_kb_only_dungeon_reads_as_items(name):
         assert d["name"][0].isupper() and ":" not in d["name"] and " / " not in d["name"]
         assert d["boss"] is None or d["boss"].lower() not in kbloot.GROUPS | kbloot.RECIPES
         assert d["armour"] in (None, *kbloot.ARMOUR)
+
+
+@pytest.mark.parametrize("cls,eligible", [("MAGE", True), ("PRIEST", False), (None, False)])
+def test_arcane_refreshment_in_the_checklist_and_trip(priest, cls, eligible):
+    inp = {**priest, "level": 60, "xp": 0, "xp_max": 0, "who": {**priest["who"], "class": cls},
+           "open_quests": [], "quests_done": []}
+    east = by_name(V.build(inp))["Dire Maul: East"]
+    assert (7463 in {q["quest_id"] for q in east["quests"]}) == eligible
+    assert (7463 in {q["quest_id"] for q in east["gain"]["quests"]}) == eligible
