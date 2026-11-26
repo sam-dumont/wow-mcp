@@ -54,11 +54,13 @@
   "moves": [
    "riding|Riding at level # if not trained yet",
    "upgrade|13209",
+   "upgrade|17738",
    "upgrade|22659"
   ],
   "next_moves": [
    "#gear",
    "#up-14",
+   "#up-17",
    "#up-2"
   ],
   "prep": [
@@ -92,6 +94,7 @@
   "effects": [],
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
+   "dungeon|Maraudon: Purple",
    "dungeon|Razorfen Downs",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
@@ -133,16 +136,17 @@
   "effects": [],
   "moves": [
    "dungeon|Razorfen Downs",
+   "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
    "upgrade|10025",
-   "upgrade|2816"
+   "upgrade|17745"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#levels",
    "#up-1",
-   "#up-16",
+   "#up-18",
    "#up-5"
   ],
   "prep": []
@@ -173,9 +177,10 @@
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
    "dungeon|Razorfen Downs",
+   "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
-   "upgrade|10028",
+   "upgrade|17755",
    "upgrade|273806"
   ],
   "next_moves": [
@@ -184,7 +189,7 @@
    "#levels",
    "#up-12",
    "#up-17",
-   "#up-3"
+   "#up-6"
   ],
   "prep": []
  },
@@ -205,13 +210,13 @@
   ],
   "effects": [],
   "moves": [
+   "upgrade|263307",
    "upgrade|263406",
-   "upgrade|277100",
    "upgrade|5604"
   ],
   "next_moves": [
-   "#up-10",
    "#up-18",
+   "#up-7",
    "#up-8"
   ],
   "prep": []
