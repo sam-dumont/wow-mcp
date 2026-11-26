@@ -93,6 +93,9 @@ def test_demo_store_keeps_nibbets_supplied_model(tmp_path):
     t = {name: {} for name in assets.TABLES}
     t["ChrRaces"][7] = {"Name_lang": "Gnome", "ClientFileString": "Gnome"}
     t["ChrRaceXChrModel"][10] = {"ChrRacesID": 7, "ChrModelID": 11, "Sex": 0}
+    # demo-3d-2 kept these lower-ID mappings, but none of their model files.
+    for i, c in enumerate(roster.CHARACTERS, 20):
+        t["ChrRaceXChrModel"][i] = {"ChrRacesID": c.race_id, "ChrModelID": i, "Sex": c.sex - 2}
     t["ChrModel"][11] = {"DisplayID": 12, "CharComponentTextureLayoutID": 13}
     t["CreatureDisplayInfo"][12] = {"ModelID": 14}
     t["CreatureModelData"][14] = {"FileDataID": 15}
@@ -104,4 +107,12 @@ def test_demo_store_keeps_nibbets_supplied_model(tmp_path):
     merged = character3d.load_tables(store)
     nibbet = character3d.assemble(merged, 7, 0, character3d.class_id("PRIEST"), [], [])
     assert nibbet["recipe"]["model"] == 15 and store.read(15) == assets.Store(release).read(15)
-    assert character3d.assemble(merged, 3, 0, character3d.class_id("HUNTER"), [], [])["recipe"]["model"] != 15
+    bodies = {15}
+    for c in roster.CHARACTERS:
+        answer = character3d.assemble(merged, c.race_id, c.sex - 2, character3d.class_id(c.cls), [], roster.worn(c))
+        assert answer["recipe"] and not answer["missing"], c.name
+        body = answer["recipe"]["model"]
+        assert body >= g.GOLDEN_FILE and body not in bodies, c.name
+        assert not assets.closure(answer["needs"], store.read)[1], c.name
+        bodies.add(body)
+    assert len(bodies) == 9

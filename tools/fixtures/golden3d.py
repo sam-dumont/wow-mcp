@@ -366,7 +366,7 @@ def glow_model() -> bytes:
 
 # What each made-up look is: (kind, colours). Kinds: robe, trousers, belt,
 # boots, wrists, gloves, shirt, tabard, cloak (body and cape textures); shoulders, staff,
-# mace, rod, helm, shield (models).
+# mace, rod, wand, helm, shield (models).
 ITEMS: dict[int, tuple[str, tuple]] = {
     6264: ("robe", ((96, 112, 150), (214, 214, 230))),   # Greater Adept's Robe: slate blue, white trim
     273044: ("robe", ((110, 52, 150), (228, 184, 70))),  # Violet Sorcerer's Robes: violet, gold trim
@@ -389,7 +389,7 @@ ITEMS: dict[int, tuple[str, tuple]] = {
     5976: ("tabard", ((40, 90, 60), (220, 190, 80))),    # Guild Tabard: green, a gold band
     TEST_HELM: ("helm", ((150, 40, 40), None)),
     TEST_SHIELD: ("shield", ((150, 150, 160), (200, 60, 40))),
-    7001: ("wand", ((0, 0, 0), None)),                   # a wand in the ranged slot: never drawn
+    7001: ("wand", ((115, 94, 126), (198, 174, 224))),    # Gravestone Scepter
     # His outfits on the way to 46 (generate.py sessions_demo_46).
     7684: ("shoulders", ((120, 30, 40), (200, 170, 90))),  # Bloodmage Mantle
     10028: ("shoulders", ((50, 40, 70), None)),          # Shadoweave Shoulders: on the auction house today
@@ -403,7 +403,7 @@ ITEMS: dict[int, tuple[str, tuple]] = {
     254041: ("belt", ((150, 40, 30), (230, 140, 40))),              # Fiery Cord: his own, the fire one
     10776: ("cloak", ((200, 200, 210), None)),           # Silky Spider Cape
     249454: ("staff", ((70, 60, 110), (170, 140, 255))),  # Dreamstaff: his own enchanting, and it glows
-    274425: ("wand", ((0, 0, 0), None)),                 # White Obsidian Wand: never drawn
+    274425: ("wand", ((75, 71, 88), (225, 217, 212))),   # White Obsidian Wand
 }
 # The made-up items that glow, as their real ones do (ItemDisplayInfo.ItemVisual).
 GLOWS = {279838, 249454}
@@ -533,7 +533,7 @@ def build(extra_items=None, weapon_shapes=None) -> dict:
     for k, (item, (kind, (main, accent))) in enumerate(sorted(items.items())):
         cls, sub, inv = kinds[item]
         t["Item"][item] = {"ClassID": cls, "SubclassID": sub, "InventoryType": inv}
-        if kind in ("wand", "jewelry"):
+        if kind == "jewelry":
             continue
         display, app = rid(1000 + k), rid(1100 + k)
         t["ItemModifiedAppearance"][rid(1200 + k)] = {"ItemID": item, "ItemAppearanceModifierID": 0,
@@ -574,6 +574,9 @@ def build(extra_items=None, weapon_shapes=None) -> dict:
                             attachments=[(1, 0, (0.0, 0.0, 0.26))])
                 d["ModelResourcesID"], d["ModelMaterialResourcesID"] = [res, 0], [mat, 0]
                 d["ItemVisual"] = rid(950)
+            elif kind == "wand":
+                parts = [_b((-.015, -.015, -.04), (.015, .015, .23)), _b((-.032, -.032, .23), (.032, .032, .29))]
+                d["ModelResourcesID"], d["ModelMaterialResourcesID"] = [model(parts), 0], [mat, 0]
             elif weapon_shapes and kind in weapon_shapes:
                 d["ModelResourcesID"] = [model(weapon_shapes[kind]), 0]
                 d["ModelMaterialResourcesID"] = [mat, 0]

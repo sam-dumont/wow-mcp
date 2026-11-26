@@ -18,7 +18,8 @@ Every tab of the public page and of the friends' page is opened; on each:
   item frame still on its "?" or its slot's glyph, no talent showing its letter,
   no broken `<img>` (naturalWidth 0), and no item on the game's question
   mark (an item the bundle has no card or icon for);
-- "View in 3D" opens a model the viewer drew (data-state drawn).
+- each of the nine characters opens its own model through the selector,
+  paints the viewer canvas and offers its class actions and companion controls.
 
 The demo has no degraded section on purpose: a section that falls back is
 a gap in the demo's data (tools/fixtures/generate.py, golden3d.py) or in
@@ -45,7 +46,9 @@ import pytest
 
 sync_api = pytest.importorskip("playwright.sync_api")
 
+from tests.demo_models import PET, ROSTER, check_answer  # noqa: E402
 from tests.test_browser import settled  # noqa: E402
+from tests.test_model3d_browser import COVERED  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 WIDTHS = (390, 1280)
@@ -185,14 +188,61 @@ def open_3d(page, i: int) -> str:
     """Click the i-th visible "View in 3D", return the viewer's state."""
     page.locator("button.m3dtoggle:visible").nth(i).click()
     frame = page.wait_for_selector("iframe.m3dframe >> visible=true", timeout=15000).content_frame()
-    # The frame is still on its way from about:blank to the viewer: no root
-    # element for a moment, and a throw there ends the wait instead of polling.
-    frame.wait_for_function("() => { const r = document.documentElement;"
-                            " return !!r && ['drawn', 'error'].includes(r.dataset.state); }", timeout=60000)
-    state = frame.evaluate("() => document.documentElement.dataset.state + ' '"
-                           " + ((document.getElementById('status') || {}).textContent || '')")
+    state = viewer_state(frame)
     page.locator("button.m3dtoggle[aria-pressed=true]:visible").first.click()
     return state
+
+
+def viewer_state(frame) -> str:
+    # The frame can still be on about:blank, before the viewer's <html>.
+    frame.wait_for_function("() => ['drawn', 'error'].includes(document.documentElement?.dataset.state)",
+                            timeout=60000)
+    return frame.evaluate("() => document.documentElement.dataset.state")
+
+
+CLASS_ACTION = {"PRIEST": "Power Word: Shield", "WARRIOR": "Battle Shout", "PALADIN": "Holy Light",
+                "HUNTER": "Hunter's Mark", "ROGUE": "Kick", "SHAMAN": "Lightning Bolt", "MAGE": "Frostbolt",
+                "WARLOCK": "Drain Life", "DRUID": "Rejuvenation"}
+
+
+@pytest.mark.parametrize("which", ["public", "friends"])
+@pytest.mark.parametrize("name", list(ROSTER))
+def test_each_demo_character_draws(browser, base, name, which):
+    with browser.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce") as ctx:
+        page = ctx.new_page()
+        served = set()
+        page.on("response", lambda r: served.add(r.url) if r.ok and "/model3d/file/" in r.url else None)
+        page.goto(base + ("friends/" if which == "friends" else ""))
+        select = page.get_by_role("combobox", name="Character", exact=True)
+        select.locator("option").nth(8).wait_for(state="attached")
+        assert set(select.locator("option").evaluate_all("opts => opts.map(o => o.value)")) == set(ROSTER)
+        assert (page.locator("html").get_attribute("data-sealed") == "1") == (which == "friends")
+        page.get_by_role("tab", name="Character", exact=True).click()
+        select.select_option(name)
+        page.locator("#hero").get_by_role("heading", name=name.split("-")[0], exact=True).wait_for()
+        answer = page.evaluate("name => window.wowGetJSON(window.wowApi('model3d', {name}))", name)
+        recipe = check_answer(name, answer)
+        page.locator("#gear").get_by_role("button", name="View in 3D").click(timeout=30000)
+        iframe = page.wait_for_selector(f"#gear iframe.m3dframe[data-name='{name}']", timeout=30000)
+        frame = iframe.content_frame()
+        assert viewer_state(frame) == "drawn", frame.locator("#status").inner_text()
+        hit, colours = frame.evaluate(COVERED)
+        assert hit > 20 and colours >= 3, (name, hit, colours)
+        assert any(url.endswith(f"/model3d/file/{recipe['model']}") for url in served), name
+
+        cls = ROSTER[name][0]
+        frame.get_by_role("button", name=CLASS_ACTION[cls], exact=True).wait_for(timeout=30000)
+        if cls == "PRIEST":
+            frame.get_by_role("button", name="Shoot wand", exact=True).click()
+        if cls in PET:
+            toggle = frame.get_by_role("checkbox", name=PET[cls][1])
+            assert toggle.is_checked()
+            toggle.uncheck()
+            assert not toggle.is_checked()
+            toggle.check()
+            assert any(url.endswith(f"/model3d/file/{recipe['companion']['model']}") for url in served), name
+        else:
+            assert not frame.locator("#companion-control").is_visible()
 
 
 @pytest.mark.parametrize("width", WIDTHS)

@@ -4,7 +4,8 @@ name: wow-stats-demo
 
 services:
   ui:
-    image: wow-stats:demo
+    image: ${WOW_STATS_IMAGE:-wow-stats:demo}
+    volumes: !override [ui-state:/data]
     environment:
       DEFAULT_CHAR: Nibbet-Gearholt
       MODEL3D_CACHE_DIR: /data/demo-fixtures
@@ -12,7 +13,7 @@ services:
       VM_URL: http://victoriametrics:8428
 
   publish:
-    image: wow-stats:demo
+    image: ${WOW_STATS_IMAGE:-wow-stats:demo}
     environment:
       DEFAULT_CHAR: Nibbet-Gearholt
       MODEL3D_CACHE_DIR: /ui-state/demo-fixtures
@@ -20,14 +21,19 @@ services:
       VM_URL: http://victoriametrics:8428
 
   demo:
-    image: wow-stats:demo
+    image: ${WOW_STATS_IMAGE:-wow-stats:demo}
     depends_on: [ui, victoriametrics]
     command: ["--fixture-dir", "/data/demo-fixtures", "--ingest", "http://ui:8080/ingest", "--metrics", "--vm", "http://victoriametrics:8428"]
-    volumes:
+    # The seed imports the matching image's app and reads only its fixture inputs.
+    volumes: !override
+      - ../../dev/seed.py:/src/dev/seed.py:ro
+      - ../../tools:/src/tools:ro
+      - ../../tests/data:/src/tests/data:ro
+      - ../../data:/src/data:ro
       - ui-state:/data
 
   site:
-    image: wow-stats:demo
+    image: ${WOW_STATS_IMAGE:-wow-stats:demo}
 
   victoriametrics:
     profiles: [demo]

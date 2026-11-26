@@ -10,6 +10,7 @@ build/
 # real secrets / local config, never committed
 .env
 deploy/compose/.env
+deploy/compose/.env.demo
 deploy/compose/secrets/*
 !deploy/compose/secrets/README.md
 *.pem

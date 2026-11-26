@@ -56,8 +56,6 @@ def weapon_parts(kind):
                 box((-.07, -.02, -.37), (.012, .02, -.18)), box((-.077, -.005, -.37), (-.069, .005, .37))]
     if kind == "axe":
         return [box((-.022, -.024, -.17), (.022, .024, .61)), box((-.13, -.033, .40), (.13, .033, .59))]
-    if kind == "baton":
-        return [box((-.015, -.015, -.04), (.015, .015, .23)), box((-.032, -.032, .23), (.032, .032, .29))]
     length = .28 if kind == "dagger" else .61
     return [box((-.019, -.017, -.12), (.019, .017, .02)), box((-.10, -.02, .02), (.10, .02, .047)),
             box((-.034, -.012, .047), (.034, .012, length))]
@@ -67,9 +65,8 @@ def item_looks():
     by_slot = {1: "helm", 2: "jewelry", 3: "shoulders", 5: "chest", 6: "belt", 7: "trousers", 8: "boots",
                9: "wrists", 10: "gloves", 11: "jewelry", 15: "cloak"}
     by_weapon = {1: "axe", 2: "bow", 3: "gun", 5: "mace", 7: "blade", 8: "blade", 10: "staff",
-                 15: "dagger", 19: "baton"}
-    out = {item: ("baton", ((115, 94, 126), (198, 174, 224))) for item, (kind, _) in g.ITEMS.items()
-           if kind == "wand"}
+                 15: "dagger", 19: "wand"}
+    out = {}
     for c, colors in zip(roster.CHARACTERS, DYES, strict=True):
         for it in roster.worn(c):
             iid = it["item_id"]
@@ -142,7 +139,7 @@ def add_pets(golden):
 def write_store(root: Path, nibbet: Path | None = None):
     """The existing Nibbet store plus synthetic rows at reserved IDs. Only
     the Nibbet release supplies a real model, including its original look."""
-    shapes = {kind: weapon_parts(kind) for kind in ("bow", "gun", "blade", "axe", "dagger", "baton")}
+    shapes = {kind: weapon_parts(kind) for kind in ("bow", "gun", "blade", "axe", "dagger")}
     golden = g.build(item_looks(), shapes)
     if not nibbet:
         golden["files"].update(g.character(gestures=gestures("PRIEST")))
@@ -151,14 +148,22 @@ def write_store(root: Path, nibbet: Path | None = None):
     add_pets(golden)
     t = golden["tables"]
     if nibbet:
-        # Leave Nibbet's choices of model and item appearances to the release.
+        # The pinned release contains the full race-to-model index but only
+        # Nibbet's files. Its other mappings would win by their lower row IDs.
         t["ChrRaceXChrModel"].pop(g.rid(10))
-        t["ItemModifiedAppearance"] = {k: v for k, v in t["ItemModifiedAppearance"].items()
-                                       if g.ITEMS.get(v["ItemID"], (None,))[0] in (None, "wand")}
         existing = assets.Store(nibbet)
         for table, rows in t.items():
             if blob := existing.table(table):
-                rows.update(db2.Table(blob, table, existing.build()).rows)
+                supplied = db2.Table(blob, table, existing.build()).rows
+                if table == "ChrRaceXChrModel":
+                    supplied = {k: r for k, r in supplied.items() if (r["ChrRacesID"], r["Sex"]) == (g.GNOME, g.MALE)}
+                if table == "ItemModifiedAppearance":
+                    # Keep original looks where supplied. The pinned store
+                    # predates drawable wands, so they keep their generated looks.
+                    supplied_items = {r["ItemID"] for r in supplied.values()}
+                    for k in [k for k, r in rows.items() if r["ItemID"] in supplied_items]:
+                        del rows[k]
+                rows.update(supplied)
         shutil.copytree(nibbet / "files", root / "files", dirs_exist_ok=True)
     g.write_store(root, golden)
     if nibbet:

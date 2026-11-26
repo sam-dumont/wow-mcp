@@ -2,11 +2,9 @@
 # small server at home). docker compose up -d --build, then point the shipper at
 # http://127.0.0.1:8080/ingest. docs/install.md has the three steps.
 #
-# The nine-character demo, from this folder on any system. Its dedicated
-# project runs the models and simulated armory without a Battle.net account:
-#   test -f .env || echo INGEST_PASSWORD=demo-password-only > .env
-#   docker compose -f compose.yaml -f compose.demo.yaml up -d --build ui
-#   docker compose -f compose.yaml -f compose.demo.yaml run --rm demo
+# For the local demo, follow docs/quickstart.md. Its release kit and image
+# must match: the seed reads the fixtures from the kit. The demo Compose
+# project keeps its volumes separate from your characters.
 #
 #   victorialogs     your game events (yours: kept until you delete them);
 #                    compose.sqlite.yaml on top keeps them in SQLite files instead

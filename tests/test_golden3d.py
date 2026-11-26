@@ -87,6 +87,16 @@ def test_outfit_assembles_with_every_file(store, tables):
     assert [n for n in a["needs"] if have.path(n) is None] == []
 
 
+@pytest.mark.parametrize("item", [7001, 274425])
+def test_standalone_gnome_can_draw_both_wands(store, tables, item):
+    answer = assemble(tables, [{"slot": 18, "item_id": item}], look=[])
+    recipe = answer["recipe"]
+    assert not answer["missing"] and recipe["ranged"]["kind"] == 19
+    wand, = recipe["attachments"]
+    assert wand["slot"] == 18 and wand["model"] and wand["textures"]
+    assert not assets.closure(answer["needs"], assets.Store(store).read)[1]
+
+
 def test_hands_shoulders_and_shield(tables):
     """The 3D branch's contract: slot 16 in the right hand (attachment 1),
     slot 17 in the left (2), a shield on the left arm (0), and

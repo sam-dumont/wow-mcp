@@ -23,7 +23,9 @@ on:
       - README.md
       - docs/**
       - site/**
-      - tools/fixtures/generate.py
+      - tools/fixtures/**
+      - web/model3d/**
+      - wowstats/publish.py
       - tools/docs_values.py
       - tools/polestar-tag
       - data/route-reference.json
@@ -85,7 +87,7 @@ jobs:
     # not every day.
     if: github.repository_id == '1464458020' && (github.event_name != 'schedule' || needs.visibility.outputs.public == 'true')
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 40
     outputs:
       publish: ${{ steps.publish.outputs.publish }}
     steps:
@@ -136,7 +138,7 @@ jobs:
       - run: uv sync --frozen --extra publish --extra mcp --extra render
       # The renderer draws the demo's pictures in Chromium (wowstats.renderer),
       # and the demo's guard test opens its pages in it.
-      - run: uv run --frozen --extra render playwright install --with-deps chromium
+      - run: uv run --frozen --extra render playwright install --with-deps chromium webkit
       # The project site's address: https://<owner>.github.io/<repo>/.
       - name: Site address
         run: |
@@ -156,11 +158,11 @@ jobs:
       # local demo too (dev/seed.py through a ui's /ingest), but for the three
       # parts the compose kit doesn't run (docs/self-host/demo.md).
       - run: >-
-          uv run --frozen --extra render --group browser pytest -q -rs -m browser
+          uv run --frozen --extra render --group browser pytest -q -rA -m browser
           tests/test_demo_complete_browser.py tests/test_local_demo_complete_browser.py
         env:
           WOW_DEMO_DIR: site/public/demo
-          WOW_DEMO_ENGINES: chromium
+          WOW_DEMO_ENGINES: chromium,webkit
       - run: npm ci --prefix site
       # Page counts (site/scripts/analytics.mjs): the Plausible site and its
       # event endpoint, repository variables like immich-memories' docs. Public

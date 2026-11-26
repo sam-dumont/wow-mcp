@@ -27,11 +27,10 @@ Then [troubleshooting](#4-troubleshooting), and [what's next](#next).
 Someone already runs wow-stats for you and sent you a `/start` link? Skip this guide:
 [Join a friend's server](players/getting-started.md).
 
-You need the kit itself on the computer that runs the server: `git clone` this repository, or
-download the source zip of a release and unpack it anywhere. The commands below say which
-folder to run them from: "the kit's folder" is the top of it, the one with `README.md` in it.
-The server itself is a released image you pull; building it from the source instead is in
-[Development](development.md#build-the-image-yourself).
+On the computer that runs the server, extract the
+[release v{{app_version}} kit](https://github.com/sam-dumont/wow-mcp/archive/refs/tags/v{{app_version}}.zip).
+The commands use the kit's folder, the one with `README.md` in it, and pull the matching public
+image. To build a development checkout, see [Build the image yourself](development.md#build-the-image-yourself).
 
 ## 1. Addons
 
@@ -134,7 +133,9 @@ The first time it downloads the wow-stats image (and VictoriaLogs, unless you pi
 SQLite files), a few hundred MB. No account or login needed. Then open <http://127.0.0.1:8080>:
 an empty page until the shipper sends something.
 
-The [local demo](self-host/demo.md) has nine made-up characters, one per class. Its dedicated Compose project includes the 3D models, companions, and offline armory samples. It runs without a game install or a Battle.net API key.
+The [local demo](self-host/demo.md) keeps its invented characters in a separate Compose project.
+The v0.13.0 kit has Nibbet. Kits with `compose.demo.yaml` have all nine classes, their models
+and simulated armory profiles. Both run without a game install or a Battle.net API key.
 
 `Bind for 127.0.0.1:8080 failed: port is already allocated` means
 something else on your computer already uses 8080. Pick another port in
