@@ -5,6 +5,7 @@ came from), answered by the MCP's inventory and kept in the prep's
 inventory table. Made-up characters and stacks."""
 
 import json
+import os
 from datetime import UTC, datetime
 
 import pytest
@@ -88,6 +89,25 @@ def test_counts_survive_ingest(shipper, tmp_path):
     assert held["counts"] == {"bags": {LINEN: 20}, "bank": {SILK: 5}}
 
 
+def test_bag_only_save_preserves_the_bank_observation(shipper, tmp_path):
+    from wowstats import eventstore
+
+    es = eventstore.get(f"sqlite:{tmp_path / 'events'}")
+    state = {}
+    for day, count in [(1, 1), (19, 2)]:
+        at = datetime(2026, 11, day, tzinfo=UTC).timestamp()
+        acct = _syndicator(tmp_path, [[(LINEN, count)]], [[(SILK, 3)]])
+        os.utime(acct / "SavedVariables" / "Syndicator.lua", (at, at))
+        ev, = _ship(shipper, acct, state)
+        lines, bad = ingest.parse(json.dumps(ev).encode())
+        assert not bad and es.append(0, lines) == 1
+    now = datetime(2026, 11, 20, tzinfo=UTC)
+    held = gear.newest_bags(es.query(0, "*", datetime(2026, 11, 1, tzinfo=UTC), now, 10))
+    answer = tools.inventory_answer(held, now=now)
+    assert answer["bags_at"].startswith("2026-11-19") and answer["bank_at"].startswith("2026-11-01")
+    assert "2026-11-01" in answer["note"] and held["counts"]["bank"] == {SILK: 3}
+
+
 # ---------------------------------------------------------------- the read
 
 
@@ -140,7 +160,7 @@ def test_the_tool_answers_counts_and_says_when_the_bank_is_old():
     assert [(r["name"], r["bags"], r["bank"], r["total"]) for r in out["items"]] == [
         ("Hearthstone", 1, 0, 1), ("Linen Cloth", 40, 0, 40), ("Silk Cloth", 0, 8, 8)]
     assert out["bags_at"].startswith("2026-11-20") and out["bank_at"].startswith("2026-11-10")
-    assert out["note"] == "the bank as of 2026-11-10: open it in game to refresh"
+    assert out["note"] == "bank contents last observed in the save on 2026-11-10: open the bank in game to check them"
     # A fresh bank: no note. A filter by name or by id.
     assert tools.inventory_answer(held, now=datetime(2026, 11, 12, tzinfo=UTC))["note"] is None
     assert [r["item_id"] for r in tools.inventory_answer(held, "cloth")["items"]] == [LINEN, SILK]

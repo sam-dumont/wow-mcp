@@ -186,21 +186,21 @@
       "note": "Research lanes game-rules (talents.first_level, talents.milestones [11, 16, 21, 31]) and levelling (talents.first_level, points_at_60). The Legacy perk Talented moves the first point earlier (talents.points_formula)."
     },
     "instance.entries_per_hour": {
-      "statement": "A character can enter at most 5 instances per hour. Only a guide states it; Blizzard has published no number, and one player reports going past 5.",
+      "statement": "Since November 20, each dungeon allows five resets and re-entries per hour. The previous limit was ten.",
       "value": {
-        "per_hour": 5
+        "per_hour": 5,
+        "applies_to": "each dungeon"
       },
-      "source_url": "https://www.warcrafttavern.com/forever/guides/dungeons/",
+      "source_url": "https://us.forums.blizzard.com/en/wow/t/2403040/14",
       "sources": [
-        "https://www.warcrafttavern.com/forever/guides/dungeons/",
-        "https://eu.forums.blizzard.com/en/wow/t/are-more-than-5-dungeon-resets-per-hour-allowed-in-wow-forever/642420"
+        "https://us.forums.blizzard.com/en/wow/t/2403040/14"
       ],
-      "source_type": "guide",
-      "date": "2026-11",
-      "confidence": "low",
+      "source_type": "official",
+      "date": "2026-11-20",
+      "confidence": "high",
       "scope": "forever",
-      "last_verified": "2026-11-18",
-      "note": "Research lanes game-rules (instance.limit_per_hour), dungeons (instance.cap_per_hour), raids-endgame (instance.hourly_cap). Classic's is 10 (instance.limit_per_hour_classic)."
+      "last_verified": "2026-11-26",
+      "note": "The hotfix gives no separate limit across different dungeons."
     },
     "dungeon.forever_new": {
       "statement": "Forever's nine new dungeons, their zones and level ranges. The client's own table and Polestar agree on these ranges. Blizzard's announcement gave narrower ones: Ruins of Lordaeron 15-20, Excavation Site 24-29, City of Dalaran 28-33.",

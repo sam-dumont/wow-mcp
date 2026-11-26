@@ -48,7 +48,7 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wowstats import ahsource, crafting, endgame, forever, quests, questwork, stores
+from wowstats import ahsource, classguide, crafting, endgame, forever, quests, questwork, stores
 
 _HERE = Path(__file__).resolve()
 # An installed wheel carries it as wowstats/data/; a checkout has it at the root.
@@ -102,9 +102,6 @@ QUEST_AHEAD = 5
 SLOT_NAMES = {1: "Head", 2: "Neck", 3: "Shoulder", 5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet", 9: "Wrist",
               10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 14: "Trinket", 15: "Back", 16: "Main hand",
               17: "Off hand", 18: "Ranged"}
-# ChrRaces IDs (quest race masks are 1 << (id - 1); Skyborne is Forever's 33).
-RACE_IDS = {"human": 1, "orc": 2, "dwarf": 3, "nightelf": 4, "night elf": 4, "scourge": 5, "undead": 5,
-            "tauren": 6, "gnome": 7, "troll": 8, "skyborne": 33}
 SIDES = {"alliance": 1, "horde": 2}
 SOON_LEVELS = 3  # "the next one coming": within this many levels
 MIN_UPGRADE = 1.0  # the least gain, in percent, that counts as an upgrade
@@ -291,6 +288,14 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
             got = sources.setdefault(iid, [])
             if not any(x.get("kind") == "quest" and str(x.get("quest")) == qid for x in got):
                 got.append({"kind": "quest", "quest": int(qid)})
+    # All gear sources share one quest record. Fill the requirements even
+    # when Polestar or a ForeverDB source installed a record first.
+    for qid in quests:
+        side, races, classes = forever.quest_gates(qid)
+        q = quests[qid]
+        quests[qid] = {**q, "side": side if side in (1, 2) else q.get("side", 3),
+                       "race": races or q.get("race", 0), "class": classes or q.get("class", 0),
+                       "req": (forever.quest(qid) or {}).get("min_level") or q.get("req", 0)}
     return {**polestar, "items": items, "names": names, "sources": sources, "quests": quests,
             "era_only": era_only, "item_stats": {k: v for k, v in (game.get("source") or {}).items() if k != "tables"},
             "foreverdb": fdb_meta}
@@ -322,6 +327,8 @@ def foreverdb_sources(items: dict, quests: dict, gear_quests: dict, data: dict |
     for iid, e in (data.get("items") or {}).items():
         if iid not in items:
             continue
+        if e.get("side") in _SIDE:
+            items[iid]["side"] = _SIDE[e["side"]]
         raw = []
         gate = next((x.get("faction") for x in e.get("sources") or [] if x.get("kind") == "reputation"), None)
         sided, gate_side = side_of_gate(e.get("sources") or [])
@@ -675,7 +682,7 @@ def behind_pct(best: float, alt: float) -> int:
     return max(1, math.floor((best - alt) / best * 100 + 0.5))
 
 
-def usability(ref: Reference, info: dict, cls: str, level: int) -> tuple[bool, str | None, int]:
+def usability(ref: Reference, info: dict, cls: str, level: int, who: Who | None = None) -> tuple[bool, str | None, int]:
     """Gear.lua usability -> usable, reason, the level it counts from
     (available_level: ForeverDB's rule). Without the client's weapon skills,
     every weapon the class can train counts (knowsWeaponSkill's own
@@ -684,6 +691,11 @@ def usability(ref: Reference, info: dict, cls: str, level: int) -> tuple[bool, s
     prof = (g.get("PROFICIENCY") or {}).get(cls)
     meta = (g.get("CLASSES") or {}).get(cls)
     min_level = available_level(info)
+    if info.get("side") and (who is None or info["side"] != who.side):
+        return False, "faction", min_level
+    skill = info.get("required_skill")
+    if skill and (who is None or who.skill_ranks.get(skill, 0) < max(1, info.get("required_skill_rank") or 0)):
+        return False, "skill", min_level
     if not (prof and meta):
         return True, None, min_level
     allow = info.get("allow") or 0
@@ -1024,6 +1036,7 @@ class Who:
     # DataStore_Crafts through the shipper's `recipes`; a profession missing
     # here is unknown, never "not learned".
     recipes: dict = field(default_factory=dict)
+    skill_ranks: dict = field(default_factory=dict)  # SkillLine ID -> observed rank for equip requirements
     bags: set = field(default_factory=set)  # item IDs in the bags (wow-bags)
     # {faction id: (reaction 1-8, points from the start of Neutral)}, from
     # the Recorder's rep records and Altoholic's (reputations); None when
@@ -1060,10 +1073,8 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
     """One source of an item in the answer's shape, or None when this
     character can't take it (the other side's quest, another race's or
     class's, a quest already handed in), from content Forever hasn't opened
-    (closed_content), or a PvP reward while PvP rewards don't count. A craft counts when the character
-    makes it at its rank, or when the item has a level to wear it at (gear
-    others make and sell); a craft with no level (Engineering's goggles)
-    asks for the profession to wear it, which the item table doesn't say."""
+    (closed_content), or a PvP reward while PvP rewards don't count. Item-level equip requirements are checked
+    by usability before any acquisition route is considered."""
     # A quest's zone as forever-db gives it: where it is done (a raid's
     # tier quest is handed in outside, its zone is the raid's).
     qz = (forever.quest(s["quest"]) or {}).get("zone") if s["kind"] == "quest" else None
@@ -1141,8 +1152,6 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
         prof = s.get("profession")
         rank = who.professions.get(str(prof).lower()) if prof else None
         skill_ok = rank is not None and rank >= (s.get("skill") or 0)
-        if not skill_ok and not info.get("req"):
-            return None
         known = recipe_known(who, prof, s.get("spell"))
         name = (ref.data.get("names") or {}).get(str(item_id)) or forever.item_name(item_id) if item_id else None
         pattern = pattern_in_bags(who, name) if known is not True else None
@@ -1333,6 +1342,29 @@ def _listing(sale: dict, money: int | None) -> dict:
     character's gold covers it (None: the gold isn't known)."""
     return {"kind": "ah", **sale,
             "affordable": None if money is None else (sale.get("price_copper") or 0) <= money}
+
+
+def action_source(sources: list[dict], level: int | None) -> dict | None:
+    """First easy or moderate acquisition the character can take at this level."""
+    gated = any(s.get("kind") in ("pvp", "reputation") and s.get("met") is not True for s in sources)
+    for s in sources:
+        kind = s.get("kind")
+        if s.get("effort") in EFFORT[HARD:] or source_effort(s) > SOME:
+            continue
+        if kind == "ah" and (not s.get("price_copper") or s.get("affordable") is False
+                             or s.get("seen_days_ago") not in (0, 1)):
+            continue
+        if kind == "craft" and not s.get("can_make"):
+            continue
+        if kind in ("reputation", "pvp") and s.get("met") is not True or kind == "vendor" and gated:
+            continue
+        if level is not None:
+            if kind == "quest" and ((s.get("req_level") or 0) > level or (s.get("level") or 0) > level + 3):
+                continue
+            if kind == "drop" and s.get("levels") and s["levels"][0] > level + 3:
+                continue
+        return s
+    return None
 
 
 def by_effort(srcs: list[dict]) -> list[dict]:
@@ -1648,12 +1680,15 @@ def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: s
     from wowstats import gearfit
 
     points = gearfit.spec_points(ref, cls, key, sheet)
-    race_id = RACE_IDS.get(str(sheet.get("race") or "").strip().lower())
+    race_id = classguide.race_bit(sheet.get("race"), sheet.get("faction")).bit_length() or None
     prof = (ref.gear.get("PROFICIENCY") or {}).get(cls)
     dual = can_dual_wield(prof, level)
     who = Who(cls=cls, level=level, side=SIDES.get(str(sheet.get("faction") or "").lower()), race_id=race_id,
               professions={str(p.get("name") or "").lower(): p.get("rank") for p in sheet.get("professions") or []
                            if p.get("name") and isinstance(p.get("rank"), (int, float))},
+              skill_ranks={int(sid): int(p["rank"]) for p in sheet.get("professions") or []
+                          if (sid := _num(p.get("skill_id")) or crafting.line_of(p.get("name")))
+                          and isinstance(p.get("rank"), (int, float))},
               done=set(done or ()), zone=zone, recipes=recipe_lists(sheet.get("recipes")),
               reps=sheet.get("reps"), pvp_rank=sheet.get("pvp_rank"), pvp=bool(pvp), pvp_mode=mode == "pvp",
               today=_today())
@@ -1851,7 +1886,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         info = item_for(ref, item_id, w)
         if not info:  # not gear, or gear the advice doesn't score
             continue
-        usable, _, min_level = usability(ref, info, cls, level)
+        usable, _, min_level = usability(ref, info, cls, level, who)
         if usable and min_level <= level + SOON_LEVELS:
             cands.append({"id": item_id, "info": info, "at": min_level, "sources": [{"kind": where}],
                           "effort": EASY, "here": False})
@@ -1861,7 +1896,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         if not base or item_id in holding:
             continue
         info = item_for(ref, item_id, w)
-        usable, _, min_level = usability(ref, info, cls, level)
+        usable, _, min_level = usability(ref, info, cls, level, who)
         if not usable:
             continue
         # The other side's reputation and its quartermaster, and PvP rewards
@@ -1886,6 +1921,9 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         if not here_srcs:
             continue
         here_srcs = by_effort(here_srcs)
+        selected = action_source(here_srcs, level)
+        if selected and selected is not here_srcs[0]:
+            here_srcs = [selected, *(s for s in here_srcs if s is not selected)]
         effort = item_effort(here_srcs)
         if effort == LONG_SHOT and level < ENDGAME_LEVEL:
             # A pipe dream (a 0.03% Classic drop, a PvP rank out of reach)
@@ -1906,7 +1944,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         if (not info or item_id in holding or str(item_id) in (ref.data.get("sources") or {})
                 or not buyable(info, level)):
             continue
-        usable, _, min_level = usability(ref, info, cls, level)
+        usable, _, min_level = usability(ref, info, cls, level, who)
         if usable and min_level <= level + SOON_LEVELS:
             srcs = by_effort([_listing(s, money)])
             cands.append({"id": item_id, "info": info, "at": min_level, "sources": srcs,
@@ -1977,7 +2015,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     for item_id, info, srcs in [(i, x, []) for i, x in unsourced(ref)] + gated:
         if item_id in holding:
             continue
-        usable, _, at = usability(ref, info, cls, level)
+        usable, _, at = usability(ref, info, cls, level, who)
         if not usable or at > level:
             continue
         if info["inv"] in WEAPON_INV:
@@ -2746,7 +2784,8 @@ def source_text(s: dict, short: bool = False) -> str:
     if s["kind"] == "ah":
         share = f", {s['gold_share_pct']:g}% of your gold" if s.get("gold_share_pct") is not None else ""
         return (f"auction house: {ahsource.price_text(s['price_copper'])}{share}, "
-                f"{ahsource.seen_text(s.get('seen_days_ago'))}{' (cheap)' if s.get('cheap') else ''}")
+                f"{ahsource.seen_text(s.get('seen_days_ago'))}"
+                + (f" ({s['seen_day']})" if s.get("seen_day") else "") + (" (cheap)" if s.get("cheap") else ""))
     tail = f" ({basis})" if basis else ""
     if s["kind"] == "vendor":
         price = f", {ahsource.price_text(s['price_copper'])}" if s.get("price_copper") else ""
@@ -3252,7 +3291,7 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
         info = item_for(ref, item_id, cx.w)
         if not info:
             continue
-        usable, _, min_level = usability(ref, info, cx.cls, cx.level)
+        usable, _, min_level = usability(ref, info, cx.cls, cx.level, cx.who)
         if not usable:
             continue
         by_area: dict[str, dict] = {}

@@ -145,6 +145,8 @@ services:
       VM_URL: ${VM_URL:-}
       DEFAULT_CHAR: ${DEFAULT_CHAR:-}
       PUBLISH_DIR: /data/site
+      WEIGHTS: ${WEIGHTS:-}
+      PUBLISH_GEAR_SETTINGS_DIR: /ui-state/analysis
       PUBLISH_INTERVAL: ${PUBLISH_INTERVAL:-600}
       MODEL3D: ${MODEL3D:-on}
       WOW_ITEMS: ${WOW_ITEMS:-on}
@@ -174,7 +176,7 @@ services:
       ANALYSIS_SHARE_TOKEN_FILE: /ui-state/share-token
     volumes:
       - site-data:/data
-      # Read-only: the share token and the 3D files.
+      # Read-only: the share token, gear settings and 3D files.
       - ui-state:/ui-state:ro
 
   site:

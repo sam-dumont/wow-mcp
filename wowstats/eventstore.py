@@ -89,7 +89,8 @@ _GEN: dict[tuple[str, int], int] = {}
 _GEN_LOCK = threading.Lock()
 
 
-def _wrote(location: str, tenant: int) -> None:
+def changed(location: str, tenant: int) -> None:
+    """Invalidate local readers after a write or an observed external change."""
     key = (location.rstrip("/"), int(tenant))
     with _GEN_LOCK:
         _GEN[key] = _GEN.get(key, 0) + 1
@@ -163,7 +164,7 @@ class VictoriaLogs:
         except (urllib.error.URLError, OSError) as e:
             raise SourceError(f"{at} unreachable: {e}") from None
         self.flush(tenant)
-        _wrote(self.url, tenant)
+        changed(self.url, tenant)
 
     def flush(self, tenant: int = 0) -> None:
         """Make what was just stored searchable now: VictoriaLogs holds new
@@ -197,7 +198,7 @@ class VictoriaLogs:
         except urllib.error.HTTPError as e:
             raise SourceError(f"VictoriaLogs refused the delete: {e.code} "
                               f"{e.read(200).decode('utf-8', 'replace')}") from None
-        _wrote(self.url, tenant)
+        changed(self.url, tenant)
         return out
 
     def health(self, timeout: float = 5) -> dict:
@@ -350,7 +351,7 @@ class SQLiteEvents:
             con.execute("COMMIT")
             new = con.total_changes - before
         if new:
-            _wrote(self.location, tenant)
+            changed(self.location, tenant)
         return new
 
     def query(self, tenant: int, q: str, start: datetime, end: datetime, limit: int) -> list[dict]:
@@ -386,7 +387,7 @@ class SQLiteEvents:
                 if con is None:
                     return {"deleted_rows": 0}
                 cur = con.execute("DELETE FROM events WHERE t_us < ?", (_us(before),))
-            _wrote(self.location, tenant)
+            changed(self.location, tenant)
             return {"deleted_rows": cur.rowcount}
         gone = []
         for suffix in ("", "-wal", "-shm"):
@@ -395,7 +396,7 @@ class SQLiteEvents:
                 p.unlink()
                 gone.append(p.name)
         self._made.discard(self.path(tenant))
-        _wrote(self.location, tenant)
+        changed(self.location, tenant)
         return {"deleted_files": gone}
 
     def health(self, timeout: float = 5) -> dict:

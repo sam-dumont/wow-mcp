@@ -774,6 +774,7 @@
     "level": 22,
     "partial": true,
     "quests": 3,
+    "route_s": 3754,
     "seconds": 2963,
     "xp": 11745,
     "xp_per_hour": 14270
@@ -784,6 +785,7 @@
     "level": 23,
     "partial": false,
     "quests": 8,
+    "route_s": 4731,
     "seconds": 14229,
     "xp": 29400,
     "xp_per_hour": 7438
@@ -794,6 +796,7 @@
     "level": 24,
     "partial": false,
     "quests": 5,
+    "route_s": 5465,
     "seconds": 6379,
     "xp": 31700,
     "xp_per_hour": 17890
@@ -804,6 +807,7 @@
     "level": 25,
     "partial": false,
     "quests": 6,
+    "route_s": 2630,
     "seconds": 5075,
     "xp": 34000,
     "xp_per_hour": 24118
@@ -814,6 +818,7 @@
     "level": 26,
     "partial": false,
     "quests": 6,
+    "route_s": 4374,
     "seconds": 8156,
     "xp": 36400,
     "xp_per_hour": 16067
@@ -824,6 +829,7 @@
     "level": 27,
     "partial": false,
     "quests": 11,
+    "route_s": 4003,
     "seconds": 9805,
     "xp": 38900,
     "xp_per_hour": 14283
@@ -834,6 +840,7 @@
     "level": 28,
     "partial": false,
     "quests": 5,
+    "route_s": 5380,
     "seconds": 9156,
     "xp": 41400,
     "xp_per_hour": 16278
@@ -844,6 +851,7 @@
     "level": 29,
     "partial": false,
     "quests": 11,
+    "route_s": 5265,
     "seconds": 6783,
     "xp": 44300,
     "xp_per_hour": 23512
@@ -854,6 +862,7 @@
     "level": 30,
     "partial": false,
     "quests": 11,
+    "route_s": 5063,
     "seconds": 9749,
     "xp": 47400,
     "xp_per_hour": 17503
@@ -864,6 +873,7 @@
     "level": 31,
     "partial": false,
     "quests": 8,
+    "route_s": 6714,
     "seconds": 9632,
     "xp": 50800,
     "xp_per_hour": 18987
@@ -874,6 +884,7 @@
     "level": 32,
     "partial": false,
     "quests": 8,
+    "route_s": 7799,
     "seconds": 32452,
     "xp": 54500,
     "xp_per_hour": 6046
@@ -884,6 +895,7 @@
     "level": 33,
     "partial": false,
     "quests": 6,
+    "route_s": 7282,
     "seconds": 6784,
     "xp": 58600,
     "xp_per_hour": 31097
@@ -894,6 +906,7 @@
     "level": 34,
     "partial": false,
     "quests": 7,
+    "route_s": 8486,
     "seconds": 13923,
     "xp": 62800,
     "xp_per_hour": 16238
@@ -904,6 +917,7 @@
     "level": 35,
     "partial": false,
     "quests": 5,
+    "route_s": 5204,
     "seconds": 9514,
     "xp": 67100,
     "xp_per_hour": 25390
@@ -914,6 +928,7 @@
     "level": 36,
     "partial": false,
     "quests": 7,
+    "route_s": 7032,
     "seconds": 4261,
     "xp": 71600,
     "xp_per_hour": 60493
@@ -924,6 +939,7 @@
     "level": 37,
     "partial": false,
     "quests": 3,
+    "route_s": 5178,
     "seconds": 8787,
     "xp": 76100,
     "xp_per_hour": 31178
@@ -934,6 +950,7 @@
     "level": 38,
     "partial": false,
     "quests": 4,
+    "route_s": 7945,
     "seconds": 9953,
     "xp": 80800,
     "xp_per_hour": 29225
@@ -944,6 +961,7 @@
     "level": 39,
     "partial": false,
     "quests": 5,
+    "route_s": 6955,
     "seconds": 5723,
     "xp": 85700,
     "xp_per_hour": 53909
@@ -954,6 +972,7 @@
     "level": 40,
     "partial": false,
     "quests": 8,
+    "route_s": 3947,
     "seconds": 8292,
     "xp": 90700,
     "xp_per_hour": 39378
@@ -964,6 +983,7 @@
     "level": 41,
     "partial": false,
     "quests": 0,
+    "route_s": 4136,
     "seconds": 3768,
     "xp": 95800,
     "xp_per_hour": 91529
@@ -974,6 +994,7 @@
     "level": 42,
     "partial": false,
     "quests": 7,
+    "route_s": 7538,
     "seconds": 5100,
     "xp": 101000,
     "xp_per_hour": 71294
@@ -984,6 +1005,7 @@
     "level": 43,
     "partial": false,
     "quests": 3,
+    "route_s": 15100,
     "seconds": 11181,
     "xp": 106300,
     "xp_per_hour": 34226
@@ -994,6 +1016,7 @@
     "level": 44,
     "partial": false,
     "quests": 1,
+    "route_s": 4183,
     "seconds": 3501,
     "xp": 111800,
     "xp_per_hour": 114961
@@ -1004,6 +1027,7 @@
     "level": 45,
     "partial": false,
     "quests": 3,
+    "route_s": 6572,
     "seconds": 12392,
     "xp": 117500,
     "xp_per_hour": 34135
@@ -1520,6 +1544,7 @@
    ],
    "total": 15
   },
+  "route_source": "Polestar 0.4.2.2 route planner (tools/lib/planner/timeline.js), played on the release's compiled guides",
   "sources": {
    "archive": "off",
    "archive_after_days": 89

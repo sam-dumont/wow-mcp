@@ -128,6 +128,29 @@ def test_auctionator_prices(shipper, wow, tmp_path):
     json.dumps(got)  # every value is JSON
 
 
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="host does not support switching local timezones")
+@pytest.mark.parametrize("zones", [("UTC", "Europe/Brussels"), ("Europe/Brussels", "UTC")])
+def test_auctionator_days_follow_the_clients_epoch_in_either_order(shipper, wow, tmp_path, monkeypatch, zones):
+    acct = tmp_path / "acct"
+    # Day 89 begins on March 30 in Brussels, after the spring DST change.
+    write_auctionator(acct, cbor({"2592": {"h": {"0": 40, "89": 45}}}))
+    try:
+        for tz in zones:
+            with monkeypatch.context() as m:
+                m.setenv("TZ", tz)
+                time.tzset()
+                rows = []
+                out = shipper.Out(dry=True)
+                out.emit = rows.append
+                shipper.extract_auctionator(acct, "Hero-Test", {}, out)
+                times = [e["_time"] for e in rows]
+                assert times == (["2020-01-01T00:00:00.000Z", "2020-03-30T00:00:00.000Z"] if tz == "UTC" else
+                                 ["2019-12-31T23:00:00.000Z", "2020-03-29T23:00:00.000Z"])
+                assert [e["scan_day"] for e in rows] == ["2020-01-01", "2020-03-30"]
+    finally:
+        time.tzset()
+
+
 def write_auctionator_realms(acct, realms: dict[str, bytes]):
     sv = acct / "SavedVariables"
     sv.mkdir(parents=True, exist_ok=True)

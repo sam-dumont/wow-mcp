@@ -148,7 +148,7 @@ def _compute(ask) -> dict:
         return got[0][metric] if got else None
 
     split = {"dimension": "partial", "op": "is not null"}
-    levels = {r["level"]: r for r in ask(metrics=["played_s", "level_xp", "split_quests", "split_kills",
+    levels = {r["level"]: r for r in ask(metrics=["played_s", "planned_s", "level_xp", "split_quests", "split_kills",
                                                   "xp_per_hour"], group_by=["level", "partial", "ding_t"],
                                          where=[split])}
     done = sorted(lv for lv, r in levels.items() if r["partial"] == 0)
@@ -232,7 +232,7 @@ def apply_rows(levels: list[dict], dungeons: list[dict], n: dict) -> None:
     for lv in levels:
         r = n["levels"].get(lv["level"])
         if r is not None:
-            lv.update(seconds=int(r["played_s"] or 0), xp=int(r["level_xp"] or 0),
+            lv.update(seconds=int(r["played_s"] or 0), route_s=whole(r.get("planned_s")), xp=int(r["level_xp"] or 0),
                       quests=opt_num(r["split_quests"]), kills=opt_num(r["split_kills"]),
                       xp_per_hour=whole(r["xp_per_hour"]), partial=bool(r["partial"]))
     for d in dungeons:

@@ -537,7 +537,7 @@ def redo(inp: dict, mine: list[dict], entry: dict, quest_xph: float, mount: dict
     if hours_loop:
         out["loop"] = {"run_s": round(loop_s), "note": "inside time only; the walk out and back in to reset "
                                                         "isn't measured" + (
-                                                            f"; at most {cap} entries an hour, so a run takes "
+                                                            f"; at most {cap} entries an hour to this dungeon, so a run takes "
                                                             f"{round(3600 / cap / 60)} minutes at best"
                                                             if cap and loop_s > inside else ""),
                        "xp_per_hour": per_hour(xp_in, loop_s) if xp_in is not None else None,

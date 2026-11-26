@@ -891,10 +891,11 @@ def dungeon_quests(knowledge, side: str | None, runs: dict) -> dict[str, dict]:
     and why. {area ID: {quests, other_side}}: `other_side` counts the other
     side's quests, so a dungeon with only those (Ragefire Chasm for the
     Alliance) reads as the other side's."""
-    from wowstats import forever
+    from wowstats import dungeonquests, forever
 
     from .estimate import dkey
 
+    outdoor = dungeonquests.data().get("outdoor") or {}
     areas = {aid: a for aid, a in ((forever.data() or {}).get("areas") or {}).items()
              if a.get("instance") == "dungeon"}
     by_key = {dkey(a["name"]): aid for aid, a in areas.items()}
@@ -956,6 +957,8 @@ def dungeon_quests(knowledge, side: str | None, runs: dict) -> dict[str, dict]:
     for aid, qs in want.items():
         rows, other = [], 0
         for qid, note in sorted(qs.items()):
+            if str(qid) in outdoor:
+                continue
             body = docs.get(qid, "")
             sd = QUEST_SIDE.search(body)
             sd = sd.group(1).title() if sd else None
@@ -1225,13 +1228,13 @@ def _partner(w: dict) -> dict:
 
 
 def instance_limit() -> dict | None:
-    """The instances a character may enter per hour, from the KB's
+    """Resets and re-entries per hour for each dungeon, from the KB's
     instance.entries_per_hour, with its source; None: unknown, never assumed."""
     from wowstats.analysis.kb import static_rule
 
     r = static_rule("instance.entries_per_hour")
     n = ((r or {}).get("value") or {}).get("per_hour")
-    return {"per_hour": int(n), "source": cite(r)} if n else None
+    return {**r["value"], "per_hour": int(n), "source": cite(r)} if n else None
 
 
 def median(xs):

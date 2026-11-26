@@ -138,6 +138,8 @@ def check(rec: dict, allow: dict, strict_type: bool = True) -> list[str]:
     for u in urls(rec):
         if not u.startswith("https://"):
             errs.append(f"{u} is not an https URL")
+        elif re.search(r'[\s"<>“”]', u):
+            errs.append(f"{u!r} contains invalid characters in a citation URL")
         elif domain(u) not in allow:
             errs.append(f"{domain(u)} is not on the source allow-list (data/kb/sources.json)")
     if strict_type and rec.get("source_type"):

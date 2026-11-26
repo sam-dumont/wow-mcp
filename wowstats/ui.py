@@ -514,7 +514,7 @@ class App:
             # standing from the gear advice, cut to rank, percent and label
             # (redact.worn_standing). The advice itself stays full-view only.
             d = {**d, "gear": {**d["gear"], "standing": self.worn_standing(name)}}
-        return redact.char(d, *self.views.route_levels(d))
+        return redact.char(d)
 
     def worn_standing(self, name: str) -> list[dict]:
         """The worn slots' standing for the public doll; none when the gear
@@ -747,6 +747,13 @@ class App:
 
     # ------------------------------------------------------------ prebuilt
 
+    def event_mark(self) -> tuple[str, str]:
+        """The newest event and count across the recent store and archive."""
+        rows = self.views.vl(f"{self.views.stream} | stats max(_time) as t, count() as n", (),
+                             {"t": "maxtime", "n": "sum"})
+        r = rows[0] if rows else {}
+        return str(r.get("t") or ""), str(r.get("n") or "0")
+
     def data_mark(self, before: tuple | None = None) -> tuple:
         """What says the answers may have changed (wowstats.prebuilt): the
         newest event and the number of events (an old session sent late
@@ -755,16 +762,14 @@ class App:
         person's item facts: their shipper sends those after its events, so
         a build the events started missed them (rc.2 on the lab: the Drowned
         City kept its bare names for a day)."""
-        rows = self.views.vl(f"{self.views.stream} | stats max(_time) as t, count() as n", (),
-                             {"t": "maxtime", "n": "sum"})
-        r = rows[0] if rows else {}
+        events = self.event_mark()
         try:
             fp = self.store.profile_fingerprint()
         except Exception:  # noqa: BLE001 - vm-wow down: judge on the events alone
             fp = before[2] if before else ""
         f = self.item_facts.facts()
         facts = f"{len(f.items)}:{len(f.budget)}:{sum(int(v.get('h') or 0) for v in f.items.values())}"
-        return str(r.get("t") or ""), str(r.get("n") or "0"), fp, facts
+        return *events, fp, facts
 
     def page_answers(self, only: str = "", keep: dict | None = None) -> dict:
         """Every answer a plain open of the page asks for (web/app.js loadChar

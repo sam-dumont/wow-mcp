@@ -36,7 +36,7 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wowstats import ahsource, forever
+from wowstats import ahsource, forever, profcaps
 
 _HERE = Path(__file__).resolve().parent
 BUNDLED = (_HERE / "data" / "craft-reference.json", _HERE.parent / "data" / "craft-reference.json")
@@ -144,8 +144,12 @@ def who_from(sheet: dict, held: dict | None, market: dict | None) -> Who:
     for p in sheet.get("professions") or []:
         ln = line_of(p.get("skill_id") if isinstance(p.get("skill_id"), int) else p.get("name"))
         if ln and isinstance(p.get("rank"), (int, float)):
-            ranks[ln] = int(p["rank"])
-            caps[ln] = int(p["cap"]) if isinstance(p.get("cap"), (int, float)) else None
+            if p.get("max_rank_from"):
+                ranks[ln] = int(p["rank"])
+                caps[ln] = p.get("max_rank") if p["max_rank_from"] != "tiers" else None
+            else:
+                ranks[ln], cap, src = profcaps.cap_of(int(p["rank"]), None, p)
+                caps[ln] = cap if src != "tiers" else None
     for r in sheet.get("recipes") or []:
         ln = line_of(r.get("profession")) if isinstance(r, dict) else None
         if ln and isinstance(r.get("known"), list):

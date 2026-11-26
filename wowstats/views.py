@@ -109,7 +109,8 @@ def settings_from_env(env: dict, view: str = "full") -> Settings:
                     price_days=int(env.get("PRICE_DAYS", str(ahshared.PRICE_DAYS))),
                     weights=parse_weights(env.get("WEIGHTS", "")),
                     ah_shared=ahshared.location(env),
-                    state={k: env[k] for k in ("ANALYSIS_STATE_DIR", "WOW_STATE_DIR") if env.get(k)})
+                    state={k: env[k] for k in ("ANALYSIS_STATE_DIR", "WOW_STATE_DIR", gearmode.PUBLISHED)
+                           if env.get(k)})
 
 
 def norm_char(c: str) -> str:
@@ -360,13 +361,19 @@ class Views:
         if spec.get("name"):
             header["spec"] = spec["name"]  # the hero line says what the talents are
         header["title"] = card_title(header.get("class") or (gear or {}).get("class"), spec)
+        ref = self.route_ref()
+        for split in levels:
+            if split.get("route_s") is None and ref and ref.available:
+                plan = ref.level(split["level"], header.get("faction"), header.get("class"))
+                split["route_s"] = plan.get("expected_s") if plan else None
         return {
             "char": char,
             "header": header,
             "levels": levels,
+            "route_source": ref.source if ref and ref.available else None,
             "climb": climb,
             "zones": zone_totals(zone_time(res["zones"], split_sessions(res["minutes"]))),
-            "steps": build_steps(dedupe(res["steps"]), self.route_ref()),
+            "steps": build_steps(dedupe(res["steps"]), ref),
             "dungeons": dungeons,
             "deaths": deaths,
             "players": build_players(char, res["players"], res["player_days"]),
@@ -607,6 +614,7 @@ class Views:
             sheet["reps"], sheet["pvp_rank"] = None, None
         done = set(quests.with_battlenet(res["done"], quests.worn_ids(worn)))
         try:
+            sheet["professions"] = profcaps.fill(sheet["professions"], profcaps.newest_skills(ah["skills"].result()))
             market = ahsource.market({k: f.result() for k, f in ah.items()}, faction=sheet.get("faction"),
                                      money=header.get("money_copper"))
         except SourceError:
@@ -644,20 +652,6 @@ class Views:
         except ImportError:
             return None
         return route.reference()
-
-    def route_levels(self, data: dict) -> tuple[dict[int, int], str | None]:
-        """Polestar's route time for each level of `data` this character has
-        a split for, and where the times come from (the public climb)."""
-        ref = self.route_ref()
-        if not (ref and ref.available):
-            return {}, None
-        who = self.who(data)
-        out = {}
-        for lv in data.get("levels") or []:
-            r = ref.level(lv["level"], who.get("faction"), who.get("class"))
-            if r and r.get("expected_s"):
-                out[lv["level"]] = r["expected_s"]
-        return out, ref.source
 
     @staticmethod
     def who(data: dict) -> dict:
@@ -1231,10 +1225,10 @@ def build_gear(row: dict) -> dict | None:
     for i in items:
         i["enchant"] = itemcard.shared().enchant(i["enchant_id"]) if i.get("enchant_id") else None
     # The rank, and the cap DataStore_Crafts read in game (`cap`, `cap_at`);
-    # an old sheet's `max_rank` came from CharacterExport-Forever (dropped
-    # 2026-11-20) and isn't read. Views.char sets the cap (wowstats.profcaps).
+    # preserve an older shipper's dated cap for reconciliation in profcaps.
     profs = [{**clean(p, ("skill_id", "rank"), ("name",)),
-              **{k: opt_num(p[k]) for k in ("cap", "cap_at") if p.get(k) is not None}}
+              **{k: opt_num(p[k]) for k in ("cap", "cap_at", "max_rank") if p.get(k) is not None},
+              **({"max_rank_at": p["max_rank_at"]} if p.get("max_rank_at") else {})}
              for p in jlist(row.get("professions")) if isinstance(p, dict)]
     wanted = [clean(w, ("item_id", "item_level", "req_level", "level"), ("slot_name", "name"))
               for w in jlist(row.get("wanted")) if isinstance(w, dict)]

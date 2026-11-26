@@ -96,6 +96,8 @@ def test_the_multi_source_rule(allow, rec, why):
     ({"source_url": "http://news.blizzard.com/x"}, "not an https URL"),
     ({"source_url": "https://example.org/x"}, "not on the source allow-list"),
     ({"sources": ["https://example.org/y"]}, "not on the source allow-list"),
+    ({"source_url": 'https://news.blizzard.com/x"'}, "invalid characters"),
+    ({"sources": ["https://news.blizzard.com/a b"]}, "invalid characters"),
     ({"scope": "retail"}, "scope"),
     ({"confidence": "certain"}, "confidence"),
     ({"last_verified": "yesterday"}, "last_verified"),
@@ -110,6 +112,11 @@ def test_a_bad_record_is_refused(allow, rec, why):
     if not rec:
         bad.pop("source_url")
     assert any(why in e for e in kbschema.check(bad, allow))
+
+
+def test_encoded_search_parameters_are_valid(allow):
+    rec = rec_(source_url="https://www.wowhead.com/search?q=two%20words&quote=%22", source_type="guide")
+    assert kbschema.check(rec, allow) == []
 
 
 def test_a_booster_backed_by_an_official_source_may_be_high(allow):

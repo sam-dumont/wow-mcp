@@ -2529,15 +2529,22 @@ def extract_inventory(acct: Path, chars: dict[str, dict], state: dict, out: Out)
         if inv is None:
             continue
         digest = hashlib.sha1(json.dumps(inv, sort_keys=True).encode()).hexdigest()[:12]
-        if seen.get(char) == digest:
+        previous = seen.get(char)
+        parts = {k: hashlib.sha1(json.dumps(inv[k + "_n"]).encode()).hexdigest()[:12]
+                 for k in ("bags", "bank") if inv[k] is not None}
+        # Older shippers kept one digest for both containers. Seed the
+        # separate markers without re-dating the last observation.
+        known = previous if isinstance(previous, dict) else {}
+        seen[char] = {**known, **parts}
+        changed = [k for k, value in parts.items() if value != known.get(k)]
+        if previous == digest or not changed:
             continue
-        seen[char] = digest
         at, basis = dated(*observed(acct / "SavedVariables" / "Syndicator.lua"))
-        out.emit({"_time": iso(at), "feed": "wow-bags", "char": char, "source_id": f"bags:{char}:{digest}",
+        fields = {field: inv[field] if k in changed else None for k in ("bags", "bank") for field in (k, k + "_n")}
+        out.emit({"_time": iso(at), "feed": "wow-bags", "char": char, "source_id": f"bags:{char}:{digest}:{int(at)}",
                   "at_basis": basis,
-                  "_msg": f"{char}: {len(inv['bags'])} items in the bags, "
-                          + (f"{len(inv['bank'])} in the bank" if inv["bank"] is not None else "the bank not seen"),
-                  **inv})
+                  "_msg": f"{char}: " + ", ".join(f"{len(inv[k])} items in {k}" for k in changed),
+                  **fields})
 
 
 # ---------------------------------------------------------------------------
@@ -2546,7 +2553,6 @@ def extract_inventory(acct: Path, chars: dict[str, dict], state: dict, out: Out)
 
 # Auctionator counts days from time({year=2020, month=1, day=1, hour=0}): local
 # midnight on the player's machine, then whole 86400 s days (Constants/Main.lua).
-SCAN_DAY_0 = time.mktime((2020, 1, 1, 0, 0, 0, 0, 0, -1))
 FACTIONS = ("Alliance", "Horde", "Neutral")
 
 
@@ -2638,6 +2644,7 @@ def extract_auctionator(acct: Path, char: str | None, state: dict, out: Out) -> 
     minimum buyout and the most it saw listed), so a change sends the day
     again with the next `rev`; readers keep the highest rev per source_id."""
     seen = state.setdefault("prices", {})
+    day_zero = time.mktime((2020, 1, 1, 0, 0, 0, 0, 0, -1))
     item_names = names("Items")
     for realm, items in auctionator_db(acct).items():
         realm_name, faction = realm, None
@@ -2668,7 +2675,7 @@ def extract_auctionator(acct: Path, char: str | None, state: dict, out: Out) -> 
                         continue
                 rev = prev[3] + 1 if prev else 1
                 seen[sid] = [lo, hi, av, rev]
-                t = SCAN_DAY_0 + int(day) * 86400
+                t = day_zero + int(day) * 86400
                 name = item_names.get(item_id) if item_id is not None else None
                 out.emit({"_time": iso(t), "feed": "wow-prices", "char": char, "source_id": sid, "rev": rev,
                           "_msg": f"{name or key}: lowest {round(lo)} copper on {datetime.fromtimestamp(t):%Y-%m-%d}",
@@ -2748,44 +2755,86 @@ def cl_time(m: re.Match) -> float:
     return naive.astimezone().timestamp() + secs  # the Mac's local time, DST included
 
 
+def cl_owner(cols: list[str]) -> str | None:
+    """A character the client flags as its own player (never its pet)."""
+    if cl_standard(cols):
+        for guid, name, flags in (cols[:3], cols[4:7]):
+            if guid.startswith("Player-") and re.fullmatch("0x[0-9a-fA-F]+", flags):
+                own = AFFIL_MINE | TYPE_PLAYER
+                if int(flags, 16) & own == own:
+                    return player_of(name)[0]
+    return None
+
+
+def cl_append(path: Path, fs: dict) -> bytes:
+    """Read complete new lines. Verify the consumed bytes on a changed
+    file: copy-truncate can reuse both its inode and all its old offsets."""
+    with path.open("rb") as fh:
+        stat = os.fstat(fh.fileno())
+        version = [stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns]
+        if version == fs.get("version"):
+            return b""
+        offset = fs.get("offset", 0)
+        digest = hashlib.sha256()
+        left = offset
+        while left > 0:
+            block = fh.read(min(left, 1024 * 1024))
+            if not block:
+                break
+            digest.update(block)
+            left -= len(block)
+        if left or ("prefix" in fs and fs["prefix"] != digest.hexdigest()):
+            fs.clear()
+            fh.seek(0)
+            offset, digest = 0, hashlib.sha256()
+        data = fh.read()
+    data = data[:data.rfind(b"\n") + 1]
+    digest.update(data)
+    fs.update(offset=offset + len(data), prefix=digest.hexdigest(), version=version)
+    return data
+
+
 def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: dict, out: Out) -> None:
     logs = sorted((WOW / "Logs").glob("WoWCombatLog*.txt"))
     st = state.setdefault("cl", {})
     seen_players = state.setdefault("cl_players", {})
     for path in logs:
-        fs = st.setdefault(path.name, {"offset": 0})
-        size = path.stat().st_size
-        if size < fs["offset"]:
-            fs.clear()
-            fs["offset"] = 0  # rewritten from the start
-        if size == fs["offset"]:
+        fs = dict(st.get(path.name) or {})
+        if "copies" in fs:
+            fs["copies"] = dict(fs["copies"])
+        data = cl_append(path, fs)
+        if not data:
+            st[path.name] = fs
             continue
-        with path.open("rb") as fh:
-            fh.seek(fs["offset"])
-            data = fh.read()
-        end = data.rfind(b"\n")
-        if end < 0:
-            continue  # no complete line yet
-        data = data[:end + 1]
-        if not fs.get("char"):  # whose log: the player flagged as "mine"
-            for m in re.finditer(rb',Player-[^,]+,"([^"]+)",(0x[0-9a-fA-F]+)', data):
-                if int(m.group(2), 16) & AFFIL_MINE and int(m.group(2), 16) & TYPE_PLAYER:
-                    fs["char"] = player_of(m.group(1).decode("utf-8", "replace"))[0]
-                    break
-        char = fs.get("char") or fallback_char
-        pos = fs["offset"]
-        for raw in data.splitlines(keepends=True):
-            offset = pos
-            pos += len(raw)
-            line = raw.decode("utf-8", "replace").rstrip("\r\n")
+        char = fs.get("char", fallback_char)
+        if not char and len(our_chars) == 1:
+            char = next(iter(our_chars))
+        for raw in data.splitlines():
+            line = raw.decode("utf-8", "replace")
             m = CL_LINE.match(line)
             if not m:
                 continue
             t = cl_time(m)
             event, rest = m.group(9), m.group(10) or ""
             cols = next(csv.reader([rest]), []) if rest else []
+            if event == "COMBAT_LOG_VERSION":
+                fs.pop("zone", None)
+                fs["char"] = char = next(iter(our_chars)) if len(our_chars) == 1 else None
+            owner = cl_owner(cols)
+            if owner:
+                if char and char != owner:
+                    fs.pop("zone", None)
+                fs["char"] = char = owner
+            # A rolled file may replay lines at other offsets. Identical
+            # hits in the same tick remain distinct, including across polls.
+            tick = line[:m.start(9)].strip()
+            if fs.get("tick") != tick:
+                fs.update(tick=tick, copies={})
+            line_id = hashlib.sha256(raw).hexdigest()[:32]
+            copies = fs["copies"]
+            copies[line_id] = copies.get(line_id, 0) + 1
             ev = {"_time": iso(t), "feed": "wow-combatlog", "char": char,
-                  "source_id": f"cl:{path.name}:{offset}", "zone": fs.get("zone"),
+                  "source_id": f"cl:{line_id}:{copies[line_id]}", "zone": fs.get("zone"),
                   **cl_fields(event, cols, our_chars | {char} if char else our_chars)}
             if event == "ZONE_CHANGE" and len(cols) >= 2:
                 fs["zone"] = cols[1]
@@ -2801,7 +2850,7 @@ def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: di
                     if fl & AFFIL_MINE or player in our_chars:
                         continue
                     bucket = int(t // PLAYER_BUCKET_S * PLAYER_BUCKET_S)
-                    sid = f"player:combatlog:{player}:{bucket}"
+                    sid = f"player:combatlog:{char or ''}:{player}:{bucket}"
                     if sid in seen_players:
                         continue
                     seen_players[sid] = bucket
@@ -2810,7 +2859,7 @@ def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: di
                               "_msg": f"{ctx} {player}" + (f" in {fs['zone']}" if fs.get("zone") else ""),
                               "player": player, "context": ctx, "source": "combatlog", "zone": fs.get("zone")})
             out.emit(ev)
-        fs["offset"] = pos
+        st[path.name] = fs
     cutoff = time.time() - 2 * 86400
     for k in [k for k, b in seen_players.items() if b < cutoff]:
         del seen_players[k]

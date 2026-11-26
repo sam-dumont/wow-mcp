@@ -834,11 +834,15 @@ class Tenancy:
     def users_json(self) -> dict:
         """For the publisher (share port): who has a site, which store and
         tenant, what is on. No hashes, no keys."""
+        from wowstats import gearmode
+
         out = []
         for u in self.registry.users():
             if not u.slug:
                 continue
+            env = self.env_for(u)
             out.append({**u.public(), "store": "owner" if u.owner else "friends",
+                        "gear_settings": gearmode.for_publish(env), "weights": env.get("WEIGHTS", ""),
                         "hosts": self.hosts_of(u), "canonical": self.canonical_host(u)})
         return {"users": out}
 

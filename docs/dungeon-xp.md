@@ -21,9 +21,10 @@ kill XP after them, always labelled for what it is.
   player** (14 November change,
   [Blizzard's post](https://us.forums.blizzard.com/en/wow/t/player-level-dungeon-xp-adjustment-november-14/2416343)).
   A high-level friend dragging you through kills your XP.
-- **About 5 instance entries an hour per character.** Only a guide gives the
-  number ([Warcraft Tavern](https://www.warcrafttavern.com/forever/guides/dungeons/));
-  Blizzard hasn't published one.
+- **Five resets and re-entries per hour for each dungeon.** Blizzard reduced
+  the limit from ten on November 20. The hotfix gives no separate hourly
+  total for visits to different dungeons.
+  [November 20 hotfix](https://us.forums.blizzard.com/en/wow/t/2403040/14)
 
 ## How a run's kill XP is estimated
 

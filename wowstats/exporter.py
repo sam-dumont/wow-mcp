@@ -583,11 +583,32 @@ def read_character(acct: str, name: str) -> bool:
     return True
 
 
+def read_profiles(chars, label):
+    """A failure on one character still lets the others refresh. Keep the
+    scheduler's failure signal, including the global backoff on a 429."""
+    found = failed = 0
+    for acct, name in chars:
+        try:
+            found += read_character(acct, name)
+        except (ApiError, OSError, ValueError, KeyError) as e:
+            if isinstance(e, ApiError) and e.code == 429:
+                raise
+            failed += 1
+            log(f"profile read failed: {e}")
+    summary = f"{found} of {len(chars)} {label}"
+    if failed:
+        raise ProfileReadError(f"{summary}, {failed} failed")
+    return summary
+
+
+class ProfileReadError(Exception):
+    """One or more character reads failed in this pass."""
+
+
 def poll_profile():
     """Every listed character, every PROFILE_INTERVAL on the clock; what the
     run didn't see goes, and anything not refreshed for 30 days."""
     chars = profile_chars()
-    found = sum(read_character(acct, name) for acct, name in chars)
     # A character no longer listed goes whole.
     with lock:
         gone = {whose(k) for n in (*PROFILE_SERIES, "wow_character_profile_found")
@@ -595,14 +616,16 @@ def poll_profile():
     for me in gone:
         forget_character(me, keep_found=False)
     forget_old()
-    return f"{found} of {len(chars)} characters"
+    return read_profiles(chars, "characters")
 
 
 def never_read(acct: str, name: str) -> bool:
     """No profile read for this character since the exporter started (or
     since the daily pass forgot it)."""
     with lock:
-        return (("account_id", acct), ("character", name)) not in data.get("wow_character_profile_found", {})
+        key = (("account_id", acct), ("character", name))
+        found = data.get("wow_character_profile_found", {}).get(key)
+        return found is None or (bool(found[0]) and key not in data.get(REFRESHED, {}))
 
 
 def poll_new():
@@ -612,8 +635,7 @@ def poll_new():
     waits for the next pass), one call at a time like the passes; the
     passes and the 30-day rule are unchanged."""
     chars = [(a, n) for a, n in profile_chars() if never_read(a, n)]
-    found = sum(read_character(acct, name) for acct, name in chars)
-    return f"{found} of {len(chars)} new characters"
+    return read_profiles(chars, "new characters")
 
 
 TASKS = {"token": poll_token, "realm": poll_realm, "profile": poll_profile, "new": poll_new}
@@ -759,7 +781,7 @@ def run_task(name):
         with lock:
             health["api_up"] = 0.0
         log(f"{name}: {e}")
-    except (urllib.error.URLError, OSError, ValueError, KeyError) as e:
+    except (OSError, ValueError, KeyError, ProfileReadError) as e:
         with lock:
             health["api_up"] = 0.0
         log(f"{name}: {type(e).__name__}: {e}")
