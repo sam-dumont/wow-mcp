@@ -82,6 +82,10 @@ def test_observed_companion_uses_only_the_current_shipper_sheet(m3d, monkeypatch
                           char=lambda name: {"gear": hunter},
                           views=SimpleNamespace(char_filter=lambda name: f'char:="{name}"',
                                                 snapshot=lambda name, level: {"gear": hunter}))
+    assert "companion" not in m3d.for_char(app, "Example")["recipe"]
+    texture = next(data for data in w.files().values() if data.startswith(b"BLP2"))
+    for file_id in (801, 803):
+        m3d.store.put_file(file_id, texture)
     answer = m3d.for_char(app, "Example")
     pet = {"kind": 1, "model": w.FX.CHAR_M2, "textures": {"11": 801, "13": 803}}
     assert answer["recipe"]["companion"] == answer["recipe_sd"]["companion"] == pet

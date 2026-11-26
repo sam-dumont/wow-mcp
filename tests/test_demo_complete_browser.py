@@ -206,6 +206,9 @@ def test_demo_has_no_gap(browser, base, which, width):
     page.on("pageerror", lambda e: None if "ResizeObserver loop" in str(e) else errors.append(str(e)))
     page.goto(base + ("" if which == "public" else "friends/"))
     page.wait_for_selector(".tabs [role=tab]")
+    page.wait_for_selector("#char option:nth-child(9)", state="attached")
+    assert page.locator("#char").input_value() == "Nibbet-Gearholt"
+    assert page.locator("#char option").count() == 9
     found: dict[str, list[str]] = {}
     tabs = page.eval_on_selector_all(".tabs [role=tab]", "els => els.map(e => e.id)")
     assert tabs

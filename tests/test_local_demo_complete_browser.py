@@ -130,6 +130,9 @@ def test_local_demo_has_no_gap_but_what_the_kit_lacks(browser, base, width):
     page.on("pageerror", lambda e: None if "ResizeObserver loop" in str(e) else errors.append(str(e)))
     page.goto(base + "/")
     page.wait_for_selector(".tabs [role=tab]")
+    page.wait_for_selector("#char option:nth-child(9)", state="attached")
+    assert page.locator("#char").input_value() == "Nibbet-Gearholt"
+    assert page.locator("#char option").count() == 9
     settled(page, timeout=90)
     assert "Nibbet" in page.inner_text("body")
     found: dict[str, list[str]] = {}

@@ -2,11 +2,11 @@
 # small server at home). docker compose up -d --build, then point the shipper at
 # http://127.0.0.1:8080/ingest. docs/install.md has the three steps.
 #
-# The demo, without a game (Nibbet, the docs site's made-up priest), from
-# this folder, on any system:
+# The nine-character demo, from this folder on any system. Its dedicated
+# project runs the models and simulated armory without a Battle.net account:
 #   test -f .env || echo INGEST_PASSWORD=demo-password-only > .env
-#   docker compose up -d --build ui
-#   docker compose run --rm demo
+#   docker compose -f compose.yaml -f compose.demo.yaml up -d --build ui
+#   docker compose -f compose.yaml -f compose.demo.yaml run --rm demo
 #
 #   victorialogs     your game events (yours: kept until you delete them);
 #                    compose.sqlite.yaml on top keeps them in SQLite files instead
@@ -19,7 +19,7 @@
 #   ui-public        optional (profile "public"): the old dynamic public view
 #   victoriametrics  optional (profile "exporter"): Battle.net API data, 23 days
 #   exporter         optional (profile "exporter"): polls the Battle.net API
-#   demo             one-off (profile "demo"): loads the demo character
+#   demo             one-off (profile "demo"): loads the demo roster
 #
 # Third-party images are pinned by digest; bump them on purpose.
 name: wow-stats
@@ -218,7 +218,7 @@ services:
     ports:
       - "${PUBLIC_PUBLISH:-127.0.0.1:8082}:8080"
 
-  # The demo character (dev/seed.py: tools/fixtures/generate.py's build_demo,
+  # The demo roster (dev/seed.py: tools/fixtures/generate.py's demo_roster,
   # the docs site's demo), sent to the ui's /ingest the way a player's shipper
   # sends theirs. The generator isn't in the image: it reads this copy of the
   # repository, mounted read-only. `docker compose run --rm demo`, then gone.

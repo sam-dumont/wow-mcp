@@ -1,0 +1,35 @@
+# The demo has its own project, game files and local armory samples.
+# From deploy/compose: docker compose -f compose.yaml -f compose.demo.yaml run --rm demo
+name: wow-stats-demo
+
+services:
+  ui:
+    image: wow-stats:demo
+    environment:
+      DEFAULT_CHAR: Nibbet-Gearholt
+      MODEL3D_CACHE_DIR: /data/demo-fixtures
+      MODEL3D_ASSETS_DIR: /data/demo-fixtures/assets
+      VM_URL: http://victoriametrics:8428
+
+  publish:
+    image: wow-stats:demo
+    environment:
+      DEFAULT_CHAR: Nibbet-Gearholt
+      MODEL3D_CACHE_DIR: /ui-state/demo-fixtures
+      MODEL3D_ASSETS_DIR: /ui-state/demo-fixtures/assets
+      VM_URL: http://victoriametrics:8428
+
+  demo:
+    image: wow-stats:demo
+    depends_on: [ui, victoriametrics]
+    command: ["--fixture-dir", "/data/demo-fixtures", "--ingest", "http://ui:8080/ingest", "--metrics", "--vm", "http://victoriametrics:8428"]
+    volumes:
+      - ui-state:/data
+
+  site:
+    image: wow-stats:demo
+
+  victoriametrics:
+    profiles: [demo]
+    command: ["-storageDataPath=/data", "-retentionPeriod=23d"]
+    secrets: !reset []

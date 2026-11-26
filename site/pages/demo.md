@@ -7,6 +7,12 @@ Nibbet is a Gnome priest on WoW Forever who doesn't exist. A script plays the ch
 <a href="@BASE@demo/friends/">Open the friends' link</a>
 </div>
 
+## The nine characters
+
+The character selector also opens eight shorter sessions, one for each other Forever class. All nine characters have different races. Flintwick, the Dwarf Beast Mastery hunter, carries a Glass Shooter and travels with a bear. Duskwick, the Undead Affliction warlock, carries a Firebelcher wand and summons a Voidwalker. Each character has their own equipment and spent talent points. [Blizzard’s Forever race and class table](https://worldofwarcraft.blizzard.com/en-us/news/24304075/)
+
+The eight new characters and both companions use original block models. The repository generates their meshes, textures and game tables. Your browser draws them through the same viewer that draws a player's own model.
+
 ## The two pages
 
 **The public page** is what anyone with the address sees: the card, the gear, the climb level by level, the dungeons cleared and the gear at each past level. [Privacy tiers](../../docs/explanation/privacy.md) lists what stays out.

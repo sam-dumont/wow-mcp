@@ -1,4 +1,4 @@
-"""The docs site's demo: the invented character's pages, built by the
+"""The docs site's demo: nine invented characters' pages, built by the
 product's own publisher, as plain files for a static host.
 
     uv run --frozen --extra publish python site/scripts/demo.py <VictoriaLogs URL> <out dir> [YYYY-MM-DD]
@@ -7,16 +7,17 @@ Run by site/scripts/build-demo.sh, which starts an empty, throwaway
 VictoriaLogs and VictoriaMetrics and the picture renderer first, and passes
 them as VM_URL, RENDER_URL and RENDER_TOKEN_FILE. Steps:
 
-1. tools/fixtures/generate.py's demo profile (build_demo): the events,
+1. tools/fixtures/generate.py's demo roster (demo_roster): the events,
    shifted so the last session is on the given day (default: yesterday, UTC);
 2. into VictoriaLogs through wowstats.ingest's screening, as /ingest would;
-3. the Battle.net exporter's series for the same character (bnet_series:
+3. the Battle.net exporter's series for each character (demo_series:
    profile, look, equipment, talents, the Legacy achievement) into
    VictoriaMetrics, as vm-wow holds them;
 4. the game files, as the person's store (MODEL3D_ASSETS_DIR): Nibbet's
    real model and gear when DEMO_3D_STORE names a store from the `demo-3d`
    release (tools/fixtures/demo3d.py, fetched by site/scripts/demo3d-asset.sh),
-   else tools/fixtures/golden3d.py's made-up gnome and items, in the formats
+   else the made-up gnome. roster3d adds eight synthetic characters and two
+   companions, in the formats
    the shipper sends (WDC5 tables, M2, skins, BLP);
 5. wowstats.publish, as `wow-stats publish --force`: item cards and icons
    from wago.tools, the 3D view from the store, each level's picture from
@@ -49,7 +50,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools" / "fixtures"))
 
 import generate  # noqa: E402
-import golden3d  # noqa: E402
+import roster3d  # noqa: E402
 
 from wowstats import ingest, publish  # noqa: E402
 
@@ -101,7 +102,7 @@ def send_metrics(vm: str, series: list[dict], probe: str = "wow_character_talent
 def friends_page(key: str) -> bytes:
     # The friends' link with the key in its fragment, which never reaches a server.
     return f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Nibbet's friends' page</title>
+<html lang="en"><head><meta charset="utf-8"><title>Dawnwatch friends' page</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <script>location.replace("../zogzog/#{key}");</script></head>
@@ -124,24 +125,19 @@ def main(argv: list[str]) -> int:
     look = json.loads((real / "look.json").read_text()) if real else None
     end = argv[2] if len(argv) > 2 else (datetime.now(UTC) - timedelta(days=1)).date().isoformat()
     vm = os.environ.get("VM_URL", "").rstrip("/")
-    rows = generate.build_demo(end)
+    rows = generate.demo_roster(end)
     n = send(vl, rows)
-    print(f"demo: {n} events for {generate.DEMO}, last session {end}")
+    print(f"demo: {n} events for nine characters, last session {end}")
     if vm:
-        n = send_metrics(vm, generate.bnet_series(rows, time.time(), look=look))
+        n = send_metrics(vm, generate.demo_series(rows, time.time(), look=look))
         print(f"demo: {n} Battle.net samples")
     else:
         print("demo: no VM_URL, so no Battle.net profile, talents or look")
     with tempfile.TemporaryDirectory() as tmp:
         key_file = Path(tmp) / "zogzog.key"
         key_file.write_text(DEMO_KEY + "\n")
-        if real:
-            shutil.copytree(real, Path(tmp) / "assets", ignore=shutil.ignore_patterns("look.json"))
-            n = sum(1 for _ in (Path(tmp) / "assets" / "files").iterdir())
-            print(f"demo: the real model, {n} game files ({real})")
-        else:
-            g = golden3d.write_store(Path(tmp) / "assets")
-            print(f"demo: {len(g['tables'])} tables and {len(g['files'])} game files (golden3d)")
+        g = roster3d.write_store(Path(tmp) / "assets", real)
+        print(f"demo: synthetic roster models and {len(g['tables'])} tables, Nibbet from {real or 'golden3d'}")
         env = {**os.environ, "VL_URL": vl, "VL_ARCHIVE_URL": "", "VM_URL": vm, "PUBLISH_DIR": f"{tmp}/site",
                "ZOGZOG_KEY_FILE": str(key_file), "PLAUSIBLE_DOMAIN": "", "ANALYSIS_SHARE_URL": "",
                "HELP_KEY_FILE": "", "PUBLISH_PUSH_URL": "", "USERS_URL": "", "DEFAULT_CHAR": generate.DEMO,

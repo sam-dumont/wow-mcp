@@ -2096,6 +2096,21 @@ def build_demo(end_day: str | None = None) -> list[dict]:
     return rows
 
 
+def demo_roster(end_day: str | None = None) -> list[dict]:
+    """All nine characters. Nibbet remains the latest played, including on a
+    fresh local install that has no DEFAULT_CHAR setting."""
+    import roster
+
+    rows = build_demo(end_day)
+    last = max(_epoch(r["_time"]) for r in rows if r["feed"] == "wow-character")
+    alts = roster.sessions(last)
+    in_forever(alts)
+    for r in rows:
+        if r["feed"] == "wow-setup":
+            r["saved_chars"] = str(1 + len(roster.CHARACTERS))
+    return sorted(rows + alts, key=lambda r: r["_time"])
+
+
 # ---------------------------------------------------------------- Battle.net
 
 # Battle.net's slot types (the exporter's `slot` label) by inventory slot.
@@ -2125,6 +2140,8 @@ def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] |
     stamps = list(range(t0, int(now), BNET_STEP))
     day = 86400
     read = {t: (t - BNET_READ_HOUR * 3600) // day * day + BNET_READ_HOUR * 3600 for t in stamps}
+    # The exporter reads once a day. All 720 pushes between two reads share a level.
+    daily_level = {r: level_at(rows, r) for r in set(read.values())}
     series: dict[tuple, dict] = {}
 
     def put(name: str, labels: dict, t: int, value: float) -> None:
@@ -2139,7 +2156,7 @@ def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] |
     recent = now - 3 * day  # the profile's series: last_over_time(...[2d]) needs the last two days
     for t in stamps:
         r = read[t]
-        lv = level_at(rows, r)
+        lv = daily_level[r]
         build = talent_build(lv, r >= respec)
         spent = {name: 0 for name in BNET_TREES}
         for name, rank in build.items():
@@ -2167,6 +2184,12 @@ def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] |
         put("wow_character_achievements_read", who, t, 1)
         put("wow_character_achievement", {**who, "achievement_id": str(LEGACY_PRIEST_25)}, t, int(ding25))
     return [s for _k, s in sorted(series.items())]
+
+
+def demo_series(rows: list[dict], now: float, look: list[dict] | None = None) -> list[dict]:
+    import roster
+
+    return bnet_series([r for r in rows if r.get("char") == DEMO], now, look=look) + roster.series(rows, now)
 
 
 def shifted(r: dict, secs: int) -> dict:
@@ -2252,7 +2275,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--check", action="store_true", help="compare with the committed files, write nothing")
     ap.add_argument("--levels", action="store_true", help="print each logout's level and XP")
-    ap.add_argument("--demo", metavar="FILE", help="write the docs site's demo character's events (NDJSON), "
+    ap.add_argument("--demo", metavar="FILE", help="write the docs site's nine demo characters (NDJSON), "
                                                    "nothing else")
     ap.add_argument("--end-day", metavar="YYYY-MM-DD", help="with --demo: shift the play so it ends that day")
     ap.add_argument("--game", action="store_true", help=f"rewrite {GAME.relative_to(ROOT)} from the KB first")
@@ -2264,7 +2287,7 @@ def main() -> int:
     global VERBOSE
     VERBOSE = a.levels
     if a.demo:
-        Path(a.demo).write_bytes(jsonl(build_demo(a.end_day)))
+        Path(a.demo).write_bytes(jsonl(demo_roster(a.end_day)))
         return 0
     if a.derived_out:
         out = Path(a.derived_out)

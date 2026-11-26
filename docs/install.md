@@ -134,13 +134,7 @@ The first time it downloads the wow-stats image (and VictoriaLogs, unless you pi
 SQLite files), a few hundred MB. No account or login needed. Then open <http://127.0.0.1:8080>:
 an empty page until the shipper sends something.
 
-To see a filled page first, load the demo's made-up character, Nibbet
-(the page carries a DEMO DATA banner; `docker compose down -v` before your real
-install wipes the character), on any system:
-
-```sh
-docker compose run --rm demo
-```
+The [local demo](self-host/demo.md) has nine made-up characters, one per class. Its dedicated Compose project includes the 3D models, companions, and offline armory samples. It runs without a game install or a Battle.net API key.
 
 `Bind for 127.0.0.1:8080 failed: port is already allocated` means
 something else on your computer already uses 8080. Pick another port in

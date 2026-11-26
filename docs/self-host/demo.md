@@ -1,7 +1,7 @@
 # Try the demo
 
 **For:** anyone curious, before installing anything for real. **At the end:** wow-stats runs on
-your computer with a made-up character, you've seen the page, the two sites for friends,
+your computer with nine made-up characters, you've seen the page, the two sites for friends,
 and (if you use Claude Code) your assistant answering from the demo data. About 10 minutes.
 
 You need [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on Mac and Windows,
@@ -18,34 +18,19 @@ cd deploy/compose
 cp .env.example .env
 ```
 
-Open `.env` in any text editor and set `INGEST_PASSWORD` to anything of 12 characters or more.
-Nothing starts without it, and step 2 sends the demo's events with it, the way a player's
-computer sends theirs. Set `WOW_STATS_IMAGE={{release_image}}` too: the latest release,
-pinned by its digest. On a machine with no internet, or a
-small one, also set `MODEL3D=off` and `WOW_ITEMS=off` (no 3D view, no item icons; the
-pages still work).
-
-Then start the page. The first time downloads the image, a few hundred MB.
+Set `INGEST_PASSWORD` in `.env` to a password of at least 12 characters. The demo uses its own Compose project and volumes. Build from this checkout so the page and the fixtures use the same version.
 
 ```sh
-docker compose pull ui
-docker compose up -d ui
+docker compose -f compose.yaml -f compose.demo.yaml up -d --build ui
 ```
 
-## 2. Load the demo character
-
-The same line on Mac, Linux and Windows (PowerShell or Git Bash):
+## 2. Load the nine characters
 
 ```sh
-docker compose run --rm demo
+docker compose -f compose.yaml -f compose.demo.yaml run --rm demo
 ```
 
-It plays Nibbet-Gearholt's evenings, the made-up character of the
-[docs site's demo](../../site/pages/demo.md), shifted so the last one was yesterday, and sends
-them to the page the way a player's computer sends theirs. It prints one line,
-`<N> events for Nibbet-Gearholt into http://ui:8080/ingest`, with N in the tens of thousands
-(the demo grows with the product, so don't expect an exact number). What to check instead: the
-page in step 3 lists Nibbet at level 46.
+The seed loads Nibbet's evenings and eight shorter sessions, each with a different race and class. It generates the character and companion models locally. Talent ranks and profiles come from simulated armory samples in the demo's VictoriaMetrics container. It needs no Battle.net account or API key. Nibbet's last session ends yesterday.
 
 ## 3. Look around
 
@@ -57,17 +42,9 @@ quest list and two days of auction house scans, under a DEMO DATA banner.
 
 [Your page at a glance](../players/your-page.md) walks through each tab.
 
-The docs site's demo is the same history. Three parts of it need what this kit doesn't run:
+Use the character selector for the other eight. The Dwarf hunter and Undead warlock have companions in the 3D view. The local demo uses block models for everyone. The hosted demo can also draw Nibbet from its pinned archive and has a renderer for still pictures at each level.
 
-- **Battle.net**: the exporter and its VictoriaMetrics, with your own API client
-  ([Battle.net](battlenet.md)). The Character tab says so where the talents and Legacy points
-  would be;
-- **the 3D view**: drawn from the game files a player's computer sends, and the demo has none
-  to send. View in 3D says the shipper sends them on its next run;
-- **the pictures** (the paperdoll, Back in time at each level): the picture renderer draws
-  them from those same files, so a silhouette stands in.
-
-That's what a player without them sees too.
+The shorter command `docker compose run --rm demo` from the base kit loads the same nine histories into that kit. The extra Compose file above gives the demo its own storage, models and armory samples.
 
 Port 8080 already taken on your computer? `docker compose up` says `port is already
 allocated`. Set `UI_PUBLISH=127.0.0.1:18080` in `.env`, run step 1's command again, and open
@@ -79,15 +56,15 @@ The full view on 8080 is yours. Friends get static copies, rebuilt after each pl
 a public one and a sealed one. Start the two services that build and serve them:
 
 ```sh
-docker compose up -d publish site
+docker compose -f compose.yaml -f compose.demo.yaml up -d publish site
 ```
 
-Give it a minute (watch `docker compose logs -f publish` until it says it built), then open
+Give it a minute (watch `docker compose -f compose.yaml -f compose.demo.yaml logs -f publish` until it says it built), then open
 <http://127.0.0.1:8081/>: the public site, with only the parts anyone may see. The sealed site
 needs its key in the link; print it with:
 
 ```sh
-docker compose run --rm publish zogzog-key link
+docker compose -f compose.yaml -f compose.demo.yaml run --rm publish zogzog-key link
 ```
 
 It prints a link like `http://127.0.0.1:8081/zogzog/#<43 characters>`. Open it: the same page
@@ -100,7 +77,7 @@ With [Claude Code](https://docs.anthropic.com/en/docs/claude-code) on this compu
 `deploy/compose`:
 
 ```sh
-claude mcp add wow-stats -- docker compose -f "$PWD/compose.yaml" exec -T ui wow-stats mcp-stdio
+claude mcp add wow-stats -- docker compose -f "$PWD/compose.yaml" -f "$PWD/compose.demo.yaml" exec -T ui wow-stats mcp-stdio
 ```
 
 Then in Claude Code: "With wow-stats, which level took Nibbet-Gearholt longest, and how long
@@ -110,7 +87,7 @@ minutes in Blackfathom Deeps. Other assistants: [Connect your AI](../ai/connect.
 ## 6. Clean up
 
 ```sh
-docker compose down -v
+docker compose -f compose.yaml -f compose.demo.yaml down -v
 ```
 
 That removes the containers and the demo data. `claude mcp remove wow-stats` removes the

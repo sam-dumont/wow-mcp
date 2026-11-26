@@ -2,7 +2,7 @@
 
 **For:** anyone thinking of hosting wow-stats who wants to see it answer first (a friend
 already runs it for you? [Join a friend's server](players/getting-started.md) instead). **At the end:** the
-demo character runs on your computer, a tool has answered a question about the character, and you know
+nine demo characters run on your computer, a tool has answered a question about Nibbet, and you know
 the next page for your own character. About 10 minutes.
 
 ## 1. Start the demo
@@ -13,18 +13,17 @@ Windows) and a copy of this repository: `git clone` it, or unpack a release's so
 From the top of your copy (Mac, Linux, or Git Bash on Windows):
 
 ```sh
-cd deploy/compose && test -f .env || printf '%s\n' INGEST_PASSWORD=demo-password-only \
-  'WOW_STATS_IMAGE={{release_image}}' > .env
-docker compose pull ui && docker compose up -d ui && docker compose run --rm demo
+cd deploy/compose
+test -f .env || printf '%s\n' INGEST_PASSWORD=demo-password-only > .env
+docker compose -f compose.yaml -f compose.demo.yaml up -d --build ui
+docker compose -f compose.yaml -f compose.demo.yaml run --rm demo
 ```
 
-A `.env` left from an earlier try is kept as it is: check it has the `WOW_STATS_IMAGE` line,
-or `pull` looks for an image you'd build yourself. The first run downloads the released image,
-a few hundred MB. It ends with
-`<N> events for Nibbet-Gearholt into http://ui:8080/ingest`, N in the tens of thousands.
+The first run builds the demo image from your checkout. The seed prints the event count for
+nine characters, then writes their simulated armory data to the demo’s own database.
 
 Open <http://127.0.0.1:8080/>: Nibbet, a made-up Gnome priest at level 46, under a DEMO DATA
-banner. PowerShell, port 8080 already taken, or the sites for friends:
+banner. Use the character selector to try the other eight classes. For PowerShell, ports and the sites for friends, see
 [Try it at home](self-host/demo.md).
 
 ## 2. Get a first answer
@@ -33,7 +32,7 @@ The page and the MCP tools read the same numbers. With
 [Claude Code](https://docs.anthropic.com/en/docs/claude-code), still in `deploy/compose`:
 
 ```sh
-claude mcp add wow-stats -- docker compose -f "$PWD/compose.yaml" exec -T ui wow-stats mcp-stdio
+claude mcp add wow-stats -- docker compose -f "$PWD/compose.yaml" -f "$PWD/compose.demo.yaml" exec -T ui wow-stats mcp-stdio
 ```
 
 Then ask Claude Code: "With wow-stats, which level took Nibbet-Gearholt longest, and how long
@@ -53,7 +52,7 @@ back). Level 32 comes back as `9h00m`:
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"sh","version":"1"}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"levels","arguments":{"char":"Nibbet-Gearholt","from_level":30,"to_level":34}}}'; sleep 10; } \
-  | docker compose exec -T ui wow-stats mcp-stdio | tail -1
+  | docker compose -f compose.yaml -f compose.demo.yaml exec -T ui wow-stats mcp-stdio | tail -1
 ```
 
 </details>
@@ -61,7 +60,7 @@ back). Level 32 comes back as `9h00m`:
 Every tool: [Tools and prompts](reference/mcp-tools.md). What the main ones return on the
 demo: [A session, recorded](../site/pages/mcp-session.md).
 
-`docker compose down -v` removes the demo, `claude mcp remove wow-stats` the Claude Code entry.
+`docker compose -f compose.yaml -f compose.demo.yaml down -v` removes the demo, `claude mcp remove wow-stats` the Claude Code entry.
 
 ## 3. Your own character
 

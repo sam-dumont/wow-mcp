@@ -365,7 +365,7 @@ class Model3D:
             out["why"] = "the shipper sends this model's files from your computer on its next run"
             return out
         pet = character3d.companion(tables, gear.get("companion_display"))
-        if pet and (have is None or pet["model"] in have):
+        if pet and (have is None or {pet["model"], *pet["textures"].values()} <= have):
             hd["recipe"]["companion"] = pet
             if sd["recipe"]:
                 sd["recipe"]["companion"] = pet
