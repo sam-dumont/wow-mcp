@@ -48,6 +48,7 @@ def test_saved_decision_and_private_review(tmp_path, monkeypatch, priest):
     result = plantools.t_how_did_my_plan_go(ctx, {"char": char})
     report = plan.status(env, char)["dungeon_forecasts"]
     assert report == result["dungeon_forecasts"] and result["latest"] is None
+    assert result["answer"] is None and "checkpoint" in result["why"]
     assert store.path(env).read_bytes() == before  # GET, MCP and option browsing are read-only
     row, = report["reviews"]
     obs, = row["observations"]
@@ -148,4 +149,66 @@ def test_forecast_window_and_mcp_report_size(tmp_path, monkeypatch, priest):
     # Two sparse readings bracketing the point where time ran out cannot
     # prove the trip was inside the plan.
     progress[-1]["online_s"] = 5200
-    assert not forecast.report([p], [at(5100)], progress)["reviews"][0]["observations"]
+    assert forecast.report([p], [at(5100)], progress)["counts"]["ambiguous"] == 1
+    assert not forecast.report([p], [at(7200)], [progress[-1]])["reviews"][0]["observations"]
+
+
+def test_unknown_handin_excludes_the_personal_xp_subtotal(priest):
+    from wowstats.plan import dungeongain
+
+    trip = next(t for t in priest["trips"] if "Stockade" in t["dungeon"])
+    quests = [{"quest_id": i, "name": str(i), "state": "open", "xp_now": xp} for i, xp in ((1, 400), (2, None))]
+    g = dungeongain.estimate(level=trip["level_start"], xp_max=30000, name=trip["dungeon"], runs=[trip],
+                             others=[], quests=quests, questing_xph=1000)
+    assert g["xp"] == trip["xp_inside"] + 400 and g["unknown_handin_xp"] == 1 and not g["kills_unknown"]
+    f = forecast.decision(priest, {"name": trip["dungeon"], "goals": ["xp"], "gain": g}, "xp", "group")
+    assert f["xp"] is None and f["known_xp"] == g["xp"] and f["unknown_handin_xp"] == 1
+    made = priest["now_t"]
+    report = forecast.report([{"made_t": made, "hours": 3, "dungeon_forecast": f}],
+                             [future_trip(trip, made + 1000)], [])
+    assert report["counts"]["incomplete"] == 1 and report["by_basis"]["personal_runs"]["n"] == 0
+    assert report["reviews"][0]["missing"] == ["forecast XP"]
+
+
+def test_shorter_retained_capture_cannot_replace_an_archived_pair(tmp_path, priest):
+    env = {"ANALYSIS_STATE_DIR": str(tmp_path)}
+    char = priest["who"]["char"]
+    est = plan.est_mod.estimate(priest, 3)
+    store.save(env, char, est)
+    stock = next(t for t in priest["trips"] if "Stockade" in t["dungeon"])
+    trip = future_trip(stock, est["made_t"] + 800, est["dungeon_forecast"]["dungeon"])
+    assert trip["handin_ids"] and trip["quests_handed_in"] > 0 and trip["xp_quests"] > 0 and trip["run_xp"] > 0
+
+    def archive(t):
+        return store.dungeon_review(env, {"who": {"char": char}, "trips": [t]}, archive=True)
+
+    first = archive(trip)
+    assert first["counts"]["matched"] == 1
+    saved = store.path(env).read_bytes()
+    # All of these still have numeric XP and positive online time. Even
+    # a longer bracket can hide the loss of online time in the old overlap.
+    for loss in (
+        {"start_t": trip["start_t"] + 30, "pickup_s": trip["pickup_s"] - 30, "online_s": trip["online_s"] - 30},
+        {"end_t": trip["end_t"] - 30, "handin_s": trip["handin_s"] - 30},
+        {"online_s": trip["online_s"] - 1},
+        {"quests_handed_in": trip["quests_handed_in"] - 1},
+        {"handin_ids": [*trip["handin_ids"][1:], 99999]},
+        {"xp_quests": trip["xp_quests"] - 1},
+        {"end_t": trip["end_t"] + 120, "online_s": trip["online_s"] + 60},
+    ):
+        assert archive({**trip, **loss}) == first
+        assert store.path(env).read_bytes() == saved
+
+    # A new hand-in after the previous end, with the full earlier interval
+    # still covered. Its extra 120 seconds and 400 XP count on the pair.
+    extended = {**trip, "end_t": trip["end_t"] + 120, "online_s": trip["online_s"] + 120,
+                "handin_s": trip["handin_s"] + 120, "xp_quests": trip["xp_quests"] + 400,
+                "quests_handed_in": trip["quests_handed_in"] + 1, "quests_outside": trip["quests_outside"] + 1,
+                "handin_ids": [*trip["handin_ids"], 99999]}
+    row, = archive(extended)["reviews"]
+    assert row["error_s"] == pytest.approx(first["reviews"][0]["error_s"] + 120)
+    assert row["error_xp"] == first["reviews"][0]["error_xp"] + 400
+    # A lower bar gain explicitly reported by Polestar can correct the XP
+    # when the Recorder still accounts for the whole trip and its hand-ins.
+    corrected = {**extended, "xp_inside": extended["xp_inside"] - 5, "run_xp": extended["run_xp"] - 5}
+    assert archive(corrected)["reviews"][0]["error_xp"] == row["error_xp"] - 5

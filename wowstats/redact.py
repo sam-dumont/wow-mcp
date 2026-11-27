@@ -159,7 +159,7 @@ CLASS_GUIDE = {
 # class at its level starts within two weeks (wowstats.news.soon_line; owner,
 # 2026-11-20), from the class, spec and level too.
 META_PARAGRAPH = {**_keys("class", "spec", "text", "checked", "stale", "soon"),
-                  "evidence": [PresentFields({**_keys("title", "source_url", "scope", "confidence", "last_verified"),
+                  "evidence": [PresentFields({**_keys("source_url", "scope", "confidence", "last_verified"),
                                               "sources": [None]})]}
 
 DATA_VERSIONS = {"foreverdb": {}, "forever_db": {}, "polestar": None, "client_build": {},
@@ -263,7 +263,7 @@ WHO = _keys("kind", "id", "name", "url", "zone", "x", "y", "spawns", "inside")
 GAIN = {**_keys("own_runs", "level", "run_s", "time", "xp_kills", "xp_quests", "xp", "level_pct", "xp_per_hour",
                 "kills_unknown", "questing_xp_per_hour", "vs_questing", "questing_s", "quests_shown", "summary",
                 "lead", "forecast_note", "upgrades", "drop_upgrades", "drop_chance_pct", "known_drop_chance_pct",
-                "unknown_drop_rates", "expected_gain_per_clear", "known_gain_per_clear"),
+                "unknown_drop_rates", "expected_gain_per_clear", "known_gain_per_clear", "unknown_handin_xp"),
         "quests": [{**_keys("quest_id", "name", "url", "xp_now", "state", "level"), "starts": [WHO]}],
         "handins": [_keys("quest_id", "name", "url", "xp", "prerequisite")],
         # A wing's quests its trip doesn't finish (game data: the wings it still needs).

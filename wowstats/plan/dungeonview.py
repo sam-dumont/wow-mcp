@@ -426,8 +426,8 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
                                             "route")},
                     "quest_id": qid, **({"variants": ids} if len(ids) > 1 else {}),
                     "state": state, "complete": bool((open_ids.get(qid) or {}).get("complete")),
-                    "xp_now": round((q.get("xp") or 0) * (share if share is not None else 1.0))
-                    if q.get("xp") and state != "done" else None,
+                    "xp_now": round(q["xp"] * (share if share is not None else 1.0))
+                    if q.get("xp") is not None and state != "done" else None,
                     "url": wowhead_url("quest", qid),
                     "starts": [who(w) for w in q.get("starts") or []],
                     "ends": [who(w) for w in q.get("ends") or []],
@@ -610,7 +610,7 @@ def route_trip(inp: dict, name: str, quests: list[dict], skip=()) -> dict | None
     # Some route quests have no panel row (for example, a skipped pickup).
     # Keep the variant groups from the dungeon catalogue for those as well.
     catalogue = (inp.get("dungeon_quests") or {}).get(str(forever.area_id(name))) or {}
-    variants = {i: q for q in catalogue.get("quests") or [] for i in q.get("variants") or []}
+    catalogue_rows = {i: q for q in catalogue.get("quests") or [] for i in q.get("variants") or [q["quest_id"]]}
     done = set(inp.get("quests_done") or [])
     data = tripcost.quests_of(trips)
     handins = []
@@ -621,23 +621,25 @@ def route_trip(inp: dict, name: str, quests: list[dict], skip=()) -> dict | None
             # The selected variant represents this hand-in, including when two
             # IDs appear on the route or a different variant is already done.
             chosen = q["quest_id"] if q else qid
-            group = variants.get(qid) or {}
-            ids = (q or group).get("variants") or [chosen]
-            finished = q["state"] == "done" if q else not done.isdisjoint(ids)
-            if finished or not paid.isdisjoint(ids):
+            group = catalogue_rows.get(qid) or {}
+            variant_ids = (q or group).get("variants") or [chosen]
+            finished = q["state"] == "done" if q else not done.isdisjoint(variant_ids)
+            if finished or not paid.isdisjoint(variant_ids):
                 continue
-            if q:
-                name, xp = q.get("name"), q.get("xp_now")
-            else:
-                name = (forever.quest(qid) or {}).get("name")
-                raw = data.get(qid) or {}
-                if raw.get("xp") is None and group:
-                    raw = group
-                share = E.share(inp, level, raw.get("level"))
-                xp = round(raw["xp"] * (share if share is not None else 1)) if raw.get("xp") is not None else None
+            name = (q or group or forever.quest(qid) or {}).get("name")
+            xp = q.get("xp_now") if q else None
+            if xp is None:
+                raw = q or group
+                if raw.get("xp") is None:
+                    raw = data.get(qid) or {}
+                    if raw.get("xp") == 0 and trips.get("schema", 1) < 2:
+                        raw = {}  # Older trip exports also wrote zero for a missing reward.
+                if raw.get("xp") is not None:
+                    share = E.share(inp, level, raw.get("level"))
+                    xp = round(raw["xp"] * (share if share is not None else 1))
             handins.append({"quest_id": chosen, "name": name, "url": wowhead_url("quest", chosen),
                             "xp": xp, "prerequisite": prerequisite})
-            paid.update(ids)
+            paid.update(variant_ids)
     return {**t, "handins": handins, "xp_quests": sum(q["xp"] or 0 for q in handins)}
 
 
@@ -727,6 +729,9 @@ def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xp
                               if party else "Kill XP comes from the dungeon model.")
     if g["run_s"] is None:
         g["forecast_note"] += " The whole-trip time is unknown."
+    if g["unknown_handin_xp"]:
+        g["forecast_note"] += (f" XP is unknown for {_n(g['unknown_handin_xp'], 'hand-in')}. "
+                               "The forecast counts only known XP.")
     if wait:
         g["quests_needing_other_wings"] = [
             {"quest_id": q["quest_id"], "name": q["name"], "url": q.get("url"), "state": q["state"],
@@ -889,7 +894,10 @@ def judge(inp, state, lo, drops, quests, gain, quest_xph, mount, trip, kb_fit=0)
     ups = _n(n_miss, "missing drop upgrade")
     handins = gain["handins"]
     prereqs = [q for q in handins if q["prerequisite"]]
-    quest_bit = f"{_n(len(handins), 'hand-in')} ({quest_xp:,} XP)"
+    amount = f"{quest_xp:,} XP"
+    if gain["unknown_handin_xp"]:
+        amount = "XP unknown" if gain["unknown_handin_xp"] == len(handins) else f"{quest_xp:,} known XP"
+    quest_bit = f"{_n(len(handins), 'hand-in')} ({amount})"
     if prereqs:
         quest_bit += f", including {_n(len(prereqs), 'prerequisite')}"
         if all(q["xp"] is not None for q in prereqs) and sum(q["xp"] or 0 for q in handins) == quest_xp:

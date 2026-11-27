@@ -698,11 +698,11 @@ def trips(ask) -> list[dict]:
         rows.get(r["trip"], {}).update(r)
     # The trip's run: the first of its dungeon starting inside it.
     first: dict = {}
-    exits: dict = {}
-    for r in ask(metrics=["run_count"], group_by=["trip", "run", "run_exit"],
+    run_evidence: dict = {}
+    for r in ask(metrics=["run_count", "run_xp"], group_by=["trip", "run", "run_exit"],
                  where=[{"dimension": "trip", "op": "is not null"}]):
         first[r["trip"]] = min(first.get(r["trip"], r["run"]), r["run"])
-        exits[r["run"]] = r["run_exit"]
+        run_evidence[r["run"]] = {"entry_t": r["run"], "exit_t": r["run_exit"], "run_xp": r["run_xp"]}
     kills: dict = {run: [] for run in first.values()}
     runs = sorted(kills)
     for i in range(0, len(runs), RUNS_PER_ASK):
@@ -718,7 +718,7 @@ def trips(ask) -> list[dict]:
             d["loot_inside"] = json.loads(d["loot_inside"] or "[]")
         run = first.get(r["trip"])
         if run is not None:
-            d.update(entry_t=run, exit_t=exits[run])
+            d.update(run_evidence[run])
             ks = kills[run]
             d["kills_inside"] = sum(int(k["kills"]) for k in ks)
             # Each kill's creature level, elites flagged (classification e,
@@ -771,7 +771,14 @@ def trip_pace(sem, trips: list[dict], who: dict) -> None:
     held = [(int(r["quest_id"]), r["quest_accepted_t"], r["quest_closed_t"])
             for r in ask(sem, metrics=["quest_accepted_t", "quest_closed_t"], group_by=["quest_id", "status"])
             if r["quest_id"] is not None]
+    handins: dict[int, list[int]] = {}
+    for r in ask(sem, metrics=["quest_count"], group_by=["quest_id", "trip"],
+                 where=[{"dimension": "trip", "op": "is not null"}]):
+        if r["quest_id"] is not None:
+            handins.setdefault(r["trip"], []).append(int(r["quest_id"]))
     for t in trips:
+        # Which individual hand-ins paid this trip, including those after the exit.
+        t["handin_ids"] = sorted(handins.get(t["trip_id"], ()))
         t0 = t.get("start_t")
         if t0 is None:
             t["route_s"] = None

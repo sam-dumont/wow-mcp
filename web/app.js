@@ -3796,13 +3796,17 @@ function gainQuests(g) {
 function tripHandins(g) {
   if (!g?.handins?.length) return null;
   const total = (rows) => rows.reduce((n, q) => n + (q.xp || 0), 0);
+  const amount = (rows, xp) => {
+    if (rows.every((q) => q.xp == null)) return 'XP unknown';
+    return `${fmtNum(xp)} ${rows.some((q) => q.xp == null) ? 'known XP' : 'XP'}`;
+  };
   const beforeCap = total(g.handins);
   const group = (rows, label) => rows.length ? h('div', {},
-    h('b', { text: `${label} (${rows.length}), ${fmtNum(total(rows))} XP` }),
+    h('b', { text: `${label} (${rows.length}), ${amount(rows, total(rows))}` }),
     h('ul', { class: 'gquests' }, rows.map((q) => h('li', {},
       whLink(q.url, q.name || `quest ${q.quest_id}`), q.xp == null ? ' (XP unknown)' : ` · ${fmtNum(q.xp)} XP`)))) : null;
   return h('details', { class: 'dgmore' },
-    h('summary', { text: `${plural(g.handins.length, 'hand-in')} this trip (${fmtNum(g.xp_quests)} XP)` }),
+    h('summary', { text: `${plural(g.handins.length, 'hand-in')} this trip (${amount(g.handins, g.xp_quests)})` }),
     group(g.handins.filter((q) => q.prerequisite), 'Prerequisites'),
     group(g.handins.filter((q) => !q.prerequisite), 'Dungeon quests'),
     beforeCap > g.xp_quests ? h('p', { class: 'sub', text: `${fmtNum(beforeCap - g.xp_quests)} XP above the level cap.` }) : null);

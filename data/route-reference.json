@@ -88861,6 +88861,7 @@
   }
  },
  "trips": {
+  "schema": 2,
   "about": "A dungeon trip's quests and travel, from Polestar's pick-up and hand-in rules (addon/Polestar/Dungeons/Pickup.lua, Handin.lua) ported to tools/route_reference/trips.mjs: per dungeon (instance Map id) its page of quests and its entrance in world yards [continent, x north, y west]; per quest what the rules read (g: givers, e: enders, each [c, x, y, side bits, npc/object key]; gi/ei: given/taken inside only; obj_s: objectives' seconds); the travel network (flight masters, legs, boats); the uiMap frames [continent, left, right, top, bottom]; and per side the tours with nothing done, standing at the entrance, that wowstats/plan/tripcost.py must replay; a dungeon run in wings has the same page and tours per wing (wings).",
   "rules": {
    "detour_s": 300,
@@ -96974,7 +96975,7 @@
    "1193": {
     "level": 60,
     "min": 56,
-    "xp": 0,
+    "xp": null,
     "obj": 2,
     "obj_s": 83
    },
@@ -98652,7 +98653,7 @@
    "2843": {
     "level": 35,
     "min": 20,
-    "xp": 0,
+    "xp": null,
     "side": 2,
     "races": 8589934770,
     "any": [
@@ -99304,7 +99305,7 @@
    "2951": {
     "level": 30,
     "min": 25,
-    "xp": 0,
+    "xp": null,
     "obj": 2,
     "obj_s": 9160
    },
@@ -99321,7 +99322,7 @@
    "2953": {
     "level": 30,
     "min": 25,
-    "xp": 0,
+    "xp": null,
     "any": [
      2952,
      4605,
@@ -99536,7 +99537,7 @@
    "3375": {
     "level": 42,
     "min": 37,
-    "xp": 0,
+    "xp": null,
     "side": 1,
     "races": 4294967373,
     "any": [
@@ -101358,7 +101359,7 @@
    "4295": {
     "level": 1,
     "min": 42,
-    "xp": 0,
+    "xp": null,
     "obj": 1,
     "obj_s": 80,
     "gi": 1
@@ -101504,21 +101505,21 @@
    "4601": {
     "level": 30,
     "min": 25,
-    "xp": 0,
+    "xp": null,
     "obj": 2,
     "obj_s": 9160
    },
    "4602": {
     "level": 30,
     "min": 25,
-    "xp": 0,
+    "xp": null,
     "obj": 2,
     "obj_s": 9160
    },
    "4603": {
     "level": 30,
     "min": 25,
-    "xp": 0,
+    "xp": null,
     "any": [
      2952,
      4605,
@@ -101530,7 +101531,7 @@
    "4604": {
     "level": 30,
     "min": 25,
-    "xp": 0,
+    "xp": null,
     "any": [
      4605,
      4606
@@ -102339,7 +102340,7 @@
    "5067": {
     "level": 60,
     "min": 57,
-    "xp": 0,
+    "xp": null,
     "any": [
      5047
     ],
@@ -102444,7 +102445,7 @@
    "5122": {
     "level": 60,
     "min": 55,
-    "xp": 0,
+    "xp": null,
     "obj": 1,
     "obj_s": 30,
     "gi": 1
@@ -102848,7 +102849,7 @@
    "5383": {
     "level": 60,
     "min": 55,
-    "xp": 0
+    "xp": null
    },
    "5384": {
     "level": 60,
@@ -103062,7 +103063,7 @@
    "5519": {
     "level": 60,
     "min": 56,
-    "xp": 0,
+    "xp": null,
     "any": [
      5518
     ],
@@ -103160,7 +103161,7 @@
    "5528": {
     "level": 60,
     "min": 57,
-    "xp": 0,
+    "xp": null,
     "gi": 1
    },
    "5529": {
@@ -103355,7 +103356,7 @@
    "5582": {
     "level": 58,
     "min": 55,
-    "xp": 0,
+    "xp": null,
     "any": [
      5529
     ],
@@ -105052,7 +105053,7 @@
    "7429": {
     "level": 60,
     "min": 57,
-    "xp": 0,
+    "xp": null,
     "any": [
      5525
     ],
@@ -105171,7 +105172,7 @@
    "7483": {
     "level": 60,
     "min": 58,
-    "xp": 0,
+    "xp": null,
     "any": [
      7481,
      7482
@@ -105183,7 +105184,7 @@
    "7484": {
     "level": 60,
     "min": 58,
-    "xp": 0,
+    "xp": null,
     "any": [
      7481,
      7482
@@ -105195,7 +105196,7 @@
    "7485": {
     "level": 60,
     "min": 58,
-    "xp": 0,
+    "xp": null,
     "any": [
      7481,
      7482
@@ -105433,7 +105434,7 @@
    "7604": {
     "level": 60,
     "min": 60,
-    "xp": 0,
+    "xp": null,
     "obj": 1,
     "obj_s": 108,
     "item": 1
@@ -105743,7 +105744,7 @@
    "8303": {
     "level": 60,
     "min": 60,
-    "xp": 0,
+    "xp": null,
     "any": [
      8301
     ],
@@ -109287,7 +109288,7 @@
    "78916": {
     "level": 25,
     "min": 25,
-    "xp": 0,
+    "xp": null,
     "side": 1,
     "races": 4294967373,
     "e": [
@@ -109303,7 +109304,7 @@
    "78917": {
     "level": 25,
     "min": 25,
-    "xp": 0,
+    "xp": null,
     "side": 2,
     "races": 8589934770,
     "e": [
@@ -109319,7 +109320,7 @@
    "80325": {
     "level": 40,
     "min": 40,
-    "xp": 0,
+    "xp": null,
     "side": 2,
     "races": 8589934770,
     "e": [
@@ -110349,7 +110350,7 @@
    "93680": {
     "level": 33,
     "min": 30,
-    "xp": 0,
+    "xp": null,
     "side": 2,
     "races": 8589934770,
     "obj": 1,

@@ -541,6 +541,48 @@ def test_repeatable_variants_share_one_handin_but_distinct_chain_steps_pay(monke
     unlisted = V.route_trip(inp, "The Stockade", rows[1:])
     assert {q["quest_id"] for q in unlisted["handins"]} == {22, 23}
 
+
+def test_missing_handin_xp_marks_the_known_subtotal_and_the_verdict():
+    for known, amount in (([], "XP unknown"), ([quest(2, 4000)], "4,000 known XP")):
+        quests = [{**q, "rewards": []} for q in [quest(1, None), *known]]
+        g = est(runs=[trip(20, 0)], quests=quests)
+        assert g["unknown_handin_xp"] == 1 and g["xp_quests"] == (4000 if known else 0)
+        assert "known XP" in g["summary"] if known else "quest XP unknown" in g["summary"]
+        _, why, _, _ = V.judge({"level": 20}, "now", 20, [], quests, g, 1000, {}, {})
+        assert f"({amount})" in why
+
+
+def test_gnomeregan_route_preserves_unknown_handin_xp_without_panel_rows():
+    # The pinned forever-db gives Gnogaine 3,950 XP and omits XP for the Sparklematic.
+    inp = {"level": 30, "who": {"faction": "Alliance", "race": "Gnome", "class": "Warrior"},
+           "open_quests": [{"quest_id": 2926}, {"quest_id": 2951}]}
+    run = V.route_trip(inp, "Gnomeregan", [])
+    handins = {q["quest_id"]: q["xp"] for q in run["handins"]}
+    assert handins[2926] == 3950 and handins[2951] is None
+    assert run["xp_quests"] == sum(x for x in handins.values() if x is not None)
+
+
+@pytest.mark.parametrize(("version", "expected"), [(None, None), (2, 0)])
+def test_zero_xp_on_current_and_legacy_routes(monkeypatch, version, expected):
+    from types import SimpleNamespace
+
+    from wowstats.mcp import route
+
+    trips = {"quests": {"2951": {"level": 30, "xp": 0}}}
+    if version is not None:
+        trips["schema"] = version
+    monkeypatch.setattr(route, "reference", lambda: SimpleNamespace(trips=trips))
+    monkeypatch.setattr(V, "trip_at", lambda *args: {"prereqs": [], "quests": [2951]})
+    assert V.route_trip({"level": 30}, "Gnomeregan", [])["handins"][0]["xp"] == expected
+
+    # A known zero in the catalogue still settles a legacy export's ambiguous zero.
+    catalogue = {"721": {"quests": [{"quest_id": 2951, "name": "The Sparklematic 5200!", "xp": 0, "level": 30}]}}
+    inp = {"level": 30, "dungeon_quests": catalogue, "open_quests": [{"quest_id": 2951}]}
+    q, = V.quests_for(inp, "721", [])
+    assert q["xp_now"] == 0
+    assert V.route_trip(inp, "Gnomeregan", [])["handins"][0]["xp"] == 0
+
+
 @pytest.mark.parametrize(("rates", "total", "known", "unknown"), [
     ([], None, None, 0), ([None], None, None, 1), ([0], 0, 0, 0), ([0, None], None, 0, 1),
     ([0.03], 0.03, 0.03, 0), ([20, 50], 60, 60, 0), ([20, 50, None], None, 60, 1),

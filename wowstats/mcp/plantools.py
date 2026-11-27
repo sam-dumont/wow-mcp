@@ -131,10 +131,11 @@ def t_how_did_my_plan_go(ctx: T.Ctx, args: dict) -> dict:
     revs = inp.get("plan_reviews") or []
     char = inp["who"]["char"]
     if not revs:
+        result = _no_data(char, "no plan to compare yet: make one (plan_session), play past its first checkpoint, "
+                                "then ask again")
         if forecasts["reviews"]:
-            return {"char": char, "latest": None, "dungeon_forecasts": forecasts}
-        return _no_data(char, "no plan to compare yet: make one (plan_session), play past its first checkpoint, "
-                              "then ask again")
+            result.update(latest=None, dungeon_forecasts=forecasts)
+        return result
     last = revs[-1]
     return {"char": char, "latest": {**last, "made": _iso(last["made_t"]), "played_since": T.dur(
         last["played_since_s"]), "checkpoints": [{**c, "planned": T.dur(c["planned_online_s"]),
@@ -236,6 +237,7 @@ def t_dungeon_options(ctx: T.Ctx, args: dict) -> dict:
                     "basis 'rules'), plus the pickups, travel and hand-ins Polestar's pick-up and hand-in rules plan "
                     "on the character's own quests from where it was last seen. gain.handins lists every hand-in "
                     "counted once, with its XP before the level cap and whether it is a prerequisite. "
+                    "If unknown_handin_xp is positive, xp_quests is the known subtotal. "
                     "gain.trip has each part "
                     "(pickup_s, inside_s, handin_s, travel_s, total_s, xp_quests, xp_kills, xp_total, xp_per_hour, "
                     "vs_questing) as {value, label}: 'measured' (its own runs), 'route' (Polestar's rules on its "

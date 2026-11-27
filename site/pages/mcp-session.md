@@ -486,7 +486,7 @@ The assistant calls `dungeons`:
    "fits_now": true,
    "opens_at": null,
    "verdict": "worth a run for its quests",
-   "why": "12 hand-ins (40,169 XP), including 3 prerequisites worth 7,650 XP, one pays an upgrade",
+   "why": "12 hand-ins (40,169 known XP), including 3 prerequisites worth 7,650 XP, one pays an upgrade",
    "priority": "high",
    "goals": [
     "gear",
@@ -656,7 +656,7 @@ The assistant calls `plan_session`:
   "hours": "2h00",
   "start.level": "46.4",
   "start.xp_pct": "37%",
-  "start.rested": "16,909",
+  "start.rested": "16,994",
   "start.gold": "22g 68s",
   "play": "2h00",
   "stops": "0 min",
