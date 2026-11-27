@@ -23,7 +23,7 @@ from tests.test_dungeon_lines_browser import open_page, pw, site  # noqa: E402, 
 ODDS = r"(?:drop chance unknown|>?[\d.]+% a run(?: from known rates)?)"
 DROP = r"\d+ drop upgrades? \(" + ODDS + r"\)"
 UPS = r"(?: \+ (?:\d+ quest upgrades?(?:, " + DROP + r")?|" + DROP + r"))?"
-LINE = re.compile(r"^~(\d+ min|\d+h\d\d) trip for ~[\d.,]+k? XP" + UPS + r", ([\d.]+×|under 0\.1×) your "
+LINE = re.compile(r"^~(\d+ min|\d+h\d\d) trip for ~[\d.,]+k? (?P<known>known )?XP" + UPS + r", ([\d.]+×|under 0\.1×) your "
                   r"questing \(((\d+ min|\d+h\d\d) (pickups|inside|hand-ins)( · )?)+\)\.$")
 
 
@@ -42,11 +42,19 @@ def test_the_trip_line(site, pw, engine, width):  # noqa: F811
             pg.locator("#home .move.k-dungeon").first.screenshot(path=f"{shot}/trip-after-move-{engine}-{width}.png")
         pg.click("#tab-overview")
         pg.wait_for_selector(".dg .dggain", timeout=30000)
-        panel = pg.eval_on_selector_all(".dg .dggain", "els => els.map(e => e.textContent)")
+        panel = pg.eval_on_selector_all(".dg .dggain", """els => els.map(e => ({
+            line: e.textContent,
+            missingXP: [...e.closest('.dg').querySelectorAll('.dgmore .gquests li')]
+                .some(q => q.textContent.endsWith(' (XP unknown)'))
+        }))""")
         # Word for word: the move's line is the panel's.
-        assert text in panel, (text, panel)
-        trips = [t for t in panel if " trip for " in t]
-        assert len(trips) >= 3 and all(LINE.match(t) for t in trips), panel
+        assert any(card["line"] == text for card in panel), (text, panel)
+        trips = [card for card in panel if " trip for " in card["line"]]
+        assert len(trips) >= 3 and {card["missingXP"] for card in trips} == {False, True}, trips
+        for card in trips:
+            match = LINE.fullmatch(card["line"])
+            assert match, card
+            assert bool(match["known"]) == card["missingXP"], card
         if shot:
             pg.locator(".dg:has(.dggain)").first.screenshot(path=f"{shot}/trip-after-panel-{engine}-{width}.png")
         over = pg.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
