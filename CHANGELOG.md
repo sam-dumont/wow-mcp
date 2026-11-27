@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.13.1 (2026-11-27)
+
 - Leave **View in 3D** open and the character occasionally swings, fires a ranged weapon or casts a spell. The shipper supplies the spell visuals from the game client. A recorded pet or demon stands beside its owner.
 - The nine demo characters span levels 10 to 60. Each has a played-time history, dated outfits and talent picks. The gear and talent grids show the game icons again. Hesta rides a Warhorse at 53. Brakka rides a Swift Timber Wolf at 60 and carries an Arcanite Reaper.
 - Back in time respects the level an item becomes wearable when reconstructing gear before the first saved outfit.

@@ -82,7 +82,7 @@ from pathlib import Path
 # release (tests/test_shipper_update.py keeps them equal). The server reads
 # it from the file it serves, auto_update compares it, and the setup report
 # carries it (/start asks an install without it to update once by hand).
-VERSION = "0.13.0"
+VERSION = "0.13.1"
 
 WINDOWS = os.name == "nt"
 HOME = Path.home()
