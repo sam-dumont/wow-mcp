@@ -198,3 +198,16 @@ def test_small_host_sets_the_analysis_cache_limits_and_uses_the_sqlite_event_vol
         assert env["MODEL3D"] == env["WOW_ITEMS"] == "off"
         assert env["EVENTS_STORE"] == "sqlite:/events"
         assert any(v["source"] == "events" and v["target"] == "/events" for v in service["volumes"])
+
+
+def test_small_host_ui_limit_is_the_measured_one_and_sits_over_every_measured_peak():
+    # The 4 GiB profile ships the limit its benchmark ran with, and every run's
+    # UI peak fits under it (docs/self-host/host-budget-2026-11.json).
+    budget = json.loads((ROOT / "docs" / "self-host" / "host-budget-2026-11.json").read_text())
+    measured = budget["concurrent_sqlite_4gib"]
+    peaks = [run["ui_peak_bytes"] for run in measured["runs"]]
+    services = config(COMPOSE_FILE="compose.yaml,compose.sqlite.yaml,compose.small-host.yaml",
+                      COMPOSE_PATH_SEPARATOR=",")
+    limit = int(services["ui"]["mem_limit"])
+    assert peaks and limit == measured["ui_limit_bytes"]
+    assert max(peaks) < limit
