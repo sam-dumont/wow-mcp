@@ -1,5 +1,8 @@
 # Sizing
 
+**For:** self-hosters picking a machine. **At the end:** you can choose a host and start
+the services that fit.
+
 A two-CPU SQLite host with 4 GiB can serve the UI, answer MCP calls and accept uploads
 while it publishes a nine-character roster. With 2 GiB, schedule the publish when the UI can be stopped.
 
