@@ -17,7 +17,8 @@ don't search the web for dungeon guides and don't write SQL for this.
 3. Gear from a dungeon: `gear` with `options` set to true names the boss and the drop chance.
 4. The quests behind a trip: `guide_steps`, or `kb_search` for a quest's giver and prerequisites.
 
-Answer with the top three that fit now: trip time and XP per hour against questing (and how many runs
+Offer up to three high-priority trips that fit now. Match the verdict and goals to the request. A group-only
+trip is worth joining when a group is already going. Give the trip time and XP per hour against questing (and how many runs
 the number comes from), the quests to pick up before going in, and the two or three items worth it (boss,
 chance). Say that a dungeon needs a group. Instance lockouts and openings are unknown unless a tool gives
 a source; on Forever, endgame content counts as open only when the knowledge base says so.

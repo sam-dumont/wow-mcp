@@ -214,13 +214,15 @@ def t_dungeon_options(ctx: T.Ctx, args: dict) -> dict:
     p = E.pace(inp)
     m = E.mounts(inp, p)
     dl = E.dungeons(inp, p, m)
-    keep = ("rank", "name", "min", "max", "fits_now", "opens_at", "expected_gain_per_clear", "top_items",
-            "quest_rewards", "quests_open", "gain", "trip", "value", "redo", "vs_guide")
+    keep = ("rank", "name", "min", "max", "fits_now", "opens_at", "verdict", "why", "priority", "goals",
+            "expected_gain_per_clear", "known_gain_per_clear", "top_items", "quest_rewards", "deferred_quest_rewards",
+            "quests_open", "gain", "trip", "value", "redo", "vs_guide")
     return {"char": inp["who"]["char"], "level": inp["level"],
             "questing_xp_per_hour": round(E.rate(p, "questing")),
             "dungeons": [{**{k: d.get(k) for k in keep}, **_dungeon_links(d.get("name"))} for d in dl],
             "instance_limit": inp.get("instance_limit") or "unknown: no sourced Forever rule in the knowledge base",
-            "note": "A dungeon needs a group: offer it as an option. 'gain' is one more run at the character's "
+            "note": "Lead with a high-priority trip that fits now. State its verdict and goals. A group_only trip is "
+                    "only worth joining if the group is already going. 'gain' is one more run at the character's "
                     "level now, the same estimate the Overview and the Dungeons panel show (its 'summary' is their "
                     "line): from the character's own runs there (basis 'runs': trip time, kill XP carried to the "
                     "current level by the kill formula over the creatures killed), else the kill estimate's time "
@@ -233,7 +235,7 @@ def t_dungeon_options(ctx: T.Ctx, args: dict) -> dict:
                     "The kill estimate counts in xp, vs_questing and the ranking. kills_unknown: no run and no kill "
                     "estimate, so the XP is the quests' alone and there is no verdict. gain.kill_xp is a run's kill "
                     "XP and time inside at the character's level: 'measured', 'estimate' (Classic's kill formula, "
-                    "elites x2.5, five players of its level, Forever's dungeon factor 0.6, over who a run kills; "
+                    "elites x2.5, players at its level and the wing's party size, Forever's dungeon factor 0.6; "
                     "buffs not included) or 'not_enough_data' (unlock says what is missing). Its provenance and "
                     "as_of carry the sources. Forever's dungeons are meant for their "
                     "quests and gear, not for running the same one over and over: lead with those. 'trip' and "
@@ -249,7 +251,10 @@ def t_dungeon_options(ctx: T.Ctx, args: dict) -> dict:
                     "there, else the wing is an estimate. A quest in several wings counts in each: gain.quests[]."
                     "wings says where ('in') and 'how': 'all' needs each of them, 'any' is done in whichever. "
                     "gain.upgrades counts the quests' reward upgrades, gain.drop_upgrades the missing upgrades that "
-                    "drop there, gain.drop_chance_pct the chance one drops in a run. " + CITE}
+                    "drop there. gain.drop_chance_pct is the estimated chance one drops per run, or null when unknown. "
+                    "known_drop_chance_pct and known_gain_per_clear cover only published rates. "
+                    "deferred_quest_rewards lists rewards this trip cannot collect, with the other wings or "
+                    "prerequisites still needed. " + CITE}
 
 
 @answers

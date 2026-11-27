@@ -39,8 +39,8 @@ Forever's. Other versions aren't supported.
 
 ### What does it cost?
 
-Nothing. It's open source (GPL-3.0). If you run the server yourself, it fits on a small box
-you already have: 2 vCPU and 2 GiB of RAM. The AI part uses your own assistant's plan, unless
+The software is free (GPL-3.0). Self-hosting uses your own hardware or a rented machine.
+[Server sizing](self-host/sizing.md) lists the measured workloads. The AI part uses your own assistant's plan, unless
 you turn on the server's own analysis: then you pay its AI provider, inside a monthly budget you
 set ([Server-side analysis](self-host/server-analysis.md)).
 
@@ -142,7 +142,7 @@ add it again with the same address, and connect once more. [When it doesn't work
 
 ### What do I need?
 
-Docker, and a computer or small box that stays on: 2 vCPU and 2 GiB of RAM for one player.
+Docker and a computer that stays on. [Sizing](self-host/sizing.md) covers CPU, memory and disk.
 For friends and for claude.ai or ChatGPT to reach it, a domain name and HTTPS.
 [The host guide](self-host/production.md).
 

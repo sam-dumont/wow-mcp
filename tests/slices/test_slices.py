@@ -95,10 +95,17 @@ def test_a_dungeon_trip_reads_the_same_in_the_panel_the_overview_and_the_mcp(ser
     if not panel.get("available"):
         pytest.skip(f"{served.name}: no Dungeons panel ({panel.get('why')})")
     lines = {d["name"]: trip(d.get("gain")) for d in panel["dungeons"] if d.get("gain")}
-    opts = {d["name"]: trip(d.get("gain")) for d in served.mcp("dungeons", options=True)["dungeons"]
-            if d.get("gain")}
+    options = served.mcp("dungeons", options=True)["dungeons"]
+    opts = {d["name"]: trip(d.get("gain")) for d in options if d.get("gain")}
+    worthwhile = [d["name"] for d in panel["dungeons"] if d["fits_now"] and d["value"] == "high"]
+    assert [d["name"] for d in options if d["fits_now"] and d["priority"] == "high"] == worthwhile
     moves = {m["zone"]["name"]: trip(m.get("gain")) for m in served.page("overview").get("moves") or []
-             if m.get("kind") == "dungeon" and m.get("gain")}
+             if m.get("kind") == "dungeon"}
+    assert list(moves) == worthwhile[:2]
+    points = [m for m in served.mcp("next_moves")["answer"] if m["page_section"] == "#dungeons"]
+    assert len(points) == len(moves)
+    for point, name in zip(points, moves, strict=True):
+        assert point["point"].startswith(name + ".")
     for name, line in opts.items():
         assert lines.get(name) == line, f"{served.name}: {name}: panel {lines.get(name)} vs MCP {line}"
     for name, line in moves.items():

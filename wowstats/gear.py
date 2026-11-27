@@ -1156,7 +1156,7 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
         a = forever.area(s.get("zone")) or {}
         out = {"kind": "drop", "boss": s.get("npc_name") if s.get("npc") or s.get("via") else None,
                "npc_id": s.get("npc") or None, "zone": s.get("zone_name") or a.get("name"),
-               "chance_pct": s.get("pct") or None, "dungeon": a.get("instance") == "dungeon", **_basis(s)}
+               "chance_pct": s.get("pct"), "dungeon": a.get("instance") == "dungeon", **_basis(s)}
         if s.get("world"):  # a random world drop: no creature, maybe a level range
             out.update(world=True, levels_drop=[s["level_min"], s["level_max"]] if s.get("level_max") else None)
         elif s.get("npc") and not a.get("instance"):
@@ -1223,7 +1223,7 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
         return {"kind": "container", "name": s.get("name"), "container_item_id": s.get("item"),
                 **({"object_id": s["object_id"]} if s.get("object_id") else {}),
                 **({"zone": (forever.area(s["zone"]) or {}).get("name")} if s.get("zone") else {}),
-                "object": bool(s.get("object")), "chance_pct": s.get("pct") or None, **_basis(s)}
+                "object": bool(s.get("object")), "chance_pct": s.get("pct"), **_basis(s)}
     return None
 
 
@@ -1458,7 +1458,7 @@ def basis_words(s: dict) -> str:
 def chance_words(s: dict) -> str:
     """A drop's chance, with the looted kills it was measured over when
     players saw it in Forever: "43.75% over 16 kills"; "" when unknown."""
-    if not s.get("chance_pct"):
+    if s.get("chance_pct") is None:
         return ""
     out = f"{s['chance_pct']}%" + (f" over {s['kills']} kills" if s.get("kills") else "")
     runs = runs_for(s["chance_pct"])
@@ -2845,7 +2845,7 @@ def source_text(s: dict, short: bool = False) -> str:
         work = f": {s['work_says']}" if s.get("work_says") else ""
         return f"quest {s.get('name') or s.get('quest_id')} ({where}){work}"
     if s["kind"] == "drop":
-        chance = f", {chance_words(s)}" if s.get("chance_pct") else ""
+        chance = f", {chance_words(s)}" if s.get("chance_pct") is not None else ""
         tail = f" ({basis})" if basis else ""
         if s.get("world"):
             lv = s.get("levels_drop")
@@ -2867,7 +2867,7 @@ def source_text(s: dict, short: bool = False) -> str:
         if s.get("boss") and s.get("unplaced"):
             who = f"{who}, not placed yet"
         where = f" in {s['zone']}" if s.get("zone") else ""
-        if not s.get("chance_pct") and not s.get("instance") and s.get("npc_id"):
+        if s.get("chance_pct") is None and s.get("npc_id"):
             chance = ", no drop rate known"
         return f"drop: {who}{where}{inst}{chance}{tail}"
     if s["kind"] == "ah":
@@ -2886,7 +2886,7 @@ def source_text(s: dict, short: bool = False) -> str:
         return f"PvP: rank {s.get('rank')} reward{pvp_words(s)}{tail}"
     if s["kind"] == "container":
         what = "object" if s.get("object") else "container"
-        chance = f", {s['chance_pct']}%" if s.get("chance_pct") else ""
+        chance = f", {s['chance_pct']}%" if s.get("chance_pct") is not None else ""
         zone = f" in {s['zone']}" if s.get("zone") else ""
         return f"{what}: {s.get('name') or '?'}{zone}{chance}{tail}"
     if s["kind"] != "craft":  # a kind the gear data names that has no words here
@@ -3402,7 +3402,7 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
                     continue
                 d = by_area.setdefault(str(s["zone"]), {"drops": [], "quests": []})
                 drop = {"boss": s.get("npc_name") if s.get("npc") else None, "npc_id": s.get("npc") or None,
-                        "chance_pct": s.get("pct") or None,
+                        "chance_pct": s.get("pct"),
                         "wing": (_wing_area(a, s.get("npc")) or {}).get("name") or s.get("zone_name") or a.get("name")}
                 if summon:
                     drop["summon"] = summon["note"]

@@ -1554,37 +1554,29 @@ def current_talents(ctx: Ctx, char: str, cls) -> tuple[dict | None, str | None]:
 
 
 def _overview(ctx: Ctx, args: dict) -> tuple[str, dict]:
+    from wowstats.plan import dungeonview
+
+    from .plantools import _inputs
+
     char = resolve_char(ctx, args)
     v = _views(ctx)
     v.chars()  # the character's aliases (Name-Realm and Name Realm are one)
-    return char, v.overview(char)
+    try:
+        panel = dungeonview.build(_inputs(ctx, args))
+    except LookupError:
+        panel = {}
+    return char, v.overview(char, dungeon_panel=panel)
 
 
 def _cited(cs: list[dict]) -> list[dict]:
     return [{"point": c["text"], "from": c.get("cite"), "page_section": c.get("link")} for c in cs or []]
 
 
-def _with_gain(ctx: Ctx, char: str, moves: list[dict]) -> list[dict]:
-    """Dungeon moves with the run estimate the page shows next to them
-    (wowstats.plan.dungeonview.with_gain): the same numbers as dungeon_options."""
-    if not any(m.get("kind") == "dungeon" for m in moves):
-        return moves
-    from wowstats import plan
-    from wowstats.plan import dungeonview
-
-    try:
-        inp = plan.inputs(ctx.environ(), char.replace(" ", "-"), store=ctx.store, battlenet=bnet_worn(ctx, char),
-                          gear_inputs=lambda: _views(ctx).gear_inputs(char.replace(" ", "-")))
-    except LookupError:
-        return moves
-    return dungeonview.with_gain(moves, dungeonview.build(inp))
-
-
 def t_next_moves(ctx: Ctx, args: dict) -> dict:
     char, ov = _overview(ctx, args)
     nm = ov["next_moves"]
     return {"char": char, "question": "Besides following Polestar, what should I do now?",
-            "answer": _cited(_with_gain(ctx, char, nm["moves"])), "on_track": _cited(ov["on_track"]["claims"]),
+            "answer": _cited(nm["moves"]), "on_track": _cited(ov["on_track"]["claims"]),
             "checked": nm["checks"], "not_possible_yet": nm["not_possible_yet"],
             "note": "Each point says what it was computed from. Gains are gear points from ForeverDB.net's "
                     "stat weights."}

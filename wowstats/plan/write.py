@@ -154,8 +154,10 @@ def fallback(est: dict) -> str:
     if "branch.dungeon" in f:
         out.append("\n### If you get a group")
         gear = f", gear {f['branch.gear']} points expected" if f["branch.gear"] not in ("+0", "+0.0") else ""
-        out.append(f"- {f['branch.dungeon']}: {f['branch.time']} for the whole trip, about {f['branch.xp']} XP "
-                   f"({f['branch.xph']} XP/h){gear} ({f['branch.from']}).")
+        xp = (f"{f['branch.xp']} quest XP, kill XP unknown" if est["branch"].get("kills_unknown") else
+              f"about {f['branch.xp']} XP ({f['branch.xph']} XP/h)")
+        out.append(f"- {f['branch.dungeon']}: {f['branch.verdict']}. {f['branch.time']} for the whole trip, "
+                   f"{xp}{gear} ({f['branch.from']}).")
         if "branch.vs_guide" in f:
             out.append(f"  - {f['branch.vs_guide']}")
     m = est["mount"]

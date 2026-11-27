@@ -107,7 +107,7 @@ def measured(quests: list[dict], gain: dict | None) -> tuple[str | None, dict]:
     elif log:
         bits.append(f"{len(log)} of your quests {'is' if len(log) == 1 else 'are'} there"
                     + (f" ({k_xp(xp_log)} XP)" if xp_log else ""))
-    if ratio and ratio >= 1.0:
+    if ratio and xph >= qxph:
         bits.append(f"your runs there give {ratio:.1f}× your questing XP per hour")
     return (", and ".join(bits) if bits else None), nums
 

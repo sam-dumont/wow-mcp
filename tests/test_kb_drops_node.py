@@ -95,3 +95,28 @@ def test_an_item_with_facts_shows_its_level_and_stats():
     got = rows(t, "ul")
     assert ["Serpentbane Crown", "item level 42", "mail", "Zul'Alai", "+16 Stamina, +9 Strength"] in got
     assert ["Robe of the Drowned", "Zul'Alai"] in got  # no facts: no empty stats line
+
+def test_grouped_gear_displays_partial_rates_and_preserves_zero():
+    """Use the actual grouped gear view. Its source list may have two bosses for one item."""
+    src = (ROOT / "web" / "app.js").read_text()
+    names = ("byWhere", "itemDropRate", "dropRates", "dropChanceText")
+    functions = "\n".join(re.search(rf"^function {name}\(.*?^}}\n", src, re.S | re.M).group() for name in names)
+    script = """
+    const primarySource = u => u.sources[0];
+    const sourceGroup = s => ({key: s.zone, title: s.zone, kind: "dungeon"});
+    const feasible = u => ({now: u.now}), rankOf = u => u.gain, slotKey = u => "Head";
+    const h = (tag, attrs, ...kids) => [attrs.text, ...kids].flat(Infinity).filter(Boolean);
+    const groupRows = () => [], levelRange = () => null;
+    const plural = (n, w) => n + " " + w + (n === 1 ? "" : "s");
+    const item = (id, zone, rates, now=true) => ({item_id: id, now, gain: 8,
+       sources: rates.map(chance_pct => ({zone, chance_pct}))});
+    """ + functions + """
+    process.stdout.write(JSON.stringify(byWhere({level: 40}, [
+      item(1, "Mixed", [25, null]), item(1, "Mixed", [25, null]), item(2, "Mixed", [100], false),
+      item(3, "Unknown", [null]), item(4, "Zero", [0]), item(5, "Rare", [0.01])
+    ])));
+    """
+    text = json.loads(subprocess.run([NODE, "-e", script], capture_output=True, text=True, check=True).stdout)
+    assert "1 drop upgrade · 25% from known rates" in text
+    assert "1 drop upgrade · drop chance unknown" in text
+    assert "1 drop upgrade · 0%" in text and "1 drop upgrade · 0.01%" in text

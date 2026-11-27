@@ -707,7 +707,7 @@ class Views:
         the layer's counts."""
         return pages.asker(char, self.layer_copy(char))
 
-    def overview(self, char: str) -> dict:
+    def overview(self, char: str, *, dungeon_panel: dict | None = None) -> dict:
         """The home page of a character: on track or not, what's happening
         now, how the guide is followed, the top upgrades, deaths, the two
         questions (next moves, sanity check) and the Overview's one list of
@@ -723,10 +723,10 @@ class Views:
         talents = (advice or {}).get("talents") if advice else None
         done = self.quests_history(char) if (hd.get("class") or "").upper() in {"PALADIN", "WARLOCK"} else ()
         ov["next_moves"] = insights.next_moves(hd.get("level"), advice, hd, ov["on_track"], ov["guide"], profs,
-                                               x["skills"], done=done)
+                                               x["skills"], done=done, dungeon_panel=dungeon_panel)
         ov["sanity_check"] = insights.sanity_check(hd.get("level"), x["deaths"], ov["guide"], ov["on_track"],
                                                    advice, profs, x["skills"], talents, gear.get("items"), hd,
-                                                   ask=ask)
+                                                   ask=ask, dungeon_panel=dungeon_panel)
         ov["moves"] = insights.overview_moves(ov["next_moves"], ov["sanity_check"])
         ov["deaths_detail"] = x["deaths"][::-1][:15]
         ov["clusters"] = insights.death_clusters(ask, x["deaths"])
