@@ -62,6 +62,8 @@ UPSTREAMS = {
     "blizzard.com", "battle.net", "worldofwarcraft.com", "blizzard.net", "blizzplanet.com", "zamimg.com",
     "wowhead.com", "allakhazam.com", "wago.tools", "wago.io", "foreverdb.net", "classicdb.ch",
     "polestar.guide", "curseforge.com", "warcraft.wiki.gg", "wowforever.ninja",
+    # ForeverDB’s upstream NOTICE credits the public Everloot corpus for community drop counts.
+    "everloot.app",
     # Code and packages: sources, licences, the tools the docs install.
     "github.com", "githubusercontent.com", "pypi.org", "pythonhosted.org", "npmjs.org", "astral.sh",
     "gnu.org", "fsf.org", "creativecommons.org", "sil.org", "purl.org", "w3.org", "openjsf.org", "jquery.com",
