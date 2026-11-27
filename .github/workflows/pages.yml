@@ -30,6 +30,9 @@ on:
       - web/app.js
       - web/items.js
       - wowstats/publish.py
+      - wowstats/itemcard.py
+      - wowstats/talents.py
+      - wowstats/upstream.py
       - tools/docs_values.py
       - tools/polestar-tag
       - data/route-reference.json
@@ -152,10 +155,29 @@ jobs:
             echo "SITE_ORIGIN=https://$owner.github.io"
             echo "SITE_BASE=/${GITHUB_REPOSITORY#*/}"
           } >> "$GITHUB_ENV"
+      # The item and talent catalogs share icons/<size>/<name>.jpg. Keep
+      # fetched JPEGs across builds, including those from a partial download.
+      - name: Restore demo icons
+        id: icons
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/pages-model3d/icons/*/*.jpg
+          key: demo-icon-jpegs-v1
+          restore-keys: demo-icon-jpegs-v1-
       # VictoriaLogs and VictoriaMetrics in Docker, the item tables from
       # wago.tools, and the nine characters' client files for the 3D view
       # and pictures. The archive must match site/demo3d-roster.sha256.
       - run: site/scripts/build-demo.sh
+        env:
+          MODEL3D_CACHE_DIR: ${{ github.workspace }}/.cache/pages-model3d
+      - name: Save new demo icons
+        if: >-
+          !cancelled() && hashFiles('.cache/pages-model3d/icons/*/*.jpg') != '' &&
+          steps.icons.outputs.cache-matched-key != format('demo-icon-jpegs-v1-{0}', hashFiles('.cache/pages-model3d/icons/*/*.jpg'))
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/pages-model3d/icons/*/*.jpg
+          key: demo-icon-jpegs-v1-${{ hashFiles('.cache/pages-model3d/icons/*/*.jpg') }}
       # Check the two published pages with the verified roster, then the live
       # dashboard with event data alone. The image job exercises the full Compose kit.
       - name: Check the nine client models, class actions and demo pages
@@ -163,6 +185,7 @@ jobs:
           uv run --frozen --extra render --group browser pytest -q -rA -m browser
           tests/test_demo_complete_browser.py tests/test_local_demo_complete_browser.py
         env:
+          MODEL3D_CACHE_DIR: ${{ github.workspace }}/.cache/pages-model3d
           WOW_DEMO_DIR: site/public/demo
           WOW_DEMO_ENGINES: chromium,webkit
       - run: npm ci --prefix site
