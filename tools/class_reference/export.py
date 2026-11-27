@@ -173,7 +173,7 @@ def _ranks(lv: dict) -> None:
 
 
 def talent_names(cat: dict) -> dict[str, dict[str, dict]]:
-    """{class: {talent name: {tree, max, row, col, spell, needs}}} from the
+    """{class: {talent name: {tree, max, row, col, spell, defs, icon, needs}}} from the
     talent catalog; `needs` is the talent an arrow comes from (TraitEdge),
     which must be maxed first."""
     out: dict[str, dict[str, dict]] = {}
@@ -187,11 +187,13 @@ def talent_names(cat: dict) -> dict[str, dict[str, dict]]:
             for nd in sec["nodes"]:
                 if not nd.get("spells"):
                     continue
-                n = (names.get(nd["spells"][0]) or {}).get("name")
+                spell = names.get(nd["spells"][0]) or {}
+                n = spell.get("name")
                 if n:
                     at[(nd["col"], nd["row"])] = n
                     got[n] = {"tree": sec["name"], "max": nd["max"], "row": nd["row"], "col": nd["col"],
-                              "spell": int(nd["spells"][0]), "needs": None}
+                              "spell": int(nd["spells"][0]), "defs": nd["defs"], "icon": spell.get("icon"),
+                              "needs": None}
             for e in sec.get("edges") or []:
                 a, b = at.get((e["fc"], e["fr"])), at.get((e["tc"], e["tr"]))
                 # Arrows point down or sideways; the table also holds a few
@@ -253,7 +255,8 @@ def main(argv: list[str]) -> int:
                                 "files": ["addon/Polestar/Core/ClassTrainers.lua", "addon/Polestar/QoL/ClassSpells.lua",
                                           "addon/Polestar_Guides/Guides.lua"]},
                    "client": {"build": build, "product": "wowf",
-                              "tables": ["SpellName", "SkillLineAbility", "SpellLevels", *talents.TABLES]},
+                              "tables": ["SpellName", "SkillLineAbility", "SpellLevels", "SpellMisc",
+                                         "ManifestInterfaceData", *talents.TABLES]},
                    "note": "trainers and training lists: Forever's (sniffed TrinityCore data, as Polestar ships "
                            "them); costs in copper before reputation discounts; names and talents from the "
                            "client build above; a level the lists miss from the client's class abilities, "

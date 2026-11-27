@@ -123,44 +123,9 @@
     ranged: 'M5 19L16 8 M14 4l2 4 4 2-4 2-2 4-2-4-4-2 4-2z',
   };
   window.wowGlyphPaths = glyphPaths;
-  // The hosted demo shares these drawings with the equipment slots. Game
-  // icon names are metadata. No art is downloaded to illustrate them.
-  const iconFamilies = [
-    [/helm|helmet|crown|hat_/, 'head'], [/neck|amulet/, 'neck'], [/shoulder|pauldron/, 'shoulder'],
-    [/cape|cloak/, 'back'], [/shirt/, 'shirt'], [/tabard/, 'tabard'], [/chest|robe|armor/, 'chest'], [/bracer|wrist/, 'wrist'],
-    [/glove|gauntlet/, 'hands'], [/belt|girdle/, 'waist'], [/pants|leg|kilt/, 'legs'],
-    [/boot|shoe/, 'feet'], [/ring|jewelry/, 'finger'], [/shield|buckler/, 'off'],
-    [/bow|rifle|gun|wand|crossbow/, 'ranged'], [/sword|axe|hammer|mace|staff|dagger|weapon/, 'main'],
-  ];
-  const spellPaths = {
-    fire: 'M13 3c1 5-3 6-1 10 2-1 3-3 3-5 4 4 5 7 3 10-2 4-9 4-12 0-2-4 0-7 3-10 0 3 0 4 1 5 0-5 2-6 3-10z',
-    frost: 'M12 3v18 M4 7l16 10 M4 17L20 7 M9 5l3 3 3-3 M9 19l3-3 3 3',
-    nature: 'M4 19c0-9 4-14 16-15-1 11-5 16-13 15 M5 20l10-11',
-    shadow: 'M16 4A8.5 8.5 0 1 0 20 15 7.5 7.5 0 0 1 16 4z',
-    holy: 'M10 3h4v6h6v4h-6v8h-4v-8H4V9h6z',
-  };
-  const drawings = new Map();
-  function drawnPath(name) {
-    // A missing card has its own mark. Known items can share a category drawing.
-    if (name === QUESTION) return 'M8 8a4 4 0 0 1 8 0c0 3-4 3-4 6 M12 18v1';
-    const school = name.split('_')[1];
-    const family = iconFamilies.find(([pattern]) => pattern.test(name));
-    return school && Object.hasOwn(spellPaths, school) ? spellPaths[school]
-      : glyphPaths[family ? family[1] : 'trinket'];
-  }
-  function drawnIcon(name) {
-    const path = drawnPath(name);
-    if (!drawings.has(path)) {
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="3" fill="#292018"/><path d="${path}" fill="none" stroke="#e7c581" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-      drawings.set(path, 'data:image/svg+xml,' + encodeURIComponent(svg));
-    }
-    return drawings.get(path);
-  }
-
   const icons = new Map();
   function wowIcon(name, size) {
     if (!name || !/^[a-z0-9_-]+$/.test(name)) return Promise.resolve(null);
-    if (root.dataset.iconArt === 'drawn') return Promise.resolve(drawnIcon(name));
     if (!STATIC) return Promise.resolve(FULL ? `/icons/${size}/${name}.jpg` : null);
     const path = `data/icon/${size}/${name}.jpg`;
     if (!SEALED) return Promise.resolve(path);

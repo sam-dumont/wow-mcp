@@ -25,7 +25,9 @@ that scores above what the slot holds is "probably equipped" from then.
 Then it is anchored on the first real sheet: per slot the replay's last item
 is compared with the sheet's, and where they disagree the sheet wins and is
 walked back to when that item was got (or to the start of the records when
-it was got before them).
+it was got before them), from the earliest level it could be worn. From
+that first sheet onward, each saved outfit is the starting point for any
+upgrades the replay infers before the next sheet.
 
 Never a fact: every reconstructed slot is `certainty: "likely"` with its
 source; slots with nothing to go on are left out (unknown), and so is
@@ -118,6 +120,7 @@ class Span:
 class Replay:
     start: datetime  # the first record: nothing is known before it
     slots: dict[int, list[Span]] = field(default_factory=dict)
+    first_sheet_check: dict | None = None
 
     def at(self, t: datetime) -> dict[int, Span]:
         out = {}
@@ -154,14 +157,30 @@ class Scorer:
         return gm.score_with(info, self.w, slot == gm.OFF) if info and self.w else 0.0
 
 
+def wearable_from(ref: gm.Reference, cls: str, info: dict, since: datetime, dings: list,
+                  who: gm.Who | None = None, *, owned: bool = True) -> datetime | None:
+    """First time at or after the evidence when the item can occupy a slot."""
+    from wowstats import insights
+
+    usable, _, need = gm.usability(ref, info, cls, classguide.MAX_LEVEL, who, owned=owned)
+    if not usable:
+        return None
+    if info.get("inv") == 22:  # an off-hand weapon also needs Dual Wield
+        prof = (ref.gear.get("PROFICIENCY") or {}).get(cls) or {}
+        need = max(need, prof.get("dualWield") or 1)
+    if (insights.level_at(dings, since) or 1) >= need:
+        return since
+    return next((t for t, lv in dings if t > since and lv >= need), None)
+
+
 def replay(ref: gm.Reference, scorer: Scorer, acqs: list[Acq], dings: list[tuple[datetime, int]],
-           start: datetime, who: gm.Who) -> Replay:
+           start: datetime, who: gm.Who, sheets: list[dict]) -> Replay:
     """The gear the records point to, slot by slot."""
     from wowstats import insights
 
     rp = Replay(start)
     worn: dict[int, int] = {}
-    waiting: list[Acq] = []  # got before the level that lets it be worn
+    first_acquired: dict[int, datetime] = {}
 
     def level_at(t: datetime) -> int:
         return insights.level_at(dings, t) or 1
@@ -179,9 +198,14 @@ def replay(ref: gm.Reference, scorer: Scorer, acqs: list[Acq], dings: list[tuple
                 if worn.pop(gm.OFF, None):
                     rp.put(gm.OFF, Span(t, 0, {}))
             return
-        if slots == (gm.OFF,) and ref.item(worn.get(gm.MAIN) or 0) and ref.item(worn[gm.MAIN])["inv"] == TWO_HAND:
-            return  # an off-hand while a two-hander is worn: not a swap the replay can judge
-        if len(slots) == 2:  # rings, trinkets: the empty or the weaker one
+        main = ref.item(worn.get(gm.MAIN)) or {}
+        if slots == (gm.MAIN, gm.OFF):
+            prof = (ref.gear.get("PROFICIENCY") or {}).get(scorer.cls)
+            if main.get("inv") == TWO_HAND or not gm.can_dual_wield(prof, lvl):
+                slots = (gm.MAIN,)
+        if slots == (gm.OFF,) and main.get("inv") == TWO_HAND:
+            return  # the off-hand alone cannot replace a two-hander
+        if len(slots) == 2:  # a legal pair of slots: the empty or weaker one
             slot = min(slots, key=lambda s: (s in worn, scorer.score(worn.get(s), lvl, s)))
         else:
             slot = slots[0]
@@ -193,38 +217,44 @@ def replay(ref: gm.Reference, scorer: Scorer, acqs: list[Acq], dings: list[tuple
             worn[slot] = a.item_id
             # Enchanted before any other record of it: owned before the
             # records began, so worn since then unless the slot had another.
-            t0 = start if force and slot not in rp.slots else t
+            t0 = t
+            if force and slot not in rp.slots and rp.first_sheet_check is None:
+                since = first_acquired.get(a.item_id, start)
+                earliest = wearable_from(ref, scorer.cls, info, since, dings, who, owned=a.item_id in first_acquired)
+                t0 = min(t, earliest) if earliest else t
             rp.put(slot, Span(t0, a.item_id, a.source()))
 
-    def ding_for(w: Acq) -> datetime | None:
-        req = ref.item(w.item_id).get("req") or 0
-        return next((t for t, lv in dings if lv >= req and t >= w.t), None)
-
-    def flush(until: datetime | None) -> None:
-        """Waiting items whose level came by `until` (None: ever), at their ding, in order."""
-        due = sorted(((d, w) for w in waiting if (d := ding_for(w)) and (until is None or d <= until)),
-                     key=lambda x: x[0])
-        for d, w in due:
-            waiting.remove(w)
-            place(w, d, False)
-
+    events: dict[datetime, list[Acq]] = {}
     for a in acqs:
-        flush(a.t)
         info = ref.item(a.item_id)
         if not info or info.get("inv") in UNWORN_INV or not gm.SLOTS_OF.get(info.get("inv")):
             continue
-        usable, _, min_level = gm.usability(ref, info, scorer.cls, level_at(a.t), who)
-        if not usable:
-            continue
-        if min_level > level_at(a.t) and a.kind != "enchant":
-            waiting.append(a)
-            continue
-        place(a, a.t, a.kind == "enchant")
-    flush(None)
+        t = wearable_from(ref, scorer.cls, info, a.t, dings, who)
+        if t is not None:
+            events.setdefault(t, []).append(a)
+
+    # The recorder can go days without another sheet. The last observed
+    # outfit is still the starting point for a later inferred upgrade.
+    sheets_at = {parse_t(sh["_time"]): sh.get("items") or [] for sh in sheets}
+    for t in sorted(events.keys() | sheets_at.keys()):
+        for a in sorted(events.get(t, []), key=lambda a: a.t):
+            if a.kind != "enchant":
+                first_acquired.setdefault(a.item_id, a.t)
+            place(a, t, a.kind == "enchant")
+        if t in sheets_at:
+            items = sheets_at[t]
+            if rp.first_sheet_check is None:
+                rp.first_sheet_check = anchor(ref, rp, acqs, items, t, scorer.cls, dings)
+            known = {int(it["slot"]): int(it["item_id"]) for it in items
+                     if _int(it.get("slot")) in gm.EQUIPPED_SLOTS and _int(it.get("item_id"))}
+            for slot in worn.keys() | known.keys():
+                rp.put(slot, Span(t, known.get(slot, 0), {"kind": "sheet", "t": iso(t)}))
+            worn = known
     return rp
 
 
-def anchor(ref: gm.Reference, rp: Replay, acqs: list[Acq], sheet_items: list[dict], sheet_t: datetime) -> dict:
+def anchor(ref: gm.Reference, rp: Replay, acqs: list[Acq], sheet_items: list[dict], sheet_t: datetime,
+           cls: str, dings: list) -> dict:
     """Compare the replay at the first sheet with the sheet, then make the
     replay agree with it. Per slot the sheet has an item in: "agree" (the
     replay ended on it), "differs" (it ended on another one) or "no_record"
@@ -255,8 +285,28 @@ def anchor(ref: gm.Reference, rp: Replay, acqs: list[Acq], sheet_items: list[dic
             continue
         a = first.get(iid)
         since, src = (a.t, a.source()) if a else (rp.start, {"kind": "sheet", "t": iso(sheet_t)})
-        spans = [sp for sp in rp.slots.get(s, []) if sp.t < since]
-        rp.slots[s] = spans + [Span(since, iid, src)]
+        info = ref.item(iid)
+        since = wearable_from(ref, cls, info, since, dings, owned=a is not None) if info else None
+        if since is None or since > sheet_t:
+            continue  # the sheet alone cannot place this item in an earlier level
+        spans = rp.slots.get(s, [])
+        rp.slots[s] = [sp for sp in spans if sp.t < since] + [Span(since, iid, src)] + [
+            sp for sp in spans if sp.t > sheet_t]
+    # Reconcile the off-hand history when the anchor changes the main-hand history.
+    # The old off-hand is usable up to the two-hander's start, then only with a free hand.
+    if gm.OFF in rp.slots:
+        main = {sp.t: sp for sp in rp.slots.get(gm.MAIN, [])}
+        off = {sp.t: sp for sp in rp.slots[gm.OFF]}
+        blocked, held, valid = False, None, []
+        for t in sorted(main.keys() | off.keys()):
+            if t in main:
+                blocked = (ref.item(main[t].item_id) or {}).get("inv") == TWO_HAND
+            if t in off:
+                held = off[t]
+            item = held.item_id if held and not blocked else 0
+            if item != (valid[-1].item_id if valid else 0):
+                valid.append(Span(t, item, held.source if item else {}))
+        rp.slots[gm.OFF] = valid
     n = {k: sum(1 for v in result.values() if v == k) for k in ("agree", "differs", "no_record")}
     # Two fingers, two trinkets: named by slot number so neither hides the other.
     return {"slots": {f"{gm.SLOT_NAMES.get(s, s)}" + (f" {1 + (s in (12, 14))}" if s in PAIRS else ""): v
@@ -287,13 +337,17 @@ Q_CRAFT = "kind:=craft item_id:* | fields _time, spell_id, item_id"
 
 
 def build(ref: gm.Reference, sheet: dict, turnins: list[dict], loots: list[dict], crafts: list[dict],
-          dings: list[tuple[datetime, int]], first_sheet: dict | None) -> tuple[Replay, dict | None, dict] | None:
+          dings: list[tuple[datetime, int]], sheets: list[dict] | dict | None,
+          ) -> tuple[Replay, dict | None, dict] | None:
     """The anchored replay, the agreement with the first sheet, the shipped
     item names. None without records or a class the weights score."""
     cls = gm.class_token(sheet.get("class"))
     if not ref.available or not cls or cls not in (ref.weights.get("specs") or {}):
         return None
-    rows = [r for r in turnins + loots + crafts if r.get("_time")]
+    if isinstance(sheets, dict):  # a single anchor from an earlier caller
+        sheets = [sheets]
+    sheets = [sh for sh in sheets or [] if sh.get("_time")]
+    rows = [r for r in turnins + loots + crafts + sheets if r.get("_time")]
     if not rows:
         return None
     start = min(parse_t(r["_time"]) for r in rows)
@@ -304,13 +358,9 @@ def build(ref: gm.Reference, sheet: dict, turnins: list[dict], loots: list[dict]
     who = gm.Who(cls=cls, level=1, side=gm.SIDES.get(str(faction or "").lower()),
                  race_id=classguide.race_bit(sheet.get("race"), faction).bit_length() or None,
                  professions={}, done=set(), zone=None)
-    rp = replay(ref, Scorer(ref, cls, key), acqs, dings, start, who)
-    check = None
-    if first_sheet and first_sheet.get("_time"):
-        t = parse_t(first_sheet["_time"])
-        check = anchor(ref, rp, acqs, first_sheet.get("items") or [], t)
+    rp = replay(ref, Scorer(ref, cls, key), acqs, dings, start, who, sheets)
     names: dict = {}
     for r in loots:
         with contextlib.suppress(ValueError):
             names.update(json.loads(r.get("item_names") or "{}"))
-    return rp, check, names
+    return rp, rp.first_sheet_check, names

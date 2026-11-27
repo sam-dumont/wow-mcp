@@ -40,10 +40,12 @@ The gear tests compare five specs against the [ForeverDB.net best-in-slot page](
 The recorded ladders and expected picks live in `tests/data/foreverdb-ladders.json.gz` and `tests/data/foreverdb-picks.json`.
 The site and API have their own terms. [Data from ForeverDB.net](https://foreverdb.net) · [API terms](https://foreverdb.net/developers)
 
-In the hosted demo, the 2D item and talent symbols are drawings from `web/items.js`.
-The publisher includes the same item names, stats and talent ranks as a player's site.
+The hosted demo uses the same item and talent icons as a player's site. The
+publisher reads the JPEGs from its Wowhead cache or fetches them during the build.
+The browser reads the public icons from the demo and decrypts the friends' copies locally.
+Blizzard owns the artwork. The source repository and wheel contain no game icons.
 
-Blizzard Entertainment owns the nine character models, their equipped gear,
+Blizzard Entertainment owns the nine character models, their gear at every recorded level,
 the bear, the Voidwalker, the Warhorse and the Swift Timber Wolf. Their models,
 textures, animations and appearance tables come from the game client.
 The names and play histories in the demo are invented. `tools/fixtures/demo3d.py`
@@ -51,7 +53,7 @@ reads the artwork from the maintainer's installed Forever client through the
 shipper's CASC reader. The project licence covers its own code. Blizzard
 retains the rights to the artwork. The Pages build checks a separate archive
 against the SHA-256 in `site/demo3d-roster.sha256` before it copies the required
-files into the demo. [Demo artwork archive](https://github.com/sam-dumont/wow-mcp/releases/tag/demo-3d-5).
+files into the demo. [Demo artwork archive](https://github.com/sam-dumont/wow-mcp/releases/tag/demo-3d-6).
 The source repository, Python wheel and shipper installer contain the scripts
 and no extracted game models. [Blizzard's fansite policy](https://www.blizzard.com/en-us/legal/28d5ebbf-c245-4408-8ba9-043dd5f056bf/legal-faq).
 

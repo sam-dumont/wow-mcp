@@ -1,4 +1,4 @@
-"""The eight short demo histories, their saved builds, and their own models."""
+"""The eight demo histories, their saved builds, and their own models."""
 
 import json
 import sys
@@ -18,10 +18,10 @@ import roster3d  # noqa: E402
 NOW = 1_795_000_000
 
 
-def test_eight_short_histories_complement_the_priest():
+def test_eight_played_histories_complement_the_priest():
     rows = roster.sessions(NOW)
     lines, bad = ingest.parse(generate.jsonl(rows))
-    assert not bad and len(lines) == len(rows) < 1000
+    assert not bad and len(lines) == len(rows)
     assert len(set(r["source_id"] for r in rows)) == len(rows)
     assert len({c.race for c in roster.CHARACTERS} | {"Gnome"}) == 9
     assert {c.cls for c in roster.CHARACTERS} | {"PRIEST"} == set(talents.CLASS_BITS.values())
@@ -34,18 +34,41 @@ def test_eight_short_histories_complement_the_priest():
     metrics = roster.series(rows, NOW, looks)
     for c in roster.CHARACTERS:
         mine = [r for r in rows if r["char"] == c.name]
-        sheet = next(r for r in mine if r["feed"] == "wow-gear")
-        character = next(r for r in mine if r["feed"] == "wow-character")
+        sheet = next(r for r in reversed(mine) if r["feed"] == "wow-gear")
+        character = next(r for r in reversed(mine) if r["feed"] == "wow-character" and r.get("kind") != "played")
         assert character["level"] == str(c.level) and character["zone"] == c.zone
         assert sheet["spec"] == c.spec and any(r.get("kind") == "kill" for r in mine)
         who = gear.Who(c.cls, c.level, 1 if c.faction == "Alliance" else 2, c.race_id, {}, set(), c.zone)
         worn = {it["slot"]: it for it in json.loads(sheet["items"])}
+        splits = [r for r in mine if r["feed"] == "wow-level"]
+        levels = [int(r["level"]) for r in splits]
+        assert len(levels) >= 5 and levels == list(range(levels[0], c.level))
+        logins = [r for r in mine if r.get("login") == "true"]
+        played = [r for r in mine if r.get("kind") == "played"]
+        assert all(r["source"] == "altoholic" for r in played)
+        logouts = [r for r in played if r["logged_out"] == "true"]
+        assert len(logins) == len(logouts) >= 3
+        for before, login, after in zip(logouts[:-1], logins[1:], logouts[1:], strict=True):
+            session_s = generate._epoch(after["_time"]) - generate._epoch(login["_time"])
+            assert abs(int(after["played_total_s"]) - int(before["played_total_s"]) - session_s) < 2
+        tracked = sum(int(r["seconds"]) for r in splits) + int(played[-1]["played_level_s"])
+        lifetime = int(played[-1]["played_total_s"])
+        assert lifetime >= tracked - len(splits) and (lifetime - tracked < 5) == (levels[0] == 1)
+        done = {int(r["quest_id"]) for r in mine if r.get("kind") == "turnin"}
+        assert len(done) >= 3 and done <= set(json.loads(next(r["quest_ids"] for r in mine if r["feed"] == "wow-quests")))
+        assert bool([r for r in mine if r["feed"] == "wow-dungeon"]) == (c.level >= 16)
+        assert len(json.loads(sheet["professions"])) == 2
+        bags = json.loads(next(r["bags"] for r in reversed(mine) if r["feed"] == "wow-bags"))
+        assert bags and set(bags).isdisjoint(it["item_id"] for it in worn.values())
         if c.level == 60:
             assert set(worn) == set(range(1, 19)) - {4, 17}
             assert sum(it["quality"] == 4 for it in worn.values()) >= 4
-            assert all("xp_reward" not in r for r in mine if r.get("kind") == "kill")
-            assert all(int(r["xp"]) == 0 for r in mine if "xp" in r)
-            assert not any(r["feed"] == "wow-level" for r in mine)
+            capped = [r for r in mine if r["_time"] > splits[-1]["_time"]]
+            assert any(r.get("kind") == "kill" for r in capped)
+            assert all("xp_reward" not in r for r in capped if r.get("kind") == "kill")
+            assert all(int(r["xp"]) == 0 for r in capped if "xp" in r)
+            assert any(r["feed"] == "wow-dungeon" and int(r["level"]) == 60 for r in capped)
+            assert any(int(r.get("xp_reward") or 0) > 0 for r in mine if r.get("kind") == "kill")
         else:
             assert 0 < int(character["xp"]) < int(character["xp_max"])
             assert (1 in worn) == (c.level >= 20) and (3 in worn) == (c.level >= 20)
@@ -80,13 +103,16 @@ def test_eight_short_histories_complement_the_priest():
         path = classguide.path(c.cls)
         assert pts == Counter(p["talent"] for p in path["picks"] if p["level"] <= c.level)
         assert sum(pts.values()) == c.level - 9 and not classguide.check_path(c.cls)
-        observed = next(r for r in mine if r["feed"] == "wow-talents")
+        observed = next(r for r in reversed(mine) if r["feed"] == "wow-talents")
+        for event in [r for r in mine if r["feed"] == "wow-talents"]:
+            past = wowsims.decode(catalog, c.cls, event["talents"])
+            assert sum(rank["rank"] for rank in past["ranks"].values()) == int(event["level"]) - 9
         decoded = wowsims.decode(catalog, c.cls, observed["talents"])
         assert {r["name"]: r["rank"] for r in decoded["ranks"].values()} == pts
         series = [s for s in metrics if s["metric"]["character"] == c.name]
         (choice,) = [s for s in series if s["metric"]["__name__"] == "wow_character_customization"]
         (option,) = looks[c.name]
-        assert choice["metric"]["option_id"] == str(option["optionId"]) and choice["values"] == [option["choiceId"]] * 2
+        assert choice["metric"]["option_id"] == str(option["optionId"]) and set(choice["values"]) == {option["choiceId"]}
         ranks = {s["metric"]["spell_id"]: s["values"][-1] for s in series
                  if s["metric"]["__name__"] == "wow_character_talent_rank"}
         frame = talents.frame(catalog, c.cls, ranks)
@@ -94,6 +120,18 @@ def test_eight_short_histories_complement_the_priest():
         assert not any("pet" in s["metric"]["__name__"] for s in series)
         companions = [r for r in mine if r["feed"] == "wow-companion"]
         assert [r["kind"] for r in companions] == ([c.cls.lower()] if c.cls in ("HUNTER", "WARLOCK") else [])
+
+
+def test_seed_has_an_icon_and_a_trait_definition_for_every_talent():
+    catalog = roster.bundled_talent_catalog()
+    trees = {tr["class"]: tr for tr in catalog["trees"] if tr["kind"] == "class"}
+    assert set(trees) == set(talents.CLASS_BITS.values())
+    for cls, tree in trees.items():
+        nodes = [n for section in tree["sections"] for n in section["nodes"]]
+        assert len(nodes) == len(classguide.reference()["classes"][cls]["talents"])
+        for n in nodes:
+            assert n["defs"]
+            assert talents.ICON.fullmatch(catalog["spells"][n["spells"][0]].get("icon") or ""), (cls, n)
 
 
 def test_all_demo_models_resolve_offline(tmp_path):

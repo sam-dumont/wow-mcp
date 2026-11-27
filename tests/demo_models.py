@@ -25,9 +25,9 @@ BODY = {"Gnome": 900914, "Orc": 949470, "Human": 1000764, "Dwarf": 878772, "Skyb
 COMPANION = {"HUNTER": (123040, 123045), "WARLOCK": (126369, 126370)}
 # Upper torso texture of the equipped chest piece, and each ranged weapon's subclass, model and skin.
 CHEST = {"PRIEST": 164764, "WARRIOR": 164188, "PALADIN": 164194, "HUNTER": 163257, "ROGUE": 163198,
-         "SHAMAN": 163408, "MAGE": 164574, "WARLOCK": 162901, "DRUID": 163261}
+         "SHAMAN": 163226, "MAGE": 164574, "WARLOCK": 162901, "DRUID": 163261}
 RANGED = {"PRIEST": (19, 148652, 147512), "WARRIOR": (2, 145015, 145016), "HUNTER": (3, 145323, 145327),
-          "ROGUE": (2, 145105, 145104), "MAGE": (19, 148699, 148701), "WARLOCK": (19, 148652, 148655)}
+          "ROGUE": (2, 145105, 145104), "MAGE": (19, 148699, 148701), "WARLOCK": (19, 148652, 147644)}
 # SHA-256 of each source M2. A well-formed fixture M2 at the same ID must
 # fail both the Compose and published demo checks.
 CLIENT_M2 = {

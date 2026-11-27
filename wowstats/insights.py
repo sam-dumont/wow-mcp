@@ -28,6 +28,7 @@ from .stores import (
     SESSION_BUCKETS,
     ZONE_RECORDS,
     iso,
+    iso_us,
     lq,
     num,
     opt_num,
@@ -1268,6 +1269,11 @@ def windows(data: dict) -> dict[int, tuple[datetime | None, datetime | None]]:
 ITEM_RE = re.compile(r"(\d+):(\d+)")
 
 
+def snapshot_as_of(end: datetime | None) -> datetime:
+    """Last representable moment in a finished level, or now for the level in play."""
+    return end - timedelta.resolution if end else datetime.now(UTC)
+
+
 def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, cf: str, ref, who: dict,
              ds: list[dict]) -> dict:
     """The character at `level`: its gear then (the wow-gear event in force
@@ -1280,8 +1286,8 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
     hd = data.get("header") or {}
     if lv is None and t1 is None and hd.get("level") == level and hd.get("time_in_level_s"):
         out.update(seconds=hd["time_in_level_s"], so_far=True)  # the level in play, from the Recorder
-    end = t1 or datetime.max.replace(tzinfo=t0.tzinfo if t0 else None)
-    # The gear in force at the level's end: the latest read at or before it.
+    end = snapshot_as_of(t1)
+    # The next ding and anything captured with it belong to the next level.
     worn = gear_rows[:tb.at_or_before([parse_t(g.get("_time")) for g in gear_rows], end) + 1]
     if worn and t0 and parse_t(worn[-1].get("_time")) >= t0 - timedelta(days=2):
         g = worn[-1]
@@ -1289,7 +1295,7 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
     else:
         out.update(gear=None, gear_partial=True)
     if t0:
-        rng = f"_time:[{iso(t0)}, {iso(t1) if t1 else iso(datetime.now(t0.tzinfo))}]"
+        rng = f"_time:[{iso_us(t0)}, {iso_us(t1)})" if t1 else f"_time:[{iso_us(t0)}, {iso_us(end)}]"
         stats = q(f"{rec(cf)} kind:in(turnin, kill, loot) {rng} | stats by (kind) count_uniq(source_id) as n")
         out["counts"] = {r.get("kind"): int(num(r.get("n"))) for r in stats}
         # Time per zone inside the level (stores.zone_time: the records' own times).

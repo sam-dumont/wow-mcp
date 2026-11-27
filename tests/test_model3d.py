@@ -145,6 +145,21 @@ def test_owned_mount_requests_its_skin_and_stays_out_of_old_portraits(m3d, monke
         assert safe["recipe"]["mounts"] == [{**mount, "textures": {"11": 801, "12": None, "13": None}}]
 
 
+def test_historical_equipment_uses_the_dated_latest_face_without_todays_pet_or_mount(m3d, monkeypatch):
+    look = {"options": [{"optionId": 87, "choiceId": 1262}], "source": "battle.net", "refreshed": "2026-11-27"}
+    monkeypatch.setattr(model3d, "find_look", lambda app, name: look)
+    current = {**SHEET, "mounts": [{"display_id": 70002}], "companion_display": (1, 70001)}
+    app = SimpleNamespace(char=lambda name: {"gear": current},
+                          views=SimpleNamespace(snapshot=lambda name, level: {"gear": {"items": w.GEAR}}))
+    sheet, _, _ = m3d.gear_at(app, "Example", 12)
+    assert "mounts" not in sheet and "companion_display" not in sheet
+    answer = m3d.for_char(app, "Example", 12)
+    assert answer["recipe"]["level"] == 12
+    for shared in (redact.public, redact.zogzog):
+        assert shared("model3d", answer)["appearance"] == {"source": "battle.net", "refreshed": "2026-11-27",
+                                                            "scope": "latest_profile"}
+
+
 def test_the_enchant_reaches_the_weapon(m3d):
     plain = m3d.character(SHEET)["recipe"]
     glowing = m3d.character({**SHEET, "items": [{**w.GEAR[1], "enchant_id": 1}]})["recipe"]

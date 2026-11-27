@@ -25,7 +25,9 @@ import os
 import sys
 import tarfile
 import tempfile
+from collections import defaultdict
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,7 +37,7 @@ import generate  # noqa: E402
 import golden3d  # noqa: E402
 import roster  # noqa: E402
 
-from wowstats import assets, character3d, db2, mounts  # noqa: E402
+from wowstats import assets, character3d, db2, gear, history, insights, mounts  # noqa: E402
 
 DEFAULT_WOW = {"darwin": "/Applications/World of Warcraft",
                "win32": r"C:\Program Files (x86)\World of Warcraft"}.get(sys.platform, "")
@@ -90,26 +92,51 @@ def shipper():
 
 # ------------------------------------------------------------------ the outfits
 
-def outfits() -> list[list[dict]]:
-    """Every gear sheet of the demo's history (build_demo's wow-gear), each
-    once, then the last one with each item alone: a recipe's files and rows
-    are per item, so the reconstructed outfits in between need nothing more."""
-    rows = generate.build_demo("2026-01-31")
+def outfit_phases(sheets: list[list[dict]]) -> list[list[dict]]:
+    """The distinct outfits and each item on its own, as when the player toggles a slot."""
     seen, out = set(), []
-    for r in sorted((r for r in rows if r["feed"] == "wow-gear"), key=lambda r: r["_time"]):
-        items = [{"slot": it["slot"], "item_id": it["item_id"], "name": it.get("name"),
-                  "enchant_id": it.get("enchant_id")} for it in json.loads(r["items"])]
-        key = tuple(sorted((i["slot"], i["item_id"]) for i in items))
+    for items in sheets:
+        key = tuple(sorted((it["slot"], it["item_id"], it.get("enchant_id") or 0) for it in items))
         if key not in seen:
             seen.add(key)
             out.append(items)
-    every = {(i["slot"], i["item_id"]): i for sheet in out for i in sheet}
-    out += [[i] for _k, i in sorted(every.items())]
-    return out
+    every = {(it["slot"], it["item_id"], it.get("enchant_id") or 0): it for items in out for it in items}
+    return out + [[it] for key, it in sorted(every.items()) if (key,) not in seen]
 
 
+def outfits() -> list[list[dict]]:
+    return outfit_phases([json.loads(r["items"]) for r in generate.build_demo("2026-01-31") if r["feed"] == "wow-gear"])
+
+
+def recorded_outfits(rows: list[dict]) -> list[list[dict]]:
+    """The saved gear and the inferred outfits the shipper can request from the same records."""
+    by_kind = defaultdict(list)
+    for row in rows:
+        by_kind[row["kind"] if row["feed"] == "wow-recorder" else row["feed"]].append(row)
+    gear_rows = sorted(by_kind["wow-gear"], key=lambda r: r["_time"])
+    sheets = [json.loads(r["items"]) for r in gear_rows]
+    levels = [{"level": int(r["level"]), "at": r["_time"]} for r in by_kind["wow-level"]]
+    dings = insights.dings_from(levels, by_kind["level"])
+    ref = gear.reference()
+    checkpoints = [{"_time": r["_time"], "items": items} for r, items in zip(gear_rows, sheets, strict=True)]
+    reconstructed = history.build(ref, gear_rows[-1], by_kind["turnin"], by_kind["loot"], by_kind["craft"],
+                                  dings, checkpoints)
+    if reconstructed:
+        replay, _, names = reconstructed
+        times = sorted({span.t for spans in replay.slots.values() for span in spans})
+        sheets.extend(history.items_at(ref, replay, t, names) for t in times)
+    return sheets
+
+
+@cache
 def roster_outfits() -> dict[Profile, list[list[dict]]]:
-    return {NIBBET: outfits(), **{p: [roster.worn(c)] for p, c in zip(profiles()[1:], roster.CHARACTERS, strict=True)}}
+    rows = defaultdict(list)
+    for r in generate.demo_roster("2026-01-31"):
+        if r["feed"] in ("wow-gear", "wow-level") or (
+            r["feed"] == "wow-recorder" and r.get("kind") in ("level", "turnin", "loot", "craft")
+        ):
+            rows[r["char"]].append(r)
+    return {p: outfit_phases(recorded_outfits(rows[p.name])) for p in profiles()}
 
 
 # ------------------------------------------------------------------ recording lookups

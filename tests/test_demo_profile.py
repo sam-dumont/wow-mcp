@@ -94,6 +94,26 @@ def test_demo_gear_at_46():
     assert generate.wowsims_string(build).startswith("--")
 
 
+def test_every_saved_nibbet_outfit_fits_his_class_and_level():
+    from wowstats import gear
+
+    ref = gear.reference()
+    level = 22
+    for row in generate.build_demo(END):
+        if row.get("kind") == "level":
+            level = int(row["level"])
+        if row["feed"] != "wow-gear":
+            continue
+        for it in json.loads(row["items"]):
+            info = ref.item(it["item_id"])
+            if info is None:
+                # The scoring reference omits the linen shirt and the guild tabard.
+                assert (it["slot"], it["item_id"]) in ((4, 2576), (19, 5976))
+                continue
+            usable, why, required = gear.usability(ref, info, "PRIEST", level, owned=True)
+            assert usable and required <= level, (level, it["name"], why, required)
+
+
 def test_every_worn_item_comes_from_something_live_in_forever():
     """build_demo refuses gear from content Forever hasn't opened (in_forever,
     by ForeverDB's labels and Polestar's drop tables): the Gurubashi Arena's

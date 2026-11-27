@@ -219,6 +219,17 @@
     holder.dataset.char = name;
     const moved = holder.dataset.level !== String(level);
     holder.dataset.level = String(level);
+    holder.querySelector('.snaplook')?.remove();
+    outcome(name, level).then(({ d }) => {
+      if (!d?.recipe || holder.dataset.char !== name || holder.dataset.level !== String(level) ||
+          !holder.querySelector('.snapstage')) return;
+      const look = d.appearance;
+      const date = look?.refreshed ? new Date(look.refreshed).toLocaleDateString() : '';
+      const text = look ? `Level ${level} equipment with the latest Battle.net appearance${date ? ' (' + date + ')' : ''}.`
+        : `Level ${level} equipment with the default appearance.`;
+      holder.querySelector('.snaplook')?.remove();
+      holder.append(h('p', { class: 'sub snaplook', text }));
+    });
     if (same) {
       const box = old.querySelector('.still');
       if (box) {
