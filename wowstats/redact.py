@@ -60,6 +60,49 @@ PROFESSION = {k: None for k in ("skill_id", "name", "rank", "max_rank", "max_ran
 # wowstats.history). Public: how it was got, not where or from whom.
 SNAP_ITEM = {**ITEM, "certainty": None, "source": {"kind": None}}
 M3D_ITEM = {k: None for k in ("slot", "slot_name", "item_id", "name", "why")}
+
+
+class PresentFields(dict):
+    """Allow-listed fields whose absence is meaningful (a kit may have no animation)."""
+
+
+# A numeric texture-type -> FileDataID map. An item row can introduce a
+# new texture type without opening the recipe to arbitrary labels or text.
+TEXTURE_FILES = object()
+
+
+def _keys(*names: str) -> dict:
+    return {k: None for k in names}
+
+
+# Game records for the automatic previews. Only an ammo projectile has an
+# item ID and texture replacements. A kit may carry models, animation, a
+# beam, or a combination. Preserve those distinctions across publication.
+M3D_EFFECT = {
+    **_keys("effect_id", "model", "scale", "alpha", "attach_id", "attachment", "start_animation", "animation",
+            "end_animation", "delay_ms", "flags"), "offset": [None], "rotation": [None],
+}
+M3D_MISSILE = PresentFields({
+    **_keys("effect_id", "model", "scale", "alpha", "missile_id", "attachment", "destination_attachment", "flags",
+            "motion_id", "decay_ms", "ammo_item_id", "ammo_source"),
+    "offset": [None], "destination_offset": [None], "textures": TEXTURE_FILES,
+})
+M3D_CHAIN = {
+    **_keys("id", "procedure_id", "texture", "start_width", "end_width", "tex_coord_scale", "seg_duration",
+            "seg_delay", "avg_seg_len", "noise_scale", "blend_mode", "flags"),
+    "params": [None], "color": [None],
+}
+M3D_KIT = PresentFields({
+    **_keys("kit_id", "event_id", "phase", "target", "start_event", "end_event", "target_type", "delay_ms",
+            "max_delay_ms", "initial_animation", "animation", "animation_id", "animation_kit_id", "animation_speed"),
+    "flags": [None], "start_offset_ms": [None], "end_offset_ms": [None], "effects": [M3D_EFFECT],
+    "chains": [M3D_CHAIN], "procedures": [{**_keys("id", "type"), "values": [None]}],
+})
+M3D_ACTION = PresentFields({
+    **_keys("name", "label", "equipment", "target", "spell_id", "item_id", "rank", "item_delay_ms", "visual_id",
+            "visual_flags", "weapon_visual_id", "cast_ms", "duration_ms", "speed", "launch_delay_ms"),
+    "kits": [M3D_KIT], "missiles": [M3D_MISSILE],
+})
 # The 3D view's recipe (wowstats.character3d, v1): file ids, geoset ids and
 # numbers only, game data with nothing of the player's but how they look.
 M3D_GEOSETS = {"set": {}, "groups": {}}
@@ -68,6 +111,7 @@ M3D_RECIPE = {
     "mounts": [{"name": None, "model": None, "textures": {"11": None, "12": None, "13": None}, "scale": None}],
     "v": None, "model": None, "geosets": M3D_GEOSETS, "animation": None, "textures": {},
     "attack": None, "class_id": None, "level": None, "ranged": {"kind": None, "at_rest": None},
+    "actions": [M3D_ACTION],
     "materials": [{"type": None, "width": None, "height": None,
                    "layers": [{k: None for k in ("file", "target", "x", "y", "w", "h", "blend")}]}],
     "skinned": [{"model": None, "textures": {}, "geosets": M3D_GEOSETS}],
@@ -192,10 +236,6 @@ PUBLIC: dict[str, dict] = {
 # - the advice's lines about creatures (the Overview's moves keep items,
 #   dungeons, professions, zones, guide steps: ZOGZOG_MOVE_KINDS).
 # Same shapes as PUBLIC: a key not listed here never reaches the bundle.
-
-
-def _keys(*names: str) -> dict:
-    return {k: None for k in names}
 
 
 CLAIM = _keys("text", "link", "cite", "kind", "item_id", "skill_id")
@@ -489,6 +529,11 @@ def shape(value, spec):
         return [shape(v, spec[0]) for v in value] if isinstance(value, list) else []
     if not isinstance(value, dict):
         return None
+    if spec is TEXTURE_FILES:
+        return {str(k): v for k, v in value.items() if str(k).isascii() and str(k).isdigit()
+                and type(v) is int and v > 0}
+    if isinstance(spec, PresentFields):
+        return {k: shape(value[k], sub) for k, sub in spec.items() if k in value}
     if not spec:  # {}: a map of plain values (counts by kind, weights by stat)
         return {str(k): v for k, v in value.items() if isinstance(v, (int, float, str, bool))}
     return {k: shape(value.get(k), sub) for k, sub in spec.items()}

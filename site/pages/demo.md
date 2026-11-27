@@ -23,9 +23,9 @@ Pick a character in the selector. Each wears gear they can use and has one talen
 | 53 | Hesta | Human Retribution paladin, with a Warhorse |
 | 60 | Brakka | Orc Arms warrior, with a Swift Timber Wolf |
 
-Open **Character** and choose **View in 3D**. Pick Hesta’s Warhorse or Brakka’s epic wolf under **Mount**. Try **Walk** and **Run**, then choose **On foot** to use the character’s own attacks again. Brakka carries an Arcanite Reaper and wears four epic Glory pieces. Flintwick and Duskwick have a separate control for their companions.
+Open **Character** and choose **View in 3D**. Leave Nibbet on foot for a bit and he may cast a spell or shoot his wand. Choose **On mount** to see Hesta ride her Warhorse or Brakka ride her epic wolf. Choose **On foot** to dismount. Flintwick’s bear and Duskwick’s Voidwalker appear alongside them.
 
-The models, gear, companions and mounts come from the installed Forever client. The item and talent icons come from the same Wowhead cache as Nibbet’s. Both pages serve their own copies. [Artwork and credits](../../THIRD_PARTY.md)
+The models, gear, companions, mounts and spell effects come from the installed Forever client. The item and talent icons come from the same Wowhead cache as Nibbet’s. Both pages serve their own copies. [Artwork and credits](../../THIRD_PARTY.md)
 
 ## The two pages
 

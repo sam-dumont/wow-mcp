@@ -746,6 +746,9 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
         state = json.loads(state_f.read_text())
     except (OSError, ValueError):
         state = {}
+    # Sample before assembly. Assets arriving during the build trigger the next pass.
+    asset_store = full_app.model3d.store if full_app.model3d is not None else None
+    asset_stamp = list(asset_store.stamp()) if asset_store is not None else []
     newest, count = full_app.event_mark()
     profiles = profile_fingerprint(full_app, state.get("profiles"))
     shared = fetch_analysis(env) if zz_path else {"available": False}
@@ -783,7 +786,8 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
            else "picture files arrived" if pics.on and pics.files_changed(state.get("pictures_missing") or {},
                                                                            store_reader(full_app))
            else "level pictures pending" if pics.on and state.get("pictures_pending")
-           and time.time() >= float(state.get("pictures_retry_at") or 0) else None)
+           and time.time() >= float(state.get("pictures_retry_at") or 0)
+           else "3D assets changed" if asset_stamp and asset_stamp != state.get("asset_stamp") else None)
     if why is None:
         push(env, (out / "current").resolve(), slug)
         return {"built": False, "why": "no new events, no Battle.net change", "newest": newest,
@@ -863,7 +867,7 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
         shutil.rmtree(p, ignore_errors=True)
     pics.prune()
     state = {"newest": newest, "event_count": count, "profiles": profiles or "", "built_at": t0,
-             "key_id": key_id, "page_id": page_id,
+             "key_id": key_id, "page_id": page_id, "asset_stamp": asset_stamp,
              "build": final.name, "analysis_id": shared_id, "share_scope": share_scope,
              "analysis_needs_refresh": shared is None, **pics.state()}
     state_f.write_text(json.dumps(state))

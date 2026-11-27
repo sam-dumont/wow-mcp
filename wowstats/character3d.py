@@ -46,7 +46,7 @@ import threading
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
-from wowstats import db2
+from wowstats import db2, spellart
 from wowstats.mounts import catalog as mount_catalog
 
 log = logging.getLogger(__name__)
@@ -100,10 +100,10 @@ TABLES: dict[str, tuple[str, ...]] = {
     "CreatureDisplayInfo": ("ModelID", "TextureVariationFileDataID", "CreatureModelScale"),
     "CreatureModelData": ("FileDataID", "ModelScale"),
     "HelmetGeosetData": ("RaceID", "HideGeosetGroup", "HelmetGeosetVisDataID"),
-    "Item": ("ClassID", "SubclassID", "InventoryType"),
+    "Item": ("ClassID", "SubclassID", "InventoryType", "AmmunitionType"),
     "ItemAppearance": ("ItemDisplayInfoID",),
-    "ItemDisplayInfo": ("ItemVisual", "ModelResourcesID", "ModelMaterialResourcesID", "GeosetGroup",
-                        "AttachmentGeosetGroup", "HelmetGeosetVis"),
+    "ItemDisplayInfo": ("ItemRangedDisplayInfoID", "ItemVisual", "ModelResourcesID", "ModelMaterialResourcesID",
+                        "GeosetGroup", "AttachmentGeosetGroup", "HelmetGeosetVis"),
     "ItemDisplayInfoMaterialRes": ("ComponentSection", "MaterialResourcesID", "ItemDisplayInfoID"),
     "ItemDisplayInfoModelMatRes": ("MaterialResourcesID", "TextureType", "ModelIndex", "ItemDisplayInfoID"),
     "ItemModifiedAppearance": ("ItemID", "ItemAppearanceModifierID", "ItemAppearanceID", "OrderIndex"),
@@ -112,6 +112,7 @@ TABLES: dict[str, tuple[str, ...]] = {
     "ModelFileData": ("FileDataID", "ModelResourcesID"),
     "Mount": ("Name_lang", "SourceSpellID"),
     "MountXDisplay": ("MountID", "CreatureDisplayInfoID", "PlayerConditionID"),
+    **spellart.TABLES,
     "SpellItemEnchantment": ("ItemVisual",),
     "TextureFileData": ("FileDataID", "UsageType", "MaterialResourcesID"),
 }
@@ -172,7 +173,7 @@ SLOT_ATTACH = {1: (HELMET,), 15: (BACK,)}
 # never drawn (neck, fingers, trinkets), the hand each held type takes, the ranged slot's wands.
 ARMOR = {1, 3, 4, 5, 6, 7, 8, 9, 10, 16, 19, 20}
 HELD = {13, 14, 15, 17, 21, 22, 23, 25, 26}
-UNSEEN_SLOTS = {2, 11, 12, 13, 14}
+UNSEEN_SLOTS = {0, 2, 11, 12, 13, 14}
 RIGHT, LEFT = 21, 22
 # Item.SubclassID for bows, guns, thrown weapons, crossbows and wands.
 RANGED_HAND = {2: LEFT, 3: RIGHT, 16: RIGHT, 18: RIGHT, 19: RIGHT}
@@ -212,6 +213,7 @@ class Index:
         def t(name: str) -> Mapping[int, dict]:
             return tables.get(name) or {}
 
+        self.spell_art = spellart.Catalog(tables)
         self.mounts = mount_catalog(tables)
         self.race_models: dict[tuple[int, int], int] = {}
         for r in t("ChrRaceXChrModel").values():
@@ -425,7 +427,7 @@ def classic_gaps(tables: Mapping[str, Mapping[int, dict]], race_id: int, sex: in
 
 def assemble(tables: Mapping[str, Mapping[int, dict]], race_id: int, sex: int, class_id: int,
              choices: Iterable[dict] | None, items: Iterable[dict] | None, models: str = "hd",
-             look_geosets: Mapping[int, frozenset] | None = None) -> dict:
+             look_geosets: Mapping[int, frozenset] | None = None, *, level: int = 1) -> dict:
     """The recipe for one character.
 
     race_id: ChrRaces id; sex: 0 male, 1 female; class_id: ChrClasses id;
@@ -462,7 +464,8 @@ def assemble(tables: Mapping[str, Mapping[int, dict]], race_id: int, sex: int, c
     if not any(g // 100 == EARS for g in a.set):
         a.groups[EARS] = EARS_SHOWN
     a.skinned_models()
-    worn, missing = _worn(ix, items or [], class_id)
+    items = list(items or ())
+    worn, missing = _worn(ix, items, class_id)
     a.equipment(worn)
     ranged = next((w for w in worn if w["ranged"]), None)
     recipe = {
@@ -480,6 +483,9 @@ def assemble(tables: Mapping[str, Mapping[int, dict]], race_id: int, sex: int, c
         "class_id": class_id,
         "ranged": {"kind": ranged["subclass"], "at_rest": ranged["at_rest"]} if ranged else None,
     }
+    ranged_display = ix.t("ItemDisplayInfo")[ranged["display"]].get("ItemRangedDisplayInfoID") if ranged else None
+    if actions := ix.spell_art.actions(class_id, level, ranged, ranged_display, lambda: a.ammunition(ranged, items)):
+        recipe["actions"] = actions
     return {"recipe": recipe, "needs": sorted(_needs(recipe)), "missing": missing, "classic": classic}
 
 
@@ -499,6 +505,7 @@ def standing_recipe(recipe: dict) -> dict:
     ranged = still.pop("ranged", None)
     still.pop("class_id", None)
     still.pop("level", None)
+    still.pop("actions", None)
     still.pop("companion", None)
     still.pop("mounts", None)
     if isinstance(ranged, dict) and ranged.get("at_rest") is False:
@@ -856,6 +863,35 @@ class _Assembly:
                 self.collections.append({"slot": slot, "model": m, "textures": tx,
                                          "geosets": {"set": {}, "groups": groups}})
 
+    def ammunition(self, ranged: dict, items: list[dict]) -> dict | None:
+        """A missile supplied by equipment. Slot zero is the equipped ammo.
+        When the sheet omits it, preview the common arrow/bullet of the weapon's
+        actual ammunition type and identify that choice in the recipe."""
+        ix = self.ix
+        if ranged["subclass"] == 16:  # a thrown weapon is its own projectile
+            item_id, source = ranged["item_id"], "weapon"
+        else:
+            kind = ix.t("Item").get(ranged["item_id"], {}).get("AmmunitionType")
+            selected = next((it.get("item_id") for it in items if isinstance(it, dict)
+                             and it.get("slot") in (0, "0")), None)
+            source = "equipped" if selected else "preview"
+            try:
+                item_id = int(selected) if selected else {2: 2512, 3: 2516}.get(kind)
+            except (TypeError, ValueError):
+                return None
+            ammo = ix.t("Item").get(item_id, {})
+            if ammo.get("ClassID") != 6 or ammo.get("SubclassID") != kind:
+                return None
+        display = ix.appearance.get(item_id)
+        info = ix.t("ItemDisplayInfo").get(display, {})
+        materials = info.get("ModelMaterialResourcesID") or []
+        for i, res in enumerate(info.get("ModelResourcesID") or []):
+            if res and (model := ix.pick_model(ix.models.get(res, []), self.race, self.sex, self.model_fallback)):
+                textures = self.model_textures(display, i, materials[i] if i < len(materials) else 0)
+                return {"model": model, "scale": 1, "alpha": 1, "textures": textures,
+                        "ammo_item_id": item_id, "ammo_source": source}
+        return None
+
     def model_textures(self, display: int, index: int, material: int) -> dict[int, int]:
         """One item model's textures by M2 texture type: its rows in
         ItemDisplayInfoModelMatRes, else its ModelMaterialResourcesID as the
@@ -954,7 +990,7 @@ def needs(recipe: dict | None) -> set[int]:
 
 
 def _needs(recipe: dict) -> set[int]:
-    out = {recipe["model"]}
+    out = {recipe["model"]} | spellart.files(recipe.get("actions", []))
     if pet := recipe.get("companion"):
         out.update(creature_files(pet))
     for mount in recipe.get("mounts", []):

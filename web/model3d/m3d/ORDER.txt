@@ -8,4 +8,5 @@ particles.js
 material.js
 camera.js
 actions.js
+spells.js
 draw.js

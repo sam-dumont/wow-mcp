@@ -90,7 +90,7 @@ class Wago:
         if url.endswith("/api/builds/wow_classic_era/latest"):
             return json.dumps({"version": "1.15.9.70576"}).encode() if self.era else None
         if "/images/wow/icons/" in url:
-            return None if "missing" in url else b"\xff\xd8\xff\xe0" + url.encode()
+            return None if "missing" in url else b"\xff\xd8\xff\xe0" + url.encode() + b"\xff\xd9"
         table = url.split("/db2/")[1].split("/")[0]
         if url.endswith("build=1.15.9.70576"):
             assert table == "ItemSparse", "only Era's names are read"
@@ -132,6 +132,70 @@ def test_catalog_reads_wago_once_and_caches_icons(tmp_path, monkeypatch):
     for bad in ("../x", "INV_UPPER", ""):
         assert cat.icon(bad, "large") is None
     assert cat.icon("inv_sword_39", "huge") is None
+
+
+def test_cache_accepts_only_an_icon_name_and_size(tmp_path, monkeypatch):
+    from wowstats import upstream
+
+    def unexpected_fetch(*args, **kwargs):
+        pytest.fail("invalid icon reached the upstream")
+
+    monkeypatch.setattr(upstream, "fetch", unexpected_fetch)
+    for size, name in (("poster", "inv_sword_39"), ("large", "Sword picture.jpg")):
+        assert upstream.cached_icon(itemcard.ICON_URL, tmp_path, size, name) is None
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_icon_cache_recovers_from_throttling_and_a_truncated_jpeg(tmp_path, monkeypatch):
+    import io
+    import urllib.error
+
+    from wowstats import upstream
+
+    name = "inv_jewelry_talisman_13"
+    cat = itemcard.Catalog("https://wago.test", "wowf", tmp_path)
+    medium = tmp_path / "icons" / "medium" / f"{name}.jpg"
+    medium.parent.mkdir(parents=True)
+    medium.write_bytes(b"old HTML error page")
+    calls, waits = [], []
+
+    def read(req, timeout):
+        calls.append(req.full_url)
+        if len(calls) == 1:
+            raise urllib.error.HTTPError(req.full_url, 429, "throttled", {"Retry-After": "4"}, None)
+        body = b"\xff\xd8\xff" + req.full_url.encode()
+        return io.BytesIO(body if len(calls) == 2 else body + b"\xff\xd9")
+
+    monkeypatch.setattr(upstream, "urlopen", read)
+    monkeypatch.setattr(upstream.time, "sleep", waits.append)
+    assert cat.icon(name, "medium") == medium.read_bytes() == b"\xff\xd8\xff" + calls[0].encode() + b"\xff\xd9"
+    assert len(set(calls)) == 1 and waits == [4, 2]
+    assert cat.icon(name, "medium") == medium.read_bytes() and len(calls) == 3
+    large = cat.icon(name, "large")
+    assert large != medium.read_bytes() and large == (tmp_path / "icons" / "large" / medium.name).read_bytes()
+    assert calls[-1].endswith(f"/large/{name}.jpg")
+
+
+@pytest.mark.parametrize(("code", "retry_after", "calls"), [(404, None, 1), (403, None, 1), (503, None, 3),
+                                                           (429, "120", 1)])
+def test_an_unavailable_icon_stops_and_writes_nothing(tmp_path, monkeypatch, code, retry_after, calls):
+    import urllib.error
+
+    from wowstats import upstream
+
+    requests, waits = [], []
+
+    def down(req, timeout):
+        requests.append(req.full_url)
+        headers = {"Retry-After": retry_after} if retry_after else {}
+        raise urllib.error.HTTPError(req.full_url, code, "unavailable", headers, None)
+
+    monkeypatch.setattr(upstream, "urlopen", down)
+    monkeypatch.setattr(upstream.time, "sleep", waits.append)
+    cat = itemcard.Catalog("https://wago.test", "wowf", tmp_path)
+    assert cat.icon("inv_jewelry_ring_118", "large") is None
+    assert len(requests) == calls and len(waits) == calls - 1
+    assert not list(tmp_path.rglob("*.jpg"))
 
 
 def test_base_items_take_the_era_clients_name(tmp_path, monkeypatch):

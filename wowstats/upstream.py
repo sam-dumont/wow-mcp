@@ -4,13 +4,17 @@ disk in one step. Shared by wowstats.items, itemcard, talents and the KB."""
 
 from __future__ import annotations
 
+import contextlib
+import http.client
 import json
 import os
 import re
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 from wowstats import __version__
@@ -51,6 +55,18 @@ WAGO_TABLES = frozenset({
 
 class Upstream(Exception):
     pass
+
+
+class _Temporary(Upstream):
+    def __init__(self, message: str, retry_after: str | None = None):
+        super().__init__(message)
+        self.delay = 0.0
+        if retry_after:
+            if retry_after.isascii() and retry_after.isdigit():
+                self.delay = float(retry_after)
+            else:
+                with contextlib.suppress(ValueError, TypeError, OverflowError):
+                    self.delay = parsedate_to_datetime(retry_after).timestamp() - time.time()
 
 
 def _origin(url: str) -> tuple[str, str, int | None]:
@@ -164,12 +180,58 @@ def fetch(url: str, timeout: int = 30) -> bytes | None:
     except urllib.error.HTTPError as e:
         if e.code == 404:
             return None
-        raise Upstream(f"{urllib.parse.urlsplit(url).hostname} answered {e.code}") from None
-    except (urllib.error.URLError, TimeoutError, OSError) as e:
-        raise Upstream(f"{urllib.parse.urlsplit(url).hostname} unreachable: {e}") from None
+        message = f"{urllib.parse.urlsplit(url).hostname} answered {e.code}"
+        if e.code in (408, 429, 500, 502, 503, 504):
+            raise _Temporary(message, e.headers.get("Retry-After") if e.headers else None) from None
+        raise Upstream(message) from None
+    except (urllib.error.URLError, http.client.IncompleteRead, TimeoutError, OSError) as e:
+        raise _Temporary(f"{urllib.parse.urlsplit(url).hostname} unreachable: {e}") from None
     if len(body) > MAX_FILE:
         raise Upstream(f"{urllib.parse.urlsplit(url).hostname}: file too large")
     return body
+
+
+def _jpeg(body: bytes) -> bool:
+    return body.startswith(b"\xff\xd8\xff") and body.endswith(b"\xff\xd9")
+
+
+def cached_icon(base: str, cache: Path | None, size: str, name: str) -> bytes | None:
+    """Read this size's JPEG or fetch it. A missing icon returns None.
+    Retry interrupted transfers and temporary server errors twice. A long
+    Retry-After waits for the next publish instead of tying up the caller."""
+    if not isinstance(size, str) or not ICON_SIZE.fullmatch(size):
+        return None
+    if not isinstance(name, str) or not ICON_NAME.fullmatch(name):
+        return None
+    path = None
+    if cache is not None:
+        # Resolve symlinks before checking the boundary. The trailing
+        # separator keeps a sibling with the same prefix outside the cache.
+        root = os.path.realpath(cache / "icons")
+        candidate = os.path.realpath(os.path.join(root, size, f"{name}.jpg"))
+        if not candidate.startswith(root + os.sep):
+            return None
+        path = Path(candidate)
+        with contextlib.suppress(OSError):
+            cached = path.read_bytes()
+            if _jpeg(cached):
+                return cached
+    url = icon_url(base, size, name)
+    for attempt in range(3):
+        try:
+            body = fetch(url, timeout=10)
+            if body is None:
+                return None
+            if not _jpeg(body):
+                raise _Temporary("icon response was not a complete JPEG")
+            if path:
+                with contextlib.suppress(OSError):
+                    write_file(path, body)
+            return body
+        except _Temporary as e:
+            if attempt == 2 or e.delay > 10:
+                raise
+            time.sleep(max(2 ** attempt, e.delay))
 
 
 def write_file(path: Path, data: bytes) -> None:

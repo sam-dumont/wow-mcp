@@ -943,29 +943,13 @@ def icon_bytes(name: str, size: str = "medium") -> bytes | None:
     """A talent icon from wow.zamimg.com (the renders Wowhead serves, named
     as Forever's ManifestInterfaceData names the file), kept on disk next to
     the catalog. None for a bad name or a 404; Upstream when it's down."""
-    from wowstats.upstream import icon_url
+    from wowstats.upstream import ICON_NAME, cached_icon
 
-    if size not in ICON_SIZES:
-        return None
-    try:  # checked before it is a file name or a URL
-        url = icon_url(ICON_URL, size, name)
-    except ValueError:
+    if size not in ICON_SIZES or not isinstance(name, str) or not ICON_NAME.fullmatch(name):
         return None
     if (size, name) in _icons:
         return _icons[(size, name)]
-    from wowstats.upstream import fetch
-    from wowstats.upstream import write_file as _write
-
     cat = shared()
-    f = cat.file.parent / "icons" / size / f"{name}.jpg" if cat.file else None
-    body = None
-    if f and f.is_file():
-        with contextlib.suppress(OSError):
-            body = f.read_bytes()
-    if body is None:
-        body = fetch(url)
-        if body is not None and f:
-            with contextlib.suppress(OSError):
-                _write(f, body)
+    body = cached_icon(ICON_URL, cat.file.parent if cat.file else None, size, name)
     _icons[(size, name)] = body
     return body

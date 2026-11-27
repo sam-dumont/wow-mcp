@@ -1683,7 +1683,17 @@ def held_rows(read, cf: str) -> list[dict]:
 
 def pick_sheet(rows: list[dict]) -> dict | None:
     """The gear sheet in force among wow-gear rows (stores.newest_with), None without one."""
-    return stores.newest_with(rows, SHEET_PARTS) or None
+    sheet = stores.newest_with(rows, SHEET_PARTS)
+    if sheet:
+        # Ammo belongs to the very same observation as the outfit. A later
+        # professions-only row can carry that outfit forward; changing or
+        # emptying the ammo slot on a newer outfit supersedes the old stack.
+        items_row = stores.part_rows(rows, SHEET_PARTS).get("items", {})
+        if items_row.get("ammo_item_id"):
+            sheet["ammo_item_id"] = items_row["ammo_item_id"]
+        else:
+            sheet.pop("ammo_item_id", None)
+    return sheet or None
 
 
 # --- the advice --------------------------------------------------------------

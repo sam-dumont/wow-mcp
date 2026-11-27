@@ -256,12 +256,13 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
     cdir.mkdir(parents=True)
     sv.mkdir(parents=True, exist_ok=True)
 
-    def syndicator(staff: int) -> None:
+    def syndicator(staff: int, ammo: int = 18042) -> None:
         (sv / "Syndicator.lua").write_text(
             'SYNDICATOR_DATA = {\n["Characters"] = {\n["Hero Test-PvE"] = {\n'
             '["details"] = {\n["character"] = "Hero Test",\n["guild"] = "Moss Order-PvE",\n'
             '["className"] = "PRIEST",\n["race"] = "Gnome",\n["faction"] = "Alliance",\n},\n'
-            '["money"] = 987654,\n["equipped"] = {\n{\n},\n{\n},\n{\n},\n'
+            '["money"] = 987654,\n["equipped"] = {\n'
+            f'{{\n["itemID"] = {ammo},\n}},\n{{\n}},\n{{\n}},\n'
             '{\n["itemID"] = 5820,\n["quality"] = 2,\n["itemLink"] = "|cnIQ2:|Hitem:5820:66::::::::32:::::::|h[Faerie Mantle]|h|r",\n},\n'
             '{\n["itemID"] = 53,\n["quality"] = 1,\n["itemLink"] = "|cnIQ1:|Hitem:53::|h[Neophyte\'s Shirt]|h|r",\n},\n'
             + "{\n},\n" * 11
@@ -308,7 +309,8 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
     # The enchant from the link's second field: 66 on the mantle, an empty
     # field (the shirt) is none, a link without one (the staff) unknown.
     assert [i["enchant_id"] for i in g["items"]] == [66, 0, None]
-    assert g["item_level"] == 29.5  # the shirt doesn't count
+    assert g["ammo_item_id"] == 18042
+    assert g["item_level"] == 29.5  # shirt and ammunition do not contribute
     # Polestar's ranks, with DataStore_Crafts' cap where it has one;
     # CharacterExport's 120/225 is not read.
     assert g["professions"] == [
@@ -327,6 +329,10 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
     got.clear()
     shipper.extract_gear(acct, shipper.roster(acct), state, out)
     assert got == []
+    syndicator(1317, ammo=2512)
+    shipper.extract_gear(acct, shipper.roster(acct), state, out)
+    assert len(got) == 1 and got[0]["ammo_item_id"] == 2512 and got[0]["items"] == g["items"]
+    got.clear()
     syndicator(7001)
     shipper.extract_gear(acct, shipper.roster(acct), state, out)
     assert len(got) == 1 and got[0]["source_id"] != g["source_id"]

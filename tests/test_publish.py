@@ -873,6 +873,26 @@ def look_world(tmp_path, monkeypatch, fill=True):
             "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key")}
 
 
+def test_same_build_artwork_arrival_rebuilds_an_unchanged_site(tmp_path, monkeypatch):
+    from tests import model3d_world as w
+    from wowstats import assets
+
+    env = look_world(tmp_path, monkeypatch)
+    store = assets.Store(Path(env["MODEL3D_ASSETS_DIR"]))
+    # A visual dependency arrives after this site was already published.
+    path = store.path(w.FX.CHAR_M2)
+    data = path.read_bytes()
+    path.unlink()
+    with redirect_stdout(io.StringIO()):
+        assert publish.publish(env)["built"]
+        assert not publish.publish(env)["built"]
+        store.put_file(w.FX.CHAR_M2, data)
+        assert publish.publish(env)["why"] == "3D assets changed"
+        assert not publish.publish(env)["built"]
+    public_file = tmp_path / "site" / "current" / "public" / "model3d" / "file" / str(w.FX.CHAR_M2)
+    assert public_file.read_bytes() == data
+
+
 def test_disabling_3d_rebuilds_both_dashboard_shells(tmp_path, monkeypatch):
     env = look_world(tmp_path, monkeypatch)
     assert publish.publish(env)["built"]

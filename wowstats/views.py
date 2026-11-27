@@ -293,8 +293,8 @@ class Views:
             # Altoholic's /played (optional): the shipper's kind=played events.
             "played": sub(vl, f'{st} feed:="wow-character" {cf} kind:=played | fields _time, played_total_s, '
                               f"played_level_s, level | sort by (_time desc) | limit 50"),
-            "gear": sub(gearmod.sheet_rows, own, cf, "_time, at_basis, source_id, items, item_level, professions, "
-                                                   "wanted, spec, spec_from, class, race, faction"),
+            "gear": sub(gearmod.sheet_rows, own, cf, "_time, at_basis, source_id, items, ammo_item_id, item_level, "
+                                                   "professions, wanted, spec, spec_from, class, race, faction"),
             # The Recorder's skill records: each profession's cap (wowstats.profcaps).
             "skills": sub(vl, f"{rec} kind:=skill | fields _time, skill_id, rank, max_rank"),
             # Time per zone from the records' own times (stores.zone_time).
@@ -738,8 +738,8 @@ class Views:
         return ov
 
     def gear_history(self, char: str) -> list[dict]:
-        rows = self.q(f'feed:="wow-gear" {self.char_filter(char)} | fields _time, items, item_level, professions, '
-                      f"spec, class, race, faction, source_id")
+        rows = self.q(f'feed:="wow-gear" {self.char_filter(char)} | fields _time, items, ammo_item_id, item_level, '
+                      "professions, spec, class, race, faction, source_id")
         out = []
         for r in sorted(dedupe(rows), key=lambda r: parse_t(r.get("_time"))):
             g = build_gear(r) or {}
@@ -788,6 +788,8 @@ class Views:
         end = insights.snapshot_as_of(wins[level][1])
         if g:
             snap["gear"] = {k: g.get(k) for k in ("items", "item_level", "professions")}
+            if g.get("ammo_item_id"):
+                snap["gear"]["ammo_item_id"] = g["ammo_item_id"]
             # The caps as they were at the end of that level: the Recorder's
             # records up to then, else the trainer tier (the same rule as
             # the page's current caps).
@@ -1236,7 +1238,9 @@ def build_gear(row: dict) -> dict | None:
              for p in jlist(row.get("professions")) if isinstance(p, dict)]
     wanted = [clean(w, ("item_id", "item_level", "req_level", "level"), ("slot_name", "name"))
               for w in jlist(row.get("wanted")) if isinstance(w, dict)]
+    ammo = opt_num(row.get("ammo_item_id"))
     return {"at": row.get("_time"), "items": sorted(items, key=lambda i: i["slot"] or 0),
+            **({"ammo_item_id": ammo} if isinstance(ammo, int) and ammo > 0 else {}),
             "item_level": opt_num(row.get("item_level")), "professions": profs, "wanted": wanted,
             "spec": row.get("spec") or None,
             "class": row.get("class") or None, "race": row.get("race") or None,

@@ -115,6 +115,26 @@ def test_current_and_snapshot_actions_use_the_level_being_drawn(m3d, monkeypatch
             assert "level" not in character3d.standing_recipe(recipe)
 
 
+def test_equipped_ammo_reaches_the_model_from_its_own_gear_sheet(m3d):
+    from wowstats import gear as gearmod
+    from wowstats.views import build_gear
+
+    row = {"_time": "2026-10-01T00:00:00Z", "items": "[]", "ammo_item_id": "18042"}
+    skills_only = {"_time": "2026-10-02T00:00:00Z", "professions": "[]"}
+    current = build_gear(gearmod.pick_sheet([row, skills_only]))
+    assert current["items"] == [] and current["ammo_item_id"] == 18042
+    empty = build_gear(gearmod.pick_sheet([row, {**skills_only, "items": "[]"}]))
+    assert "ammo_item_id" not in empty
+    older = {**current, "ammo_item_id": 2512}
+    app = SimpleNamespace(char=lambda _: {"gear": current}, views=SimpleNamespace(snapshot=lambda _, lv: {
+        "gear": older if lv == 20 else empty}))
+    for level, expected in [(None, [18042]), (20, [2512]), (19, [])]:
+        sheet, header, _ = m3d.gear_at(app, "Example", level)
+        items = m3d.inputs(sheet, header, "", None)["items"]
+        assert [it["item_id"] for it in items if it["slot"] == 0] == expected
+    assert model3d._outfit(current) != model3d._outfit(older)
+
+
 def test_owned_mount_requests_its_skin_and_stays_out_of_old_portraits(m3d, monkeypatch):
     tables = w.world()
     tables["CreatureDisplayInfo"][70002] = {"ModelID": 23, "CreatureModelScale": 1.2, "TextureVariationFileDataID": [801]}
@@ -330,7 +350,7 @@ def test_the_publisher_reads_each_persons_files_through_the_share_port(several, 
 def test_wanted_covers_every_outfit_of_the_history_once(tmp_path, monkeypatch):
     """Now, each past level, every gear sheet the shipper sent and every
     point of the Recorder's replay (an outfit worn for half a level too);
-    the same outfit is worked out once."""
+    the same outfit at a given level is worked out once."""
     from datetime import UTC, datetime
     from types import SimpleNamespace
 
@@ -355,10 +375,11 @@ def test_wanted_covers_every_outfit_of_the_history_once(tmp_path, monkeypatch):
     monkeypatch.setattr(model3d, "find_look", lambda app, name: None)
     m = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path)}, tmp_path, None)
     seen = []
-    monkeypatch.setattr(m, "needs", lambda gear, header, look: seen.append(gear["items"][0]["item_id"])
+    monkeypatch.setattr(m, "needs", lambda gear, header, look: seen.append((gear["items"][0]["item_id"], gear.get("level")))
                         or {gear["items"][0]["item_id"]})
     assert m.wanted(app) == {100, 200, 300, 400, 500}
-    assert sorted(seen) == [100, 200, 300, 400, 500]
+    assert {(100, 23), (200, 22), *((i, None) for i in (100, 200, 300, 400, 500))} == set(seen)
+    assert len(seen) == len(set(seen))
 
 
 def test_wanted_asks_again_once_the_tables_came(tmp_path, monkeypatch):

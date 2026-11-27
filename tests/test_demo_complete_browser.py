@@ -200,21 +200,133 @@ def viewer_state(frame) -> str:
     return frame.evaluate("() => document.documentElement.dataset.state")
 
 
-CLASS_ACTION = {"PRIEST": "Power Word: Shield", "WARRIOR": "Battle Shout", "PALADIN": "Holy Light",
-                "HUNTER": "Hunter's Mark", "ROGUE": "Kick", "SHAMAN": "Lightning Bolt", "MAGE": "Frostbolt",
-                "WARLOCK": "Drain Life", "DRUID": "Rejuvenation"}
-# The human female M2 aliases its omni precast (52) to its directed precast (51).
-CLASS_CLIPS = {"PRIEST": [54], "WARRIOR": [55], "PALADIN": [51, 54], "HUNTER": [53], "ROGUE": [95],
-               "SHAMAN": [51, 53], "MAGE": [51, 53], "WARLOCK": [124], "DRUID": [52, 54]}
-RANGED_ACTION = {2: ("Shoot bow", [46]), 3: ("Fire gun", [49]), 19: ("Shoot wand", [53])}
+# Only the test owns the clock and random source. The embedded viewer still
+# chooses its action on the same idle timer a player gets. Observe draws
+# from the original actor, the shot and the spell models on that frame.
+OBSERVE_IDLE = """(() => {
+  const probe = window.motion = {now:0, want:null, clips:[], seen:new Set(), blended:new Set(), mountRandom:0};
+  let library;
+  Object.defineProperty(window, 'M3D', {get:() => library, set:value => {
+    if (library === value) return;
+    library = value;
+    let draw;
+    Object.defineProperty(value, 'draw', {get:() => draw, set:original => {
+      draw = async (canvas, recipe, get, opts) => {
+        const proto = value.M2RendererGL.prototype, render = proto.render;
+        let actor, drawing;
+        const gl = WebGL2RenderingContext.prototype;
+        for (const [method, count] of [['drawElements',1], ['drawArrays',2]]) {
+          const originalDraw = gl[method];
+          gl[method] = function(...args) {
+            if (drawing && args[count] > 0) probe.seen.add(drawing);
+            return originalDraw.apply(this, args);
+          };
+        }
+        proto.render = function(...args) {
+          if (!actor && this.fileDataID === recipe.model) actor = this;
+          drawing = this.fileDataID;
+          if (this === actor) {
+            const id = this._current_anim()?.id;
+            if (probe.clips.at(-1) !== id) probe.clips.push(id);
+            if (this.transition) probe.blended.add(id);
+            const request = this._sequence(this.current_animation)?.requested;
+            if (probe.requested && probe.requested.at(-1) !== request) probe.requested.push(request);
+          }
+          try { return render.apply(this, args); } finally { drawing = null; }
+        };
+        const particles = proto.renderParticles;
+        proto.renderParticles = function(...args) {
+          drawing = this.fileDataID;
+          try { return particles.apply(this, args); } finally { drawing = null; }
+        };
+        const chainDraw = value.SpellChain.prototype.render;
+        value.SpellChain.prototype.render = function(...args) {
+          drawing = this.def.texture;
+          try { return chainDraw.apply(this, args); } finally { drawing = null; }
+        };
+        const random = () => {
+          if (probe.handle?.mounted >= 0) return probe.mountRandom;
+          const idle = probe.handle?.debug.idle();
+          const pool = (idle?.available || []).filter(m => m !== idle?.played.at(-1));
+          const i = pool.indexOf(probe.want);
+          return i >= 0 ? (i + 0.5) / pool.length : 0;
+        };
+        probe.handle = await original(canvas, recipe, get, {...opts, clock:() => probe.now, random});
+        return probe.handle;
+      };
+    }});
+  }});
+  probe.frame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+})();"""
+
+# Visual IDs below are from the installed Forever 1.60.1.71139 client.
+# Each M2 must be drawn in its turn. Drain Life's chain uses a BLP directly.
+CLASS_DRAW = {
+    "PRIEST": ("power-word-shield", {166336, 166342}),
+    "WARRIOR": ("battle-shout", {165658}), "PALADIN": ("holy-light", {166336, 166349}),
+    "HUNTER": ("hunters-mark", {166363, 166362}), "ROGUE": ("kick", {166437}),
+    "SHAMAN": ("lightning-bolt", {166492, 166488, 166497, 166496}),
+    "MAGE": ("frostbolt", {166381, 166214, 166370, 166385}),
+    "WARLOCK": ("drain-life", {166471, 186214}), "DRUID": ("rejuvenation", {166602, 166694}),
+}
+PROJECTILE = {"PRIEST": 165891, "MAGE": 165570, "WARLOCK": 166135, "WARRIOR": 137240,
+              "ROGUE": 137240, "HUNTER": 137245}
 
 
-def play_clips(frame, label, clips):
-    """Record the M2 animation the renderer entered after the button click.
-    A bow or gun can also have an optional ready pose before its release."""
-    frame.evaluate("window.demoClips = []")
-    frame.get_by_role("button", name=label, exact=True).click(timeout=30000)
-    frame.wait_for_function("clips => clips.every(id => window.demoClips.includes(id))", arg=clips, timeout=30000)
+def spontaneous(frame, move, effects, *, ranged=None):
+    frame.evaluate("""wanted => {
+      const p = motion;
+      p.want = wanted;
+      p.seen.clear(); p.clips.length = 0; p.blended.clear(); p.requested = [];
+      p.now = p.handle.debug.idle().next_at + 1;
+    }""", move)
+    frame.wait_for_function("move => motion.handle.debug.idle().move === move", arg=move, timeout=15000)
+    result = frame.evaluate("""async expected => {
+      const p = motion;
+      // Step through release in small increments: a real arrow only spends a
+      // few frames between these actors. Long auras can coast after impact.
+      for (let i = 0; i < 240 && p.handle.debug.idle().move; i++) {
+        p.now += expected.every(id => p.seen.has(id)) ? 80 : 30;
+        await p.frame();
+        if (expected.every(id => p.seen.has(id)) && p.clips.some(id => id > 0) && p.clips.at(-1) === 0) break;
+      }
+      const slots = p.handle.debug.equippedSlots();
+      if (p.handle.debug.idle().move) { p.now += 65000; await p.frame(); }
+      await p.frame();
+      return {seen:[...p.seen], clips:p.clips, requested:p.requested, blended:[...p.blended], slots,
+        idle:p.handle.debug.idle().move, errors:p.handle.errors};
+    }""", sorted(effects))
+    assert not result["errors"], result
+    assert effects <= set(result["seen"]), (move, effects - set(result["seen"]), result)
+    assert result["idle"] is None and result["clips"][-1] == 0, (move, result)
+    if ranged:
+        ready, release = {2: ({105, 109}, 46), 3: ({106, 110}, 49), 19: ({111, 112}, 107)}[ranged]
+        # The Skyborne and some Classic bodies alias clips. Check what the
+        # kit requested as well as the model's actual animated return to Stand.
+        sequence = result["requested"]
+        assert release in sequence and ready.intersection(sequence[:sequence.index(release)]), result
+        assert sequence[-1] == 0 and 0 in result["blended"], (move, result)
+
+
+
+MODEL_EXTENT = """async () => {
+  await motion.frame();
+  const stage = document.getElementById('stage'), k = document.createElement('canvas');
+  k.width = stage.width; k.height = stage.height;
+  const g = k.getContext('2d'); g.drawImage(stage,0,0);
+  const px = g.getImageData(0,0,k.width,k.height).data;
+  let l=k.width, r=-1, t=k.height, b=-1;
+  for (let y=0; y<k.height; y++) for (let x=0; x<k.width; x++) {
+    if (px[(y*k.width+x)*4+3]<64) continue;
+    l=Math.min(l,x); r=Math.max(r,x); t=Math.min(t,y); b=Math.max(b,y);
+  }
+  return [(r-l+1)/k.width,(b-t+1)/k.height,l,t,k.width-1-r,k.height-1-b];
+}"""
+
+
+def check_framing(frame, min_height):
+    width, height, *margins = frame.evaluate(MODEL_EXTENT)
+    assert height >= min_height and width >= 0.35 and min(margins) > 0, (width, height, margins)
 
 
 def check_mounted_rider(frame, recipe):
@@ -238,17 +350,30 @@ def check_mounted_rider(frame, recipe):
       };
     }""", {123410: "PvPRidingDireWolf", 126407: "WarHorse"}[mount["model"]])
     select = frame.get_by_role("combobox", name="Mount")
-    assert select.input_value() == "-1"
-    select.select_option(label=mount["name"])
-    for label, clip in (("Idle", 0), ("Walk", 4), ("Run", 5)):
-        frame.get_by_role("button", name=label, exact=True).click()
-        frame.wait_for_function("""([clip, samples]) =>
-          [...window.saddles].filter(pose => pose.startsWith(clip + '/')).length >= samples""",
-                                arg=[clip, 1 if clip == 0 else 2], timeout=15000)
-    hit, colours = frame.evaluate(COVERED)
-    assert hit > 20 and colours >= 3
+    assert select.input_value() == "foot"
+    assert select.locator("option").all_text_contents() == ["On foot", "On mount"]
+    select.select_option(label="On mount")
+    note = frame.locator("#mount-note")
+    sync_api.expect(note).to_have_text(mount["name"], timeout=15000)
+    assert frame.evaluate("() => motion.handle.mounted") >= 0
+    check_framing(frame, 0.68)
+    for clip, draw in ((4, 0), (5, 0.99)):
+        poses = frame.evaluate("""async ([clip, draw]) => {
+          motion.mountRandom = draw;
+          motion.now = motion.handle.debug.idle().next_at + 1;
+          await motion.frame();
+          const poses = () => [...window.saddles].filter(s => s.startsWith(clip + '/'));
+          for (let i = 0; i < 12 && poses().length < 2; ++i) {
+            motion.now += 40;
+            await motion.frame();
+          }
+          return poses();
+        }""", [clip, draw])
+        assert len(poses) >= 2, (mount["name"], clip, poses)
+        frame.evaluate("async () => {motion.now += 10000; await motion.frame()}")
     select.select_option(label="On foot")
-    frame.get_by_role("button", name="Run", exact=True).wait_for(state="hidden")
+    sync_api.expect(note).to_have_text("")
+    assert frame.evaluate("() => motion.handle.mounted") == -1
 
 
 def test_switching_a_published_character_reads_its_file_once(browser, base):
@@ -349,9 +474,10 @@ def test_all_equipped_items_and_talent_nodes_show_their_own_jpeg(browser, base, 
 
 @pytest.mark.parametrize("which", ["public", "friends"])
 @pytest.mark.parametrize(("name", "width"), [(name, 1280) for name in ROSTER]
-                         + [(name, 390) for name, (cls, _, _) in ROSTER.items() if cls in {*MOUNT, "HUNTER"}])
+                         + [(name, 390) for name, (cls, _, _) in ROSTER.items() if cls in {*MOUNT, "HUNTER", "SHAMAN"}])
 def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):
-    with browser.new_context(viewport={"width": width, "height": 900}, reduced_motion="reduce") as ctx:
+    with browser.new_context(viewport={"width": width, "height": 900}, reduced_motion="no-preference") as ctx:
+        ctx.add_init_script(OBSERVE_IDLE)
         page = ctx.new_page()
         served = set()
         page.on("response", lambda r: served.add(int(r.url.rsplit("/", 1)[1]))
@@ -392,16 +518,15 @@ def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):
         assert {recipe["model"], *outfit} <= served, (name, outfit - served)
 
         cls = ROSTER[name][0]
+        assert frame.get_by_role("button").count() == 0
+        assert frame.get_by_role("checkbox").count() == 0
+        assert frame.get_by_role("combobox").count() == int(cls in MOUNT)
+        if cls == "SHAMAN":
+            check_framing(frame, 0.70)
         if cls in PET:
-            toggle = frame.get_by_role("checkbox", name=PET[cls][1])
-            assert toggle.is_checked()
-            toggle.uncheck()
-            assert frame.evaluate(COVERED) != [hit, colours], name
-            toggle.check()
             pet = recipe["companion"]
             assert {pet["model"], *pet["textures"].values()} <= served, name
-        else:
-            assert not frame.locator("#companion-control").is_visible()
+            assert frame.evaluate("id => motion.seen.has(id)", pet["model"])
 
         if cls in MOUNT:
             check_mounted_rider(frame, recipe)
@@ -410,22 +535,16 @@ def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):
         else:
             assert not frame.get_by_role("combobox", name="Mount").count()
 
-        frame.evaluate("""() => {
-          window.demoClips = [];
-          const proto = M3D.M2RendererGL.prototype, render = proto.render;
-          proto.render = function(...args) {
-            const id = this._current_anim()?.id;
-            if (id !== undefined && !window.demoClips.includes(id)) window.demoClips.push(id);
-            return render.apply(this, args);
-          };
-        }""")
-        play_clips(frame, CLASS_ACTION[cls], CLASS_CLIPS[cls])
-        if cls in RANGED:
-            play_clips(frame, *RANGED_ACTION[RANGED[cls][0]])
-        else:
-            assert not frame.locator('button[data-action="ranged"]').count()
-        if cls == "HUNTER":
-            play_clips(frame, "Arcane Shot", [49])
+        # Both publication tiers must retain the class kit. Exercise every
+        # shot on desktop; mobile also covers mounting and actual stage size.
+        if width == 1280:
+            move, effects = CLASS_DRAW[cls]
+            spontaneous(frame, move, effects)
+            if cls in RANGED:
+                spontaneous(frame, "ranged", {PROJECTILE[cls]}, ranged=RANGED[cls][0])
+            if cls == "HUNTER":
+                spontaneous(frame, "arcane-shot", {1931959, 165592, 166525})
+
 
 
 @pytest.mark.parametrize("width", WIDTHS)

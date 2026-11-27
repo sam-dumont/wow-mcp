@@ -121,7 +121,7 @@
 			this.starting = false;
 			this.last_move = null;
 			this.available = null;
-			this.loading = new Map();
+			this.loading = null;
 			this.clips = new Map();
 			this.played = [];
 			this.schedule(now);
@@ -141,6 +141,10 @@
 				return clips.get(idx);
 			};
 			for (const m of moves) {
+				if (m.spell) {
+					out.push(m);
+					continue;
+				}
 				const steps = [];
 				for (const [id, times, optional] of m.steps) {
 					const all = char.animation_indices(id);
@@ -162,37 +166,33 @@
 			return out;
 		}
 
-		prepare(selectableOnly = false) {
+		prepare() {
 			const v = this.viewer, scene = v.scene, gen = this.gen;
-			if (!scene || !scene.char || scene.mount) return Promise.resolve([]);
-			if (!this.loading.has(selectableOnly)) {
-				const canHold = (slot) => scene.attachments.some((a) => a.slot === slot && scene.char.getAttachmentTransform(a.attach));
-				const kind = canHold(18) ? scene.ranged.kind : 0;
-				const moves = M3D.moves(v.attack, v.classId, kind, v.level).filter((m) =>
-					(!selectableOnly || m.label) && (m.name !== 'attack' || v.attack === 16 || canHold(16) || !v.classId));
-				this.loading.set(selectableOnly, this.moves_for(scene.char, v.files, moves).then((moves) => {
-					if (gen !== this.gen || v.stopped) return [];
-					if (!selectableOnly) this.available = moves;
+			if (!scene?.char || scene.mount) return Promise.resolve([]);
+			if (!this.loading) {
+				const canHold = slot => scene.attachments.some(a => a.slot === slot && scene.char.getAttachmentTransform(a.attach));
+				const moves = M3D.moves(v.attack, scene.spells).filter(m =>
+					(m.equipment !== 'ranged' || canHold(18)) &&
+					(m.name !== 'attack' || v.attack === 16 || canHold(16) || !v.classId));
+				this.loading = this.moves_for(scene.char, v.files, moves).then(moves => {
+					if (gen === this.gen && !v.stopped) this.available = moves;
 					return moves;
-				}));
+				});
 			}
-			return this.loading.get(selectableOnly);
+			return this.loading;
 		}
 
-		async play(name) {
-			const gen = this.gen, moves = await this.prepare(true);
-			const move = moves.find((m) => m.name === name);
-			if (!move || gen !== this.gen || this.viewer.stopped) return false;
-			this.begin(move, this.viewer.clock());
-			return true;
-		}
-
-		begin(move, now) {
+		begin(move, now, spell) {
 			this.last_move = move.name;
 			this.played.push(move.name);
-			this.playing = { move, at: -1, left: 0 };
-			equip(this.viewer.scene, move.equipment);
-			this.step(this.viewer.scene.char, now);
+			this.playing = { move, at: -1, left: 0, spell };
+			equip(this.viewer.scene, move.equipment, true);
+			if (spell) {
+				this.viewer.stopSpell();
+				this.viewer.spell = spell;
+				this.viewer.turn();
+				spell.begin();
+			} else this.step(this.viewer.scene.char, now);
 		}
 
 		// Called on every frame, before the character's bones are updated.
@@ -203,10 +203,24 @@
 				return;
 			if (this.playing) {
 				const p = this.playing;
+				if (p.spell) {
+					const visible = p.spell.tick(dt);
+					if (visible && p.spell.time < p.spell.restAt) return;
+					if (!visible) v.stopSpell();
+					this.playing = null;
+					equip(v.scene, 'stand', true);
+					this.schedule(now);
+					return;
+				}
 				p.left -= dt;
 				if (p.left > 0)
 					return;
-				this.step(char, now);
+				if (v.scene.mount) {
+					v.scene.mount.model.playPreparedAnimation(v.scene.mount.gaits.get('idle'), true);
+					v.scene.mount.gait = 'idle';
+					this.playing = null;
+					this.schedule(now);
+				} else this.step(char, now);
 				return;
 			}
 			if (v.controls.pointer !== null)
@@ -217,7 +231,14 @@
 				this.schedule(now);
 				return;
 			}
-			this.start();
+			if (v.scene.mount) {
+				const mount = v.scene.mount;
+				const choices = [...mount.gaits.keys()].filter(name => name !== 'idle');
+				const name = choices[Math.floor(this.random() * choices.length)];
+				mount.model.playPreparedAnimation(mount.gaits.get(name), true);
+				mount.gait = name;
+				this.playing = { move: { name }, id: M3D.GAITS[name], left: mount.model.animation_duration(mount.gaits.get(name)) * 3 };
+			} else this.start();
 		}
 
 		async start() {
@@ -234,7 +255,18 @@
 					return;
 				}
 				const m = list[Math.min(list.length - 1, Math.floor(this.random() * list.length))];
-				this.begin(m, this.viewer.clock());
+				const spell = m.spell ? await this.viewer.loadSpell(m.spell) : null;
+				if (gen !== this.gen || this.viewer.stopped || this.reduced() || this.viewer.controls.pointer !== null) {
+					spell?.dispose();
+					this.schedule(this.viewer.clock());
+					return;
+				}
+				if (m.spell && !spell) {
+					this.available = this.available.filter(candidate => candidate !== m);
+					this.schedule(this.viewer.clock());
+					return;
+				}
+				this.begin(m, this.viewer.clock(), spell);
 			} finally {
 				if (gen === this.gen)
 					this.starting = false;
@@ -247,21 +279,21 @@
 			p.at++;
 			if (p.at >= p.move.steps.length) {
 				this.playing = null;
-				equip(this.viewer.scene);
+				equip(this.viewer.scene, 'stand', true);
 				this.schedule(now);
-				char.playPreparedAnimation(char.find_animation(STAND));
+				char.playPreparedAnimation(char.find_animation(STAND), true);
 				return;
 			}
 			const s = p.move.steps[p.at];
 			const idx = s.variations[Math.min(s.variations.length - 1, Math.floor(this.random() * s.variations.length))];
 			p.id = s.id;
-			char.playPreparedAnimation(idx);
+			char.playPreparedAnimation(idx, true);
 			p.duration = p.left = Math.max(0.2, char.animation_duration(idx)) * s.times;
 		}
 
 		// What is playing: the AnimationData id, or 0 for Stand (tests).
 		state() {
-			return { playing: this.playing ? this.playing.id : STAND, move: this.playing ? this.playing.move.name : null,
+			return { playing: this.playing?.spell?.animation ?? this.playing?.id ?? STAND, move: this.playing ? this.playing.move.name : null,
 				next_at: this.next_at, played: this.played.slice(),
 				available: this.available ? this.available.map((m) => m.name) : null };
 		}
@@ -324,6 +356,7 @@
 
 		const r = new M2RendererGL(data, ctx, (fid) => files.fetch(fid), { seed: (Math.imul(files.seed, 31) + id) >>> 0 });
 		try {
+			r.fileDataID = id;
 			await r.load(skip_types);
 			if (r.m2.emitterError)
 				files.fail(id, 'particles: ' + r.m2.emitterError);
@@ -423,6 +456,8 @@
 	async function load_scene(ctx, recipe, files) {
 		const r = obj(recipe);
 		const scene = { char: null, materials: new Map(), attachments: [], collections: [], skinned: [] };
+		scene.recipe = recipe;
+		scene.spells = list(r.actions);
 		scene.ranged = obj(r.ranged);
 		scene.mounts = list(r.mounts);
 		scene.visibleAttachments = [];
@@ -521,19 +556,25 @@
 		return scene;
 	}
 
-	function equip(scene, mode = 'stand') {
+	function equip(scene, mode = 'stand', blend = false) {
 		scene.visibleAttachments = scene.attachments.filter((a) => {
 			if (a.slot === 18) return mode === 'ranged' || (mode === 'stand' && scene.ranged.at_rest !== false);
 			if (a.slot === 16 || a.slot === 17) return mode !== 'ranged' && mode !== 'empty';
 			return true;
 		});
+		for (const a of scene.attachments) {
+			const to = scene.visibleAttachments.includes(a) ? 1 : 0;
+			a.wanted = to;
+			if (!blend || a.opacity === undefined) a.opacity = to;
+		}
 		scene.char.setHandGrip(scene.visibleAttachments.some((a) => a.attach === 1),
 			scene.visibleAttachments.some((a) => a.attach === 2));
 	}
 
 	function all_renderers(scene) {
 		const all = [scene.char, scene.mount?.model, scene.petVisible && scene.pet, ...scene.collections, ...scene.skinned];
-		for (const a of scene.visibleAttachments) {
+		for (const a of scene.attachments) {
+			if (a.opacity <= 0) continue;
 			all.push(a.renderer);
 			for (const v of a.visuals)
 				all.push(v.renderer);
@@ -582,6 +623,39 @@
 		return { min, max };
 	}
 
+	// Combine meshes in turntable space. Attachments use their actual bone
+	// transform; a mount's display scale moves the saddle but not the rider.
+	function scene_box(parts) {
+		const points = [], min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+		for (const { box, matrix = M3D.math.IDENTITY_MAT4, scale = 1, offset = [0, 0, 0] } of parts) {
+			const vertices = M3D.box_points(box);
+			for (let i = 0; i < vertices.length; i += 3) {
+				const x = vertices[i] * scale, y = vertices[i + 1] * scale, z = vertices[i + 2] * scale;
+				for (let k = 0; k < 3; ++k) {
+					const value = x * matrix[k] + y * matrix[k + 4] + z * matrix[k + 8] + matrix[k + 12] + offset[k];
+					points.push(value);
+					min[k] = Math.min(min[k], value);
+					max[k] = Math.max(max[k], value);
+				}
+			}
+		}
+		return { min, max, points: new Float32Array(points) };
+	}
+
+	function dressed_box(scene) {
+		const parts = [{ box: frame_box(scene.char) }];
+		for (const part of scene.visibleAttachments) {
+			const matrix = scene.char.getAttachmentTransform(part.attach, true);
+			if (matrix) parts.push({ box: frame_box(part.renderer), matrix, scale: part.scale });
+		}
+		for (const model of [...scene.collections, ...scene.skinned]) {
+			model.applyExternalBoneMatrices(scene.char.bone_matrices);
+			const box = model.getDrawnBox();
+			if (box) parts.push({ box });
+		}
+		return scene_box(parts);
+	}
+
 	function parse_background(bg) {
 		if (Array.isArray(bg) && bg.length >= 3)
 			return [Number(bg[0]) || 0, Number(bg[1]) || 0, Number(bg[2]) || 0, bg.length > 3 ? Number(bg[3]) : 1];
@@ -592,6 +666,50 @@
 	}
 
 	// ------------------------------------------------------------------ the frame
+
+	function draw_actor(scene, dt, view, proj) {
+		const char = scene.char;
+		char.updateAnimation(dt);
+		char.render(view, proj);
+
+		const scale_mat = new Float32Array(16);
+		for (const a of scene.attachments) {
+			// Crossfade the held model while its hand goes from the previous
+			// grip to the new pose, including the return to standing gear.
+			const step = Math.min(Math.abs(a.wanted - a.opacity), dt / .15);
+			a.opacity += Math.sign(a.wanted - a.opacity) * step;
+			a.renderer.opacity = a.opacity * (scene.opacity ?? 1);
+			for (const v of a.visuals) v.renderer.opacity = a.renderer.opacity;
+			if (a.renderer.opacity <= 0) continue;
+			const tf = char.getAttachmentTransform(a.attach);
+			if (!tf)
+				continue;
+			if (a.scale !== 1) {
+				mat4_from_scale(scale_mat, a.scale, a.scale, a.scale);
+				mat4_multiply(tf, tf.slice(), scale_mat);
+			}
+			a.renderer.setTransformMatrix(tf);
+			a.renderer.updateAnimation(dt);
+			a.renderer.render(view, proj);
+
+			for (const v of a.visuals) {
+				const at = a.renderer.getAttachmentTransform(v.attach);
+				if (!at)
+					continue;
+				v.renderer.setTransformMatrix(at);
+				v.renderer.updateAnimation(dt);
+				v.renderer.render(view, proj);
+			}
+		}
+
+		for (const r of [...scene.collections, ...scene.skinned]) {
+			r.updateAnimation(dt);
+			r.applyExternalBoneMatrices(char.bone_matrices);
+			r.setTransformMatrix(char.model_matrix);
+			r.render(view, proj);
+		}
+
+	}
 
 	class Viewer {
 		constructor(canvas, get, opts) {
@@ -618,8 +736,7 @@
 			}, FACING);
 			this.attack = 16;
 			this.idle = opts.idle ? new Idle(this) : null;
-			this.effects = opts.effects?.getContext('2d');
-			this.effectDrawn = false;
+
 			// A hidden tab draws nothing and starts nothing: the loop stops,
 			// and comes back where it was (no jump: the first frame's dt is 0).
 			this.on_visibility = () => {
@@ -646,7 +763,23 @@
 			const angle = this.rotation + (scene.mount?.angleOffset || 0), cos = Math.cos(angle), sin = Math.sin(angle);
 			const offset = scene.petVisible ? scene.spacing / 2 : 0;
 			const k = scene.mount?.scale || 1;
-			(scene.mount?.model || scene.char).setTransform([-offset * sin, 0, -offset * cos], [0, angle, 0], [k, k, k]);
+			const position = [-offset * sin, 0, -offset * cos];
+			let aim = angle;
+			const spell = this.spell;
+			if (spell?.other) {
+				// From head on, turn toward open space on the stage. When the
+				// viewer already shows a profile the shooter keeps that angle.
+				const facing = Math.acos(Math.min(1, Math.abs(cos)));
+				const direction = (cos < 0 ? -1 : 1) * (sin > 0 ? -1 : 1);
+				const yaw = direction * Math.max(0, facing - Math.PI/4);
+				const t = spell.time, end = spell.restAt ?? Infinity;
+				const f = Math.max(0, Math.min(1, t/.25, (end-t)/.25));
+				aim += yaw * f*f*(3-2*f);
+				const heading = angle + yaw, range = spell.distance;
+				spell.other.char.setTransform([position[0] + range*Math.cos(heading), 0,
+					position[2] - range*Math.sin(heading)], [0,heading + Math.PI,0], [1,1,1]);
+			}
+			(scene.mount?.model || scene.char).setTransform(position, [0, aim, 0], [k, k, k]);
 			if (scene.petVisible) {
 				const k = scene.petScale;
 				scene.pet.setTransform([offset * sin, scene.petGround, offset * cos], [0, angle, 0], [k, k, k]);
@@ -667,8 +800,9 @@
 			if (spec && !mount) return false;
 			// From the untouched front view, show the saddle in three-quarter
 			// profile. A visitor who already turned the model keeps that angle.
-			if (mount) mount.angleOffset = scene.mount?.angleOffset ?? (this.rotation === FACING ? Math.PI / 4 : 0);
+			if (mount) mount.angleOffset = scene.mount?.angleOffset ?? (this.rotation === FACING ? Math.PI / 6 : 0);
 			scene.mount?.model.dispose();
+			this.stopSpell();
 			scene.mount = mount;
 			this.idle?.reset(this.clock());
 			equip(scene, mount ? 'empty' : 'stand');
@@ -679,36 +813,36 @@
 				mount.gait = 'idle';
 				// Frame the saddle, the seated pose and the creature as one
 				// turntable. The rider keeps its own size on a scaled mount.
-				const box = frame_box(mount.model), k = mount.scale;
-				const saddle = mount.model.getAttachmentTransform(SADDLE).subarray(12, 15);
-				let rider = scene.char.getBoundingBox(mount.riderClip);
-				if (!rider || rider.max[1] <= rider.min[1]) rider = frame_box(scene.char);
-				mount.box = {
-					min: box.min.map((v, i) => Math.min(v * k, saddle[i] * k + rider.min[i])),
-					max: box.max.map((v, i) => Math.max(v * k, saddle[i] * k + rider.max[i]))
-				};
+				const saddle = mount.model.getAttachmentTransform(SADDLE, true);
+				for (let i = 12; i < 15; ++i) saddle[i] *= mount.scale;
+				mount.box = scene_box([{ box: frame_box(mount.model), scale: mount.scale },
+					{ box: dressed_box(scene), matrix: saddle }]);
 			} else {
 				scene.char.playPreparedAnimation(scene.char.find_animation(STAND));
 			}
-			this.showCompanion(this.petEnabled);
+			this.frameScene();
 			return true;
 		}
 
-		gait(name) {
-			const mount = this.scene?.mount;
-			if (!mount?.gaits.has(name)) return false;
-			mount.model.playPreparedAnimation(mount.gaits.get(name));
-			mount.gait = name;
-			return true;
+		async loadSpell(spec) {
+			const scene = this.scene, files = this.files;
+			const load = (id, textures) => load_model(this.ctx, id, files, skip_for(textures));
+			return M3D.SpellPlayback.load(spec, scene, load, files);
 		}
 
-		showCompanion(show) {
-			this.petEnabled = !!show;
+		stopSpell() {
+			if (!this.spell) return;
+			this.spell.dispose();
+			this.spell = null;
+			this.turn();
+		}
+
+		frameScene() {
 			const scene = this.scene;
 			if (!scene || !scene.char) return;
-			scene.petVisible = this.petEnabled && !!scene.pet;
+			scene.petVisible = !!scene.pet;
 			const rider = frame_box(scene.char);
-			const char = scene.mount?.box || rider;
+			const char = scene.mount?.box || (scene.standingBox ??= dressed_box(scene));
 			this.box = char;
 			if (scene.petVisible) {
 				const pet = frame_box(scene.pet);
@@ -718,10 +852,8 @@
 				scene.petGround = char.min[1] - k * pet.min[1];
 				scene.spacing = char.max[2] - k * pet.min[2] + height * 0.12;
 				const half = scene.spacing / 2;
-				this.box = {
-					min: [Math.min(char.min[0], k * pet.min[0]), char.min[1], Math.min(char.min[2] - half, k * pet.min[2] + half)],
-					max: [Math.max(char.max[0], k * pet.max[0]), char.max[1], Math.max(char.max[2] - half, k * pet.max[2] + half)]
-				};
+				this.box = scene_box([{ box: char, offset: [0, 0, -half] },
+					{ box: pet, scale: k, offset: [0, scene.petGround, half] }]);
 			}
 			this.fitted = '';
 			this.turn();
@@ -738,11 +870,12 @@
 				dispose_scene(scene);
 				return false;
 			}
+			this.stopSpell();
 			dispose_scene(this.scene);
 			this.scene = scene;
 			this.files = files;
 			this.box = null;
-			this.showCompanion(this.petEnabled !== false);
+			this.frameScene();
 			this.attack = Number(obj(recipe).attack) || 16;
 			this.classId = Number(obj(recipe).class_id) || 0;
 			this.level = Number(obj(recipe).level) || 1;
@@ -776,10 +909,11 @@
 
 			const { css_w } = this.size();
 			const c = this.canvas;
-			const key = c.width + 'x' + c.height + ':' + css_w;
+			const angle = this.rotation + (this.scene?.mount?.angleOffset || 0);
+			const key = c.width + 'x' + c.height + ':' + css_w + ':' + angle;
 			if (this.box && key !== this.fitted) {
 				this.camera.aspect = c.width / Math.max(1, c.height);
-				M3D.fit_turntable(this.camera, this.box, css_w);
+				M3D.fit_turntable(this.camera, this.box, css_w, angle);
 				this.fitted = key;
 			}
 
@@ -794,8 +928,11 @@
 			const char = scene && scene.char;
 			if (char) {
 				const view = this.camera.view_matrix, proj = this.camera.projection_matrix;
-				if (this.idle && !scene.mount)
-					this.idle.tick(now, dt);
+				const activeSpell = this.idle?.playing?.spell;
+				if (this.idle) this.idle.tick(now, dt);
+				if (this.spell && this.spell !== activeSpell && !this.idle?.playing?.spell && !this.spell.tick(dt, false))
+					this.stopSpell();
+				if (this.spell?.other) this.turn();
 				if (scene.mount) {
 					const { model, scale } = scene.mount;
 					model.updateAnimation(dt);
@@ -806,51 +943,19 @@
 					for (let i = 0; i < 12; i++) saddle[i] /= scale;
 					char.setTransformMatrix(saddle);
 				}
-				char.updateAnimation(dt);
-				char.render(view, proj);
+				draw_actor(scene, dt, view, proj);
+				this.spell?.other?.char.updateAnimation(dt);
 				if (scene.petVisible) {
 					scene.pet.updateAnimation(dt);
 					scene.pet.render(view, proj);
 				}
-
-				const scale_mat = new Float32Array(16);
-				for (const a of scene.visibleAttachments) {
-					const tf = char.getAttachmentTransform(a.attach);
-					if (!tf)
-						continue;
-					if (a.scale !== 1) {
-						mat4_from_scale(scale_mat, a.scale, a.scale, a.scale);
-						mat4_multiply(tf, tf.slice(), scale_mat);
-					}
-					a.renderer.setTransformMatrix(tf);
-					a.renderer.updateAnimation(dt);
-					a.renderer.render(view, proj);
-
-					for (const v of a.visuals) {
-						const at = a.renderer.getAttachmentTransform(v.attach);
-						if (!at)
-							continue;
-						v.renderer.setTransformMatrix(at);
-						v.renderer.updateAnimation(dt);
-						v.renderer.render(view, proj);
-					}
-				}
-
-				for (const r of [...scene.collections, ...scene.skinned]) {
-					r.updateAnimation(dt);
-					r.applyExternalBoneMatrices(char.bone_matrices);
-					r.setTransformMatrix(char.model_matrix);
-					r.render(view, proj);
-				}
+				this.spell?.draw(dt, view, proj);
 
 				// particles and ribbons last, over every mesh
-				for (const r of all_renderers(scene))
-					r.renderParticles(view, proj);
+				for (const r of all_renderers(scene)) r.renderParticles(view, proj);
+				this.spell?.drawParticles(view, proj);
 			}
 
-			const move = this.idle?.playing;
-			if (this.effects && (this.effectDrawn || move?.move.effect))
-				this.effectDrawn = M3D.drawAbilityEffect(this.effects, this, move);
 			this.raf = requestAnimationFrame(() => this.frame());
 		}
 
@@ -868,6 +973,7 @@
 			this.controls.dispose();
 			if (typeof document !== 'undefined')
 				document.removeEventListener('visibilitychange', this.on_visibility);
+			this.stopSpell();
 			dispose_scene(this.scene);
 			this.scene = null;
 		}
@@ -894,7 +1000,7 @@
 	 * Draw one character recipe on a canvas, and keep drawing it (its
 	 * animation, a drag turns it) until stop().
 	 * ride(i) seats the character on recipe.mounts[i]. ride(-1) dismounts.
-	 * actions() and play(name) work for both on-foot actions and mounted gaits.
+	 * On-foot moves and mounted gaits play occasionally while idle.
 	 */
 	M3D.draw = async function draw(canvas, recipe, get, opts = {}) {
 		const viewer = new Viewer(canvas, get, opts || {});
@@ -903,15 +1009,9 @@
 
 		const handle = {
 			stop: () => viewer.stop(),
-			get hasCompanion() { return !!(viewer.scene && viewer.scene.pet); },
-			showCompanion: (visible) => viewer.showCompanion(visible),
 			ride: (index) => viewer.ride(index),
 			get mounted() { return viewer.scene?.mount?.index ?? -1; },
 			redraw: (next) => viewer.show(next).then(() => handle),
-			actions: async () => viewer.scene?.mount ? [...viewer.scene.mount.gaits.keys()]
-				.map((name) => ({ name, label: name[0].toUpperCase() + name.slice(1), pressed: name === viewer.scene.mount.gait })) :
-				viewer.idle ? (await viewer.idle.prepare(true)).map(({ name, label }) => ({ name, label })) : [],
-			play: async (name) => viewer.scene?.mount ? viewer.gait(name) : viewer.idle ? viewer.idle.play(name) : false,
 			// the files of the current drawing that `get` didn't give
 			get missing() { return viewer.files.missing.slice(); },
 			// files that came but couldn't be read: [{file, error}]

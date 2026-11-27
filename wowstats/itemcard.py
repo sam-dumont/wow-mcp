@@ -398,32 +398,16 @@ class Catalog:
     # ------------------------------------------------------------ icons
 
     def icon(self, name: str, size: str) -> bytes | None:
-        """The icon's JPEG, from the cache or fetched once; None when unknown."""
-        from wowstats.upstream import icon_url
+        """The icon's JPEG in the requested size; None when unavailable."""
+        from wowstats.upstream import Upstream, cached_icon
 
         if not self.on or size not in SIZES:
             return None
-        try:  # the name comes from a request path: checked before it is a file name or a URL
-            url = icon_url(self.icon_url, size, name)
-        except ValueError:
-            return None
-        f = self.cache / "icons" / size / f"{name}.jpg" if self.cache else None
-        if f is not None and f.is_file():
-            with contextlib.suppress(OSError):
-                return f.read_bytes()
-        from wowstats.upstream import Upstream, fetch
-        from wowstats.upstream import write_file as _write
-
         try:
-            body = fetch(url)
+            return cached_icon(self.icon_url, self.cache, size, name)
         except Upstream:
             return None
-        if not body or body[:3] != b"\xff\xd8\xff":  # a JPEG, nothing else
-            return None
-        if f is not None:
-            with contextlib.suppress(OSError):
-                _write(f, body)
-        return body
+
 
 
 _shared: Catalog | None = None

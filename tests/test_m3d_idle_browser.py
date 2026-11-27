@@ -4,8 +4,7 @@ and WebKit, on a made-up model: no game file, no network.
 The model has Stand (0), ReadySpellDirected (51) and SpellCastDirected (53)
 in the file, EmoteTalk (60) in an .anim that comes, and Ready2H (27) and
 Attack2H (18) in .anim files that don't (a server whose shipper hasn't sent
-them yet). With the recipe's attack 18, only "cast" and
-"talk" can be played; the clock and the random draws are the test's.
+them yet). With the recipe's attack 18, only the client-backed gesture "talk" can be played; the clock and the random draws are the test's.
 
 Heavy: run through ~/.local/bin/wow-heavy, one browser suite at a time.
 """
@@ -48,7 +47,7 @@ def files(combat=False) -> dict[int, bytes]:
                   sequences=[FX.sequence(0, 1000, INLINE), FX.sequence(51, 400, INLINE),
                              FX.sequence(53, 600, INLINE), FX.sequence(60, 2000, 0),
                              FX.sequence(27, 500, 0), FX.sequence(18, 700, 0)]
-                            + ([FX.sequence(i, 400, INLINE) for i in (17, 26, 29, 46, 48, 49, 52, 54, 55, 91, 95, 124)]
+                            + ([FX.sequence(i, 400, INLINE) for i in (17, 26, 46, 52, 54, 55, 91, 95, 105, 109, 124)]
                                if combat else []),
                   afid=[(60, 0, TALK_ANIM), (27, 0, ABSENT_ANIM), (18, 0, ABSENT_ANIM)])
     return {MODEL: model, SKIN: skin_file, TEX: FX.blp_bgra(4, 4, [(200, 200, 200, 255)] * 16), TALK_ANIM: data}
@@ -73,7 +72,7 @@ const canvas = document.getElementById('c');
 const get = (id) => fetch('/f/' + id).then((r) => (r.ok ? r.arrayBuffer() : null));
 window.__asked = [];
 const asked = (id) => { window.__asked.push(id); return get(id); };
-const o = { clock: () => window.__t, random: () => opts.random, effects: document.getElementById('effects') };
+const o = { clock: () => window.__t, random: () => opts.random };
 if (opts.idle !== undefined) o.idle = opts.idle;
 if (opts.reduced) o.reducedMotion = () => true;
 window.__ready = M3D.draw(canvas, JSON.parse(document.getElementById('recipe').textContent), asked, o).then(
@@ -125,7 +124,7 @@ def server():
     def add(name, opts, recipe):
         pages["/" + name] = (
             "<!doctype html><html><head><meta charset='utf-8'><style>canvas{width:300px;height:400px}"
-            "</style></head><body><canvas id='c'></canvas><canvas id='effects'></canvas>"
+            "</style></head><body><canvas id='c'></canvas>"
             f"<script type='application/json' id='recipe'>{json.dumps(recipe)}</script>"
             f"<script type='application/json' id='opts'>{json.dumps(opts)}</script>"
             f"{scripts}<script>{PAGE}</script></body></html>")
@@ -175,8 +174,8 @@ def test_plays_only_what_the_model_has_then_stands_again(view):
     # nothing but Stand asked for so far: the other .anim files wait until a move is due
     assert TALK_ANIM not in page.evaluate("() => window.__asked")
     st = walk(page, 14200)
-    assert st["available"] == ["cast", "talk"], st
-    assert st["move"] == "talk" and st["playing"] == 60, st  # floor(0.5 * 2)
+    assert st["available"] == ["talk"], st
+    assert st["move"] == "talk" and st["playing"] == 60, st
     # the absent .anim is a move not played, not a missing file of the drawing
     assert ABSENT_ANIM in page.evaluate("() => window.__asked")
     assert page.evaluate("() => window.__h.missing") == []
@@ -184,13 +183,6 @@ def test_plays_only_what_the_model_has_then_stands_again(view):
     st = walk(page, 16500)
     assert st["playing"] == 0 and st["move"] is None and st["played"] == ["talk"], st
     assert 16000 <= st["next_at"] - 14000 <= 16500 + 100
-    # the next move isn't the same one: cast, its two steps, then Stand
-    st = walk(page, st["next_at"] + 100)
-    assert st["move"] == "cast" and st["playing"] == 51, st
-    st = walk(page, st["next_at"] + 900)
-    assert st["playing"] == 53, st
-    st = walk(page, st["next_at"] + 1600)
-    assert st["playing"] == 0 and st["played"] == ["talk", "cast"], st
 
 
 def test_nothing_starts_while_the_model_is_turned(view):
@@ -221,63 +213,55 @@ def test_off_by_default_for_the_renderers_pictures(view):
     assert page.evaluate("() => window.__h.debug.idle()") is None
 
 
-def test_weapons_switch_for_a_real_clip_then_both_melee_hands_return(view):
-    page = view(recipe=COMBAT, reduced=True)
-    actions = lambda: [m["name"] for m in page.evaluate("__h.actions()")]  # noqa: E731
-    slots = lambda: page.evaluate("__h.debug.equippedSlots()")  # noqa: E731
-    assert actions() == ["attack", "ranged", "hunters-mark", "arcane-shot"]
-    assert slots() == [16, 17]
-    assert page.evaluate("__h.play('arcane-shot')")
-    assert slots() == [18] and walk(page, 100)["playing"] == 29
-    assert walk(page, 600)["playing"] == 46
-    assert page.evaluate("""() => {
-      const c = document.querySelector('#effects');
-      return c.getContext('2d').getImageData(0, 0, c.width, c.height).data.some(x => x);
-    }""")
-    assert walk(page, 1100)["playing"] == 0 and slots() == [16, 17]
-    assert page.evaluate("__h.play('attack')") and slots() == [16, 17]
-    # Missing thrown release, then missing bow model, then missing hand on this model.
-    for patch in ({"ranged": {"kind": 16}}, {"attachments": []},
-                  {"attachments": [{"slot": 18, "attach": 98, "model": MODEL}]}):
-        page.evaluate("r => __h.redraw(r).then(() => true)", {**COMBAT, **patch})
-        assert "ranged" not in actions() and "arcane-shot" not in actions()
-        assert not page.evaluate("__h.play('ranged')")
+def test_idle_loads_ranged_kit_then_releases_and_returns_to_melee(view):
+    kit = lambda phase, anim: {"phase": phase, "target": "caster", "initial_animation": -1, "animation": anim, "effects": []}  # noqa: E731
+    prep = {**kit("precast", 109), "initial_animation": 105}
+    spell = {"spell_id": 2480, "name": "ranged", "equipment": "ranged", "target": "other", "speed": 40,
+             "cast_ms": 1000, "duration_ms": 0, "kits": [prep, kit("cast", 46)],
+             "missiles": [{"model": MODEL, "attachment": 1, "destination_attachment": 2, "scale": 1}]}
+    # attack, ranged, roar, talk -> floor(0.35 * 4) selects ranged.
+    page = view(recipe={**COMBAT, "actions": [spell]}, random=0.35)
+    assert page.evaluate("typeof __h.play") == "undefined"
+    assert page.evaluate("__h.debug.equippedSlots()") == [16, 17]
+    page.evaluate("__t = 13000")
+    page.wait_for_function("__h.debug.idle().move === 'ranged'")
+    assert page.evaluate("__h.debug.idle().playing") == 105
+    assert page.evaluate("__h.debug.equippedSlots()") == [18]
+    assert walk(page, 13600)["playing"] == 109
+    assert walk(page, 14100)["playing"] == 46
+    assert walk(page, 15000)["move"] is None
+    assert page.evaluate("__h.debug.equippedSlots()") == [16, 17]
 
 
-def test_class_buttons_require_their_own_animation_and_follow_redraw(view):
-    page = view(recipe=COMBAT)
-    for cls, ability in [(1, "battle-shout"), (2, "holy-light"), (3, "hunters-mark"), (4, "kick"),
-                         (5, "power-word-shield"), (7, "lightning-bolt"), (8, "frostbolt"),
-                         (9, "drain-life"), (11, "rejuvenation")]:
-        page.evaluate("r => __h.redraw(r).then(() => true)", {**COMBAT, "class_id": cls})
-        names = [m["name"] for m in page.evaluate("__h.actions()")]
-        assert ability in names
-        assert page.evaluate("name => __h.play(name)", ability)
-        assert page.evaluate("__h.debug.idle().move") == ability
-    page.evaluate("r => __h.redraw(r).then(() => true)", {**COMBAT, "model": MODEL, "class_id": 4})
-    assert not page.evaluate("__h.play('kick')")
+def test_missing_ranged_clip_rejects_the_action(view):
+    spell = {"spell_id": 5019, "name": "ranged", "equipment": "ranged", "target": "other",
+             "cast_ms": 0, "duration_ms": 0, "kits": [{"phase": "cast", "target": "caster",
+             "animation": 107, "initial_animation": -1, "effects": []}], "missiles": []}
+    page = view(recipe={**COMBAT, "actions": [spell]}, random=0.35)
+    page.evaluate("__t = 13000")
+    page.wait_for_function("__h.debug.idle().available && !__h.debug.idle().available.includes('ranged')")
+    assert page.evaluate("__h.debug.idle().played") == []
+    assert "missing character animation 107" in str(page.evaluate("__h.errors"))
 
 
 def test_rider_follows_the_animated_seat_and_dismounts_to_its_own_gear(view):
     mount = {"name": "Test mount", "model": MOUNT_MODEL, "scale": 1.2, "textures": {}}
-    page = view(recipe={**COMBAT, "mounts": [mount, {**mount, "model": MODEL}]}, reduced=True)
+    page = view(recipe={**COMBAT, "mounts": [mount, {**mount, "model": MODEL}]}, random=0.5)
     assert page.evaluate("() => __h.mounted") == -1
     assert MOUNT_MODEL not in page.evaluate("__asked")
     assert page.evaluate("__h.ride(0)")
     assert page.evaluate("__h.debug.equippedSlots()") == []
-    assert [row["name"] for row in page.evaluate("__h.actions()")] == ["idle", "run"]
-    assert not page.evaluate("__h.play('attack')")
     assert not page.evaluate("__h.ride(1)")  # this model has no saddle
     assert page.evaluate("() => __h.mounted") == 0
-    assert page.evaluate("__h.play('run')")
-    walk(page, 100)
+    page.evaluate("__t=14000")
+    page.wait_for_function("__h.debug.idle().move === 'run'")
+    walk(page, 14100)
     low = page.evaluate("__h.debug.project([0,0,0])")
-    walk(page, 500)
+    walk(page, 14500)
     high = page.evaluate("__h.debug.project([0,0,0])")
     assert high[1] < low[1] - 5  # animated saddle bone lifted the rider
     assert page.evaluate("__h.ride(-1)")
     assert page.evaluate("__h.debug.equippedSlots()") == [16, 17]
-    assert page.evaluate("__h.play('attack')")
     page.evaluate("r => __h.redraw(r).then(() => true)", {**RECIPE, "mounts": [mount]})
     assert not page.evaluate("__h.ride(0)")  # this rider lacks Mount (91)
 
@@ -295,5 +279,5 @@ def test_late_mount_files_do_not_remount_a_character_who_dismounted(view):
       const pending = __h.ride(0);
       await __h.ride(-1);
       release();
-      return !await pending && __h.mounted === -1 && await __h.play('attack');
+      return !await pending && __h.mounted === -1 && !__h.debug.idle().move;
     }""")

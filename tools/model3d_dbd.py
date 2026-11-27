@@ -33,7 +33,10 @@ TABLES = (
     "ComponentTextureFileData", "CreatureDisplayInfo", "CreatureModelData", "HelmetGeosetData", "Item",
     "ItemAppearance", "ItemDisplayInfo", "ItemDisplayInfoMaterialRes", "ItemDisplayInfoModelMatRes",
     "ItemModifiedAppearance", "ItemVisuals", "ItemVisualsXEffect", "ModelFileData", "Mount", "MountXDisplay",
-    "SpellItemEnchantment",
+    "AnimKitSegment", "ItemRangedDisplayInfo", "ItemSparse", "SpellCastTimes", "SpellChainEffects", "SpellDuration",
+    "SpellLevels", "SpellMisc", "SpellProceduralEffect", "SpellVisual", "SpellVisualAnim", "SpellVisualEffectName",
+    "SpellVisualEvent", "SpellVisualKit", "SpellVisualKitEffect", "SpellVisualKitModelAttach", "SpellVisualMissile",
+    "SpellXSpellVisual", "SpellItemEnchantment",
     "TextureFileData",
     # The item facts' stat budget per item level (wowstats/itemfacts.py).
     "RandPropPoints",

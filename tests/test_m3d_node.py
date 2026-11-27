@@ -54,6 +54,9 @@ def test_script_is_frame_safe(name):
     for bad in ("eval(", "new Function", "WebAssembly", "import(", "XMLHttpRequest", "globalThis.fetch"):
         assert bad not in text, (name, bad)
     head = text.split("*/", 1)[0]
+    if name == "spells.js":
+        assert "shipped spell visual kits" in head
+        return
     if name == "actions.js":
         assert "TrinityCore" in head and "this viewer" in head
         return
@@ -72,31 +75,17 @@ def test_node_check(name):
 
 
 @needs_node
-def test_actions_start_at_their_first_rank_and_use_the_equipped_weapon_clip():
+def test_spell_moves_require_recipe_rows():
     script = """
     globalThis.M3D = {};
     require(process.argv[1]);
-    const first = {};
-    for (const cls of [1,2,3,4,5,7,8,9,11])
-        for (let level = 1; level <= 60; level++)
-            for (const m of M3D.moves(17, cls, 2, level))
-                if (m.label && !['attack', 'ranged'].includes(m.name)) first[m.label] ??= level;
-    const releases = [2,3,16,18,19].map(kind => M3D.moves(17,3,kind,60)
-        .find(m => m.name === 'ranged').steps.at(-1)[0]);
-    console.log(JSON.stringify([first, releases]));
+    const names = spells => M3D.moves(17, spells).map(m => m.name);
+    console.log(JSON.stringify([names([]), names([{name:'ranged'}, {name:'shield'}])]));
     """
     out = subprocess.run([NODE, "-e", script, str(M3D / "actions.js")], check=True, capture_output=True, timeout=10)
-    first, releases = json.loads(out.stdout)
-    ref = json.loads((ROOT / "data" / "class-reference.json").read_text())["classes"]
-    # These two are starting spells. The trainer sells rank two first.
-    expected = {"Holy Light": 1, "Lightning Bolt": 1}
-    for cls in ref.values():
-        for level, spells in cls["spells"].items():
-            for spell in spells:
-                if spell["name"] in first and spell["rank"] == 1:
-                    expected[spell["name"]] = int(level)
-    assert len(first) == 10 and first == expected
-    assert releases == [46, 49, 107, 49, 53]
+    without, with_spells = json.loads(out.stdout)
+    assert without == ["attack", "roar", "talk", "exclaim", "question", "bow", "cheer", "laugh"]
+    assert with_spells == ["attack", "ranged", "shield", *without[1:]]
 
 
 @needs_node
@@ -119,6 +108,74 @@ def test_renderer_plays_client_animation_aliases_but_rejects_stand_and_broken_al
     """
     out = subprocess.run([NODE, "-e", script, str(M3D)], check=True, capture_output=True, timeout=10)
     assert json.loads(out.stdout) == [[True, False, False, False], 51, 1]
+
+
+@needs_node
+def test_bone_point_in_model_and_world_space():
+    # The camera fits an item's attachment before turning the character.
+    # A projectile starts from the same bone after the actor was positioned.
+    script = """
+    for (const file of ['core', 'gl', 'm2renderer']) require(process.argv[1] + '/' + file + '.js');
+    const r = Object.create(M3D.M2RendererGL.prototype), att = {bone:0,position:[2,3,4]};
+    r.m2 = {getAttachmentById:() => att};
+    r.model_matrix = M3D.math.IDENTITY_MAT4.slice();
+    r.model_matrix[12] = 10;
+    const xyz = m => Array.from(m.subarray(12,15));
+    console.log(JSON.stringify([xyz(r.getAttachmentTransform(1,true)), xyz(r.getAttachmentTransform(1)),
+                                xyz(r.bonePointTransform(att))]));
+    """
+    out = subprocess.run([NODE, "-e", script, str(M3D)], check=True, capture_output=True, timeout=10)
+    assert json.loads(out.stdout) == [[2, 4, -3], [12, 4, -3], [12, 4, -3]]
+
+
+@needs_node
+def test_first_and_last_ranged_poses_crossfade_over_native_blend_times():
+    script = """
+    const dir = process.argv[1];
+    for (const name of ['core','gl','m2renderer']) require(dir+'/'+name+'.js');
+    const r = new M3D.M2RendererGL(null, {gl:{}}, async () => null);
+    const track = {timestamps:[[0],[0]],values:[[[0,0,0]],[[4,0,0]]]};
+    r.bones = [{parentBone:-1, pivot:[0,0,0], translation:track}];
+    r.bone_matrices = new Float32Array(16);
+    r.m2 = {bones:r.bones, globalLoops:[], textureTransforms:[], colors:[], textureWeights:[],
+      animations:[0,46].map(id => ({id, flags:32, duration:1000, blendTimeIn:200, blendTimeOut:200}))};
+    const x = () => r.bone_matrices[12];
+    r.playPreparedAnimation(0);
+    r.playPreparedAnimation(1,true);
+    const out = [x()];
+    r.updateAnimation(.1); out.push(x());
+    r.updateAnimation(.1); out.push(x());
+    r.playPreparedAnimation(0,true); out.push(x());
+    r.updateAnimation(.1); out.push(x());
+    r.updateAnimation(.1); out.push(x());
+    console.log(JSON.stringify(out));
+    """
+    out = subprocess.run([NODE, "-e", script, str(M3D)], check=True, capture_output=True, timeout=10)
+    assert json.loads(out.stdout) == [0, 2, 4, 4, 2, 0]
+
+
+@needs_node
+def test_release_event_sets_missile_launch_and_impact_times():
+    script = """
+    const dir = process.argv[1];
+    for (const name of ['core','spells']) require(dir+'/'+name+'.js');
+    const tf = () => new Float32Array(M3D.math.IDENTITY_MAT4);
+    const char = {m2:{animations:[{id:46,variationIndex:0}],
+      castEvents:[{id:'$BWR',times:{arr:[[400]]}}]},model_matrix:tf(), getAttachmentTransform:tf,
+      playPreparedAnimation(){},find_animation(){return 0}};
+    const actor = {char,attachments:[]};
+    const p = new M3D.SpellPlayback({equipment:'ranged',cast_ms:1000,launch_delay_ms:50,speed:20},actor);
+    const destination = tf(); destination[12] = 10;
+    p.other = {char:{...char,getAttachmentTransform:() => destination}};
+    p.clips.push({phase:'cast', actor, loop:{id:46, index:0, length:.7}});
+    const shot = {phase:'missile',def:{attachment:1,destination_attachment:2},kit:{}};
+    const hit = {phase:'impact',kit:{},def:{},start:{length:.6}};
+    p.nodes.push(shot,hit);
+    p.begin();
+    console.log(JSON.stringify([shot.at,shot.until,hit.at,p.finish]));
+    """
+    out = subprocess.run([NODE, "-e", script, str(M3D)], check=True, capture_output=True, timeout=10)
+    assert json.loads(out.stdout) == pytest.approx([1.45, 1.95, 1.95, 2.55])
 
 
 NODE_READERS = r"""

@@ -21,7 +21,6 @@
   const RENDER = qs.get('render') === '1' && window.parent === window;
   const status = document.getElementById('status');
   const canvas = document.getElementById('stage');
-  const actions = document.getElementById('actions');
   if (RENDER) document.documentElement.classList.add('render');
   const realFetch = window.fetch.bind(window);
 
@@ -74,9 +73,7 @@
 
   function fail(text) {
     drawing++;
-    actions.hidden = true;
     status.hidden = false;
-    companionControl.hidden = true;
     mountControl.hidden = true;
     mountNote.textContent = '';
     status.className = 'status err';
@@ -111,49 +108,32 @@
 
   const why = (e) => String((e && e.message) || e || 'unknown error');
   let handle = null;
-  const companionControl = document.getElementById('companion-control');
-  const companionToggle = document.getElementById('companion');
-  companionToggle.addEventListener('change', () => handle?.showCompanion(companionToggle.checked));
   const mountControl = document.getElementById('mount-control');
   const mountPick = document.getElementById('mount');
   const mountNote = document.getElementById('mount-note');
-  let drawing = 0;
+  let drawing = 0, mounts = [];
   mountPick.addEventListener('change', async () => {
     const generation = ++drawing;
-    const index = Number(mountPick.value);
-    const name = mountPick.selectedOptions[0].textContent;
-    mountNote.textContent = index < 0 ? '' : 'Loading mount…';
-    const changed = await handle.ride(index);
+    const mounted = mountPick.value === 'mount';
+    mountNote.textContent = mounted ? 'Loading mount…' : '';
+    if (mounted) {
+      // Pick from this character's recorded mounts, retrying another
+      // if the first is missing its saddle, skin or movement clips.
+      const candidates = mounts.map((_, i) => i);
+      while (candidates.length && generation === drawing) {
+        const at = Math.floor(Math.random() * candidates.length);
+        const [index] = candidates.splice(at, 1);
+        if (await handle.ride(index)) break;
+      }
+    } else await handle.ride(-1);
     if (generation !== drawing) return;
-    mountPick.value = String(handle.mounted);
-    mountNote.textContent = changed ? '' : `Couldn’t ride ${name} with the available game files.`;
-    showActions(generation);
+    mountPick.value = handle.mounted < 0 ? 'foot' : 'mount';
+    mountNote.textContent = handle.mounted >= 0 ? mounts[handle.mounted].name :
+      mounted ? 'Couldn’t ride a mount with the available game files.' : '';
   });
-  actions.addEventListener('click', async (event) => {
-    const button = event.target, name = button.dataset.action;
-    if (name && handle && await handle.play(name) && button.hasAttribute('aria-pressed')) {
-      for (const item of actions.children) item.setAttribute('aria-pressed', String(item === button));
-    }
-  });
-
-  async function showActions(generation) {
-    const moves = await handle.actions();
-    if (generation !== drawing) return;
-    actions.replaceChildren(...moves.map(({ name, label, pressed }) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.dataset.action = name;
-      button.textContent = label;
-      if (pressed !== undefined) button.setAttribute('aria-pressed', String(pressed));
-      return button;
-    }));
-    actions.hidden = !moves.length;
-  }
 
   async function show(d) {
-    const generation = ++drawing;
-    actions.hidden = true;
-    companionControl.hidden = true;
+    ++drawing;
     mountControl.hidden = true;
     mountNote.textContent = '';
     const recipe = d && recipeOf(d);
@@ -167,21 +147,15 @@
     if (handle) await handle.redraw(recipe);
     // Now and then another animation (m3d/draw.js Idle); never in the
     // renderer's pictures, which stay on Stand.
-    else handle = await M3D.draw(canvas, recipe, get, {
-      idle: !RENDER, effects: RENDER ? null : document.getElementById('effects')
-    });
-    companionControl.hidden = RENDER || !handle.hasCompanion;
-    if (!companionControl.hidden) {
-      companionControl.querySelector('span').textContent = recipe.companion.kind === 2 ? 'Show demon' : 'Show pet';
-    }
+    else handle = await M3D.draw(canvas, recipe, get, { idle: !RENDER });
     if (!RENDER && recipe.mounts?.length) {
-      mountPick.replaceChildren(new Option('On foot', '-1'), ...recipe.mounts.map((m, i) => new Option(m.name, String(i))));
+      mounts = recipe.mounts;
+      mountPick.replaceChildren(new Option('On foot', 'foot'), new Option('On mount', 'mount'));
       mountControl.hidden = false;
     }
     status.hidden = true;
     document.documentElement.dataset.state = 'drawn';
     tell({ ok: true, missing: handle.missing.length });
-    if (!RENDER) showActions(generation);
   }
 
   // The first answer, then any other the page sends (the level-by-level

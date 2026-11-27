@@ -68,8 +68,8 @@ TABLE_MAGIC = (b"WDC3", b"WDC4", b"WDC5")
 # the shipper's CASC_ANIMATIONS) equal. A sequence the model carries itself
 # needs nothing; one in its own .anim file (Forever's HD models keep the
 # emotes there) is named by the model's AFID and asked for with it.
-ANIMATIONS = frozenset({0, 4, 5, 15, 16, 17, 18, 19, 25, 26, 27, 28, 29, 46, 48, 49, 51, 52, 53, 54, 55, 60, 64,
-                        65, 66, 68, 70, 91, 95, 107, 108, 124, 125})
+ANIMATIONS = frozenset({0, 4, 5, 9, 10, 14, 15, 16, 17, 18, 19, 25, 26, 27, 28, 29, 46, 48, 49, 51, 52, 53, 54, 55,
+                        60, 64, 65, 66, 68, 70, 91, 95, 105, 106, 107, 108, 109, 110, 111, 112, 124, 125, 159})
 # What the still pictures play (wowstats.renderer): Stand and the closed hands.
 STILL = frozenset({0, 15})
 # The client tables the 3D view reads, with their file ids (the same in
@@ -86,7 +86,12 @@ TABLES = {
     "ItemAppearance": 982462, "ItemDisplayInfo": 1266429, "ItemDisplayInfoMaterialRes": 1280614,
     "ItemDisplayInfoModelMatRes": 4050937, "ItemModifiedAppearance": 982457, "ItemVisuals": 1343605,
     "ItemVisualsXEffect": 3043873, "ModelFileData": 1337833, "Mount": 921760, "MountXDisplay": 1576117,
-    "SpellItemEnchantment": 1362771,
+    "AnimKitSegment": 1304324, "ItemRangedDisplayInfo": 1270315, "ItemSparse": 1572924, "SpellCastTimes": 1134089,
+    "SpellChainEffects": 1343310, "SpellDuration": 1137828, "SpellLevels": 1140079, "SpellMisc": 1003144,
+    "SpellProceduralEffect": 1140477, "SpellVisual": 897952, "SpellVisualAnim": 1140479,
+    "SpellVisualEffectName": 897948, "SpellVisualEvent": 1685317, "SpellVisualKit": 897949,
+    "SpellVisualKitEffect": 1140480, "SpellVisualKitModelAttach": 897953, "SpellVisualMissile": 897954,
+    "SpellXSpellVisual": 1101657, "SpellItemEnchantment": 1362771,
     "TextureFileData": 982459,
 }
 
@@ -249,15 +254,15 @@ class Store:
         return got[0] if got else None
 
     def stamp(self) -> tuple:
-        """What changes when files or tables arrive: the build, and the
-        count and newest change of each folder (no file is read)."""
+        """The client build and the last table and file directory changes.
+        Uploads use atomic rename, which advances the parent directory mtime.
+        Two stats suffice even for a store with thousands of files."""
         out: list = [self.build()]
         for sub in ("tables", "files"):
             try:
-                st = (self.root / sub).stat()
-                out += [st.st_mtime_ns, sum(1 for _ in (self.root / sub).iterdir())]
+                out.append((self.root / sub).stat().st_mtime_ns)
             except OSError:
-                out += [0, 0]
+                out.append(0)
         return tuple(out)
 
     def have(self) -> set[int]:
@@ -325,7 +330,7 @@ class RemoteStore:
         self.env = env
         key = hashlib.sha256(self.url.encode()).hexdigest()[:16]
         self.cache = cache / "assets-remote" / key if cache else None
-        self._build: tuple[float, str] | None = None
+        self._stamp: tuple[float, tuple] | None = None
 
     def _get(self, rel: str) -> bytes | None:
         import urllib.error
@@ -343,23 +348,38 @@ class RemoteStore:
             raise OSError(f"{rel}: larger than {MAX_FILE} bytes")
         return data
 
-    def build(self) -> str:
-        if self._build and self._build[0] > time.time() - 60:
-            return self._build[1]
+    def stamp(self) -> tuple:
+        """Same stamp as Store. An older share port sends only the build.
+        An unreachable share port reports an unknown stamp for this pass."""
+        if self._stamp and self._stamp[0] > time.time() - 60:
+            return self._stamp[1]
+        stamp = ()
         try:
-            b = str(json.loads(self._get("build") or b"{}").get("build") or "")
-        except (OSError, ValueError, AttributeError):
-            b = ""
-        self._build = (time.time(), b)
-        return b
+            meta = json.loads(self._get("build") or b"{}")
+            build = meta["build"]
+            if isinstance(build, str) and (not build or BUILD.fullmatch(build)):
+                stamp = (build,)
+                times = (meta.get("tables_mtime_ns"), meta.get("files_mtime_ns"))
+                if all(type(t) is int and t >= 0 for t in times):
+                    stamp += times
+        except (OSError, ValueError, TypeError, KeyError):
+            pass
+        self._stamp = (time.time(), stamp)
+        return stamp
+
+    def build(self) -> str:
+        stamp = self.stamp()
+        return stamp[0] if stamp else ""
 
     def table(self, name: str) -> bytes | None:
         if name not in TABLES:
             return None
-        build = self.build()
-        if not build:
+        stamp = self.stamp()
+        if not stamp or not stamp[0]:
             return None
-        local = self.cache / build / f"{name}.db2" if self.cache else None
+        # A same-build table replacement also invalidates its disk cache.
+        key = "-".join(map(str, stamp[:2]))
+        local = self.cache / key / f"{name}.db2" if self.cache else None
         if local and local.is_file():
             return local.read_bytes()
         try:
@@ -368,7 +388,7 @@ class RemoteStore:
             return None
         if data is not None and local is not None:
             for old in self.cache.iterdir() if self.cache.is_dir() else ():
-                if old.name != build and old.is_dir():
+                if old.name != key and old.is_dir():
                     for p in old.iterdir():
                         p.unlink(missing_ok=True)
                     old.rmdir()
@@ -388,9 +408,6 @@ class RemoteStore:
         data = self.read(fdid)
         return (data, kind_of(data, anim=True)) if data else None
 
-    def stamp(self) -> tuple:
-        return (self.build(),)
-
     def have(self) -> set[int] | None:
         return None  # unknown here: every file is asked for when it's needed
 
@@ -400,7 +417,9 @@ def share_route(h, root: Path, rest: str) -> None:
     (wowstats.analysis.share_server): build, table/<Name>, file/<id>."""
     store = Store(root)
     if rest == "build":
-        return h.reply(200, json.dumps({"build": store.build()}).encode(), "application/json")
+        build, tables, files = store.stamp()
+        return h.reply(200, json.dumps({"build": build, "tables_mtime_ns": tables,
+                                       "files_mtime_ns": files}).encode(), "application/json")
     m = re.fullmatch(r"table/([A-Za-z]{1,40})", rest)
     if m:
         data = store.table(m.group(1))
