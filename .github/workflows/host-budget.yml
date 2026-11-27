@@ -1,0 +1,30 @@
+name: Two-CPU host sizing
+on:
+  push:
+    branches: [codex/host-budget-357]
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [default, minimal]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Prepare a disposable Ubuntu guest
+        run: bash dev/host-budget/guest.sh prepare
+      - name: Measure publication, interruption and recovery
+        run: bash dev/host-budget/guest.sh run ${{ matrix.profile }}
+      - name: Collect guest totals
+        if: always()
+        run: bash dev/host-budget/guest.sh results
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: host-budget-${{ matrix.profile }}
+          path: evidence/
