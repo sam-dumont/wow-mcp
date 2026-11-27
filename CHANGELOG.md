@@ -6,7 +6,7 @@
 - Dungeon pickups and hand-ins check who your character can talk to. For Tabetha’s Task, Nibbet’s route from Stormwind now names Jennea Cannon on the quest card.
 - A saved session plan tracks the other dungeons that fit, even if you skip the first pick. The private dashboard and MCP compare whole-trip time and XP with what you actually played. Once two eligible dungeons have recorded runs at the same level, you can see whether the faster XP forecast held up.
 - A new SQLite Compose profile keeps the UI and MCP online during publication on a 4 GiB host. Two 2-CPU guests published nine characters in 4m37s and 5m07s while answering a cold MCP call and accepting an upload. The profile turns off 3D and item downloads. [Setup and measurements](docs/self-host/sizing.md)
-- The hosted demo shows item, spell and talent icons taken from the game client, like its 3D art. Building the demo no longer calls Wowhead. A missing icon fails the build and names the icon. Player dashboards still fetch theirs from Wowhead.
+- The hosted demo shows item, spell and talent icons taken from the game client, like its 3D art: every item's icon, so any page has its pictures. Building the demo no longer calls Wowhead. A missing icon fails the build and names the icon. Player dashboards still fetch theirs from Wowhead.
 - `demo3d.py build-icons` extracts the demo's icons from the local client. It needs the new `demo-art` group (Pillow).
 
 ## 0.13.1 (2026-11-27)

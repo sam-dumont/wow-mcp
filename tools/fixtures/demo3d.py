@@ -502,7 +502,9 @@ def build_icons(wow_root: Path, out: Path) -> int:
     by_fdid = {f: n for n, f in by_name.items()}
 
     sheets = roster_outfits()
-    ids = demo_icons.item_ids(generate.demo_roster("2026-01-31"), sheets)
+    # Every item in the client, not the ones the roster names: the demo's
+    # bags, market and advice pages show far more items than the outfits.
+    ids = {*tab["Item"], *(int(r.get("ItemID") or 0) for r in tab["ItemModifiedAppearance"].values())} - {0}
     item_names = demo_icons.item_icon_names(ids, tab["Item"], tab["ItemModifiedAppearance"], tab["ItemAppearance"],
                                             by_fdid)
     talents = demo_icons.talent_icon_names({p.cls for p in sheets})
