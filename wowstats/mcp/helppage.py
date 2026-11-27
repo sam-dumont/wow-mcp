@@ -481,8 +481,9 @@ def _mcp(url: str, base: str, st: dict, links: str) -> str:
     prompts = ", ".join(f"<code>/{_e(p['name'])}</code>" for p in served_prompts)
     sees = (f"<ul class='grps'>{groups}</ul>"
             "<p>Everything your AI reads lands in your chat, so your AI provider keeps it under its own terms. That "
-            "includes the names of other players your game showed you. Auction house prices reach it only while "
-            f"\"Battle.net data to my AI\" is on in your {settings}.</p>"
+            "includes other players your game showed you and prices from your auction scans. On a shared install, "
+            "your character's Battle.net profile and the WoW Token price stay off until you turn on "
+            f"\"Battle.net data to my AI\" in {settings}.</p>"
             "<p>claude.ai has ready-made prompts in its <code>+</code> menu, Claude Code as slash commands: "
             f"{prompts}. "
             f"Your AI lists its {len(served_tools)} tools by itself: ask it what wow-stats can do.</p>")

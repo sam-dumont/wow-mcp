@@ -265,7 +265,14 @@ def test_a_name_clash_is_the_owners_fix_not_the_friends(site, pw, engine):
     shoot(pg, f"name-clash-{engine}")
     pg.goto(f"{site}/settings")
     pg.wait_for_selector(".widget[data-widget=settings] p:has-text('needs a fix from the person who runs this site')")
-    assert pg.locator("input:visible").count() == 0
+    consent = pg.get_by_role("checkbox", name=re.compile("Battle.net data to my AI"))
+    assert pg.locator("input:visible").count() == 1 and not consent.is_checked()
+    for on in (True, False):
+        consent.set_checked(on)
+        pg.wait_for_selector(".widget[data-widget=settings] .msg.ok")
+        pg.reload()
+        consent.wait_for()
+        assert consent.is_checked() is on
     c.close()
     assert not errors, errors
     b.close()

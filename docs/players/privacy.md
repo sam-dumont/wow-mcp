@@ -27,8 +27,11 @@ Battle.net every 2 hours. The details, file by file: [The shipper](../shipper.md
 | The owner | Everything you send ([the full list](../explanation/privacy.md#what-the-owner-sees)). Trust them like anyone holding your files. |
 | Friends with your zogzog link | Your page minus the private parts: never other players, what killed you, or where you are now. |
 | Anyone, once you switch your public page on | Your characters' card, climb and dungeons. No gold, zones, journal or other players. |
-| Your AI, once you connect it | Your own data. Battle.net data only with "Battle.net data to my AI" on in Settings. |
+| Your AI, once you connect it | Your game data, including addon auction scans. Battle.net data stays off until you turn on "Battle.net data to my AI" in Settings. |
 | The AI provider the host picked, if they turned it on | A character's play data (never Battle.net data), once it has {{analysis_hours}} hours of play since its last analysis (the host's number). Your AI never starts that. The app's Privacy page says whether it's on. |
+
+Older versions enabled Battle.net sharing at signup. If you used one, you need to switch it
+on yourself to share again. Switching it off stops future reads. Your chat can keep earlier answers.
 
 Your zogzog link works like a password. Sent to the wrong person: Settings, **Make a new
 link**; the old one stops at the next update. To hide a character: Settings, Characters,

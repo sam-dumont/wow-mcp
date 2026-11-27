@@ -88,7 +88,7 @@ import threading
 import time
 import unicodedata
 import urllib.parse
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -147,7 +147,9 @@ class User:
     public_on: bool = False
     hidden_public: list = field(default_factory=list)
     hidden_zogzog: list = field(default_factory=list)
-    bnet_to_model: bool = True
+    # Older registries wrote bnet_to_model=True even at signup. Only the
+    # Settings endpoint records a choice under this new field.
+    bnet_to_model_choice: bool | None = None
     # The 3D view's models: "hd" (Updated) or "sd" (Classic), the page's
     # default for everyone who opens it; a visitor's own toggle wins there.
     models: str = "hd"
@@ -162,6 +164,10 @@ class User:
     @property
     def active(self) -> bool:
         return self.status == "active"
+
+    @property
+    def bnet_to_model(self) -> bool:
+        return self.bnet_to_model_choice is True
 
     def public(self) -> dict:
         """What the publisher and the host list may know: no hashes."""
@@ -784,11 +790,10 @@ class Tenancy:
                 if app is not None:
                     ctx.title = app.title
         live = self.registry.get(u.sub)
-        ctx.bnet = bool(live.bnet_to_model) if live else False
         # Read live too: a first login gives the slug after the context was made.
         slug = (live.slug if live else "") or u.slug
-        ctx.who = slug or f"an account with no name yet (tenant {u.account_id})"
-        return ctx
+        return replace(ctx, bnet=live.bnet_to_model if live else False,
+                       who=slug or f"an account with no name yet (tenant {u.account_id})")
 
     def forget(self, sub: str) -> None:
         with self._lock:

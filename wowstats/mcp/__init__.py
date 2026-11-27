@@ -57,7 +57,7 @@ def context(env=os.environ) -> tools.Ctx:
     """The tools' context. `env` is kept on it when it isn't the
     process's own (a person's settings, wowstats.tenancy)."""
     return tools.Ctx(store=Store.from_env(env), default_char=env.get("DEFAULT_CHAR", ""),
-                     env=None if env is os.environ else dict(env))
+                     env=None if env is os.environ else dict(env), bnet=False if env.get("WOW_STATE_DIR") else None)
 
 
 def is_loopback_bind(bind: str) -> bool:

@@ -463,16 +463,24 @@
     box.textContent = "";
     function save(body, note) {
       // Reload first: load() redraws the box, which dropped a message shown before it.
-      return post("/api/me/settings", body).then(function () {
-        return load().then(function () { msg(box, note || "Saved.", true); });
-      }, function (e) { msg(box, e.message, false); });
+      return post("/api/me/settings", body).then(function (saved) {
+        Object.assign(ME, saved);
+        return load();
+      }).then(function () {
+        msg(box, note || "Saved.", true);
+      }, function (e) { settings(); msg(box, e.message, false); });
     }
     function toggle(label, help, checked, onchange) {
       var cb = el("input", { type: "checkbox" });
       cb.checked = !!checked;
-      cb.addEventListener("change", function () { onchange(cb.checked); });
+      cb.addEventListener("change", function () { cb.disabled = true; onchange(cb.checked); });
       return el("label", { cls: "toggle" }, [cb, el("span", {}, [label, el("small", { text: help })])]);
     }
+    box.appendChild(toggle("Battle.net data to my AI",
+      (ME.bnet_to_model ? "On. Your connected AI can read " : "Off. Turn this on to let your connected AI read ") +
+      "your characters' Battle.net profiles (talents, worn gear and guild), the WoW Token price and ruleset status. " +
+      "Your chat may keep earlier answers.",
+      ME.bnet_to_model, function (v) { save({ bnet_to_model: v }); }));
     if (!ME.slug) {
       box.appendChild(el("p", { text: nameMissing() }));
       return;
@@ -482,9 +490,6 @@
     box.appendChild(toggle("Public page on", "Anyone with the address sees your characters' card, climb and dungeons, " +
       "with when you cleared each one and your time per level. Nothing else: no gold, no other players, no position." + (ME.site && ME.public_on ? " " + ME.site + (live ? " (" + live + ")" : "") : ""),
       ME.public_on, function (v) { save({ public_on: v }); }));
-    box.appendChild(toggle("Battle.net data to my AI", "Your characters' Battle.net data (talents, worn gear, guild) " +
-      "and the WoW Token price reach the AI assistant you connect.", ME.bnet_to_model,
-      function (v) { save({ bnet_to_model: v }); }));
     box.appendChild(toggle("Classic character models", "The 3D view opens on the original models, like the game's " +
       "Standard Definition option, instead of the updated ones. Anyone can still switch in the view. The face and " +
       "hair are approximate: the game only saves the updated look.", ME.models === "sd",

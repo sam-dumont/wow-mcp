@@ -59,7 +59,8 @@ REFRESHED = time.time() - 3600
 
 def _profile(acct: str, char: str, guild: str, trees: list[tuple[str, int]], ach: int, spell: int) -> list:
     who = {"character": char, "account_id": acct}
-    return [("wow_character_profile", {**who, "race_id": "7", "gender": "female", "guild": guild}, 30.0),
+    return [("wow_character_profile", {**who, "class_id": "5", "race_id": "7", "gender": "female", "guild": guild},
+             30.0),
             ("wow_character_profile_found", who, 1.0),
             ("wow_character_profile_refreshed_timestamp_seconds", who, REFRESHED),
             ("wow_character_achievement", {**who, "achievement_id": str(ach)}, 1795000000.0),
@@ -271,6 +272,53 @@ def friend_ready(server, sub=FRIEND, slug="mira"):
     return h
 
 
+def bnet_setting(server, sub, on):
+    code, _, body = server.get("/api/me/settings", headers={**as_user(sub), "Content-Type": "application/json"},
+                               method="POST", data=json.dumps({"bnet_to_model": on}).encode())
+    assert code == 200 and json.loads(body)["bnet_to_model"] is on
+
+
+@pytest.mark.parametrize("old", [True, False, None])
+def test_legacy_registry_needs_a_recorded_opt_in(server, old):
+    h = friend_ready(server)
+    path = server.t.registry.path
+    registry = json.loads(path.read_text())
+    record = registry["users"][FRIEND]
+    record.pop("bnet_to_model_choice", None)
+    if old is not None:  # early records omitted it, later records wrote True even at signup
+        record["bnet_to_model"] = old
+    path.write_text(json.dumps(registry))
+    assert json.loads(server.get("/api/me", headers=h)[2])["bnet_to_model"] is False
+    # An unrelated Settings save mustn't turn an old True into consent.
+    assert server.get("/api/me/settings", headers={**h, "Content-Type": "application/json"}, method="POST",
+                      data=b'{"models":"sd"}')[0] == 200
+    assert not tenancy.Registry(path).get(FRIEND).bnet_to_model
+    for choice in (True, False):
+        bnet_setting(server, FRIEND, choice)
+        assert tenancy.Registry(path).get(FRIEND).bnet_to_model_choice is choice
+
+
+def test_planner_drops_profile_gear_inputs_after_opt_out(server, monkeypatch):
+    from wowstats import plan
+    from wowstats.mcp import plantools
+
+    friend_ready(server)
+    user = server.t.registry.get(FRIEND)
+    plan._CACHE.clear()
+    # Read the actual gear inputs through the planner cache, before the
+    # estimator. This profile supplies a level but no equipment.
+    monkeypatch.setattr(plan.facts, "gather", lambda *args, gear_inputs, **kwargs: gear_inputs)
+    try:
+        for on in (True, False):
+            bnet_setting(server, FRIEND, on)
+            ctx = server.t.ctx_for(user)
+            assert tools.bnet_worn(ctx, B_CHAR) == []
+            gear = plantools._inputs(ctx, {"char": B_CHAR})
+            assert (gear.get("level") == 30) is on
+    finally:
+        plan._CACHE.clear()
+
+
 def leaks(body: bytes, path: str = "") -> list[bytes]:
     """A's names in an answer, the request's own words aside (a 404 that
     names the character asked for tells nothing)."""
@@ -406,7 +454,7 @@ def test_every_mcp_tool_as_the_friend(server):
     u = server.t.registry.get(FRIEND)
     server.t.app_for(u)
     ctx = server.t.ctx_for(u)
-    assert ctx.store.account_id == u.account_id and ctx.bnet is True
+    assert ctx.store.account_id == u.account_id and ctx.bnet is False
     assert ctx.who == u.slug == "mira"  # said when the account has no data (tools.resolve_char)
     ran = 0
     for tool in tools.mcp_tools(ctx):
@@ -456,6 +504,7 @@ def test_battlenet_data_is_each_persons_own(server, vl, talent_catalog):
               "1": server.t.registry.get(FRIEND)}
     own = {"0": (A_CHAR, "Discipline", "Thrall Company"), "1": (B_CHAR, "Shadow", "Varian Company")}
     for acct, u in people.items():
+        bnet_setting(server, u.sub, True)
         server.t.app_for(u)
         ctx = server.t.ctx_for(u)
         assert str(ctx.store.account_id) == acct and ctx.bnet is True
@@ -524,7 +573,7 @@ def test_battlenet_data_is_each_persons_own(server, vl, talent_catalog):
                 assert b"Thrall Company" not in body and b"Jaina Company" not in body and b"Discipline 16" not in body
 
 
-def test_mcp_over_http_scopes_and_revokes(server, env, tmp_path):
+def test_mcp_over_http_scopes_and_revokes(server, env, tmp_path, vl, talent_catalog):
     """The FastMCP endpoint with the registry: the friend logs in through the
     provider (oidc_standin), is provisioned, sees only their tenant; an
     unlisted sub never gets a token, whatever its org or roles; a listed one
@@ -556,6 +605,27 @@ def test_mcp_over_http_scopes_and_revokes(server, env, tmp_path):
             assert code == 200 and not leaks(body.replace(A_CHAR.encode(), b"")), body[:300]
             code, body = call("character_summary", {})
             assert code == 200 and b"Testfriend" in body and not leaks(body), body[:300]
+            # Same OAuth login throughout, including after withdrawal. The
+            # dashboard title contains Battle.net's spec even when its own
+            # character card was built before a Settings change.
+            for change in (None, True, False):
+                if change is not None:
+                    bnet_setting(server, FRIEND, change)
+                on = change is True
+                assert json.loads(server.get("/api/me", headers=as_user(FRIEND))[2])["bnet_to_model"] is on
+                vl.vm_queries.clear()
+                listed = {t["name"] for t in oauth_client.result(lg.rpc("tools/list"))["result"]["tools"]}
+                assert ("market" in listed) is on and "prices" in listed
+                market = json.loads(call("market", {})[1])["result"]
+                summary = json.loads(call("character_summary", {"char": B_CHAR})[1])["result"]["structuredContent"]
+                if on:
+                    assert market["structuredContent"]["retail_token_gold"] == round(251234.6)
+                    assert summary["talents"]["spec"] == "Shadow" and "Shadow" in summary["title"]
+                    assert vl.vm_queries
+                else:
+                    assert market["isError"] and "unknown tool" in market["content"][0]["text"]
+                    assert summary["talents"] is None and summary["title"] == "Priest"
+                    assert not vl.vm_queries
             # Unlisted, with or without the org and the role: each login
             # stops at the code exchange.
             for user, org, roles in (("friend-x", FRIENDS_ORG, ["user"]), ("friend-y", "", [])):

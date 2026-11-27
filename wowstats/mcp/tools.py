@@ -54,9 +54,9 @@ class Ctx:
     # ANALYSIS_STATE_DIR, their store. None: this process's environment
     # (one person per install).
     env: dict | None = None
-    # Battle.net data to the model (the person's settings toggle): `market`
-    # joins the MCP's tools. Off unless a tenancy front turns it on.
-    bnet: bool = False
+    # None on a single-user install: VM_URL allows character profiles there.
+    # On a shared install only explicit True permits profiles and `market`.
+    bnet: bool | None = None
     # Who the session is signed in as, said to them when their account has
     # no data: the person's slug (wowstats.tenancy.Tenancy.ctx_for). "" on a
     # one-person install. A connector signed in through the Battle.net button
@@ -437,7 +437,7 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
     tracked = (splits or 0) + (in_level or 0) if levels else None
     avg5 = one_metric(m, "avg_level_s", window(5)) if done and window(5) else None
     return {
-        "char": char, "title": ctx.title(char) if ctx.title else None, "level": level, "xp": xp, "xp_max": xp_max,
+        "char": char, "level": level, "xp": xp, "xp_max": xp_max,
         "xp_pct": round(100 * xp / xp_max, 1) if xp is not None and xp_max else None,
         "zone": zone_now(s, r), "last_seen": max(s.get("_time") or "", r.get("_time") or "") or None,
         "gold": gold(money), "money_copper": money,
@@ -472,10 +472,15 @@ def summary_talents(ctx: Ctx, char: str) -> dict:
         sheet = ctx.store.logs(f'feed:="wow-gear" {cf(char)} | fields _time, at_basis, source_id, class '
                                f"| {SNAPSHOT_SORT} | limit 1", limit=1)
         cls = newest(sheet).get("class")
+    # The dashboard title can contain the profile's class, spec and talent
+    # split. With sharing off, only the class from the player's addons is safe.
+    from wowstats.views import card_title
+
+    title = ctx.title(char) if ctx.title and ctx.bnet is not False else card_title(cls, None)
     tal, why = current_talents(ctx, char, cls)
     if not tal:
-        return {"talents": None, "talents_why": why}
-    return {"talents": {"spec": tal.get("spec"), "points": tal.get("points"), "as_of": tal.get("at"),
+        return {"title": title, "talents": None, "talents_why": why}
+    return {"title": title, "talents": {"spec": tal.get("spec"), "points": tal.get("points"), "as_of": tal.get("at"),
                         "source": tal.get("source")}, "talents_why": None}
 
 
@@ -1502,9 +1507,7 @@ def bnet_vm_url(ctx: Ctx) -> str:
     On a multi-user install the person's "Battle.net data to my AI" switch
     decides (ctx.bnet, as for `market`); on a single-user install the
     operator who set VM_URL is the person."""
-    if not ctx.store.vm_url:
-        return ""
-    return ctx.store.vm_url if (ctx.env is None or ctx.bnet) else ""
+    return ctx.store.vm_url if ctx.bnet is not False else ""
 
 
 def bnet_worn(ctx: Ctx, char: str) -> list[int]:
