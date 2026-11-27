@@ -41,12 +41,6 @@ def test_an_item_takes_its_own_icon_else_its_appearances():
     assert got == {100: "inv_sword_39", 101: "inv_helmet_01"}  # 102 has none: the caller reports it
 
 
-def test_item_ids_come_from_columns_json_and_links_but_not_objective_markers():
-    rows = [{"item_id": 7048}, {"items": json.dumps([{"slot": 1, "item_id": 6685}])},
-            {"text": "|cff|Hitem:2816::::|h[Sword]|h"}, {"objectives": "item:1:"}]
-    sheets = {"p": [[{"slot": 3, "item_id": 273044}]]}
-    assert demo_icons.item_ids(rows, sheets) == {7048, 6685, 2816, 273044}
-
 
 def test_every_demo_class_has_talent_icons_from_the_reference():
     names = demo_icons.talent_icon_names({"PRIEST", "WARRIOR"})

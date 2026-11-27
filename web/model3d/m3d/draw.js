@@ -921,7 +921,7 @@
 			const key = c.width + 'x' + c.height + ':' + css_w;
 			if (this.box && key !== this.fitted) {
 				this.camera.aspect = c.width / Math.max(1, c.height);
-				M3D.fit_turntable(this.camera, this.box, css_w, this.rotation + (this.scene?.mount?.angleOffset || 0));
+				M3D.fit_turntable(this.camera, this.box, css_w, this.rotation + (this.scene?.mount?.angleOffset || 0), !this.scene?.petVisible);
 				this.fitted = key;
 			}
 

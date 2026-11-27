@@ -13,10 +13,8 @@ Pillow (the `demo-art` dependency group) decodes the BLP and encodes the JPEG:
 
 from __future__ import annotations
 
-import contextlib
 import io
 import json
-import re
 import struct
 from pathlib import Path
 
@@ -43,7 +41,6 @@ QUALITY = 90
 # The columns read from the client's item tables.
 COLUMNS = {"Item": ("IconFileDataID",), "ItemAppearance": ("DefaultIconFileDataID",),
            "ItemModifiedAppearance": ("ItemID", "ItemAppearanceModifierID", "ItemAppearanceID", "OrderIndex")}
-ITEM_REF = re.compile(r"Hitem:(\d+)")
 
 
 def jpegs(blp: bytes) -> dict[str, bytes]:
@@ -95,32 +92,6 @@ def item_icon_names(ids, item_rows, modified_rows, appearance_rows, by_fdid: dic
             out[iid] = name
     return out
 
-
-def item_ids(rows, sheets) -> set[int]:
-    """Every item the demo's records and outfits name: an item_id or items
-    column, a JSON column, a `|Hitem:N` link. What a view derives from these
-    (a gear check's other items) the publish will name if it's missing."""
-    out: set[int] = set()
-
-    def walk(v):
-        if isinstance(v, str):
-            out.update(int(m) for m in ITEM_REF.findall(v))
-            if v[:1] in "[{":
-                with contextlib.suppress(ValueError):
-                    walk(json.loads(v))
-        elif isinstance(v, dict):
-            for k, x in v.items():
-                if k == "item_id" and isinstance(x, int) and x > 0:
-                    out.add(x)
-                walk(x)
-        elif isinstance(v, list):
-            for x in v:
-                walk(x)
-
-    walk(list(rows))
-    for outfits in sheets.values():
-        walk(outfits)
-    return {i for i in out if i > 0}
 
 
 def talent_icon_names(classes) -> set[str]:
