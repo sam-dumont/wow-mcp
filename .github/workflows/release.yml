@@ -228,6 +228,10 @@ jobs:
     if: github.repository_id == '1464458020' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     env:
       VERSION: ${{ needs.plan.outputs.version }}
       KB_NOTE: ${{ needs.plan.outputs.kb-note }}
@@ -263,7 +267,9 @@ jobs:
         run: uv run --frozen playwright install chromium webkit
       - name: Browser suite
         timeout-minutes: 25
-        run: uv run --frozen pytest -q -rs -m browser -n 4 --dist loadfile
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: uv run --frozen pytest -q -rs -m browser -n 4 --dist loadfile --shard "${SHARD}/2"
 
   # The shipper's release signature (security review 2026-11-20): the same
   # release commit prepare makes (release.py apply is deterministic for the
