@@ -1298,11 +1298,13 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
         rng = f"_time:[{iso_us(t0)}, {iso_us(t1)})" if t1 else f"_time:[{iso_us(t0)}, {iso_us(end)}]"
         stats = q(f"{rec(cf)} kind:in(turnin, kill, loot) {rng} | stats by (kind) count_uniq(source_id) as n")
         out["counts"] = {r.get("kind"): int(num(r.get("n"))) for r in stats}
-        # The ding closes the last stretch of played time. Its timestamp
-        # belongs in the duration, while events at that instant are the next level's.
-        session_rng = f"_time:[{iso_us(t0)}, {iso_us(t1)}]" if t1 else rng
-        visits = zone_time(q(f"{rec(cf)} {rng} {ZONE_RECORDS}"),
-                           split_sessions(q(f"{rec(cf)} {session_rng} {SESSION_BUCKETS}")))
+        # A landing at the ending ding closes a flight. Keep the closing
+        # records for duration, then leave the new level's visits to that level.
+        duration_rng = f"_time:[{iso_us(t0)}, {iso_us(t1)}]" if t1 else rng
+        visits = zone_time(q(f"{rec(cf)} {duration_rng} {ZONE_RECORDS}"),
+                           split_sessions(q(f"{rec(cf)} {duration_rng} {SESSION_BUCKETS}")))
+        if t1:
+            visits = [v for v in visits if parse_t(v["_time"]) < t1]
         out["zones"] = [{"zone": z["zone"], "secs": z["secs"]} for z in zone_totals(visits)][:6]
         if out["gear_partial"]:
             loot = q(f"{rec(cf)} kind:in(loot, turnin) {rng} | fields _time, items, item")

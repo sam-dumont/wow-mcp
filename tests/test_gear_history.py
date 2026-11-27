@@ -202,7 +202,9 @@ def test_completed_level_stops_before_the_next_ding_for_exact_and_reconstructed_
 
     snap = insights.snapshot(22, {}, (before[0], ding[0]), [old, new], query, "", None, {}, [])
     assert snap["gear"] == old
-    assert all(("13:00:00.000000Z]" if insights.SESSION_BUCKETS in q else "13:00:00.000000Z)") in q for q in reads)
+    for q in reads:
+        duration = insights.SESSION_BUCKETS in q or insights.ZONE_RECORDS in q
+        assert ("13:00:00.000000Z]" if duration else "13:00:00.000000Z)") in q
     rows = ([], [{"_time": at(1), "items": "271096:1"}, {"_time": at(2), "items": "273808:1"}], [])
     rp, _, _ = run(ref, rows, [before, ding], new)
     assert hi.items_at(ref, rp, insights.snapshot_as_of(ding[0]))[0]["item_id"] == 271096

@@ -183,6 +183,11 @@ def test_snapshot_attributes_ding_events_and_keeps_elapsed_zone_time():
     second = insights.snapshot(24, data, (at(3), at(8)), [], query, "", None, {}, [])
     assert first["counts"] == {"kill": 2, "turnin": 0}
     assert first["zones"] == [{"zone": "Durotar", "secs": 16}]
+    # A flight landing on the ding closes flight time, not another stretch
+    # of time played in Durotar. Its arrival zone is still the new level's.
+    rows.extend([row("10.500", "taxi", 10), row("16.500", "land", 11, seconds="6")])
+    flight = insights.snapshot(23, data, (at(0), at(3)), [], query, "", None, {}, [])
+    assert flight["zones"] == [{"zone": "Durotar", "secs": 10}]
     assert second["counts"] == {"kill": 0, "turnin": 1, "loot": 2}
     assert second["zones"] == [{"zone": "The Barrens", "secs": 13}]
 
