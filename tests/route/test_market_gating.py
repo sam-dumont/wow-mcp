@@ -24,6 +24,7 @@ class McpNeverServesMarket(unittest.TestCase):
     def test_not_listed_not_callable_whatever_the_env(self):
         # The old switch does nothing now.
         ctx = mcp.context({"VL_URL": self.fake.url, "VM_URL": self.fake.url, "MCP_MARKET": "1"})
+        self.assertEqual(tools.bnet_vm_url(ctx), self.fake.url)  # single user's own profile
         before = len(self.fake.queries)
         self.assertNotIn("market", inmem.listed(ctx))
         r = inmem.call(ctx, "market")

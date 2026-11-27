@@ -31,7 +31,7 @@ apply to everything the API returns:
 | Your client secret stays yours (§2.12) | Each player makes their own client. Never use someone else's |
 | The data is for your own use (§2.9) | Market data (token, ruleset status) stays in your full view and the sealed site, never the public one. Your character's look is the one piece the public site shows |
 | Data from the API is kept 30 days at most (§2.18) | It lives in its own VictoriaMetrics, which keeps 23 days and is force-merged daily, so expired data is really gone before day 30. Never in VictoriaLogs, never in backups. The static sites rebuild at least daily, so no copy there outlives it either |
-| | It reaches no AI by default: the MCP's `market` tool is off unless a person turns on "Battle.net data to my AI" on a shared install |
+| | On a shared install, each person must turn on "Battle.net data to my AI" in Settings to share API data with their AI. On a one-person install, `VM_URL` allows character profiles, and `market` stays off. |
 
 Your game files (SavedVariables, the combat log, Auctionator scans) aren't API data: they're
 yours and stay until you delete them.

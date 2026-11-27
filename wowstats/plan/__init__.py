@@ -42,7 +42,9 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
     the person too (wowstats.tenancy): two people may name a character alike.
     `battlenet`: the item ids Battle.net says it wears now, read live by the
     caller (wowstats.quests.with_battlenet); in the key, so an answer made
-    with them never reaches a caller without them (Battle.net to the AI off).
+    with them never reaches a caller without them. None means the caller
+    excludes Battle.net. Even with no worn items, a gear read that allows
+    Battle.net can use the API's level, class or talents.
     `gear_inputs`: a callable returning the doll's gear inputs
     (wowstats.views.Views.gear_inputs), called only when the cache misses;
     in the key too, so an answer scored like the doll never reaches a caller
@@ -64,7 +66,8 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
 
     if pvp is None:
         pvp = gearmode.pvp(env, char or env.get("DEFAULT_CHAR") or "")
-    key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower(), bn, gear_inputs is not None,
+    key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower(),
+           bn if battlenet is not None else None, gear_inputs is not None,
            scoring, mode, pvp)
     with _LOCK:
         lock = _KEY_LOCKS[hash(key) % len(_KEY_LOCKS)]

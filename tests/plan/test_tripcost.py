@@ -165,3 +165,29 @@ def test_the_givers_in_polestars_order(trips):
     mage = tc.trip(d, 33, cls="MAGE", at=tc.to_world(d, 1458, 66, 44), **kw)
     assert 1740 not in mage["quests"]
     assert stops(mage) == ["Orders from the Undercity", "The Dalaran Inquiry", "Dalar Dawnweaver"]
+
+
+@pytest.mark.parametrize("side,race,own,other_side", [
+    ("Alliance", "Gnome", {5144, 5497}, 4568),
+    ("Horde", "Scourge", {3048, 4568, 5885}, 5497),
+])
+def test_mage_trainer_quest_checks_class_then_npc_faction(trips, side, race, own, other_side):
+    quests = tc.quests_of(trips)
+    q = quests[1947]  # Journey to the Marsh, a mage prerequisite for Rituals of Power
+    who = {"race_bit": tc.race_bit(race, side), "class_bit": tc.CLASS_BIT["MAGE"]}
+    rules = tc.Rules(quests, tc.travel_for(trips, side).cost, side, who)
+    assert rules.applies(q)
+    assert {int(p[4][1:]) for p in q["g"] if p[3] & tc.SIDE_BIT[side]} == own
+    at = next(tuple(p[:3]) for p in q["g"] if p[4] == f"n{other_side}")
+    assert int(rules.giver(q, at)[1][1:]) in own
+    assert rules.ender(q, at)[1] == "n6546"
+    who["class_bit"] = tc.CLASS_BIT["PRIEST"]
+    assert not rules.applies(q)
+
+
+def test_class_locked_prerequisite_blocks_its_followup(trips):
+    # The lack of an applicable alternative must not skip the prerequisite.
+    # The Demon Forge (5127) needs Lorax's Tale (5126; warrior, paladin, shaman).
+    for cls, can_take in (("WARRIOR", True), ("MAGE", False)):
+        run = tc.trip(trips, 229, level=60, side="Alliance", race="Human", cls=cls)
+        assert (5127 in run["quests"]) == (5126 in run["prereqs"]) == can_take

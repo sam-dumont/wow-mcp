@@ -50,6 +50,7 @@ import argparse
 import json
 import re
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -87,11 +88,44 @@ def art_maps(ps: Path) -> dict[int, str]:
     return out
 
 
-def build(ps: Path, db: Path | None = None) -> dict:
-    """`db`: an unpacked forever-db (its `forever-db/` directory), by default
-    the one in the Polestar checkout; main() passes the release
-    data/forever-reference.json was exported from."""
-    db = db or ps / "forever-db"
+def contact_sides(db: Path, quest_ids: set[int], quests: dict, templates: list[dict]) -> dict:
+    """Which side can use each NPC for this particular pickup or hand-in.
+    Polestar's forge-nav Hostility::of compares the NPC to each player template.
+    Explicit enemies and friends take precedence over the enemy group mask."""
+    factions = {int(r["ID"]): r for r in templates}
+    # ChrRaces.FactionID for the eight original races and Forever's two Skyborne.
+    players = [[factions[t] for t in side] for side in ((1, 3, 4, 115, 3629), (2, 5, 6, 116, 3628))]
+
+    def hostile(npc, player):
+        if player["Faction"] in [npc[f"Enemies_{i}"] for i in range(8)]:
+            return True
+        if player["Faction"] in [npc[f"Friend_{i}"] for i in range(8)]:
+            return False
+        return bool(int(npc["EnemyGroup"]) & int(player["FactionGroup"]))
+
+    masks = {t: sum(bit for bit, group in zip((1, 2), players, strict=True)
+                    if not any(hostile(r, p) for p in group)) for t, r in factions.items()}
+    npcs = {n["id"]: masks.get(n.get("faction_template")) for n in jsonl(db / "npc.jsonl")}
+    used = set()
+    sole = {}
+    for role in ("start", "end"):
+        contacts = defaultdict(list)
+        for r in jsonl(db / f"quest_{role}.jsonl"):
+            if r["quest"] in quest_ids:
+                contacts[r["quest"]].append(r)
+                if r["kind"] == "npc":
+                    used.add(r["id"])
+        # A sole endpoint in forever-db establishes the contact for this quest,
+        # even if a script changes its reaction (Emberstrife). Never transfer
+        # this evidence to another quest, NPC or role.
+        sole[role] = {q: rows[0]["id"] for q, rows in sorted(contacts.items())
+                      if len(rows) == 1 and rows[0]["kind"] == "npc" and not npcs.get(rows[0]["id"])
+                      and (quests.get(q) or {}).get("side") in (0, 1, 2)}
+    return {"npcs": {n: npcs[n] for n in sorted(used) if npcs.get(n)}, "sole": sole}
+
+
+def build(ps: Path, db: Path, templates: list[dict]) -> dict:
+    """Join the pinned forever-db release and client faction templates to Polestar’s dungeon index."""
     ref = json.loads((ROOT / "data" / "forever-reference.json").read_text(encoding="utf-8"))
     kill = json.loads((ROOT / "data" / "dungeons" / "kill-xp.json").read_text(encoding="utf-8"))["dungeons"]
     art = art_maps(ps)
@@ -201,8 +235,22 @@ def build(ps: Path, db: Path | None = None) -> dict:
     pkg = json.loads((db / "datapackage.json").read_text(encoding="utf-8"))
     # Gear already carries these restrictions for its own quests.
     covered = ref.get("gear_quests", {}).keys() | ref.get("quest_gates", {}).keys()
+    # Include prerequisites and breadcrumbs even when their own zone is outdoors.
+    relevant = set(found) | set(OUTDOOR)
+    dependencies = defaultdict(list)
+    gated = set(found)
+    for r in jsonl(fdb / "quest_prereq.jsonl"):
+        if r["quest"] in found and not r.get("breadcrumb"):
+            gated.add(r["pre"])  # the prerequisite instructions shown on the dungeon's quest row
+        dependencies[r["quest"]].append(r["pre"])
+    pending = list(relevant)
+    while pending:
+        for pre in dependencies[pending.pop()]:
+            if pre not in relevant:
+                relevant.add(pre)
+                pending.append(pre)
     gates = {}
-    for qid in sorted(found):
+    for qid in sorted(gated):
         if str(qid) not in covered and qid in quests:
             restrictions = [quests[qid].get(k) or 0 for k in ("side", "races", "classes")]
             if any(restrictions):
@@ -213,13 +261,18 @@ def build(ps: Path, db: Path | None = None) -> dict:
                  "zones it in the dungeon), boss (it kills one of the dungeon's bosses), journal (Polestar's cited "
                  "journal-quests.json), route (Polestar's dungeon runs), flag (forever-db's dungeon type, beside "
                  "one of the others). dungeons: {map: {name, area, quests, none?}}: `none` says why a dungeon has "
-                 "no quest. Written by tools/dungeon_quests/export.py.",
+                 "no quest. contact_sides: NPC faction bits (1 Alliance, 2 Horde). sole: quest-specific contacts "
+                 "known only from its single recorded endpoint. Written by tools/dungeon_quests/export.py.",
         "source": {"polestar": (ROOT / "tools" / "polestar-tag").read_text().strip(),
                    "forever_db": pkg.get("version"), "client_build": pkg.get("clientBuild"),
+                   "contact_sides": {"client_build": ref["source"]["client_tables"]["build"],
+                                     "table": "FactionTemplate", "via": "wago.tools",
+                                     "note": "Game data © Blizzard Entertainment, used as facts"},
                    "licence": "GPL-3.0 (forever-db and Polestar's data, THIRD_PARTY.md)"},
         "outdoor": OUTDOOR,
         "dungeons": out_d,
         "quest_gates": gates,
+        "contact_sides": contact_sides(fdb, relevant, quests, templates),
         "quests": {str(q): [[m, [s for s in order if s in found[q][m]]] for m in sorted(found[q])]
                    for q in sorted(found)},
     }
@@ -243,7 +296,11 @@ def main() -> int:
                              a.forever_db_cache or Path(tempfile.mkdtemp(prefix="forever-db-")), a.polestar)
     # indent 1 (one key per line, like data/dungeons/wings.json): git merges disjoint changes, where the
     # one-line file conflicted on every PR that touched it (2026-11-25).
-    text = json.dumps(build(a.polestar, db), ensure_ascii=False, indent=1) + "\n"
+    sys.path.insert(0, str(ROOT))
+    from tools.forever_reference.export import table
+
+    templates = table("FactionTemplate", upstream.pinned()["client_build"])
+    text = json.dumps(build(a.polestar, db, templates), ensure_ascii=False, indent=1) + "\n"
     if a.check:
         if OUT.read_text(encoding="utf-8") != text:
             print(f"{OUT.relative_to(ROOT)} is not the export: rerun tools/dungeon_quests/export.py", file=sys.stderr)

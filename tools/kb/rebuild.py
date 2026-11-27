@@ -91,7 +91,7 @@ EXPORTS: tuple[Export, ...] = (
     Export("route-reference",
            ("node", "tools/route_reference/export.mjs", "--polestar", "{polestar}", "--lua", "{lua}"),
            ("data/route-reference.json",), ("polestar", "client-build"), "docs/route-reference.md",
-           reads=("data/forever-reference.json", "data/dungeons/wings.json")),
+           reads=("data/forever-reference.json", "data/dungeons/quests.json", "data/dungeons/wings.json")),
     Export("gear-reference", ("node", "tools/gear_reference/export.mjs", "--polestar", "{polestar}", "--lua", "{lua}"),
            ("data/gear-reference.json",), ("polestar",), "docs/route-reference.md"),
     Export("kb-reference", (*PY, "tools/kb/export.py", "--polestar", "{latest}"),

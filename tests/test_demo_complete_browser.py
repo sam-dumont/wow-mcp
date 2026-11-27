@@ -508,9 +508,15 @@ def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):
         if width == 390:
             size = iframe.bounding_box()
             card = page.locator("#gear .doll").bounding_box()
-            slots = page.locator("#gear .doll > .slots.left").bounding_box()
+            left = page.locator("#gear .doll > .slots.left").bounding_box()
+            right = page.locator("#gear .doll > .slots.right").bounding_box()
+            weapons = page.locator("#gear .doll > .weapons").bounding_box()
+            # Classic layout: eight slots each side of the character, weapons under it.
             assert size["width"] >= card["width"] - 2
-            assert slots["y"] >= size["y"] + size["height"]
+            assert left["x"] + left["width"] <= card["x"] + 64 < size["x"] + size["width"]
+            assert right["x"] >= card["x"] + card["width"] - 64
+            assert abs(left["y"] - right["y"]) < 2 and left["y"] < size["y"] + size["height"]
+            assert weapons["y"] >= size["y"] + size["height"] - 1
         hit, colours = frame.evaluate(COVERED)
         assert hit > 20 and colours >= 3, (name, hit, colours)
         outfit = {layer["file"] for mat in recipe["materials"] for layer in mat["layers"]}

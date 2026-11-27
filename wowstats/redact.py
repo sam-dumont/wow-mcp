@@ -392,7 +392,7 @@ DUNGEON = {
                           "slot_name"), "roles": [None], "stats": [None]}],
     "kb_fit": None,
     "quests": [{**_keys("quest_id", "name", "level", "min_level", "xp", "money_copper", "route", "state", "complete",
-                        "xp_now", "url", "reward_choices"),
+                        "xp_now", "url", "reward_choices", "pickup_unknown", "prerequisite_unavailable"),
                 "wings": {"in": [None], "how": None, "other_wings": [None], "objectives_here": [None]},
                 "starts": [WHO], "ends": [WHO], "needs": [QREF], "blocked": None,
                 "rewards": [_keys("item_id", "name", "quality", "gain", "state", "where", "url", *BADGE)]}],

@@ -419,19 +419,13 @@ function questData(db, continents) {
 		} else inside[s.kind].add(s.id);
 	}
 	for (const list of [...spawns.npc.values(), ...spawns.object.values()]) list.sort((a, b) => a.n - b.n);
-	// An NPC's side: the sides of the quests it gives or ends (as export.mjs).
-	const sideOf = new Map();
-	for (const q of Q.values()) {
-		const s = q.side === 1 ? 1 : q.side === 2 ? 2 : 3;
-		for (const id of [...q.start.npc, ...q.end.npc]) sideOf.set(id, (sideOf.get(id) || 0) | s);
-	}
 	const chance = new Map(); // item -> best NPC drop chance
 	const sources = new Map(); // item -> [{ kind, id }]
 	for (const s of d('item_source')) {
 		if (s.kind === 'npc' && s.chance > 0 && s.chance > (chance.get(s.item) || 0)) chance.set(s.item, s.chance);
 		(sources.get(s.item) || sources.set(s.item, []).get(s.item)).push(s);
 	}
-	return { Q, spawns, inside, sideOf, chance, sources };
+	return { Q, spawns, inside, chance, sources };
 }
 
 // Dungeons.ObjectiveSeconds
@@ -470,20 +464,24 @@ function insideOnly(q, data) {
 }
 
 // A quest's places: every spawn of its givers (or enders) on a continent, each
-// [c, wx, wy, side bits of the NPC: 1 A, 2 H, 3 either], at most 8, nearest
+// [c, wx, wy, side bits of the NPC: 1 A, 2 H, 3 either], at most 8 per NPC/object, nearest
 // first from nothing in particular (spawn order); `in`: one only inside.
-function points(ids, data, kind) {
+function points(ids, data, contacts, sole) {
 	const out = [];
-	let inside = false;
+	let inside = 0;
+	let unplaced = 0;
 	for (const k of ['npc', 'object']) {
 		for (const id of ids[k] || []) {
 			const list = data.spawns[k].get(id) || [];
-			if (!list.length && data.inside[k].has(id)) inside = true;
-			const side = k === 'npc' ? data.sideOf.get(id) || NEUTRAL : NEUTRAL;
+			const side = k === 'object' || id === sole ? NEUTRAL : contacts.npcs[id] || 0;
+			if (!list.length) {
+				if (data.inside[k].has(id)) inside |= side;
+				else if (k === 'npc') unplaced |= side;
+			}
 			for (const s of list.slice(0, 8)) out.push([s.c, r1(s.wx), r1(s.wy), side, `${k[0]}${id}`]);
 		}
 	}
-	return { pts: out.slice(0, 8), inside: inside && !out.length, kind };
+	return { pts: out, inside, unplaced };
 }
 
 // --- the rules: PickupPlan, dropDetours, crumbsFirst, stopsOf, HandinPlan ---------
@@ -520,7 +518,7 @@ export function makeRules({ quests, T, side, player }) {
 	};
 	const giver = (q, from) => (q.item ? null : nearest(q.g || [], from));
 	const ender = (q, from) => nearest(q.e || [], from);
-	const startsAt = (r, endsOf) => (r.g || []).some((p) => (endsOf.e || []).some((e) => e[4] === p[4]));
+	const startsAt = (r, endsOf) => (r.g || []).some((p) => sideOk(p) && (endsOf.e || []).some((e) => sideOk(e) && e[4] === p[4]));
 	const errand = (r, from) => {
 		if ((r.obj || 0) > 0 || r.item) return false;
 		const g = giver(r, from);
@@ -546,13 +544,14 @@ export function makeRules({ quests, T, side, player }) {
 			if (any.length && !any.some(done)) {
 				const pick = any.find((p) => Qr(p) && applies(Qr(p)));
 				if (pick != null) walk(pick);
+				else out.push(any[0]); // pickupPlan rejects the missing/ineligible prerequisite
 			}
 			out.push(qid);
 		};
 		walk(id);
 		return out.slice(0, -1);
 	};
-	return { Qr, done, inLog, applies, giver, ender, startsAt, errand, startable, preDone, chain, P };
+	return { bit, Qr, done, inLog, applies, giver, ender, startsAt, errand, startable, preDone, chain, P };
 }
 
 // PickupPlan + dropDetours + crumbsFirst for one dungeon page. -> { take: [{ id, giver, pre: [ids] }], carried: [ids], crumbs }
@@ -788,7 +787,7 @@ export function runQuests(R, page, minLevel, player) {
 	const reach = Math.max(player.level || 1, minLevel || 1);
 	return page.filter((id) => {
 		const q = R.Qr(id);
-		return q && R.applies(q) && !R.done(id) && !R.inLog(id) && (q.item || q.gi) && (q.min || 1) <= reach && !q.money_only;
+		return q && R.applies(q) && !R.done(id) && !R.inLog(id) && (q.item || (q.gi && ((q.gi_sides ?? NEUTRAL) & R.bit))) && (q.min || 1) <= reach && !q.money_only;
 	});
 }
 
@@ -834,6 +833,7 @@ export function buildTrips({ ps, travel, params, frames, outDir }) {
 	const uiMap = jsonl(path.join(db, 'data', 'ui_map.jsonl'));
 	const continents = new Set(uiMap.map((m) => m.map));
 	const data = questData(db, continents);
+	const contacts = JSON.parse(fs.readFileSync(path.join(outDir, 'dungeons', 'quests.json'), 'utf8')).contact_sides;
 	const fr = JSON.parse(fs.readFileSync(path.join(outDir, 'forever-reference.json'), 'utf8'));
 	// instance map -> { area, areas (the instance's and the same-named area
 	// the client zones its quests in: Gnomeregan 721/133, Razorfen Kraul
@@ -859,6 +859,7 @@ export function buildTrips({ ps, travel, params, frames, outDir }) {
 	const wingsFile = path.join(outDir, 'dungeons', 'wings.json');
 	const wingsOf = fs.existsSync(wingsFile) ? JSON.parse(fs.readFileSync(wingsFile, 'utf8')).dungeons : {};
 	const journal = codex('journal-quests.json').quests || [];
+	const insideStarts = new Set(journal.filter((q) => !q.exclude && q.inside?.includes('start')).map((q) => q.quest));
 	const toWorld = (map, x, y) => {
 		const b = frames[map];
 		if (!b) return null;
@@ -913,8 +914,8 @@ export function buildTrips({ ps, travel, params, frames, outDir }) {
 	const quests = {};
 	for (const id of [...wanted].sort((a, b) => a - b)) {
 		const q = data.Q.get(id);
-		const g = points(q.start, data);
-		const e = points(q.end, data);
+		const g = points(q.start, data, contacts, contacts.sole.start[id]);
+		const e = points(q.end, data, contacts, contacts.sole.end[id]);
 		const obj = q.objectives.length;
 		const out = { level: q.level, min: q.min, xp: q.xp };
 		if (q.side === 1 || q.side === 2) out.side = q.side;
@@ -932,7 +933,14 @@ export function buildTrips({ ps, travel, params, frames, outDir }) {
 		// A dungeon page's quest whose giver forever-db places nowhere (A Fine
 		// Mess, Kernobee in Gnomeregan): the run's, given inside like those
 		// whose giver spawns only in the instance.
-		else if (g.inside || (onPage.has(id) && !q.start.item.length && (q.start.npc || []).length)) out.gi = 1;
+		else {
+			// A recorded pickup inside (e.g. Alcaz Prison) can place a quest
+			// without identifying which NPC variant the character spoke to.
+			const recorded = insideStarts.has(id) && q.start.npc.length;
+			const sides = recorded ? NEUTRAL : (g.inside || (onPage.has(id) && !q.start.item.length && g.unplaced));
+			if (sides) out.gi = 1;
+			if (sides && sides !== NEUTRAL) out.gi_sides = sides;
+		}
 		if (e.pts.length) out.e = e.pts;
 		else if (e.inside) out.ei = 1;
 		if (insideOnly(q, data)) out.inside_only = 1;
@@ -986,7 +994,7 @@ export function buildTrips({ ps, travel, params, frames, outDir }) {
 	for (const m of uiMap.sort((a, b) => a.ui_map - b.ui_map)) frameOut[m.ui_map] = [m.map, m.left, m.right, m.top, m.bottom];
 	return {
 		schema: 2, // Quest XP is null when the source omits it; earlier exports wrote zero.
-		about: 'A dungeon trip\'s quests and travel, from Polestar\'s pick-up and hand-in rules (addon/Polestar/Dungeons/Pickup.lua, Handin.lua) ported to tools/route_reference/trips.mjs: per dungeon (instance Map id) its page of quests and its entrance in world yards [continent, x north, y west]; per quest what the rules read (g: givers, e: enders, each [c, x, y, side bits, npc/object key]; gi/ei: given/taken inside only; obj_s: objectives\' seconds); the travel network (flight masters, legs, boats); the uiMap frames [continent, left, right, top, bottom]; and per side the tours with nothing done, standing at the entrance, that wowstats/plan/tripcost.py must replay; a dungeon run in wings has the same page and tours per wing (wings).',
+		about: 'A dungeon trip\'s quests and travel, from Polestar\'s pick-up and hand-in rules (addon/Polestar/Dungeons/Pickup.lua, Handin.lua) ported to tools/route_reference/trips.mjs: per dungeon (instance Map id) its page of quests and its entrance in world yards [continent, x north, y west]; per quest what the rules read (g: givers, e: enders, each [c, x, y, side bits, npc/object key]; gi/ei: given/taken inside only (gi_sides: eligible sides when restricted); obj_s: objectives\' seconds); the travel network (flight masters, legs, boats); the uiMap frames [continent, left, right, top, bottom]; and per side the tours with nothing done, standing at the entrance, that wowstats/plan/tripcost.py must replay; a dungeon run in wings has the same page and tours per wing (wings).',
 		rules: { ...RULES, run_speed: params.runSpeed, detour: { 0: params.detour0, 1: params.detour1 }, flight_speed: params.flightSpeed,
 			flight_stop: FLIGHT_STOP, flight_overhead: params.flightOverhead, transport_wait: params.transportWait ?? 1, talk_s: talk },
 		frames: frameOut,

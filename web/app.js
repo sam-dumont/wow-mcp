@@ -2793,6 +2793,8 @@ function needHow(needs) {
 // What stops a quest now: his level, a quest to hand in first.
 function questBlock(q, level) {
   const why = [];
+  if (q.pickup_unknown) why.push('no confirmed pickup for your character');
+  if (q.prerequisite_unavailable) why.push('no eligible prerequisite');
   if (q.state === 'new' && q.min_level > level) why.push(`needs level ${q.min_level}`);
   if (q.needs && q.needs.length) {
     why.push(h('span', {}, 'needs ', questRefs(q.needs), ' first', needHow(q.needs)));
@@ -4217,15 +4219,37 @@ async function loadPlan(name) {
 }
 
 function dungeonForecastLines(report) {
-  if (!report || !report.reviews.length) return [];
+  if (!report) return [];
   const rows = [h('h4', { text: 'Dungeon forecasts' })];
+  if (!report.reviews.length) {
+    rows.push(h('p', { class: 'sub', text: 'Make a session plan before your next dungeon to track its time and XP.' }));
+    return rows;
+  }
+  rows.push(h('p', { class: 'sub', text: 'Includes other dungeons that fit your saved plan.' }));
   for (const [basis, title] of [['modeled', 'Modeled'], ['personal_runs', 'Personal runs']]) {
     const g = report.by_basis[basis];
     const error = g.n ? `. Mean absolute error ${dur(g.mean_absolute_error_s)} and ${fmtNum(g.mean_absolute_error_xp)} XP.` : '.';
     rows.push(h('p', { text: `${title}: ${g.n} matched trip${g.n === 1 ? '' : 's'}${error}` }));
+    const timed = report.timing?.[basis];
+    if (timed && timed.n > g.n) rows.push(h('p', { class: 'sub',
+      text: `Including trips with missing XP, ${timed.n} timed. Mean absolute time error ${dur(timed.mean_absolute_error_s)}.` }));
+  }
+  if (report.xp_order) {
+    rows.push(h('h5', { text: 'Did the faster dungeon stay faster?' }));
+    let any = false;
+    for (const [basis, title] of [['modeled', 'Modeled'], ['personal_runs', 'Personal runs'], ['mixed', 'Mixed sources']]) {
+      const order = report.xp_order[basis];
+      if (!Object.values(order).some(Boolean)) continue;
+      any = true;
+      rows.push(h('p', { text: `${title}: ${order.held} held, ${order.reversed} reversed, ${order.tied} tied.` +
+        (order.changed_forecast ? ` A later plan revised the forecast for ${plural(order.changed_forecast, 'pair')}.` : '') }));
+    }
+    rows.push(h('p', { class: 'sub', text: any
+      ? 'Pairs compare whole-trip XP per hour for two dungeons you actually ran at the same level.'
+      : 'No comparable pair yet. Both dungeons must fit the same goal and have a recorded trip at that level.' }));
   }
   const counts = report.counts;
-  rows.push(h('p', { class: 'sub', text: `${counts.pending} pending, ${counts.incomplete} incomplete, ` +
+  rows.push(h('p', { class: 'sub', text: `First picks: ${counts.pending} pending, ${counts.incomplete} incomplete, ` +
     `${counts.ambiguous} ambiguous, ${counts.abandoned} abandoned.` }));
   return rows;
 }

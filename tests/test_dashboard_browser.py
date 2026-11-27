@@ -81,12 +81,13 @@ def dashboards(tmp_path_factory, demo_clock):
 
 
 @pytest.fixture(scope="module")
-def browser():
+def browser(request):
+    browser_name = getattr(request, "param", "chromium")
     with sync_api.sync_playwright() as pw:
         try:
-            engine = pw.chromium.launch()
+            engine = getattr(pw, browser_name).launch()
         except sync_api.Error as e:
-            pytest.skip(f"no Chromium: {e}")
+            pytest.skip(f"no {browser_name}: {e}")
         yield engine
         engine.close()
 
@@ -391,6 +392,7 @@ def test_late_panel_answers_cannot_redraw_a_new_selection(dashboards, browser):
         assert "superseded panel" not in page.locator("body").text_content()
 
 
+@pytest.mark.parametrize("browser", ["chromium", "webkit"], indirect=True)
 def test_private_plan_panel_shows_dungeon_forecast_errors(dashboards, browser):
     with browser.new_context(viewport={"width": 390, "height": 844}) as ctx:
         page = ctx.new_page()
@@ -398,6 +400,8 @@ def test_private_plan_panel_shows_dungeon_forecast_errors(dashboards, browser):
                                                             "mean_absolute_error_xp": 800},
                                                 "personal_runs": {"n": 1, "mean_absolute_error_s": 60,
                                                                   "mean_absolute_error_xp": 250}},
+                  "xp_order": {k: {"held": int(k == "modeled"), "reversed": 0, "tied": 0, "changed_forecast": 0}
+                               for k in ("modeled", "personal_runs", "mixed")},
                   "counts": {"pending": 1, "incomplete": 2, "ambiguous": 0, "abandoned": 1}}
         page.route("**/api/plan?*", lambda r: r.fulfill(json={"available": True, "dungeon_forecasts": report,
                                                            "gold": "2g", "tiers": []}))
@@ -406,3 +410,4 @@ def test_private_plan_panel_shows_dungeon_forecast_errors(dashboards, browser):
         assert "Modeled: 2 matched trips. Mean absolute error 3m and 800 XP." in text
         assert "Personal runs: 1 matched trip. Mean absolute error 1m and 250 XP." in text
         assert "1 pending, 2 incomplete, 0 ambiguous, 1 abandoned." in text
+        assert "Modeled: 1 held, 0 reversed, 0 tied" in text

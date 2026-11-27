@@ -122,6 +122,9 @@ Optional lines while you're there:
   of `:`): your events in SQLite files instead of VictoriaLogs, see
   [Where your events live](#where-your-events-live).
 
+For a 4 GiB SQLite server that keeps its UI and MCP up during publication, use the
+[small-host settings and measurements](self-host/sizing.md#nine-characters-on-a-4-gib-sqlite-host).
+
 Save, then (both systems, still in `deploy/compose`):
 
 ```sh

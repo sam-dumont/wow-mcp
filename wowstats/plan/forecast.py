@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import statistics
 from bisect import bisect_left
+from itertools import combinations
 from operator import itemgetter
 
 from . import wings
@@ -12,15 +13,21 @@ from .dungeonview import key
 LEGS = ("pickup_s", "travel_to_s", "inside_s", "travel_back_s", "handin_s")
 
 
-def decision(inp: dict, dungeon: dict, goal: str | None, kind: str) -> dict:
-    """Freeze the selected trip. An XP floor from quests alone is not a total-XP forecast."""
+def _prediction(dungeon: dict) -> dict:
     g = dungeon["gain"]
-    return {"dungeon": dungeon["name"], "objective": goal or "levelling", "kind": kind,
-            "goals": dungeon["goals"], "basis": g["basis"], "personal_runs": g["own_runs"],
-            "time_s": g["run_s"], "xp": None if g.get("unknown_handin_xp") else g["xp"], "quest_xp": g["xp_quests"],
+    return {"dungeon": dungeon["name"], "basis": g["basis"], "time_s": g["run_s"],
+            "xp": None if g.get("unknown_handin_xp") else g["xp"], "priority": dungeon.get("priority"),
+            "legs": {k: g["trip"][k] for k in LEGS}}
+
+
+def decision(inp: dict, dungeon: dict, goal: str | None, kind: str, alternatives=()) -> dict:
+    """Freeze the trip and the other options that passed this session's goal and time filters."""
+    g = dungeon["gain"]
+    return {**_prediction(dungeon), "objective": goal or "levelling", "kind": kind,
+            "goals": dungeon["goals"], "personal_runs": g["own_runs"], "quest_xp": g["xp_quests"],
             "known_xp": g["xp"] if g["xp"] is not None else g["xp_quests"],
             "unknown_handin_xp": g.get("unknown_handin_xp", 0), "kills_unknown": g["kills_unknown"],
-            "legs": {k: g["trip"][k] for k in LEGS},
+            "alternatives": [_prediction(d) for d in alternatives],
             "state": {k: inp.get(k) for k in ("who", "level", "xp", "xp_max", "rested_xp", "zone",
                                               "last_position", "data_until_t")},
             "last_known_entry_t": max((t["entry_t"] for t in inp.get("trips") or []
@@ -31,7 +38,8 @@ def decision(inp: dict, dungeon: dict, goal: str | None, kind: str) -> dict:
 def _observation(trip: dict) -> dict:
     xp_in, xp_q = trip.get("xp_inside"), trip.get("xp_quests")
     return {"dungeon": wings.trip_name(trip), "entry_t": trip["entry_t"], "exit_t": trip.get("exit_t"),
-            "start_t": trip.get("start_t"), "end_t": trip.get("end_t"), "time_s": trip.get("online_s"),
+            "level": trip.get("level_start"), "start_t": trip.get("start_t"), "end_t": trip.get("end_t"),
+            "time_s": trip.get("online_s"),
             "xp": xp_in + xp_q if xp_in is not None and xp_q is not None else None,
             "run_xp": trip.get("run_xp"), "quests_outside": trip.get("quests_outside"),
             "quests_handed_in": trip.get("quests_handed_in"), "handin_ids": trip.get("handin_ids") or [],
@@ -44,6 +52,8 @@ def _missing(forecast: dict, actual: dict, made: float) -> list[str]:
         missing.append("handin_s")
     if actual["exit_t"] is None or actual["exit_t"] <= actual["entry_t"]:
         missing.append("exit")
+    if actual["end_t"] is None or (actual["exit_t"] is not None and actual["end_t"] < actual["exit_t"]):
+        missing.append("trip end")
     if actual["start_t"] is None or actual["start_t"] < made:
         missing.append("start after decision")
     if not actual["time_s"] or not actual["legs"]["inside_s"]:
@@ -117,8 +127,8 @@ def _online_bounds(progress: list[dict], t: float) -> tuple[float, float]:
     return low, high
 
 
-def _compare(plan: dict, observations: list[dict], replaced: float | None, progress: list[dict]) -> dict:
-    forecast = plan["dungeon_forecast"]
+def _compare(plan: dict, forecast: dict, kept: list, observations: list[dict], replaced: float | None,
+             progress: list[dict]) -> dict:
     made = plan["made_t"]
     # The budget is online time, as for the rest of plan review. Without
     # readings to prove remaining play, only join an entry inside the wall-clock budget.
@@ -127,11 +137,10 @@ def _compare(plan: dict, observations: list[dict], replaced: float | None, progr
     deadline = next((p["t"] for p in progress if p["t"] >= made and p["online_s"] - high >= budget), None)
     deadline = min((t for t in (deadline, plan.get("budget_end_t")) if t is not None), default=None)
     until = min((t for t in (replaced, deadline) if t is not None), default=None)
-    cutoff = max(made, forecast.get("last_known_entry_t") or made)
+    cutoff = max(made, plan["dungeon_forecast"].get("last_known_entry_t") or made)
     target = key(forecast["dungeon"])
     # A trip number is renumbered by a late upload. The instance entry
     # timestamp is its durable identity. New evidence can resolve its wing.
-    kept = plan.get("dungeon_observations") or []
     archived = {o["entry_t"]: o for o in kept}
     by_entry = archived | {o["entry_t"]: o for o in observations}
     candidates = []
@@ -160,6 +169,8 @@ def _compare(plan: dict, observations: list[dict], replaced: float | None, progr
             # of the timing and XP of this same instance entry.
             wing_name = obs["dungeon"] if name == target else previous["dungeon"]
             obs = {**_observed_again(previous, obs), "dungeon": wing_name}
+            if obs.get("level") is None:
+                obs["level"] = previous.get("level")
         candidates.append({**obs, "window_uncertain": uncertain})
     row = {"made_t": made, "forecast": forecast, "observations": candidates, "budget_end_t": deadline}
     if not candidates:
@@ -169,26 +180,95 @@ def _compare(plan: dict, observations: list[dict], replaced: float | None, progr
     actual = candidates[0]
     missing = _missing(forecast, actual, made)
     if missing:
-        return {**row, "status": "incomplete", "missing": missing}
+        row.update(status="incomplete", missing=missing)
+        if all(reason in ("observed XP", "forecast XP") for reason in missing):
+            row["error_s"] = actual["time_s"] - forecast["time_s"]
+        return row
     return {**row, "status": "matched", "error_s": actual["time_s"] - forecast["time_s"],
             "error_xp": actual["xp"] - forecast["xp"]}
 
 
+def _pace_order(a: dict, b: dict) -> int:
+    # Cross multiplication keeps equal XP rates equal, including zero.
+    delta = a["xp"] * b["time_s"] - b["xp"] * a["time_s"]
+    return (delta > 0) - (delta < 0)
+
+
+def _rankings(samples: list) -> dict:
+    """Check XP order only when both trips were possible and both were subsequently played."""
+    result = {basis: dict(held=0, reversed=0, tied=0, changed_forecast=0)
+              for basis in ("modeled", "personal_runs", "mixed")}
+    for (first, first_offer, first_plan), (second, second_offer, second_plan) in combinations(samples, 2):
+        first_run, second_run = first["observations"][0], second["observations"][0]
+        # A breadcrumb for the next dungeon can start on the previous trip.
+        # Comparing overlapping brackets counts some played time on both sides.
+        if max(first_run["start_t"], second_run["start_t"]) < min(first_run["end_t"], second_run["end_t"]):
+            continue
+        names = (first["forecast"]["dungeon"], second["forecast"]["dungeon"])
+        if first_plan != second_plan or names[0] == names[1]:
+            continue
+        if not all(name in first_offer and name in second_offer for name in names):
+            continue
+        earlier = [first_offer[name] for name in names]
+        later = [second_offer[name] for name in names]
+        if (any(p["xp"] is None for p in earlier)
+                or any(a["priority"] != b["priority"] for a, b in (earlier, later))):
+            continue
+        sources = {"personal_runs" if p["basis"] == "runs" else "modeled" for p in earlier}
+        basis = sources.pop() if len(sources) == 1 else "mixed"
+        predicted = _pace_order(*earlier)
+        actual = _pace_order(first_run, second_run)
+        # A later plan may have learned from the first run. Its revision
+        # cannot erase the earlier forecast's win or miss.
+        if all(p["xp"] is not None for p in later) and predicted != _pace_order(*later):
+            result[basis]["changed_forecast"] += 1
+        if not predicted or not actual:
+            outcome = "tied"
+        else:
+            outcome = "held" if predicted == actual else "reversed"
+        result[basis][outcome] += 1
+    return result
+
+
 def report(plans: list[dict], trips: list[dict], progress: list[dict]) -> dict:
-    """Each decision owns entries only up to the next plan, including a replacement with no dungeon."""
+    """A saved session owns entries only until its budget runs out or a newer plan replaces it."""
     decisions = [(i, p) for i, p in enumerate(plans) if p.get("dungeon_forecast")]
     observations = [_observation(t) for t in trips if t.get("entry_t") is not None] if decisions else []
     online = [p for p in progress if not p.get("estimated")] if decisions else []
-    reviews = [_compare(p, observations, plans[i + 1]["made_t"] if i + 1 < len(plans) else None, online)
-               for i, p in decisions]
-    by_basis = {}
+    reviews, measured, rank_samples = [], [], []
+    for i, p in decisions:
+        f = p["dungeon_forecast"]
+        replaced = plans[i + 1]["made_t"] if i + 1 < len(plans) else None
+        row = _compare(p, f, p.get("dungeon_observations", []), observations, replaced, online)
+        reviews.append(row)
+        offers = {o["dungeon"]: o for o in [f, *f.get("alternatives", [])]}
+        rows = [row]
+        other_runs = p.get("alternative_observations", {})
+        for other in f.get("alternatives", []):
+            r = _compare(p, other, other_runs.get(other["dungeon"], []), observations, replaced, online)
+            if r["observations"]:
+                row.setdefault("alternative_observations", {})[other["dungeon"]] = r["observations"]
+                rows.append(r)
+        for r in rows:
+            if "error_s" in r:
+                measured.append(r)
+            if "error_s" not in r or r["observations"][0]["xp"] is None:
+                continue
+            level = f["state"].get("level")
+            if (len(offers) > 1 and f["objective"] in ("xp", "levelling") and level is not None
+                    and r["observations"][0].get("level") == level):
+                rank_samples.append((r, offers, (level, f["objective"], f["kind"])))
+    by_basis, timing = {}, {}
     for basis in ("modeled", "personal_runs"):
-        rows = [r for r in reviews if r["status"] == "matched"
-                and ("personal_runs" if r["forecast"]["basis"] == "runs" else "modeled") == basis]
+        timed = [r for r in measured if (r["forecast"]["basis"] == "runs") == (basis == "personal_runs")]
+        timing[basis] = {"n": len(timed), "mean_absolute_error_s":
+                         round(statistics.mean(abs(r["error_s"]) for r in timed), 1) if timed else None}
+        rows = [r for r in timed if "error_xp" in r]
         by_basis[basis] = {"n": len(rows), **{
             "mean_absolute_" + k: round(statistics.mean(abs(r[k]) for r in rows), 1) if rows else None
             for k in ("error_s", "error_xp")}}
-    return {"by_basis": by_basis, "counts": {s: sum(r["status"] == s for r in reviews)
+    return {"by_basis": by_basis, "timing": timing, "xp_order": _rankings(rank_samples),
+            "counts": {s: sum(r["status"] == s for r in reviews)
             for s in ("pending", "abandoned", "incomplete", "ambiguous", "matched")}, "reviews": reviews}
 
 

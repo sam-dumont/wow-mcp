@@ -51,7 +51,7 @@ Top right of your page. Your own page always shows everything: these change what
 <summary>Hide a character, Battle.net data to my AI, Reset your upload password, Delete your data</summary>
 
 - **Hide a character**: tick it under Characters: off the public page, the zogzog link, or both.
-- **Battle.net data to my AI**: on, your characters' Battle.net data (talents, worn gear, guild) and the WoW Token price reach the AI assistant you connect.
+- **Battle.net data to my AI**: off until you turn it on. Your AI can then read your characters' Battle.net profiles, the WoW Token price and ruleset status. Switching it off stops future reads.
 - **Reset your upload password**: new computer, or it leaked: Reset my upload password. The old one stops at once: run the new install command where you play.
 - **Delete your data**: ask the owner to take you off the friends list. Your access and pages stop at once; your events and settings are deleted 7 days later, or right away if you ask (the Privacy page gives this server's number). Backups expire on their own. Then uninstall the program.
 

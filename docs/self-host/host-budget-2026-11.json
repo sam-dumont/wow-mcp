@@ -155,5 +155,130 @@
     "Nibbet-Gearholt": 89358,
     "Sleetpin-Rimefang": 2292,
     "Valeleaf-Quickwing": 5394
+  },
+  "concurrent_sqlite_4gib": {
+    "app_commit": "f31d046a0d1057e08f5ea04349b045d7c7b153f0",
+    "harness_commit": "449bddf052dff4c0588b13a419c1c76d6047815b",
+    "image": "ghcr.io/sam-dumont/wow-mcp:0.13.1@sha256:5b1b455a0a4bf066dc4b1100081e67152ebc86cb72ed513b576f2d3d05f67d2e",
+    "vcpus": 2,
+    "ram_gib": 4,
+    "virtual_disk_gib": 16,
+    "swap_bytes": 0,
+    "ui_limit_bytes": 2147483648,
+    "roster_rows": 183816,
+    "distinct_source_ids_per_character": {
+      "Brakka-Ironvale": 22639,
+      "Duskwick-Cinderbell": 8902,
+      "Flintstep-Thunderhoof": 11213,
+      "Flintwick-Bearhide": 11928,
+      "Hesta-Bellforge": 16788,
+      "Mossbranch-Fernshade": 15302,
+      "Nibbet-Gearholt": 89358,
+      "Sleetpin-Rimefang": 2292,
+      "Valeleaf-Quickwing": 5394
+    },
+    "runs": [
+      {
+        "job_url": "https://github.com/sam-dumont/wow-mcp/actions/runs/46051039090/job/140682109134",
+        "host": {
+          "samples": 2174,
+          "memtotal_kib": 4009844,
+          "min_available_kib": 976004,
+          "peak_used_kib": 3033840,
+          "min_free_disk_bytes": 12245401600,
+          "start_disk_bytes": 12560691200,
+          "oom_kills": 0
+        },
+        "longest_sample_gap_seconds": 0.253,
+        "ui_peak_bytes": 1610891264,
+        "ui_memory_events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "wall_seconds": {
+          "upload full roster": 18.609,
+          "in-flight POST": 0.389,
+          "concurrent character page": 24.082,
+          "publish wall": 307.316,
+          "post-publish character page": 55.605,
+          "backup stopped events": 1.453,
+          "extract to new directory": 0.394,
+          "full shipper replay 1": 11.047,
+          "full shipper replay 2": 10.061,
+          "cold MCP analysis_brief": 50.82,
+          "post-publish MCP analysis_brief": 58.502
+        },
+        "served_sha256_after_kill": {
+          "": "f33f24bbafe39c6c187db037800265e05679c11cf088f3bdc8290da03d2a8f81",
+          "data/chars.json": "0f49f039cc614a6c38abfd28f7e109aa6fac58c4b11a949b6e3f240eb6a909ca",
+          "zogzog/": "464f1a91d51cc3f00b2383240512691a13ba313683ac84073755f3a03143ce0f"
+        },
+        "public_files": 125,
+        "sealed_files": 190,
+        "public_and_decrypted_characters": 9,
+        "backup_bytes": 17604525,
+        "allocated_event_directory_bytes": 92622848,
+        "sqlite_rows_after_restore_and_each_replay": [
+          183817,
+          183817,
+          183817
+        ]
+      },
+      {
+        "job_url": "https://github.com/sam-dumont/wow-mcp/actions/runs/46051039090/job/140682109532",
+        "host": {
+          "samples": 1964,
+          "memtotal_kib": 4008828,
+          "min_available_kib": 1024384,
+          "peak_used_kib": 2984444,
+          "min_free_disk_bytes": 12242685952,
+          "start_disk_bytes": 12560695296,
+          "oom_kills": 0
+        },
+        "longest_sample_gap_seconds": 0.253,
+        "ui_peak_bytes": 1621467136,
+        "ui_memory_events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        },
+        "wall_seconds": {
+          "upload full roster": 19.329,
+          "in-flight POST": 0.534,
+          "concurrent character page": 20.013,
+          "publish wall": 276.65,
+          "post-publish character page": 42.462,
+          "backup stopped events": 1.352,
+          "extract to new directory": 0.355,
+          "full shipper replay 1": 10.948,
+          "full shipper replay 2": 9.448,
+          "cold MCP analysis_brief": 47.249,
+          "post-publish MCP analysis_brief": 51.793
+        },
+        "served_sha256_after_kill": {
+          "": "f33f24bbafe39c6c187db037800265e05679c11cf088f3bdc8290da03d2a8f81",
+          "data/chars.json": "0f49f039cc614a6c38abfd28f7e109aa6fac58c4b11a949b6e3f240eb6a909ca",
+          "zogzog/": "464f1a91d51cc3f00b2383240512691a13ba313683ac84073755f3a03143ce0f"
+        },
+        "public_files": 125,
+        "sealed_files": 190,
+        "public_and_decrypted_characters": 9,
+        "backup_bytes": 17604451,
+        "allocated_event_directory_bytes": 92622848,
+        "sqlite_rows_after_restore_and_each_replay": [
+          183817,
+          183817,
+          183817
+        ]
+      }
+    ],
+    "root_filesystem_bytes": 15523123200
   }
 }

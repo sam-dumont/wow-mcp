@@ -134,10 +134,13 @@ things, so you tell it:
 
 ## Your AI
 
-Your AI assistant reads what the MCP tools return: your own game data, the players your game
-showed you included. Battle.net data (the token price, the current talents, the quests your
-worn gear proves done) reaches it only when a person turns on "Battle.net data to my AI" on a
-shared install, for their own data. On a one-person install it goes to the owner's AI.
+Your AI assistant reads your game data, including other players your game showed you and your
+addon's auction scans. On a shared install, each person has to turn on "Battle.net data to my AI"
+in Settings to share their characters' profile data, the WoW Token price and ruleset status.
+Older versions enabled sharing at signup, so existing accounts need a fresh opt-in. Switching
+it off takes effect on the next call. The AI provider can keep answers already in the chat.
+On a one-person install, setting `VM_URL` lets the owner's AI read character profiles.
+The `market` tool is available only on shared installs.
 Your AI never starts a run of the server's own analysis (below).
 [Ask about your character](../ai/asking.md#what-the-assistant-can-see).
 

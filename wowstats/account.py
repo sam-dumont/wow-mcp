@@ -536,8 +536,9 @@ or anything you played.</li>@VISITS@
 <p>Your AI reads your data with your login. This server gets the tool your AI picked (like "show my gear")
 and what your AI filled in for it: a character's name, a number of hours, your goals. It never gets your
 conversation with your AI. What the tools answer goes back to your AI provider, the names of other players
-your game showed you included. Battle.net data goes to it only if "Battle.net data to my AI" is on in
-Settings.</p>
+your game showed you included. Battle.net sharing starts off. Turn on "Battle.net data to my AI" in
+Settings to share your characters' profile data, the WoW Token price and ruleset status.
+Switch it off to stop sharing with the next tool call. Your chat may keep earlier answers.</p>
 <p>@SERVER_AI@</p>
 <h2>How long</h2>
 <p>As long as you're on the owner's friends list. When the owner removes you, your access stops at once:
@@ -792,7 +793,7 @@ def set_settings(t: T.Tenancy, u: T.User, body: dict, chars: list[str]) -> T.Use
         if k in body:
             if not isinstance(body[k], bool):
                 raise T.TenancyError(f"{k}: true or false")
-            upd[k] = body[k]
+            upd["bnet_to_model_choice" if k == "bnet_to_model" else k] = body[k]
     if "models" in body:
         if body["models"] not in ("hd", "sd"):
             raise T.TenancyError("models: hd or sd")
@@ -1336,7 +1337,8 @@ def route(h, t: T.Tenancy, u: T.User, app, path: str) -> bool:
                     sys_log(f"upload password reset by account {u.account_id}")
                 h.json(200, install_commands(t, t.registry.new_code(u.sub)))
             elif path == "/api/me/settings":
-                chars = [c["char"] for c in app.views.chars()]
+                chars = ([c["char"] for c in app.views.chars()]
+                         if "hidden_public" in body or "hidden_zogzog" in body else [])
                 nu = set_settings(t, u, body, chars)
                 h.json(200, {"ok": True, "public_on": nu.public_on, "bnet_to_model": nu.bnet_to_model,
                              "models": nu.models,

@@ -121,6 +121,9 @@ def _remember(plans: list[dict], report: dict) -> bool:
         if row and row["observations"] != (plan.get("dungeon_observations") or []):
             plan["dungeon_observations"] = row["observations"]
             changed = True
+        if row and row.get("alternative_observations", {}) != plan.get("alternative_observations", {}):
+            plan["alternative_observations"] = row.get("alternative_observations", {})
+            changed = True
     return changed
 
 

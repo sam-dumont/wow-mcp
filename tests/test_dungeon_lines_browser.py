@@ -109,9 +109,18 @@ def test_phone_shows_the_handins_wing_progress_and_both_mask_bosses(site, pw, de
             assert details.locator("li a").count() == 12
             assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
 
-        inspect_handins(page.locator("#home"))
+        home = page.locator("#home")
+        inspect_handins(home)
+        pickup = home.locator(".mquests li").filter(has_text="Tabetha's Task")
+        if not pickup.is_visible():
+            pickup.locator("xpath=ancestor::details").locator("summary").click()
+        assert re.search(r"Tabetha's Task from Jennea Cannon.*410 XP", pickup.inner_text())
         page.get_by_role("tab", name="Character", exact=True).click()
-        inspect_handins(page.locator(".dg").filter(has=page.get_by_role("heading", name="Zul'Farrak", exact=True)))
+        zf = page.locator(".dg").filter(has=page.get_by_role("heading", name="Zul'Farrak", exact=True))
+        inspect_handins(zf)
+        pickup = zf.locator(".dgq").filter(has=page.get_by_role("link", name="Tabetha's Task", exact=True))
+        assert "from Jennea Cannon" in pickup.text_content()
+        assert "Anastasia Hartwell" not in pickup.text_content()
         armory = page.locator(".dg").filter(has=page.get_by_role("heading", name="Scarlet Monastery: Armory"))
         assert "kill Herod" in armory.locator(".dgverdict").inner_text()
         assert "Down the Scarlet Path" in armory.locator(".dgnext").inner_text()
