@@ -476,7 +476,9 @@ def summary_talents(ctx: Ctx, char: str) -> dict:
     # split. With sharing off, only the class from the player's addons is safe.
     from wowstats.views import card_title
 
-    title = ctx.title(char) if ctx.title and ctx.bnet is not False else card_title(cls, None)
+    title = None
+    if ctx.title:
+        title = card_title(cls, None) if ctx.bnet is False else ctx.title(char)
     tal, why = current_talents(ctx, char, cls)
     if not tal:
         return {"title": title, "talents": None, "talents_why": why}
