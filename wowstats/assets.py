@@ -194,6 +194,13 @@ class Store:
         self.lock = threading.Lock()
         self._refs: tuple[set[int], set[int]] | None = None  # what the stored models name, read once
 
+    def icon_root(self) -> Path | None:
+        """The folder whose icons/ holds the game client's icons, when this
+        store carries them (the hosted demo's art, tools/fixtures/demo3d.py
+        build-icons). A publish from such a store never asks an outside site
+        for an icon."""
+        return self.root if (self.root / "icons.json").is_file() else None
+
     # -- tables
 
     def build(self) -> str:

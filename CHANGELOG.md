@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The hosted demo shows item, spell and talent icons taken from the game client, like its 3D art. Building the demo no longer calls Wowhead. A missing icon fails the build and names the icon. Player dashboards still fetch theirs from Wowhead.
+- `demo3d.py build-icons` extracts the demo's icons from the local client. It needs the new `demo-art` group (Pillow).
+
 ## 0.13.1 (2026-11-27)
 
 - Leave **View in 3D** open and the character occasionally swings, fires a ranged weapon or casts a spell. The shipper supplies the spell visuals from the game client. A recorded pet or demon stands beside its owner.
