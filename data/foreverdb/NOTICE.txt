@@ -28,7 +28,8 @@ keep the notices in the files, and credit "Data from ForeverDB.net
      (items, spells, quests, maps, talents, flight paths). These are Blizzard
      Entertainment's; ForeverDB.net claims nothing in them beyond its selection
      and arrangement.
-   - Classic data: see 3.
+   - Classic and community data: see 3 and 8 to 12 (QuestieDB, other players'
+     drop counts, AllTheThings, Shortest Path Forever, VMaNGOS).
    Both copyrighted parts above are under GPL-3.0 with the attribution term in
    LICENSE.txt.
 
@@ -101,5 +102,149 @@ keep the notices in the files, and credit "Data from ForeverDB.net
    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
+
+8. Community data from QuestieDB (GPL-3.0)
+   Upstream: https://github.com/Questie/QuestieDB, the quest, creature, object and
+   item database of the Questie addon (https://github.com/Questie/Questie),
+   Copyright (C) the Questie and QuestieDB contributors, licensed under the GNU
+   General Public License v3.0. Thank you to the Questie team and contributors.
+   - Data/QuestQuestie.lua is derived from it as a whole: who gives and takes in
+     quests Forever's own data has no giver for, where they and the quests'
+     creatures and objects stand on Forever's maps, and quest levels, races and
+     objectives. It wins over Classic data (CMaNGOS) where they differ and fills
+     what is empty; it never replaces the Forever client's data or our players'
+     recordings. Every row is
+     labelled "Source: QuestieDB (GPL-3.0)" in the addon, and all of it can be
+     switched off together in the registry (tools/data/source_registry.json).
+   - We take facts (numbers, names, positions), not Questie's wording or logo.
+     Questie's name and logo are not ours to use and are not used.
+   - We use QuestieDB's own loader on its Forever data: the raw tables, the
+     inherited fixes in Forever coordinates, the trace corrections and the
+     hand-written Forever fixes. We leave out its "generated" layer, which was
+     built from another website's pages.
+   - Licence caveat, in QuestieDB's own words (LICENSE.md): its content was
+     imported from Questie, which "historically never had a proper license"; a
+     list of contributors has agreed to GPLv3, and the team is "alright with
+     others forking the repository or copying code from it under the GPLv3
+     terms, but we can not promise all contributors are". We ship it under
+     GPL-3.0 on that basis and will remove any row on request.
+   ForeverDB.net converts it with its own generator scripts (fetch_questie.py,
+   questie_export.py, questie_fill.py, build_addon_quests.py, build_quests.py,
+   build_zone_quests.py, build_quest_guides.py). The generated Lua file is the
+   source we distribute; the generator scripts are available on request at
+   https://foreverdb.net/contact.
+
+9. Other players' drop counts from Drop Tables (CC BY-SA 4.0)
+   Upstream: https://github.com/valcheffnet/DropTables. Credit: "Drop Tables contributors,
+   https://github.com/valcheffnet/DropTables". The drop counts are licensed under the
+   Creative Commons Attribution-ShareAlike 4.0 International licence (CC BY-SA 4.0,
+   https://creativecommons.org/licenses/by-sa/4.0/).
+   - Data/LootCommunity.lua is derived from it. ForeverDB.net adds the counts of each
+     creature and item up itself (Drop Tables players, Blackthornes Farmer, EG Link
+     output and Everloot), caps one install at 300 kills of a
+     creature, and works the chance out with its own formula
+     (looted share of kills x drops / corpses opened). It is shown only for creatures
+     ForeverDB players have fewer than 30 kills of, labelled "Other players' counts
+     (Drop Tables contributors, CC BY-SA 4.0)", and never added to ForeverDB's own counts.
+     As CC BY-SA 4.0 section 3(b) allows, ForeverDB.net shares these adapted counts under
+     GPL-3.0, a BY-SA compatible licence.
+   - Part of the counts were not sent in by Drop Tables players:
+     * Blackthornes Farmer (https://github.com/Blackthornes/Blackthornes_Farmer, commit
+       43bc5ee7dada13896b358b33e6533182c36dbff0), under the MIT licence:
+
+       MIT License
+
+       Copyright (c) 2026 Blackthornes
+
+       Permission is hereby granted, free of charge, to any person obtaining a copy
+       of this software and associated documentation files (the "Software"), to deal
+       in the Software without restriction, including without limitation the rights
+       to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+       copies of the Software, and to permit persons to whom the Software is
+       furnished to do so, subject to the following conditions:
+
+       The above copyright notice and this permission notice shall be included in all
+       copies or substantial portions of the Software.
+
+       THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+       IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+       FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+       AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+       LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+       OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+       SOFTWARE.
+
+     * EG Link output (https://github.com/JIVESCORP/eg-link-output-wowf), published by
+       Efficient Games: "Data from Efficient Games (https://efficient.games), licensed under
+       CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)." Drop Tables kept only
+       corpses looted solo on the live servers and added up the client builds; ForeverDB.net
+       added them up again with the other counts.
+     * Everloot's public corpus (https://everloot.app/database), recorded by the players
+       running the Everloot addon on WoW Forever and published by Everloot under CC BY-SA
+       4.0: "Data from Everloot (https://everloot.app), CC BY-SA 4.0." Drop Tables kept
+       only the loot and skinning windows of creatures on the live servers and left out
+       quest items; ForeverDB.net added them up again with the other counts and shares
+       the changed counts under the same licence (GPL-3.0 is BY-SA compatible).
+   ForeverDB.net converts it with its own generator scripts (fetch_sources.py,
+   droptables_build.py, build_sources.py, build_addon_lootcommunity.py). The generated Lua
+   file is the source we distribute; the generator scripts are available on request at
+   https://foreverdb.net/contact.
+
+10. Community data from AllTheThings (MIT licence)
+   Upstream: https://github.com/ATTWoWAddon/AllTheThings (its WoW Forever database).
+   Thank you to the AllTheThings contributors.
+   - Data/QuestAtt.lua holds the few quests no other source gives a giver for (who
+     gives them, where they stand, their minimum level), labelled "Source:
+     AllTheThings (MIT)". ForeverDB.net also compares its quest data with it and lists the
+     disagreements for review; nothing else of it is shipped.
+   AllTheThings' licence:
+
+   MIT License
+
+   Copyright (c) 2026 AllTheThings WoW Addon
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+   ForeverDB.net converts it with its own generator scripts (fetch_sources.py,
+   att_parse.py, build_addon_att.py). The generated Lua file is the source we
+   distribute; the generator scripts are available on request at
+   https://foreverdb.net/contact.
+
+11. Transport data from Shortest Path Forever (GPL-3.0-or-later)
+   Upstream: https://github.com/cjber/shortest-path-forever, Copyright (C) its author
+   and contributors, licensed under the GNU General Public License v3.0 or later. Thank
+   you to its author.
+   - Data/TravelCommunity.lua is derived from its boat and zeppelin timetables, portals
+     and teleports, labelled "Source: Shortest Path Forever (GPL-3.0-or-later)". Only
+     what ForeverDB's own travel data lacks is added, and the times keep their source
+     (a period from the game's client or CMaNGOS, never a measured Forever time).
+   - Its walkable-cell meshes and road edges are not used.
+   ForeverDB.net converts it with its own generator scripts (fetch_sources.py,
+   spf_parse.py, build_addon_travel_community.py). The generated files are the source we
+   distribute; the generator scripts are available on request at https://foreverdb.net/contact.
+
+12. Classic cross-check against VMaNGOS (GPL-2.0-or-later)
+   Upstream: https://github.com/vmangos/core, the VMaNGOS world database, Copyright (C)
+   the VMaNGOS project and contributors, licensed under the GNU General Public License
+   v2.0 or later; ForeverDB.net uses it under version 3. Thank you to the VMaNGOS project.
+   - ForeverDB.net compares its drop rates, vendors and creature positions with it and
+     lists the disagreements for review (reports/). No row of it is shipped in this addon.
+     If one is ever, its file will name VMaNGOS and carry the source letter v.
 
 Questions about reusing ForeverDB's data: https://foreverdb.net/contact

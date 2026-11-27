@@ -124,17 +124,24 @@ def t_check_plan(ctx: T.Ctx, args: dict) -> dict:
 
 @answers
 def t_how_did_my_plan_go(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.plan import store
+
     inp = _inputs(ctx, args)
+    forecasts = store.dungeon_review(_env(ctx), inp)
     revs = inp.get("plan_reviews") or []
     char = inp["who"]["char"]
     if not revs:
-        return _no_data(char, "no plan to compare yet: make one (plan_session), play past its first checkpoint, "
-                              "then ask again")
+        result = _no_data(char, "no plan to compare yet: make one (plan_session), play past its first checkpoint, "
+                                "then ask again")
+        if forecasts["reviews"]:
+            result.update(latest=None, dungeon_forecasts=forecasts)
+        return result
     last = revs[-1]
     return {"char": char, "latest": {**last, "made": _iso(last["made_t"]), "played_since": T.dur(
         last["played_since_s"]), "checkpoints": [{**c, "planned": T.dur(c["planned_online_s"]),
                                                   "actual": T.dur(c["actual_online_s"])} for c in
                                                  last["checkpoints"]]},
+            "dungeon_forecasts": forecasts,
             "earlier": [{"made": _iso(r["made_t"]), "ratio": r["ratio"]} for r in revs[:-1]],
             "calibration": inp.get("calibration"),
             "note": "ratio: online time the character needed over the time the plan gave, per checkpoint "
@@ -228,7 +235,10 @@ def t_dungeon_options(ctx: T.Ctx, args: dict) -> dict:
                     "current level by the kill formula over the creatures killed), else the kill estimate's time "
                     "inside and kill XP (basis 'kill_model'; the knowledge base's clear time when there is none: "
                     "basis 'rules'), plus the pickups, travel and hand-ins Polestar's pick-up and hand-in rules plan "
-                    "on the character's own quests from where it was last seen. gain.trip has each part "
+                    "on the character's own quests from where it was last seen. gain.handins lists every hand-in "
+                    "counted once, with its XP before the level cap and whether it is a prerequisite. "
+                    "If unknown_handin_xp is positive, xp_quests is the known subtotal. "
+                    "gain.trip has each part "
                     "(pickup_s, inside_s, handin_s, travel_s, total_s, xp_quests, xp_kills, xp_total, xp_per_hour, "
                     "vs_questing) as {value, label}: 'measured' (its own runs), 'route' (Polestar's rules on its "
                     "quests) or 'estimate' (the kill model, the clear time): say 'about' and 'estimate' for those. "
@@ -397,7 +407,8 @@ PLAN_TOOLS: tuple[T.Tool, ...] = (
                                 "description": "Your write-up of the latest plan."}}, ("text",)), t_check_plan),
     T.Tool("how_did_my_plan_go", "Plan vs actual",
            "The latest plan against what happened: each checkpoint's planned and actual online time, the end "
-           "level, and the calibration it feeds into the next plans.", S({"char": CHAR}), t_how_did_my_plan_go),
+           "level, and the calibration it feeds into the next plans. Dungeon forecast errors compare whole trips "
+           "by modeled or personal-run basis.", S({"char": CHAR}), t_how_did_my_plan_go),
     T.Tool("next_step", "Next 45 minutes",
            "The first 45 minutes of a plan: the block(s), why, a town stop if it falls there, the two quests "
            "most worth dropping.", S({"char": CHAR}), t_next_step),

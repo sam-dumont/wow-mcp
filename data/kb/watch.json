@@ -1,6 +1,6 @@
 {
   "about": "What the knowledge base was last checked against (tools/kb/watch.py). A value here that no longer matches today's opens one issue per kind (label kb-watch). The refresh job moves it in the PR that brings the KB up to date (`tools/kb/watch.py --accept <kind>`); an addon's `contract` is what tools/kb/bump.py checks is unchanged before taking a release.",
-  "checked": "2026-11-26",
+  "checked": "2026-11-27",
   "client_build": {
     "url": "https://wago.tools/api/builds/wowf/latest",
     "page": "https://wago.tools/builds",
@@ -77,7 +77,25 @@
     {
       "name": "WoWSims Exporter",
       "repo": "wowsims/exporter",
-      "known": "v3.2.10"
+      "known": "v3.2.20",
+      "contract": {
+        "toc": "WowSimsExporter.toc",
+        "files": {
+          "SavedDataManager.lua": [
+            "self.db.profile.savedCharacters",
+            "name = characterName",
+            "data = characterData",
+            "timestamp = timestamp"
+          ],
+          "ExportStructures/Character.lua": [
+            "self.talents = flavor.CreateTalentString",
+            "self.level = UnitLevel"
+          ],
+          "Flavors/Forever/Talents.lua": [
+            "table.concat(treeStrings, \"-\")"
+          ]
+        }
+      }
     },
     {
       "name": "DungeonMaster",
@@ -645,7 +663,7 @@
   "foreverdb": {
     "manifest": "https://foreverdb.net/downloads/addon-manifest.json",
     "page": "https://foreverdb.net",
-    "known": "9e81dcbb36d14aa3",
-    "taken": "2026-11-26"
+    "known": "857a7fbbad3f723b",
+    "taken": "2026-11-27"
   }
 }

@@ -745,10 +745,11 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict, zone: str |
                 d = trip.get(dkey(s.get("zone") or ""))
                 t = ((d or {}).get("trip") or {}).get("time_s")
                 ch = s.get("chance_pct")
+                cost_s = round(t * 100 / ch) if t and ch else None
+                cost = f"{fdur(cost_s)} of dungeon trips on average" if cost_s else "a dungeon trip"
                 row.update(kind="dungeon", source=f"{s.get('boss') or 'trash'} in {s.get('zone')}", chance=ch,
-                           cost_s=round(t * 100 / ch) if t and ch else None,
-                           cost=(f"{fdur(t * 100 / ch)} of dungeon trips on average ({ch:.0f}% per clear)"
-                                 if t and ch else "a dungeon trip"))
+                           cost_s=cost_s, cost=cost + (f" ({ch:g}% per clear)" if ch is not None
+                                                       else " (drop rate unknown)"))
             elif s["kind"] == "drop" and s.get("instance") in (None, ""):
                 ch = s.get("chance_pct")
                 row.update(kind="world drop", source=gearmod.source_text(s), chance=ch,
@@ -779,17 +780,22 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict, zone: str |
             # more than a hand-in (wowstats.questwork).
             errand = r["kind"] == "craft" or (r["kind"] == "quest" and r.get("effort") in (None, "easy"))
             per_h = r["value"] / hours if hours else r["value"] * (3 if errand else 1)
-            return (not r["now"], r["kind"] not in ("bags", "bank"), luck, -per_h)
+            unmeasured = r["kind"] == "dungeon" and r["cost_s"] is None
+            return (not r["now"], r["kind"] not in ("bags", "bank"), luck, unmeasured, -per_h,
+                    r.get("chance") is None, -(r.get("chance") or 0))
 
         rows.sort(key=key)
-        seen, keep = set(), []
+        kept = {}
         for r in rows:
             k = (r["item_id"], r["kind"])
-            if k in seen:
-                continue
-            seen.add(k)
-            keep.append(r)
-        out.append({"slot": slot, "options": keep[:4]})
+            if k not in kept:
+                kept[k] = r
+            elif r["kind"] == "dungeon" and r["source"] != kept[k]["source"]:
+                alternatives = kept[k].setdefault("alternatives", [])
+                if not any(a["source"] == r["source"] for a in alternatives):
+                    alternatives.append({field: r.get(field) for field in
+                                         ("source", "chance", "cost_s", "cost", "basis")})
+        out.append({"slot": slot, "options": list(kept.values())[:4]})
     out.sort(key=lambda s: -max((o["value"] for o in s["options"] if o["now"]), default=0))
     _ = level
     return out
@@ -1007,6 +1013,10 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
         "logout": logout(inp, blocks), "findings": inp.get("findings") or [], "nudges": inp.get("nudges") or [],
         "gear_now": gear_now(inp), "gear_mode": inp.get("gear_mode"), "gear_spec": inp.get("gear_spec"),
     }
+    if best_d and (est["branch"] or any(b.get("dungeon") for b in blocks)):
+        from .forecast import decision
+
+        est["dungeon_forecast"] = decision(inp, best_d, cons.get("dungeon_goal"), "group" if group_mode else "branch")
     est["facts"] = facts(est)
     return est
 

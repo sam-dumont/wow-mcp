@@ -238,6 +238,17 @@ def next_step(level: int, state: str, lo: int, verdict_value: str, quests: list[
     if state == "soon":
         return {"do": "level", "level": lo, "to_go": lo - level,
                 "meanwhile": pickable[0]["quest_id"] if pickable else None}
+    partial = next((q for q in quests if waits_on_other_wings(q)), None)
+    if verdict_value == "some" and not group_only and partial:
+        if partial["state"] == "new" and (partial.get("min_level") or 0) > level:
+            return {"do": "level", "level": partial["min_level"], "to_go": partial["min_level"] - level}
+        if partial["needs"]:
+            first = partial["needs"][0]
+            return {"do": "prerequisite", "quest_id": first["quest_id"], "name": first["name"]}
+        if partial["state"] == "new":
+            return {"do": "pickup", "quest_id": partial["quest_id"], "name": partial["name"]}
+        if partial["wings"].get("objectives_here") == []:
+            return {"do": "other_wings", "where": " and ".join(partial["wings"]["other_wings"])}
     if group_only:
         return {"do": "join", "where": ent["zone"] if ent else None}
     if verdict_value == "none":
@@ -415,8 +426,8 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
                                             "route")},
                     "quest_id": qid, **({"variants": ids} if len(ids) > 1 else {}),
                     "state": state, "complete": bool((open_ids.get(qid) or {}).get("complete")),
-                    "xp_now": round((q.get("xp") or 0) * (share if share is not None else 1.0))
-                    if q.get("xp") and state != "done" else None,
+                    "xp_now": round(q["xp"] * (share if share is not None else 1.0))
+                    if q.get("xp") is not None and state != "done" else None,
                     "url": wowhead_url("quest", qid),
                     "starts": [who(w) for w in q.get("starts") or []],
                     "ends": [who(w) for w in q.get("ends") or []],
@@ -436,7 +447,7 @@ def _wings_of(area: dict | None, q: dict, state: str = "new", open_quest: dict |
     """For a wing's quest, the wings it is in (wowstats.plan.wings): "all"
     needs each of them, "any" is done in whichever. `other_wings`: for an
     "all" quest not done, the wings it still needs before this wing's trip
-    finishes it (W.other_wings); a quest with some is not this wing's to
+    finishes it (W.progress); a quest with some is not this wing's to
     pay (waits_on_other_wings)."""
     if not (area or {}).get("wing"):
         return {}
@@ -444,7 +455,7 @@ def _wings_of(area: dict | None, q: dict, state: str = "new", open_quest: dict |
         (W.quest(area["name"], v) for v in q.get("variants") or [] if W.quest(area["name"], v)), None) or {}
     out = {"in": w.get("wings") or [area["wing"]], "how": w.get("how") or "one"}
     if out["how"] == "all" and state != "done":
-        out["other_wings"] = W.other_wings(area["name"], w, open_quest, trips)
+        out.update(W.progress(area["wing"], w, open_quest, trips))
     return {"wings": out}
 
 
@@ -452,6 +463,19 @@ def waits_on_other_wings(q: dict) -> bool:
     """A wing's "all" quest its trip doesn't finish: its XP, reward and
     hand-in belong to no single wing's trip (_wings_of)."""
     return bool((q.get("wings") or {}).get("other_wings"))
+
+
+def wing_progress_text(q: dict) -> str:
+    wing = q["wings"]
+    here = " and ".join(wing.get("objectives_here") or [])
+    quest = q["name"] or f"quest {q['quest_id']}"
+    what = f"{here} for {quest}" if here else f"continue {quest}"
+    all_of = [n["name"] or f"quest {n['quest_id']}" for n in q["needs"] if not n.get("any")]
+    any_of = [n["name"] or f"quest {n['quest_id']}" for n in q["needs"] if n.get("any")]
+    if any_of:
+        all_of.append(" or ".join(any_of))
+    first = f"finish {' and '.join(all_of)} first, then " if all_of else ""
+    return f"{first}{what}. The hand-in also needs {' and '.join(wing['other_wings'])}"
 
 
 def _how(qid: int, pre: dict, who) -> dict:
@@ -495,7 +519,7 @@ def trip_value(mine: list[dict], every: dict, quests: list[dict], gain: dict | N
     which `again_*` say; `pace_now`: his pace (pace), which a leg a past
     trip didn't see is filled at, from the rules' replay of that trip."""
     left = [q for q in quests if q["state"] != "done" and not waits_on_other_wings(q)]
-    quest_xp_left = sum(q["xp_now"] or 0 for q in left)
+    quest_xp_left = gain["xp_quests"] if gain else sum(q["xp_now"] or 0 for q in left)
     if mine:
         n = len(mine)
         mean = lambda k: sum(t.get(k) or 0 for t in mine) / n  # noqa: E731
@@ -583,16 +607,40 @@ def route_trip(inp: dict, name: str, quests: list[dict], skip=()) -> dict | None
         return None
     trips = route.reference().trips
     rows = {i: q for q in quests for i in (q["quest_id"], *(q.get("variants") or []))}
+    # Some route quests have no panel row (for example, a skipped pickup).
+    # Keep the variant groups from the dungeon catalogue for those as well.
+    catalogue = (inp.get("dungeon_quests") or {}).get(str(forever.area_id(name))) or {}
+    catalogue_rows = {i: q for q in catalogue.get("quests") or [] for i in q.get("variants") or [q["quest_id"]]}
+    done = set(inp.get("quests_done") or [])
     data = tripcost.quests_of(trips)
-    xp = 0.0
-    for qid in dict.fromkeys([*t["quests"], *t["prereqs"]]):
-        q = rows.get(qid)
-        if q is not None:
-            xp += q.get("xp_now") or 0
-        elif (data.get(qid) or {}).get("xp"):
-            share = E.share(inp, level, data[qid].get("level"))
-            xp += data[qid]["xp"] * (share if share is not None else 1.0)
-    return {**t, "xp_quests": round(xp)}
+    handins = []
+    paid = set()
+    for prerequisite, ids in ((True, t["prereqs"]), (False, t["quests"])):
+        for qid in ids:
+            q = rows.get(qid)
+            # The selected variant represents this hand-in, including when two
+            # IDs appear on the route or a different variant is already done.
+            chosen = q["quest_id"] if q else qid
+            group = catalogue_rows.get(qid) or {}
+            variant_ids = (q or group).get("variants") or [chosen]
+            finished = q["state"] == "done" if q else not done.isdisjoint(variant_ids)
+            if finished or not paid.isdisjoint(variant_ids):
+                continue
+            name = (q or group or forever.quest(qid) or {}).get("name")
+            xp = q.get("xp_now") if q else None
+            if xp is None:
+                raw = q or group
+                if raw.get("xp") is None:
+                    raw = data.get(qid) or {}
+                    if raw.get("xp") == 0 and trips.get("schema", 1) < 2:
+                        raw = {}  # Older trip exports also wrote zero for a missing reward.
+                if raw.get("xp") is not None:
+                    share = E.share(inp, level, raw.get("level"))
+                    xp = round(raw["xp"] * (share if share is not None else 1))
+            handins.append({"quest_id": chosen, "name": name, "url": wowhead_url("quest", chosen),
+                            "xp": xp, "prerequisite": prerequisite})
+            paid.update(variant_ids)
+    return {**t, "handins": handins, "xp_quests": sum(q["xp"] or 0 for q in handins)}
 
 
 # The player's pace on a trip's legs: his measured pickups, travel and
@@ -681,10 +729,14 @@ def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xp
                               if party else "Kill XP comes from the dungeon model.")
     if g["run_s"] is None:
         g["forecast_note"] += " The whole-trip time is unknown."
+    if g["unknown_handin_xp"]:
+        g["forecast_note"] += (f" XP is unknown for {_n(g['unknown_handin_xp'], 'hand-in')}. "
+                               "The forecast counts only known XP.")
     if wait:
         g["quests_needing_other_wings"] = [
             {"quest_id": q["quest_id"], "name": q["name"], "url": q.get("url"), "state": q["state"],
-             "xp_now": q.get("xp_now"), "other_wings": q["wings"]["other_wings"]} for q in wait]
+             "xp_now": q.get("xp_now"), "other_wings": q["wings"]["other_wings"],
+             "objectives_here": q["wings"].get("objectives_here")} for q in wait]
     return g
 
 
@@ -840,7 +892,16 @@ def judge(inp, state, lo, drops, quests, gain, quest_xph, mount, trip, kb_fit=0)
     later = [d for d in drops if d["state"] == "missing" and not d["now"] and d["drops"]]
     odds = G.odds_words(gain, "a clear")
     ups = _n(n_miss, "missing drop upgrade")
-    quest_bit = _n(len(left), "quest") + " left" + (f" ({quest_xp:,} XP)" if quest_xp else "")
+    handins = gain["handins"]
+    prereqs = [q for q in handins if q["prerequisite"]]
+    amount = f"{quest_xp:,} XP"
+    if gain["unknown_handin_xp"]:
+        amount = "XP unknown" if gain["unknown_handin_xp"] == len(handins) else f"{quest_xp:,} known XP"
+    quest_bit = f"{_n(len(handins), 'hand-in')} ({amount})"
+    if prereqs:
+        quest_bit += f", including {_n(len(prereqs), 'prerequisite')}"
+        if all(q["xp"] is not None for q in prereqs) and sum(q["xp"] or 0 for q in handins) == quest_xp:
+            quest_bit += f" worth {sum(q['xp'] for q in prereqs):,} XP"
     if state == "soon":
         waiting = [_n(n_miss + len(later), "drop upgrade") if n_miss or later else None,
                    _n(kb_fit, "drop") + " made for you" if kb_fit else None,
@@ -883,13 +944,16 @@ def judge(inp, state, lo, drops, quests, gain, quest_xph, mount, trip, kb_fit=0)
         return ("worth a loop for gold", "looping it earns twice your gold per hour, and the mount is behind",
                 "high", goals)
     if kb_fit:
-        return ("worth a look for gear", _n(kb_fit, "drop") + " made for you" + (f", and {quest_bit}" if left else ""),
-                "some", [])
-    small = [quest_bit if left else None, f"{ups} at {odds}" if n_miss else None]
+        why = _n(kb_fit, "drop") + " made for you" + (f", and {quest_bit}" if handins else "")
+        return ("worth a look for gear", why, "some", [])
+    small = [quest_bit if handins else None, f"{ups} at {odds}" if n_miss else None]
     small = [x for x in small if x]
     if small:
         return ("only if a group is going", " and ".join(small) + ": not worth a trip of its own",
                 "some", ["group_only"])
+    for q in quests:
+        if waits_on_other_wings(q):
+            return ("part of a multi-wing quest", wing_progress_text(q), "some", [])
     if later:
         return ("not yet", f"{_n(len(later), 'upgrade')} once you're level {min(d['level'] for d in later)}",
                 "some", [])

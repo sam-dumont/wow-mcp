@@ -391,7 +391,7 @@ function questData(db, continents) {
 	const Q = new Map();
 	for (const q of d('quest')) {
 		Q.set(q.id, {
-			id: q.id, title: q.title, level: q.level || 0, min: q.min_level || 0, xp: q.xp || 0, side: q.side || 0,
+			id: q.id, title: q.title, level: q.level || 0, min: q.min_level || 0, xp: q.xp ?? null, side: q.side || 0,
 			races: q.races || 0, classes: q.classes || 0, area: q.zone_area || null, money: q.money_copper || 0,
 			start: { npc: [], object: [], item: [] }, end: { npc: [], object: [] }, pre: [], any: [], crumbs: [],
 			objectives: [], rewards: 0,
@@ -985,6 +985,7 @@ export function buildTrips({ ps, travel, params, frames, outDir }) {
 	const frameOut = {};
 	for (const m of uiMap.sort((a, b) => a.ui_map - b.ui_map)) frameOut[m.ui_map] = [m.map, m.left, m.right, m.top, m.bottom];
 	return {
+		schema: 2, // Quest XP is null when the source omits it; earlier exports wrote zero.
 		about: 'A dungeon trip\'s quests and travel, from Polestar\'s pick-up and hand-in rules (addon/Polestar/Dungeons/Pickup.lua, Handin.lua) ported to tools/route_reference/trips.mjs: per dungeon (instance Map id) its page of quests and its entrance in world yards [continent, x north, y west]; per quest what the rules read (g: givers, e: enders, each [c, x, y, side bits, npc/object key]; gi/ei: given/taken inside only; obj_s: objectives\' seconds); the travel network (flight masters, legs, boats); the uiMap frames [continent, left, right, top, bottom]; and per side the tours with nothing done, standing at the entrance, that wowstats/plan/tripcost.py must replay; a dungeon run in wings has the same page and tours per wing (wings).',
 		rules: { ...RULES, run_speed: params.runSpeed, detour: { 0: params.detour0, 1: params.detour1 }, flight_speed: params.flightSpeed,
 			flight_stop: FLIGHT_STOP, flight_overhead: params.flightOverhead, transport_wait: params.transportWait ?? 1, talk_s: talk },

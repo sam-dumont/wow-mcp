@@ -21,14 +21,16 @@ import json
 import os
 import statistics
 import tempfile
-import threading
 from pathlib import Path
+
+from wowstats.analysis import folder_lock
+
+from . import forecast
 
 FILE = "plans.json"
 SCHEMA = 1
 MAX_PLANS = 30
 CAL_MIN, CAL_MAX = 0.5, 2.0
-_LOCK = threading.Lock()
 
 
 def path(env: dict) -> Path | None:
@@ -69,20 +71,57 @@ def record(est: dict) -> dict:
                             for c in est["checkpoints"]],
             "end": {k: est["end"].get(k) for k in ("level", "gold_copper", "played_s")},
             "pace": {k: est["pace"][k]["factor"] for k in ("questing", "travel", "town", "dungeon")},
+            **({"dungeon_forecast": est["dungeon_forecast"]} if est.get("dungeon_forecast") else {}),
             "facts": est.get("facts") or {},  # for check_plan: a client's write-up against these numbers
             # The newest event the plan's numbers stand on (wowstats.eventcache); check_plan says it.
             **({"as_of": est["as_of"]} if est.get("as_of") else {})}
 
 
-def save(env: dict, char: str, est: dict) -> None:
-    if not est.get("supported"):
+def save(env: dict, char: str, est: dict, inp: dict | None = None) -> None:
+    p = path(env)
+    if p is None or not est.get("supported"):
         return
-    with _LOCK:
+    with folder_lock(p.parent):
         s = load(env)
         plans = s.setdefault("plans", {}).setdefault(char, [])
         plans.append(record(est))
+        plans.sort(key=lambda entry: entry["made_t"])
         del plans[:-MAX_PLANS]
+        if inp:
+            _remember(plans, forecast.report(plans, inp.get("trips") or [], inp.get("progress") or []))
         _save(env, s)
+
+
+def dungeon_review(env: dict, inp: dict, *, archive=False) -> dict:
+    """Only the private background builder archives evidence. A read works on a read-only state volume."""
+    p = path(env)
+    # The normal case before anyone makes a plan needs no write lock and
+    # creates no state. Re-read under the lock when there is a decision.
+    plans = (load(env).get("plans") or {}).get(inp["who"]["char"]) or []
+    trips, progress = inp.get("trips") or [], inp.get("progress") or []
+    if not archive or not plans or p is None:
+        return forecast.summary(forecast.report(plans, trips, progress))
+    with folder_lock(p.parent):
+        s = load(env)
+        plans = (s.get("plans") or {}).get(inp["who"]["char"]) or []
+        report = forecast.report(plans, trips, progress)
+        if _remember(plans, report):
+            _save(env, s)
+        return forecast.summary(report)
+
+
+def _remember(plans: list[dict], report: dict) -> bool:
+    rows = {r["made_t"]: r for r in report["reviews"]}
+    changed = False
+    for plan in plans:
+        row = rows.get(plan["made_t"])
+        if row and row["budget_end_t"] != plan.get("budget_end_t"):
+            plan["budget_end_t"] = row["budget_end_t"]
+            changed = True
+        if row and row["observations"] != (plan.get("dungeon_observations") or []):
+            plan["dungeon_observations"] = row["observations"]
+            changed = True
+    return changed
 
 
 def latest(env: dict, char: str) -> dict | None:

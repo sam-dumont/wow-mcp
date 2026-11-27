@@ -17,8 +17,8 @@ Facts, sourced rules and strategy, reconciled for any character:
   enchant ids the item links carry.
 
 `paragraph()` is the character page's short "state of the meta" (/zogzog/
-and the full view): three or four sentences for the class and spec, and
-when it was last checked. `describe()` is the full description and
+and the full view): three or four sentences for the class and spec, with
+the sources and verification dates for the statements displayed. `describe()` is the full description and
 `adherence()` the score with its gaps (the full view's section and the MCP's
 class_meta). The full view and MCP include each statement’s source, scope,
 date and confidence.

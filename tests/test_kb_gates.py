@@ -208,7 +208,7 @@ def test_the_suite_runs_as_ci_runs_it_without_the_jobs_variables(monkeypatch, ca
     def run(cmd, **kw):
         seen.append((cmd, kw.get("env")))
         script = "print('passed')"
-        if "pytest" in cmd and pytest_status:
+        if "-n" in cmd and pytest_status:
             script = "print('FAILED tests/test_example.py::test_example - AssertionError'); raise SystemExit(1)"
         return popen([sys.executable, "-c", script], **kw)
 
@@ -216,8 +216,9 @@ def test_the_suite_runs_as_ci_runs_it_without_the_jobs_variables(monkeypatch, ca
     assert gates.test_gate() == (["tests: pytest failed: `tests/test_example.py::test_example`"] if pytest_status else [])
     log = capsys.readouterr().err
     assert "Running pytest" in log and "Running fixtures" in log and "passed" in log
-    pytest_cmd, env = next((c, e) for c, e in seen if "pytest" in c)
-    assert "-n" in pytest_cmd and "not browser" in pytest_cmd
+    scenarios, pytest_cmd = [cmd for cmd, _ in seen if "pytest" in cmd]
+    assert "tests/test_eval_mcp.py" in scenarios and "-n" not in scenarios
+    assert "--ignore=tests/test_eval_mcp.py" in pytest_cmd and "not browser" in pytest_cmd
     assert pytest_cmd[pytest_cmd.index("--timeout") + 1] == "300"
     for _, env in seen:
         assert env is not None and env.get("POLESTAR_CHECKOUT") == "/p"

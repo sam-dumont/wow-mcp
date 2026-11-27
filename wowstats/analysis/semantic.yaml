@@ -636,6 +636,7 @@ dungeon_runs:
   dimensions:
     dungeon: {expr: _.name, description: "Dungeon name."}
     run: {expr: _.start_t, description: "One run, named by when it started (unix seconds): group by it to list the runs one by one."}
+    run_exit: {expr: _.left_t, description: "Exit time in unix seconds from Polestar's leave or completed run duration, NULL for an open run."}
     trip: {expr: _.trip_id, description: "The dungeon trip around the run (dungeon_trips: the same dungeon, the run starting inside the trip), NULL for a run with no trip."}
     level: {expr: _.level, is_entity: true, description: "Level at entry."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}

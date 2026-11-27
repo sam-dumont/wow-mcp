@@ -391,7 +391,7 @@ class Views:
             # "State of the meta" for the class and spec (wowstats.classmeta):
             # the knowledge base's words, from the class, spec and level only.
             "meta": classmeta.paragraph(header.get("class") or (gear or {}).get("class"),
-                                        spec.get("name") or header.get("spec"), header.get("level")),
+                                        spec.get("name") or header.get("spec"), header.get("level"), cite=True),
         }
 
     # ------------------------------------------------------------ gear advice

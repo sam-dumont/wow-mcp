@@ -214,6 +214,51 @@ def test_mcp_lines_are_the_pages(ctx):
         assert r["line"] == page[r["item_id"]], (r["item"], r["line"], page[r["item_id"]])
 
 
+def test_nibbet_gear_options_keep_both_bad_mojo_mask_bosses(ctx):
+    c, app = ctx
+    page = next(u for u in app.gear(D.CHAR, None)["upgrades"] if u["item_id"] == 9470)
+    out = T.call(c, "gear", {"char": D.CHAR, "options": True, "limit": 20})
+    mask = next(o for slot in out["slots"] for o in slot["options"] if o["item_id"] == 9470 and o["kind"] == "dungeon")
+    assert mask["source"] == "Nekrum Gutchewer in Zul'Farrak" and mask["chance"] == 25 and mask["cost_s"] > 0
+    bosses = {r["source"]: r["chance"] for r in [mask, *mask["alternatives"]]}
+    assert bosses == {f"{s['boss']} in {s['zone']}": s["chance_pct"] for s in page["sources"] if s["kind"] == "drop"}
+    assert bosses["Shadowpriest Sezz'ziz in Zul'Farrak"] is None
+
+
+def test_nibbet_dungeon_handins_and_unfinished_armory_agree_across_tools(ctx):
+    from wowstats import redact
+
+    c, app = ctx
+    options = T.call(c, "dungeons", {"char": D.CHAR, "options": True})["dungeons"]
+    blocks = app.dungeons(D.CHAR)["dungeons"]
+    overview = app.overview(D.CHAR)["next_moves"]["moves"]
+    moves = T.call(c, "next_moves", {"char": D.CHAR})["answer"]
+    for name, count, pre, pre_xp, xp in (("Zul'Farrak", 12, 5, 11200, 91031),
+                                         ("Razorfen Downs", 14, 9, 24020, 47160)):
+        b = next(b for b in blocks if b["name"] == name)
+        option = next(d for d in options if d["name"] == name)
+        move = next(m for m in moves if m["point"].startswith(name))
+        card = next(m for m in overview if m.get("kind") == "dungeon" and m["title"] == name)
+        handins = b["gain"]["handins"]
+        saved = redact.zogzog("dungeons", {"dungeons": [b]})["dungeons"][0]["gain"]["handins"]
+        assert saved == handins == card["gain"]["handins"] == option["gain"]["handins"] == move["handins"]
+        assert len(handins) == len({q["quest_id"] for q in handins}) == count
+        assert sum(q["prerequisite"] for q in handins) == pre
+        assert sum(q["xp"] for q in handins) == b["gain"]["xp_quests"] == move["xp_quests"] == xp
+        assert all(q["name"] and q["url"] for q in handins)
+        assert b["trip"]["quest_xp_left"] == xp
+        why = f"{count} hand-ins ({xp:,} XP), including {pre} prerequisites worth {pre_xp:,} XP"
+        assert why in b["why"] == option["why"] and why in card["detail"] and why in move["point"]
+    for rows in (blocks, options):
+        armory = next(b for b in rows if b["name"] == "Scarlet Monastery: Armory")
+        assert (armory["verdict"], armory["why"]) == (
+            "part of a multi-wing quest", "finish Down the Scarlet Path first, then kill Herod for "
+            "In the Name of the Light. The hand-in also needs Library and Cathedral")
+        assert armory["gain"]["handins"] == armory["quest_rewards"] == []
+        assert armory["gain"]["upgrades"] == armory["gain"]["drop_upgrades"] == armory["gain"]["xp_quests"] == 0
+        assert armory["deferred_quest_rewards"][0]["name"] == "Orb of Lorica"
+
+
 def test_one_current_zone_and_one_line_across_the_gear_tools(ctx):
     """eval-mcp 2026-11-22 (zone_quest_upgrade): gear_options had no current
     zone and no zone mark, so the model read the zone off sessions and

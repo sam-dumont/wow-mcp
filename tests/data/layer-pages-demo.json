@@ -1037,6 +1037,25 @@
   "meta": {
    "checked": "2026-11-20",
    "class": "Priest",
+   "evidence": [
+    {
+     "confidence": "medium",
+     "date": "2026-11-14",
+     "id": "class-meta:priest:shadow:summary",
+     "last_verified": "2026-11-20",
+     "scope": "forever",
+     "source_type": "guide",
+     "source_url": "https://www.wowhead.com/forever/guide/classes/priest/shadow/overview-pve-dps",
+     "sources": [
+      "https://www.wowhead.com/forever/guide/classes/priest/shadow/overview-pve-dps",
+      "https://mein-mmo.de/en/wow-forever-class-tier-list-our-expert-gives-insight-into-the-best-tanks-healers-and-damage-dealers,1594198/",
+      "https://www.wowhead.com/forever/guide/classes/priest/shadow/stat-priority-pve-dps",
+      "https://us.forums.blizzard.com/en/wow/t/wow-forever-hotfixes-november-17-2026/2403040/11"
+     ],
+     "text": "Shadow is the comfortable solo priest and a solid group DPS that also feeds the party mana (Dark Inspiration) and healing (Vampiric Embrace). It is not a top damage spec at 60. Hit to 17%, then crit and shadow damage, then Intellect. Since 16 Nov Vampiric Embrace heals the party for half as much (the priest's own healing is unchanged) and Dark Inspiration no longer stacks between Shadow priests.",
+     "title": "Shadow in short"
+    }
+   ],
    "soon": null,
    "spec": "Shadow",
    "text": "Shadow is the comfortable solo priest and a solid group DPS that also feeds the party mana (Dark Inspiration) and healing (Vampiric Embrace). It is not a top damage spec at 60. Hit to 17%, then crit and shadow damage, then Intellect. Since 16 Nov Vampiric Embrace heals the party for half as much (the priest's own healing is unchanged) and Dark Inspiration no longer stacks between Shadow priests."

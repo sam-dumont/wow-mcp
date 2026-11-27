@@ -219,6 +219,10 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
         todo = [q for q in quests if q["state"] == "open"
                 or (q["state"] == "new" and not q.get("blocked") and (q.get("min_level") or 0) <= level)]
         xp_q = float(sum(q.get("xp_now") or 0 for q in todo))
+    handins = (route or {}).get("handins")
+    if handins is None:
+        handins = [{**{k: q.get(k) for k in ("quest_id", "name", "url")}, "xp": q.get("xp_now"),
+                    "prerequisite": False} for q in todo]
     left = bool(todo or (route and route["quests"]))
     parts: dict[str, tuple[float, str]] = {}
     kills = None
@@ -275,6 +279,7 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     if level >= MAX_LEVEL:
         xp_q = xp_k = 0.0
         questing_xph = None
+        handins = [{**q, "xp": 0} for q in handins]
     elif level == MAX_LEVEL - 1 and xp_max:
         # Kills come before the hand-ins. Only the XP still on the bar pays.
         room = max(0, xp_max - current_xp)
@@ -290,6 +295,7 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     out = {
         "basis": basis, "own_runs": len(runs), "level": level, "run_s": round(run_s) if run_s else None, "time": time,
         "xp_kills": round(xp_k) if xp_k is not None else None, "xp_quests": round(xp_q),
+        "handins": handins, "unknown_handin_xp": sum(q["xp"] is None for q in handins),
         "xp": round(xp) if xp is not None else None,
         "level_pct": round(shown / xp_max * 100) if xp_max and shown else None,
         "xp_per_hour": xph, "kills_unknown": xp_k is None,
@@ -432,6 +438,8 @@ def summary(g: dict) -> str | None:
     1h15 inside · 20 min hand-ins)". g["lead"] is the part shown bold: the
     trip's time, or the time and quests."""
     g["lead"] = None
+    partial = bool(g.get("unknown_handin_xp"))
+    unit = "known XP" if partial else "XP"
     of = f" ({g['level_pct']}% of a level)" if g.get("level_pct") is not None else ""
     vs = g.get("vs_questing")
     if g["xp"] is not None and g["run_s"]:
@@ -439,16 +447,18 @@ def summary(g: dict) -> str | None:
         parts = split(g)
         parts = f" ({parts})" if parts else ""
         if not g["xp"]:
+            if partial:
+                return f"{g['lead']}, quest XP unknown{_upgrades(g)}{parts}"
             return f"{g['lead']}, no XP at your level{_upgrades(g)}{parts}"
         pace = f", {ratio(vs)} your questing" if vs is not None else ""
-        return f"{g['lead']} for ~{about_xp(g['xp'])} XP{_upgrades(g)}{pace}{parts}"
+        return f"{g['lead']} for ~{about_xp(g['xp'])} {unit}{_upgrades(g)}{pace}{parts}"
     quests = g["xp_quests"]
     if not quests:
-        return None
+        return "Quest XP unknown" if partial else None
     if g["run_s"]:
         # Kills unknown (no run, no kill estimate): no pace, no verdict. The
         # quests alone can't say faster or slower than questing.
-        g["lead"] = f"~{about_s(g['run_s'])} + quests worth ~{about_xp(quests)} XP"
+        g["lead"] = f"~{about_s(g['run_s'])} + quests worth ~{about_xp(quests)} {unit}"
         return f"{g['lead']}{of}{_upgrades(g)}"
     worth = f", what {about_s(g['questing_s'])} of your questing pays" if g.get("questing_s") else ""
-    return f"Its quests pay ~{about_xp(quests)} XP{of}{worth}"
+    return f"Its quests pay ~{about_xp(quests)} {unit}{of}{worth}"

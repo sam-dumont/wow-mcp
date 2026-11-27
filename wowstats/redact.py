@@ -158,7 +158,9 @@ CLASS_GUIDE = {
 # full view's (/api/meta). `soon`: one line when an event that concerns the
 # class at its level starts within two weeks (wowstats.news.soon_line; owner,
 # 2026-11-20), from the class, spec and level too.
-META_PARAGRAPH = {k: None for k in ("class", "spec", "text", "checked", "stale", "soon")}
+META_PARAGRAPH = {**_keys("class", "spec", "text", "checked", "stale", "soon"),
+                  "evidence": [PresentFields({**_keys("source_url", "scope", "confidence", "last_verified"),
+                                              "sources": [None]})]}
 
 DATA_VERSIONS = {"foreverdb": {}, "forever_db": {}, "polestar": None, "client_build": {},
                  "wowsims": {}, "checked_addons": {}, "checked": None, "watched_client_build": None,
@@ -261,11 +263,12 @@ WHO = _keys("kind", "id", "name", "url", "zone", "x", "y", "spawns", "inside")
 GAIN = {**_keys("own_runs", "level", "run_s", "time", "xp_kills", "xp_quests", "xp", "level_pct", "xp_per_hour",
                 "kills_unknown", "questing_xp_per_hour", "vs_questing", "questing_s", "quests_shown", "summary",
                 "lead", "forecast_note", "upgrades", "drop_upgrades", "drop_chance_pct", "known_drop_chance_pct",
-                "unknown_drop_rates", "expected_gain_per_clear", "known_gain_per_clear"),
+                "unknown_drop_rates", "expected_gain_per_clear", "known_gain_per_clear", "unknown_handin_xp"),
         "quests": [{**_keys("quest_id", "name", "url", "xp_now", "state", "level"), "starts": [WHO]}],
+        "handins": [_keys("quest_id", "name", "url", "xp", "prerequisite")],
         # A wing's quests its trip doesn't finish (game data: the wings it still needs).
         "quests_needing_other_wings": [{**_keys("quest_id", "name", "url", "xp_now", "state"),
-                                        "other_wings": [None]}],
+                                        "other_wings": [None], "objectives_here": [None]}],
         # The trip's parts, each with its label (measured / route / estimate).
         # `from` says where it starts ("you", "entrance"), never the place.
         "trip": {**{k: _keys("value", "label") for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "total_s",
@@ -390,7 +393,7 @@ DUNGEON = {
     "kb_fit": None,
     "quests": [{**_keys("quest_id", "name", "level", "min_level", "xp", "money_copper", "route", "state", "complete",
                         "xp_now", "url", "reward_choices"),
-                "wings": {"in": [None], "how": None, "other_wings": [None]},
+                "wings": {"in": [None], "how": None, "other_wings": [None], "objectives_here": [None]},
                 "starts": [WHO], "ends": [WHO], "needs": [QREF], "blocked": None,
                 "rewards": [_keys("item_id", "name", "quality", "gain", "state", "where", "url", *BADGE)]}],
     "quest_rewards": [QUEST_REWARD], "deferred_quest_rewards": [QUEST_REWARD],

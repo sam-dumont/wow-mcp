@@ -94,3 +94,34 @@ def test_dungeon_item_lines_are_the_overviews(site, pw, engine, width):
         assert not errors, errors
     finally:
         b.close()
+
+
+def test_phone_shows_the_handins_wing_progress_and_both_mask_bosses(site, pw, demo_clock):
+    browser, page, errors = open_page(pw, "chromium", site, 390)
+    try:
+        def inspect_handins(parent):
+            summary = parent.get_by_text("12 hand-ins this trip (91,031 XP)", exact=True)
+            summary.click(timeout=30000)
+            details = summary.locator("..")
+            assert details.locator("li").count() == 12
+            assert "Prerequisites (5), 11,200 XP" in details.inner_text()
+            assert "Dungeon quests (7), 79,831 XP" in details.inner_text()
+            assert details.locator("li a").count() == 12
+            assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
+
+        inspect_handins(page.locator("#home"))
+        page.get_by_role("tab", name="Character", exact=True).click()
+        inspect_handins(page.locator(".dg").filter(has=page.get_by_role("heading", name="Zul'Farrak", exact=True)))
+        armory = page.locator(".dg").filter(has=page.get_by_role("heading", name="Scarlet Monastery: Armory"))
+        assert "kill Herod" in armory.locator(".dgverdict").inner_text()
+        assert "Down the Scarlet Path" in armory.locator(".dgnext").inner_text()
+        page.get_by_role("button", name="By where you get it").click()
+        mask = page.locator("#advice .srcgroup .cand[data-up='1-9470']").first
+        mask.locator("xpath=ancestor::details").evaluate_all("els => els.forEach(e => e.open = true)")
+        line = mask.locator(".srcline").inner_text()
+        assert "Nekrum Gutchewer" in line and "25%" in line
+        assert "Shadowpriest Sezz'ziz" in line and "drop rate unknown" in line
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
+        assert not errors
+    finally:
+        browser.close()
