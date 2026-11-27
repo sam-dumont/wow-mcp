@@ -231,7 +231,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     env:
       VERSION: ${{ needs.plan.outputs.version }}
       KB_NOTE: ${{ needs.plan.outputs.kb-note }}
@@ -269,7 +269,9 @@ jobs:
         timeout-minutes: 25
         env:
           SHARD: ${{ matrix.shard }}
-        run: uv run --frozen pytest -q -rs -m browser -n 4 --dist loadfile --shard "${SHARD}/2"
+        # A cold dashboard builds its DuckDB copy while the browser loads.
+        # Give each runner one dashboard at a time.
+        run: uv run --frozen pytest -q -rs -m browser --durations=5 --shard "${SHARD}/4"
 
   # The shipper's release signature (security review 2026-11-20): the same
   # release commit prepare makes (release.py apply is deterministic for the
