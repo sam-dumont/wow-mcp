@@ -185,3 +185,55 @@ def test_a_quest_any_wing_finishes_stays_on_each(priest):
         assert 7028 in {q["quest_id"] for q in b["quests"]}, w
         # Legends of Maraudon (7044) needs both wings' items: it waits.
         assert {q["quest_id"] for q in b.get("quests_needing_other_wings") or []} == {7044}
+
+@pytest.mark.parametrize("complete", [False, True])
+def test_orb_of_lorica_is_a_handin_and_never_an_armory_drop(priest, complete, monkeypatch, tmp_path):
+    from wowstats import redact
+    from wowstats.mcp import plantools, tools
+
+    inp = copy.deepcopy(priest)
+    inp.update(level=40, trips=[], open_quests=[{"quest_id": 1053, "complete": complete}])
+    inp["quests_done"] = list((set(inp["quests_done"]) | {1052}) - {1053})
+    orb = next(d for d in inp["dungeon_loot"]["796"] if d["item_id"] == 11262)
+    assert orb["name"] == "Orb of Lorica" and not orb["drops"]
+    # Leave only the orb so an extra drop cannot hide behind a real boss roll.
+    inp["dungeon_loot"]["796"] = [orb]
+    block = next(b for b in D.build(inp)["dungeons"] if b.get("wing") == "Armory")
+    monkeypatch.setattr(plantools, "_inputs", lambda ctx, args: inp)
+    response = plantools.t_dungeon_options(tools.Ctx(store=None, env={"ANALYSIS_STATE_DIR": str(tmp_path)}), {})
+    option = next(d for d in response["dungeons"] if d["name"] == block["name"])
+    saved = redact.zogzog("dungeons", {"dungeons": [block]})["dungeons"][0]
+    for row in (block, saved, option):
+        assert row["gain"]["drop_upgrades"] == 0 and row["gain"]["drop_chance_pct"] is None
+        assert row["gain"]["upgrades"] == int(complete)
+        assert [r["item_id"] for r in row["quest_rewards"]] == ([11262] if complete else [])
+        waiting = row["deferred_quest_rewards"]
+        if complete:
+            assert waiting == []
+        else:
+            assert [(r["item_id"], r["quest"]["other_wings"]) for r in waiting] == [(11262, ["Library", "Cathedral"])]
+    assert block["missing_now"] == 0 and option["top_items"] == []
+    if complete:
+        reward = option["quest_rewards"][0]
+        assert reward["slot"] == orb["slot_name"] and reward["req_level"] == orb["level"]
+        assert reward["line"] == block["quest_rewards"][0]["line"]
+
+
+def test_a_locked_reward_is_visible_without_counting_on_the_trip(priest):
+    inp = copy.deepcopy(priest)
+    inp.update(level=32, open_quests=[], trips=[])
+    inp["quests_done"] = []
+    # A real reward, with a level gate above the character and no planned hand-in.
+    area = {"name": "The Stockade", "levels": [24, 32]}
+    q = next(q for q in inp["dungeon_quests"]["717"]["quests"] if q["quest_id"] == 377)
+    item = next(d for d in inp["dungeon_loot"]["717"] if any(x["quest_id"] == 377 for x in d["quests"]))
+    inp["dungeon_loot"]["717"] = [{**item, "equipped": False, "gain": 10}]
+    inp["dungeon_quests"]["717"]["quests"] = [{**q, "min_level": 50}]
+    inp.update(owned={}, upgrades=[])
+    # No pickup route for this dungeon in this fixture: use the quest's recorded gate.
+    from unittest.mock import patch
+
+    with patch.object(D, "route_trip", return_value=None):
+        b = D.block(inp, "717", area, [], {}, 10000, {})
+    assert b["missing_now"] == b["gain"]["upgrades"] == 0 and b["quest_rewards"] == []
+    assert b["deferred_quest_rewards"][0]["quest"]["min_level"] == 50

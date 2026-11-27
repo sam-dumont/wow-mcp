@@ -78,7 +78,7 @@ every level, one journal entry per session, your look at each level
 
 ### To run your own
 
-- Docker, and a box that stays on: 2 vCPU and 2 GiB of RAM for one player.
+- Docker and a machine that stays on. [Sizing and measured workloads](../../docs/self-host/sizing.md).
 - About 10 minutes to [try it with made-up characters](../../docs/self-host/demo.md) first.
 
 </div>

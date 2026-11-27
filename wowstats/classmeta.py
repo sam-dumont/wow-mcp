@@ -20,8 +20,8 @@ Facts, sourced rules and strategy, reconciled for any character:
 and the full view): three or four sentences for the class and spec, and
 when it was last checked. `describe()` is the full description and
 `adherence()` the score with its gaps (the full view's section and the MCP's
-class_meta). The pages show actions and numbers only; `cite=True` adds each
-statement's source, date and confidence for the MCP.
+class_meta). The full view and MCP include each statement’s source, scope,
+date and confidence.
 """
 
 from __future__ import annotations
@@ -258,7 +258,8 @@ def meta_spec(cls: str, spec: str | None) -> str | None:
 # ------------------------------------------------------------------ the paragraph
 
 
-def paragraph(cls_raw, spec_raw=None, level: int | None = None, today: date | None = None) -> dict | None:
+def paragraph(cls_raw, spec_raw=None, level: int | None = None, today: date | None = None, *,
+              cite: bool = False) -> dict | None:
     """The character page's "state of the meta": three or four sentences for
     the class and spec, from the lane's summary of that spec (else the
     class's), plus the newest change when it came after that summary. None
@@ -283,7 +284,8 @@ def paragraph(cls_raw, spec_raw=None, level: int | None = None, today: date | No
     from . import news
 
     return {"class": cls.title(), "spec": base.get("spec") or told, "text": text, **checked(used, today),
-            "soon": news.soon_line(cls, spec or told, level, today)}
+            "soon": news.soon_line(cls, spec or told, level, today),
+            **({"evidence": [_item(s, True) for s in used]} if cite else {})}
 
 
 # ------------------------------------------------------------------ the description
@@ -333,9 +335,11 @@ def describe(cls_raw, spec_raw=None, level: int | None = None, cite: bool = Fals
               if r and (lv or 0) >= classguide.MAX_LEVEL else None)
     from . import news
 
+    summary = paragraph(cls, told, lv, today, cite=cite) or {}
     return {
         "class": cls.title(), "spec": told, "your_spec": spec, "level": lv, **checked(used, today),
-        "summary": (paragraph(cls, told, lv, today) or {}).get("text"),
+        "summary": summary.get("text"),
+        **({"summary_evidence": summary["evidence"]} if summary.get("evidence") else {}),
         "standing": standing,
         "build": {"spec": path.get("spec"), "tree": path.get("tree"), "notes": build, "target": target},
         "stats": stats,
@@ -423,8 +427,7 @@ def talents_part(cls: str, level: int, tal: dict | None, header: dict, spec: str
         return {**base, "score": None, "known": False,
                 "gaps": [{"kind": "talents", "link": "#talents", "weight": 1,
                           "title": "Your talents aren't on your page yet",
-                          "action": "Battle.net reads them every 2 hours: log out once, then check back "
-                                    "later. A site without a Battle.net API client has none."}]}
+                          "action": "Save a WoWSims Exporter build, then reload or log out for the shipper."}]}
     total = sum(want.values())
     matched = sum(min(ranks.get(n, 0), r) for n, r in want.items())
     spent = sum(ranks.values())
@@ -434,29 +437,21 @@ def talents_part(cls: str, level: int, tal: dict | None, header: dict, spec: str
     order = _order(cls, t)
     missing.sort(key=lambda x: order.index(x[0]) if x[0] in order else 99)
     gaps = []
-    mine = (tal or {}).get("spec") if isinstance(tal, dict) else None
-    trainers = classguide.trainers(cls, header.get("race"), header.get("faction"))[:3]
     firsts = missing[:3]
     refs = [{"name": n, "url": _talent_url(cls, n)} for n, _ in firsts]
-    if sum(off.values()) > 0:
-        names = ", ".join(n for n, _ in sorted(off.items(), key=lambda x: -x[1])[:3])
-        k = sum(off.values())
-        then = (f"spend them in the {t['label']}'s order" if t["kind"] == "levelling" else
-                "spend them where the build puts them, starting with " + ", ".join(n for n, _ in firsts))
-        gaps.append({
-            "kind": "talents", "link": "#talents", "weight": 3 if k >= 5 else 2,
-            "title": f"{k} talent point{'s' if k != 1 else ''} outside the {t['label']}"
-                     + (f" (you play {mine})" if mine and t["kind"] == "levelling" and mine != t.get("tree") else ""),
-            "detail": f"In {names}.",
-            "action": f"Unlearn your talents at a {cls.title()} trainer ({_respec_cost()}), then {then}.",
-            "trainers": trainers, "blocker": None, **({"talents": refs} if t["kind"] == "role" else {})})
+    if off:
+        base["comparison"] = {
+            "different": [{"name": n, "points": count} for n, count in sorted(off.items(), key=lambda x: -x[1])],
+            "respec_cost": _respec_cost(),
+            "trainers": classguide.trainers(cls, header.get("race"), header.get("faction"))[:3],
+        }
     if free and missing:
         gaps.append({
             "kind": "talents", "link": "#talents", "weight": 3,
             "title": f"{free} free talent point{'s' if free != 1 else ''} to spend",
             "detail": "Next in the build: " + ", ".join(f"{n} ({c} point{'s' if c != 1 else ''})" for n, c in firsts)
                       + ".",
-            "action": "Open your talents (N) and put them in now.",
+            "action": "If you want to follow this build, open your talents (N) to spend the free points.",
             "talents": refs})
     return {**base, "score": round(matched / total, 3), "known": True, "have": matched, "of": total, "free": free,
             "off_build": sum(off.values()), "gaps": gaps}

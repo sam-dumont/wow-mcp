@@ -40,8 +40,8 @@ flowchart LR
 ## What you need
 
 - **Docker** with Compose v2, on Linux, a Mac or Windows.
-- **A machine that stays on.** 2 vCPU and 2 GiB of RAM is a fine start for one player
-  ([Sizing](sizing.md) has the measured numbers).
+- **A machine that stays on.** Allow room for the OS and for the publisher to build while you use the page
+  or ask your AI a question. [Sizing](sizing.md) has the measured workloads.
 - **For anything beyond your own computer**: a domain name and a reverse proxy with HTTPS.
   claude.ai and ChatGPT reach your server from theirs, so the AI login needs a public HTTPS
   address too.

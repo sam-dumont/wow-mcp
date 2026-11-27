@@ -88,6 +88,9 @@ def test_route_says_rfk_we_say_sm_for_his_own_pace():
     slow = {**gain, "xp_per_hour": 9000}
     assert V.compare(32, "Scarlet Monastery", SM, ["Razorfen Kraul"], recommended=True, why="x", quests=[],
                      gain=slow)["reason"] is None
+    # A measured loss rounds to 1.0× on the card. It still cannot justify going off-guide.
+    slower = {**gain, "xp_per_hour": 12999}
+    assert V.measured([], slower)[0] is None
     # Kills not measured (no run of his there): no pace to quote.
     unknown = {**gain, "kills_unknown": True}
     assert V.compare(32, "Scarlet Monastery", SM, ["Razorfen Kraul"], recommended=True, why="x", quests=[],

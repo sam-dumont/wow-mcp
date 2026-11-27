@@ -51,7 +51,7 @@ def site(tmp_path_factory):
     from tests.derived import load  # built at test time (tests/derived.py)
 
     gear = {**load("gear-priest.json.gz"), "char": CHAR}
-    mp.setattr(ui.App, "gear", lambda self, name, spec: gear)
+    mp.setattr(ui.App, "gear", lambda self, name, spec, mode=None, pvp=None: gear)
     char = views.Views.char
 
     def priest(self, name):
@@ -142,8 +142,12 @@ def test_full_view_shows_the_score_gaps_and_the_meta_in_full(site, pw, engine, w
         # What is coming that concerns a level-32 priest: the undated ruleset, said so.
         coming = box.locator(".metacoming li")
         assert coming.count() >= 1 and "no date" in coming.first.inner_text()
-        box.locator(".metamore summary").click()
+        box.locator(".metamore > summary").click()
         assert box.locator(".metamore .metacol").count() >= 2
+        evidence = box.locator(".metamore .metasources").first
+        evidence.locator("summary").click()
+        assert evidence.locator("a").first.get_attribute("href").startswith("https://")
+        assert "confidence" in evidence.inner_text()
         assert no_side_scroll(pg) and not errors
     finally:
         b.close()

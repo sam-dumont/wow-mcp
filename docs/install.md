@@ -229,14 +229,10 @@ tables `ui` downloads for item names and the 3D view, in
 
 `ui` is the one that grows with your history: it answers the page and
 prepares the AI's analysis, which holds a character's whole history in
-memory. Its limit is 1 GiB (`UI_MEM_LIMIT` in `.env`). On 55 copies of the
-demo's week (100,705 events, items and 3D off) it peaked at 472 MiB while
-the publisher built the sites, from 187 MiB on one week: 1 GiB leaves about
-twice the measured peak. A much longer history than that: raise it
-(`UI_MEM_LIMIT=2g`) and run `docker compose up -d`. In the same run the
-publisher peaked at 342 MiB, VictoriaLogs at 217 MiB and `site` at 22 MiB.
-VictoriaLogs has a limit too, 1 GiB (`VL_MEM_LIMIT`); the other two have
-none.
+memory. The Compose defaults cap `ui` at 1 GiB (`UI_MEM_LIMIT`) and VictoriaLogs at
+1 GiB (`VL_MEM_LIMIT`). The publisher and static server have no memory limit.
+Leave room for both, and for the host. See [Sizing](self-host/sizing.md) for the
+measured peaks and which services ran together.
 
 `ui` reads its own limit and splits it, so a bigger limit is used without
 another setting:

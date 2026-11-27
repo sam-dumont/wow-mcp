@@ -220,7 +220,8 @@ TRAINER = {**_keys("npc", "name", "url", "x", "y"), "zone": PLACE}
 WHO = _keys("kind", "id", "name", "url", "zone", "x", "y", "spawns", "inside")
 GAIN = {**_keys("own_runs", "level", "run_s", "time", "xp_kills", "xp_quests", "xp", "level_pct", "xp_per_hour",
                 "kills_unknown", "questing_xp_per_hour", "vs_questing", "questing_s", "quests_shown", "summary",
-                "lead", "upgrades"),
+                "lead", "forecast_note", "upgrades", "drop_upgrades", "drop_chance_pct", "known_drop_chance_pct",
+                "unknown_drop_rates", "expected_gain_per_clear", "known_gain_per_clear"),
         "quests": [{**_keys("quest_id", "name", "url", "xp_now", "state", "level"), "starts": [WHO]}],
         # A wing's quests its trip doesn't finish (game data: the wings it still needs).
         "quests_needing_other_wings": [{**_keys("quest_id", "name", "url", "xp_now", "state"),
@@ -235,7 +236,8 @@ GAIN = {**_keys("own_runs", "level", "run_s", "time", "xp_kills", "xp_quests", "
 # quest_rewards): the item, its gain, the quest and who gives it.
 QUEST_REWARD = {**_keys("item_id", "name", "quality", "slot_name", "gain", "gain_pct", "fills_empty", "level", "now",
                         "url", "of", *BADGE),
-                "quest": {**_keys("quest_id", "name", "url", "state", "complete"), "starts": [WHO]}}
+                "quest": {**_keys("quest_id", "name", "url", "state", "complete", "min_level"), "starts": [WHO],
+                          "needs": [_keys("quest_id", "name", "url")], "other_wings": [None]}}
 # Our dungeon against Polestar's dungeons for the level (wowstats.plan.vsguide):
 # dungeon names, levels and the character's own counts and paces.
 VS_GUIDE = {**_keys("agrees", "we_say", "reason", "under_floor", "text"), "guide_says": [None],
@@ -338,7 +340,8 @@ QREF = {**_keys("quest_id", "name", "state", "url", "any"), "starts": [WHO], "dr
 DUNGEON = {
     **_keys("area_id", "name", "min", "max", "state", "opens_at", "url", "zone_url", "value", "verdict", "why",
             "drops_shown", "missing_now", "obtained", "expected_gain_per_clear", "expected_gain_share_pct",
-            "chance_one_per_clear_pct"),
+            "chance_one_per_clear_pct", "known_gain_per_clear"),
+    "goals": [None], "fits_now": None,
     "drops": [{**_keys("item_id", "name", "quality", "item_level", "slot_name", "score", "gain", "gain_pct",
                        "fills_empty", "level", "now", "state", "where", "url", "value", *BADGE),
                "drops": [_keys("boss", "npc_id", "chance_pct", "wing", "url")], "quests": [None], "fit": FIT}],
@@ -347,9 +350,10 @@ DUNGEON = {
     "kb_fit": None,
     "quests": [{**_keys("quest_id", "name", "level", "min_level", "xp", "money_copper", "route", "state", "complete",
                         "xp_now", "url", "reward_choices"),
+                "wings": {"in": [None], "how": None, "other_wings": [None]},
                 "starts": [WHO], "ends": [WHO], "needs": [QREF], "blocked": None,
                 "rewards": [_keys("item_id", "name", "quality", "gain", "state", "where", "url", *BADGE)]}],
-    "quest_rewards": [QUEST_REWARD],
+    "quest_rewards": [QUEST_REWARD], "deferred_quest_rewards": [QUEST_REWARD],
     "trip": {**_keys("measured", "n", "inside_s", "travel_s", "quests_s", "total_s", "xp_kills", "xp_quests",
                      "xp_per_run", "xp_per_hour", "again_s", "again_xp", "again_xp_per_hour", "vendor_copper",
                      "ah_copper", "quest_money_copper", "quest_xp_left"),

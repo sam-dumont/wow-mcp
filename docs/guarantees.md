@@ -53,7 +53,7 @@ I/O) at each one, on the first run and on the last of a few play days, then rest
 |---|---|
 | After the spool file is written, before `state.json` | The run extracts the same records again: the same events under the same `source_id`, which queries keep once. |
 | Mid-upload | The server stores nothing of the cut upload (property 12); the spool file is still whole and goes again. |
-| After the server's store, before its 200 | The shipper sees no answer and sends the lines again: the same lines, stored twice, kept once. |
+| After the server's store, before its 200 | The shipper sees no answer and sends the same lines again. SQLite skips identical lines. VictoriaLogs stores the resend. Queries count each event once. |
 | After the 200, before the shipper's checkpoint | As above: the spool file still holds the lines, they go again. |
 | Mid-append to `sent/` (after the 200) | The spool file still holds the lines and they go again, so the server has them. The copy in `sent/` keeps a member cut short, then the member the restart appends with the same lines. `--replay` skips the cut one and sends every event, and still says the file is damaged and exits 1: it can't know a later member repeats the cut one (property 20, `test_sent_damage.py::test_a_kill_mid_append_then_the_restart`). |
 | Mid-write of `state.json` | The new state is written to a temporary file and renamed in place; the old one is still whole. |
@@ -344,8 +344,8 @@ What the drill found:
   nothing (#94).
 - The MCP's `players` gave another top 20 on each call when players tied, and `zones` failed on
   a `NaN` from the store (#95).
-- The restore page said a second replay "isn't stored twice" (it is, counted once): fixed in
-  the page.
+- The restore page said a second replay "isn't stored twice". The drill used VictoriaLogs,
+  which stores the resend and counts it once.
 - `--reextract` ended with a normal run that advanced `state.json` (the bags, gear and quest
   checkpoints, the Recorder context, the setup report), against #77's own-checkpoint design: a
   background run after it skipped play only the recovery had sent. It now leaves `state.json`

@@ -105,8 +105,8 @@ On Windows: `uv run --script "$env:LOCALAPPDATA\wow-stats\wow_stats.py" --replay
 `--replay` sends every event in `sent/` again, byte for byte: same ids, same fields, same
 times. It reads nothing else, so the game doesn't need to be installed yet. It changes nothing
 on the PC (not `sent/`, not `state.json`), so you can run it again when it stops halfway: the
-log says how far it got. What the server already has is stored a second time but counted
-once: every answer keeps one copy per event id.
+log says how far it got. SQLite skips an identical line. VictoriaLogs stores the resend.
+On either store, the page and the MCP count one copy per event id.
 
 The log's last line says how much went: `replay: 12000 events from 9 files in ... sent
 again`. The page lists your characters within a minute (it keeps the character list for 45

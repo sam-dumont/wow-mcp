@@ -95,7 +95,7 @@ On top, two optional layers:
   [Privacy tiers](docs/explanation/privacy.md), [what's shared](docs/players/privacy.md).
 - **Known addons only.** It reads [Polestar](https://github.com/fitzforge/polestar) and other
   well-known addons; it never asks you to install one of its own. [Addons](docs/reference/addons.md).
-- **Small.** One player fits in 2 vCPU and 2 GiB of RAM; a year of events takes a few MiB.
+- **Self-hosted.** The default kit runs four containers. SQLite drops the separate log server.
   [Sizing](docs/self-host/sizing.md).
 
 ## The manual

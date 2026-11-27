@@ -570,17 +570,10 @@ class App:
         self._full_only()
 
         def build() -> dict:
-            ov = self.views.overview(name)
-            if any(m.get("kind") == "dungeon" for m in ov.get("moves") or []):
-                # A dungeon move carries the Dungeons panel's estimate of a
-                # run (XP, time, pace, quests): one estimate, both places.
-                from wowstats.plan import dungeonview
-
-                # A store that can't answer the panel leaves the moves without
-                # its estimate, never the Overview without its moves.
-                with contextlib.suppress(SourceError):
-                    ov["moves"] = dungeonview.with_gain(ov["moves"], self.dungeons(name))
-            return ov
+            panel = {}
+            with contextlib.suppress(SourceError):
+                panel = self.dungeons(name)
+            return self.views.overview(name, dungeon_panel=panel)
 
         return self.cached(f"overview:{name}", build)
 
@@ -665,7 +658,8 @@ class App:
         """The class's meta and the character's adherence (wowstats.classmeta),
         from the page's own char and gear answers; full view only."""
         self._full_only()
-        return self.cached(f"meta:{name}", lambda: self.views.meta(name, self.char(name), self.gear(name, None)))
+        return self.cached(f"meta:{name}",
+                           lambda: self.views.meta(name, self.char(name), self.gear(name, None), cite=True))
 
     def talent_history(self, name: str) -> dict:
         """The talent changes of the last 3 weeks (wowstats.views), full view

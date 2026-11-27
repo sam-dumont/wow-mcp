@@ -20,7 +20,9 @@ from tests.test_dungeon_lines_browser import open_page, pw, site  # noqa: E402, 
 
 # The upgrades (owner, 2026-11-23): the quests' first, then the drops with
 # the chance one drops in a run, a part with none left out.
-UPS = r"( \+ (\d+ quest upgrades?(, \d+ drop upgrades?( \(\d+% a run\))?)?|\d+ drop upgrades?( \(\d+% a run\))?))?"
+ODDS = r"(?:drop chance unknown|>?[\d.]+% a run(?: from known rates)?)"
+DROP = r"\d+ drop upgrades? \(" + ODDS + r"\)"
+UPS = r"(?: \+ (?:\d+ quest upgrades?(?:, " + DROP + r")?|" + DROP + r"))?"
 LINE = re.compile(r"^~(\d+ min|\d+h\d\d) trip for ~[\d.,]+k? XP" + UPS + r", ([\d.]+×|under 0\.1×) your "
                   r"questing \(((\d+ min|\d+h\d\d) (pickups|inside|hand-ins)( · )?)+\)\.$")
 

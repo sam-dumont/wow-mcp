@@ -75,6 +75,27 @@ def test_constraints_in_plain_words(priest):
     assert g["blocks"][0]["kind"] == "dungeon"
 
 
+def test_dungeon_objectives_and_time_budget():
+    def trip(name, minutes, priority, goals, drop_points=0, reward=0):
+        return {"name": name, "fits_now": True, "priority": priority, "goals": goals,
+                "trip": {"time_s": minutes * 60}, "known_gain_per_clear": drop_points,
+                "quest_rewards": [{"now": True, "gain": reward}] if reward else []}
+
+    xp = trip("Quest trip", 90, "high", ["xp", "quests"])
+    gear = trip("Slow but good drops", 60, "high", ["gear"], drop_points=10)
+    turnin = trip("Gear quest", 45, "high", ["quests", "gear"], reward=10)
+    tag = trip("Join friends", 30, "some", ["group_only"])
+    rows = [xp, gear, turnin, tag, {**xp, "fits_now": False}, {**gear, "trip": None}]
+    for goal, expected in [("xp", [xp]), ("gear", [turnin, gear])]:
+        cons = E.parse_constraints("group with friends for " + goal)
+        assert cons["group"] and cons["dungeon_goal"] == goal
+        assert E.session_trips(rows, 90 * 60, goal, group=True) == expected
+    assert E.session_trips(rows, 30 * 60, None, group=False) == []
+    assert E.session_trips(rows, 30 * 60, None, group=True) == [tag]
+    assert E.session_trips(rows, 30 * 60 - 1, None, group=True) == []
+    assert E.session_trips(rows, 90 * 60, None, group=False) == [xp, gear, turnin]
+
+
 def test_mount_tiers_from_sourced_rules(priest):
     e = E.estimate(priest, 3)
     tiers = e["mount"]["tiers"]
@@ -90,14 +111,12 @@ def test_dungeons_ranked_with_gear_and_redo(priest):
     e = E.estimate(priest, 3)
     names = [d["name"] for d in e["dungeons"]]
     fits = [d for d in e["dungeons"] if d["fits_now"]]
-    assert fits and fits[0]["expected_gain_per_clear"] > 0
-    assert all(d["top_items"] for d in fits[:3])
+    assert fits and fits[0]["priority"] == "high" and fits[0]["goals"]
+    assert any(d["top_items"] and d["known_gain_per_clear"] > 0 for d in fits if d["known_gain_per_clear"])
     assert "The Stockade" in names and "Blackfathom Deeps" in names  # done: always shown with a verdict
     for d in e["dungeons"]:
         if d.get("redo"):
-            assert d["redo"]["verdict"] in ("worth one more run", "done, move on",
-                                             "worth looping for gold toward the mount") or \
-                d["redo"]["verdict"].startswith("only for ")
+            assert d["redo"]["verdict"] == d["verdict"] and d["redo"]["why"] == d["why"]
             assert d["redo"]["instance_limit"].startswith("unknown")  # the recorded inputs predate the rule
 
 
