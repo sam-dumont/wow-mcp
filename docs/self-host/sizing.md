@@ -1,11 +1,79 @@
 # Sizing
 
-**For:** self-hosters picking a machine. **At the end:** you know what fits when the whole host has two CPUs and 2 GiB of RAM.
+A two-CPU SQLite host with 4 GiB can serve the UI, answer MCP calls and accept uploads
+while it publishes a nine-character roster. With 2 GiB, schedule the publish when the UI can be stopped.
 
-Compose caps the UI and its MCP at 1 GiB. VictoriaLogs gets another 1 GiB. The publisher
+Stock Compose caps the UI and its MCP at 1 GiB. VictoriaLogs gets another 1 GiB. The publisher
 and static server run alongside them without caps. A shared VictoriaLogs install adds a second
 log server for friends. These are service limits. The host also needs memory for the OS,
 Docker and anything else it runs. [Where your events live](../install.md#where-your-events-live).
+
+## Nine characters on a 4 GiB SQLite host
+
+On a fresh install, set the upload password and image in `deploy/compose/.env` as in the
+[install guide](../install.md#start-it). Add this line on Linux or macOS. On Windows use
+`;` between filenames. If this server already uses VictoriaLogs, selecting SQLite opens
+a separate store. Replay your shipper archive into it if you want the same history.
+[Restore from the shipper](backup.md#restore).
+
+```dotenv
+COMPOSE_FILE=compose.yaml:compose.sqlite.yaml:compose.small-host.yaml
+```
+
+From `deploy/compose`, run `docker compose pull` and `docker compose up -d`.
+The UI and MCP share a 2 GiB limit. Between requests, they keep up to one character’s
+analysis copy and one SQL workspace. Active requests can hold more until they finish.
+The publisher runs in its own process. Both services skip item downloads and 3D.
+The public and sealed sites have no portraits.
+To use the MCP, configure your identity provider. [MCP setup](../mcp.md).
+
+### Two runs with the same history
+
+Each fresh Ubuntu 24.04 guest had two vCPUs, 4 GiB RAM, zero swap and a 16 GiB virtual
+disk. One owner uploaded 183,816 rows across nine characters, including a second copy
+of Nibbet’s history dated one year earlier. After restarting the UI, we started a publish
+and made one cold MCP call to `analysis_brief` for Nibbet over OAuth. At the same time
+we opened his full character page and sent one new Hesta event. The test excluded the
+reverse proxy, Battle.net exporter, renderer and other host workloads.
+
+| Wall time or whole-guest reading | Run 1 | Run 2 |
+|---|---:|---:|
+| Publish both sites | 307.32 s | 276.65 s |
+| First MCP `analysis_brief` during publish | 50.82 s | 47.25 s |
+| Full character page during publish | 24.08 s | 20.01 s |
+| One-event upload during publish | 389 ms | 534 ms |
+| MCP using the same login after publish | 58.50 s | 51.79 s |
+| Full character page after publish | 55.61 s | 42.46 s |
+| Peak RAM used / least RAM available | 2,963 / 953 MiB | 2,914 / 1,000 MiB |
+| Peak UI container memory | 1,536 MiB | 1,546 MiB |
+| Least free disk through recovery | 11.40 GiB | 11.40 GiB |
+
+Both kernels recorded zero OOM kills. The UI stayed up after its planned restart and
+never hit its 2 GiB limit. Guest RAM uses Linux’s `MemTotal - MemAvailable`, sampled
+from the first upload through recovery. The longest gap between samples was 0.253 s.
+[Run 1](https://github.com/sam-dumont/wow-mcp/actions/runs/46051039090/job/140682109134) · [Run 2](https://github.com/sam-dumont/wow-mcp/actions/runs/46051039090/job/140682109532).
+
+Before the timed build, we killed a publisher mid-build. Three static URLs still served
+the previous site with identical SHA-256 hashes. The next build produced 125 public
+files and 190 sealed files. Fetching the public roster and decrypting the sealed roster
+over HTTP gave all nine characters in each. We stopped the writers, archived SQLite,
+restored to a fresh directory and compared every file hash. The restored database and
+two shipper replays to a second, initially empty database all passed `integrity_check`.
+Each had 183,817 rows and matched the fixture’s distinct event count for every character.
+[Exact readings and counts](https://github.com/sam-dumont/wow-mcp/blob/main/docs/self-host/host-budget-2026-11.json) · [Back up and restore](backup.md).
+
+To repeat one run, check out `449bddf052dff4c0588b13a419c1c76d6047815b` on a disposable
+Ubuntu 24.04 x86-64 runner with KVM, sudo and Docker Compose. From the repository root,
+run the three steps below. They boot a guest, use the limits from the resolved Compose
+files and write the workload log, memory samples and kernel OOM log under `evidence/`.
+[Benchmark scripts](https://github.com/sam-dumont/wow-mcp/tree/449bddf052dff4c0588b13a419c1c76d6047815b/dev/host-budget).
+
+```sh
+export RUNNER_TEMP="$(mktemp -d)"
+bash dev/host-budget/guest.sh prepare small-host
+bash dev/host-budget/guest.sh run small-host
+bash dev/host-budget/guest.sh results
+```
 
 ## Nine characters on a 2 GiB host
 
@@ -53,6 +121,16 @@ portraits. On this 2 GiB machine, schedule a SQLite publish for a time when you 
 stop the UI and MCP, then restart them after the build. The guest kept at least
 485 MiB available through backup, restore, replay
 and publication, with zero OOM kills. [Minimal run](https://github.com/sam-dumont/wow-mcp/actions/runs/45997232907/job/140499569452).
+
+To run that serial publish yourself, use `COMPOSE_FILE=compose.yaml:compose.sqlite.yaml`,
+`WOW_ITEMS=off` and `MODEL3D=off` in `.env`. From `deploy/compose`, leave the publisher
+loop stopped between builds. The static server can keep serving the previous site.
+
+```sh
+docker compose stop publish ui
+docker compose run --rm --no-deps -e ANALYSIS_SHARE_URL= publish publish --force
+docker compose up -d --no-deps ui site
+```
 
 We repeated recovery on fresh 2 GiB guests with publication out of the way. We stopped the
 writers, archived the event directory, extracted into a new directory and compared every

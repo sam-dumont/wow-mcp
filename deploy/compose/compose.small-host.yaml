@@ -1,0 +1,13 @@
+# Use after compose.yaml and compose.sqlite.yaml. See docs/self-host/sizing.md.
+services:
+  ui:
+    mem_limit: 2g
+    environment:
+      ANALYSIS_COPIES_MAX: "1"
+      ANALYSIS_WORKSPACES_MAX: "1"
+      MODEL3D: "off"
+      WOW_ITEMS: "off"
+  publish:
+    environment:
+      MODEL3D: "off"
+      WOW_ITEMS: "off"

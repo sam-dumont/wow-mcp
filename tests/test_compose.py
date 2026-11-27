@@ -183,3 +183,18 @@ def test_the_sqlite_variant_runs_without_victorialogs():
             vols = {v["target"]: v for v in s[name]["volumes"]}
             assert vols["/events"]["source"] == "events" and not vols["/events"].get("read_only"), name
             assert "victorialogs" not in (s[name].get("depends_on") or {}), name
+
+
+def test_small_host_sets_the_analysis_cache_limits_and_uses_the_sqlite_event_volume():
+    services = config(COMPOSE_FILE="compose.yaml,compose.sqlite.yaml,compose.small-host.yaml",
+                      COMPOSE_PATH_SEPARATOR=",")
+    assert set(services) == {"ui", "publish", "site"}
+    assert int(services["ui"]["mem_limit"]) == 2 << 30
+    ui = services["ui"]["environment"]
+    assert ui["ANALYSIS_COPIES_MAX"] == ui["ANALYSIS_WORKSPACES_MAX"] == "1"
+    for name in ("ui", "publish"):
+        service = services[name]
+        env = service["environment"]
+        assert env["MODEL3D"] == env["WOW_ITEMS"] == "off"
+        assert env["EVENTS_STORE"] == "sqlite:/events"
+        assert any(v["source"] == "events" and v["target"] == "/events" for v in service["volumes"])
