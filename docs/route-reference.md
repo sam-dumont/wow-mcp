@@ -88,6 +88,15 @@ a stone to its dungeon.
 
 ## Dungeon trips
 
+For each dungeon pickup and hand-in, the route uses the NPC's faction
+template from forever-db and the Forever client's `FactionTemplate` at
+the build in `data/dungeons/quests.json`. A sole endpoint recorded for a
+quest can also identify a scripted contact such as Emberstrife. A shared
+quest with several trainers needs evidence for each trainer. The Overview
+and Dungeons panel name the NPC used to time the stop. For Tabetha's Task,
+an Alliance character can visit Jennea Cannon or Bink. The Horde choices
+are Anastasia Hartwell and Deino.
+
 `trips` holds what Polestar's "Pick up the quests" and "Hand in the quests" guides
 (`addon/Polestar/Dungeons/Pickup.lua`, `Handin.lua`) need, and
 `tools/route_reference/trips.mjs` ports their rules: which quests to take (the class,

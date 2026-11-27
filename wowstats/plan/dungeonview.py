@@ -44,7 +44,7 @@ import math
 import re
 import urllib.parse
 
-from wowstats import classguide, forever, gear
+from wowstats import classguide, dungeonquests, forever, gear
 from wowstats.gear import BADGE, badge_of, gain_words
 from wowstats.links import WOWHEAD_BASE, dungeon_guides, dungeon_url, wowhead_url
 
@@ -239,7 +239,8 @@ def next_step(level: int, state: str, lo: int, verdict_value: str, quests: list[
         return {"do": "level", "level": lo, "to_go": lo - level,
                 "meanwhile": pickable[0]["quest_id"] if pickable else None}
     partial = next((q for q in quests if waits_on_other_wings(q)), None)
-    if verdict_value == "some" and not group_only and partial:
+    if (verdict_value == "some" and not group_only and partial
+            and not partial.get("pickup_unknown") and not partial.get("prerequisite_unavailable")):
         if partial["state"] == "new" and (partial.get("min_level") or 0) > level:
             return {"do": "level", "level": partial["min_level"], "to_go": partial["min_level"] - level}
         if partial["needs"]:
@@ -392,6 +393,21 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
     side = player.get("faction")
     bits = (tripcost.SIDE_BIT.get(side, 0), tripcost.race_bit(player.get("race"), side),
             tripcost.CLASS_BIT.get((player.get("class") or "").upper(), 0))
+    contacts = dungeonquests.data().get("contact_sides") or {}
+
+    def applies(qid):
+        gates = forever.quest_gates(qid)
+        return tripcost.eligible(*gates, *bits) and (bool(bits[0]) or gates[0] not in (1, 2))
+
+    def allowed(candidates, qid, role):
+        if not applies(qid):
+            return []
+        sole = ((contacts.get("sole") or {}).get(role) or {}).get(str(qid))
+        masks = contacts.get("npcs") or {}
+        side = bits[0] or 3  # with faction unknown only a shared contact can be named
+        return [w for w in candidates or [] if w["kind"] != "npc" or w["id"] == sole
+                or masks.get(str(w["id"]), 0) & side == side]
+
     rewards: dict[int, list[dict]] = {}
     for d in drops:
         for qid in d["quests"]:
@@ -414,7 +430,14 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
                 d["state"] == "missing" for d in rw):
             continue
         share = E.share(inp, level, q.get("level"))
-        need = needs(qid, done, open_ids) if state == "new" else []
+        required = needs(qid, done, open_ids) if state == "new" else []
+        need = [n for n in required if applies(n["quest_id"])]
+        # An impossible mandatory prerequisite, or a choice with no eligible
+        # alternative, still blocks pickup. None is a next step for this player.
+        no_prereq = (any(not n.get("any") and n not in need for n in required)
+                     or (any(n.get("any") for n in required) and not any(n.get("any") for n in need)))
+        starts = allowed(q.get("starts"), qid, "start")
+        no_pickup = state == "new" and not starts
         too_low = (q.get("min_level") or 0) > level and state == "new"
         pl = places or {}
 
@@ -429,10 +452,12 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
                     "xp_now": round(q["xp"] * (share if share is not None else 1.0))
                     if q.get("xp") is not None and state != "done" else None,
                     "url": wowhead_url("quest", qid),
-                    "starts": [who(w) for w in q.get("starts") or []],
-                    "ends": [who(w) for w in q.get("ends") or []],
-                    "needs": [{**n, **_how(n["quest_id"], q.get("pre") or {}, who)} for n in need],
-                    "blocked": bool(need or too_low),
+                    "starts": [who(w) for w in starts],
+                    "ends": [who(w) for w in allowed(q.get("ends"), qid, "end")],
+                    "needs": [{**n, **_how(n["quest_id"], q.get("pre") or {}, who, allowed)} for n in need],
+                    "blocked": bool(required or too_low or no_pickup),
+                    **({"pickup_unknown": True} if no_pickup else {}),
+                    **({"prerequisite_unavailable": True} if no_prereq else {}),
                     "rewards": [{k: d[k] for k in ("item_id", "name", "quality", "gain", "state", "where", "url",
                                                    *BADGE)}
                                 for d in rw[:1]], "reward_choices": len(rw),
@@ -478,13 +503,15 @@ def wing_progress_text(q: dict) -> str:
     return f"{first}{what}. The hand-in also needs {' and '.join(wing['other_wings'])}"
 
 
-def _how(qid: int, pre: dict, who) -> dict:
+def _how(qid: int, pre: dict, who, allowed) -> dict:
     """How to get a prerequisite quest: who or what starts it, and for an item
     the creatures that drop it and the objects that hold it
     ("starts"/"drops"/"found": same shape as a quest's starts). Empty when
     the data doesn't say; the page then links the quest."""
     h = pre.get(str(qid)) or {}
-    return {k: [who(w) for w in h.get(k) or []] for k in ("starts", "drops", "found") if h.get(k)}
+    return {k: [who(w) for w in ws] for k, ws in (
+        ("starts", allowed(h.get("starts"), qid, "start")), ("drops", h.get("drops")), ("found", h.get("found"))
+    ) if ws}
 
 
 def quest_rewards(drops: list[dict], quests: list[dict]) -> list[dict]:
@@ -700,9 +727,26 @@ def drop_items(drops: list[dict]) -> list[dict]:
     return items
 
 
-def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xph: float | None,
-            drops: list[dict] | None = None) -> dict:
-    """One more run's XP, time and pace (wowstats.plan.dungeongain), from
+def routed_contacts(quests: list[dict], route: dict | None) -> list[dict]:
+    """Use the same contact for directions as for the cost of each stop."""
+    if not route:
+        return quests
+
+    def contacts(q, role):
+        chosen = route.get(role) or {}
+        for qid in (q["quest_id"], *(q.get("variants") or [])):
+            if qid in chosen:
+                return [w for w in q.get(role) or [] if f"{w['kind'][0]}{w['id']}" == chosen[qid]]
+        return q.get(role) or []
+
+    return [{**q, "starts": contacts(q, "starts"), "ends": contacts(q, "ends"),
+             "needs": [{**n, "starts": contacts(n, "starts")} if n.get("starts") else n for n in q.get("needs") or []]}
+            for q in quests]
+
+
+def quest_plan(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xph: float | None,
+               drops: list[dict] | None = None) -> tuple[list[dict], dict]:
+    """The quest instructions and one more run's XP, time and pace (wowstats.plan.dungeongain), from
     the same inputs wherever it is asked: the panel, the Overview's move,
     the MCP's dungeon_options. `drops`: the panel's (drops_for), for the
     drop upgrades the line counts."""
@@ -710,12 +754,13 @@ def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xp
     # A wing's "all" quest its trip doesn't finish: out of the trip (no
     # XP, no reward, no hand-in), listed apart for the MCP.
     wait = [q for q in quests if waits_on_other_wings(q)]
-    here = [q for q in quests if not waits_on_other_wings(q)]
     skip = {i for q in wait for i in (q["quest_id"], *(q.get("variants") or []))}
+    route = route_trip(inp, name, quests, skip)
+    quests = routed_contacts(quests, route)
     g = G.estimate(level=level, xp_max=inp.get("xp_max") or E.xp_need(inp, level)[0],
                    current_xp=inp.get("xp") or 0, name=name, runs=mine,
-                   others=inp.get("trips") or [], quests=here, questing_xph=quest_xph, rule=G.kill_rule(),
-                   route=route_trip(inp, name, here, skip), drops=drop_items(drops or []),
+                   others=inp.get("trips") or [], quests=[q for q in quests if not waits_on_other_wings(q)],
+                   questing_xph=quest_xph, rule=G.kill_rule(), route=route, drops=drop_items(drops or []),
                    pace=pace(inp.get("trips") or []))
     if level == classguide.MAX_LEVEL:
         g["forecast_note"] = "At the level cap, this trip gives no levelling XP."
@@ -737,11 +782,11 @@ def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xp
             {"quest_id": q["quest_id"], "name": q["name"], "url": q.get("url"), "state": q["state"],
              "xp_now": q.get("xp_now"), "other_wings": q["wings"]["other_wings"],
              "objectives_here": q["wings"].get("objectives_here")} for q in wait]
-    return g
+    return quests, g
 
 
 def gain_named(inp: dict, name: str, quest_xph: float | None) -> dict | None:
-    """gain_of for a dungeon by any of its names (the planner's list, a
+    """The gain for a dungeon by any of its names (the planner's list, a
     move's zone): None for a name no dungeon has."""
     known = known_areas()
     aid = next((a for a, x in known.items() if key(x["name"]) == key(name)), None)
@@ -752,7 +797,8 @@ def gain_named(inp: dict, name: str, quest_xph: float | None) -> dict | None:
     # The panel's quests exactly: the drops decide which of the quests
     # Polestar leaves out still count (one that pays an upgrade does).
     drops = drops_for(inp, aid, area["levels"][1], area)
-    return gain_of(inp, area["name"], mine, quests_for(inp, aid, drops, _places(), area), quest_xph, drops)
+    _, gain = quest_plan(inp, area["name"], mine, quests_for(inp, aid, drops, _places(), area), quest_xph, drops)
+    return gain
 
 
 def with_gain(moves: list[dict], panel: dict | None) -> list[dict]:
@@ -810,7 +856,7 @@ def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_
         ent = entrance(places, area, side) or kb_way
         if ent and kb_way and kb_way.get("prep") and not ent.get("prep"):
             ent = {**ent, "prep": kb_way["prep"]}
-    gain = gain_of(inp, area["name"], mine, quests, quest_xph, drops)
+    quests, gain = quest_plan(inp, area["name"], mine, quests, quest_xph, drops)
     rewards = quest_rewards(drops, quests)
     handins = {q["quest_id"] for q in gain["quests"]}
     exp_gain = gain["known_gain_per_clear"] or 0

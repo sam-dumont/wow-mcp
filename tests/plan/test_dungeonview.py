@@ -183,7 +183,8 @@ def test_every_block_says_where_and_what_next(priest, hunter):
                 assert b["next"] == {"do": "level", "level": b["min"], "to_go": b["min"] - inp["level"],
                                      "meanwhile": b["next"]["meanwhile"]}
             for q in b["quests"]:
-                assert q["blocked"] == bool(q["needs"] or (q["state"] == "new"
+                assert q["blocked"] == bool(q["needs"] or q.get("prerequisite_unavailable")
+                                            or q.get("pickup_unknown") or (q["state"] == "new"
                                                            and (q["min_level"] or 0) > inp["level"]))
 
 
@@ -442,3 +443,58 @@ def test_arcane_refreshment_in_the_checklist_and_trip(priest, cls, eligible):
     east = by_name(V.build(inp))["Dire Maul: East"]
     assert (7463 in {q["quest_id"] for q in east["quests"]}) == eligible
     assert (7463 in {q["quest_id"] for q in east["gain"]["quests"]}) == eligible
+
+
+@pytest.mark.parametrize("side,own,nearest,pre", [
+    ("Alliance", {5144, 5497}, 5497, 7482),
+    ("Horde", {4568, 5885}, 4568, 7481),
+])
+def test_trip_directions_use_this_sides_stop(side, own, nearest, pre):
+    from wowstats.mcp import route
+    from wowstats.plan import tripcost
+
+    trips = route.reference().trips
+    who = {"faction": side, "race": "Gnome" if side == "Alliance" else "Scourge", "class": "MAGE"}
+    data = facts.dungeon_quests(kb.build({"KB_GAME_TABLES": "off"}), side, {})
+    inp = {"who": who, "level": 46, "dungeon_quests": data}
+    rows = V.quests_for(inp, "1176", [])
+    q = next(q for q in rows if q["quest_id"] == 2861)
+    assert {w["id"] for w in q["starts"]} == own
+    assert [w["name"] for w in q["ends"]] == ["Tabetha"]
+    point = next(p[:3] for p in trips["quests"]["2861"]["g"] if p[4] == f"n{nearest}")
+    itinerary = tripcost.trip(trips, 209, side=side, race=who["race"], cls="MAGE", level=46, at=point)
+    assert 2861 in itinerary["prereqs"]
+    assert itinerary["starts"][2861] == f"n{nearest}" and itinerary["ends"][2861] == "n6546"
+    shown, = V.routed_contacts([q], itinerary)
+    assert [w["id"] for w in shown["starts"]] == [nearest] and shown["xp_now"] == 410
+
+    # For the Libram of Rapidity, the prerequisite Elven Legends has two IDs,
+    # two different quest givers and one friendly ID per faction.
+    dm = V.quests_for(inp, "2557", [])
+    libram = next(q for q in dm if q["quest_id"] == 7483)
+    assert [n["quest_id"] for n in libram["needs"]] == [pre]
+    assert libram["needs"][0]["starts"]
+
+
+def test_unknown_contacts_do_not_supply_pickup_or_handin_directions():
+    candidates = [{"kind": "npc", "id": 4568, "name": "Anastasia Hartwell"},
+                  {"kind": "npc", "id": 999999, "name": "Unknown"}]
+    q = {"quest_id": 2861, "level": 46, "xp": 410, "starts": candidates, "ends": candidates}
+    who = {"faction": "Alliance", "race": "Gnome", "class": "MAGE"}
+    shown, = V.quests_for({"who": who, "level": 46, "dungeon_quests": {"1176": {"quests": [q]}}}, "1176", [])
+    assert shown["quest_id"] == 2861 and not shown["starts"] and not shown["ends"]
+    assert shown["blocked"] and shown["pickup_unknown"]
+    assert V.next_step(46, "now", 44, "high", [shown], None)["do"] != "pickup"
+    for faction in ("Alliance", None):
+        who["faction"] = faction
+        inp = {"who": who, "level": 46, "dungeon_quests": {"other": {"quests": [q]}}}
+        rows = V.quests_for(inp, "other", [])
+        _, gain = V.quest_plan(inp, "An unmapped dungeon", [], rows, 8000)
+        assert gain["quests"] == [] and gain["xp_quests"] == 0
+
+    # An open choice with no applicable alternative must never become an
+    # empty prerequisite list that opens the quest or names a hostile trainer.
+    q.update(quest_id=7483, starts=[{"kind": "npc", "id": 6546, "name": "Tabetha"}])
+    who["faction"] = None
+    shown, = V.quests_for(inp, "other", [])
+    assert shown["blocked"] and shown["prerequisite_unavailable"] and not shown["needs"]

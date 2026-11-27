@@ -389,10 +389,9 @@ class Rules:
     def ender(self, q, start):
         return self._nearest(q.get("e") or [], start)
 
-    @staticmethod
-    def starts_at(r, ends_of) -> bool:
-        keys = {e[4] for e in ends_of.get("e") or []}
-        return any(p[4] in keys for p in r.get("g") or [])
+    def starts_at(self, r, ends_of) -> bool:
+        keys = {e[4] for e in ends_of.get("e") or [] if e[3] & self.bit}
+        return any(p[3] & self.bit and p[4] in keys for p in r.get("g") or [])
 
     def errand(self, r, start) -> bool:
         if r.get("obj") or r.get("item"):
@@ -424,7 +423,9 @@ class Rules:
             any_ = r.get("any") or []
             if any_ and not any(self.done(p) for p in any_):
                 pick = next((p for p in any_ if self.Q(p) and self.applies(self.Q(p))), None)
-                if pick is not None:
+                if pick is None:
+                    out.append(any_[0])  # pickup_plan rejects the missing/ineligible prerequisite
+                else:
                     walk(pick)
             out.append(x)
 
@@ -629,7 +630,8 @@ def pickup_stops(R, plan, start) -> list[dict]:
             if k not in by:
                 st = R.giver(r, start)
                 fin = R.ender(r, st[0] if st else start)
-                add({"key": k, "quest": x, "prereq": True, "inP": st[0] if st else None,
+                add({"key": k, "quest": x, "prereq": True, "giver": st[1] if st else None,
+                     "ender": fin[1] if fin else None, "inP": st[0] if st else None,
                      "outP": fin[0] if fin else (st[0] if st else None), "deps": [], "obj_s": r.get("obj_s") or 0})
             s = stops[by[k]]
             for p in [*(r.get("pre") or []), *(r.get("any") or [])]:
@@ -669,8 +671,10 @@ def run_quests(R, page, min_level) -> list[int]:
     out = []
     for x in page:
         q = R.Q(x)
-        if q and R.applies(q) and not R.done(x) and not R.in_log(x) and (q.get("item") or q.get("gi")) \
-                and (q.get("min") or 1) <= reach and not q.get("money_only"):
+        if not q or not R.applies(q) or R.done(x) or R.in_log(x):
+            continue
+        inside = q.get("gi") and q.get("gi_sides", 3) & R.bit
+        if (q.get("item") or inside) and (q.get("min") or 1) <= reach and not q.get("money_only"):
             out.append(x)
     return out
 
@@ -702,7 +706,15 @@ def trip_seconds(R, plan, start, entrance, page, min_level, rules) -> dict:
             handin += v
         handin += talk * len(s["hands"])
         pos = s["outP"]
-    return {"pickup_s": pickup, "travel_to_s": to, "travel_back_s": back, "handin_s": handin,
+    # Carry the NPC/object identities the stops actually used to the quest instructions.
+    starts = {x["id"]: x["giver"][1] for x in plan["take"]}
+    ends = {x: s["key"][1:] for s in hs for x in s["hands"]}
+    for s in ps:
+        if s.get("prereq"):
+            starts[s["quest"]] = s["giver"]
+            ends[s["quest"]] = s["ender"]
+    return {"starts": starts, "ends": ends,
+            "pickup_s": pickup, "travel_to_s": to, "travel_back_s": back, "handin_s": handin,
             "pickup": [ps[i]["key"] for i in order], "handin": [hs[i]["key"] for i in horder],
             "quests": list(dict.fromkeys(handing)),
             "prereqs": list(dict.fromkeys(p for x in plan["take"] for p in x["pre"]))}
@@ -767,7 +779,7 @@ def trip(trips: dict, instance_map, *, side: str | None, level: int, race: str |
     trip, its own quests only (the page's `wings`, trips.mjs). None when the
     reference has nothing for the dungeon, the wing or his side. `skip`:
     quests of the page the trip leaves out (a wing's "all" quest it doesn't
-    finish, dungeonview.gain_of)."""
+    finish, dungeonview.quest_plan)."""
     d = dungeon_of(trips, instance_map)
     if not d or side not in SIDE_BIT:
         return None
