@@ -33,6 +33,9 @@ def test_saved_decision_and_private_review(tmp_path, monkeypatch, priest):
     assert est["made_t"] == made and decision == store.latest(env, char)["dungeon_forecast"]
     assert decision["dungeon"] == est["blocks"][0]["dungeon"]
     assert decision["kind"] == "group" and decision["objective"] == "gear" and decision["state"]["xp"] == inp["xp"]
+    options = [decision, *decision["alternatives"]]
+    assert len(options) > 1 and len({o["dungeon"] for o in options}) == len(options)
+    assert all(0 < o["time_s"] <= est["play_s"] for o in options)
     assert decision["basis"] == "kill_model" and decision["time_s"] == est["blocks"][0]["dur_s"]
     assert decision["xp"] == est["blocks"][0]["xp"] and decision["quests"]
 
@@ -212,3 +215,70 @@ def test_shorter_retained_capture_cannot_replace_an_archived_pair(tmp_path, prie
     # when the Recorder still accounts for the whole trip and its hand-ins.
     corrected = {**extended, "xp_inside": extended["xp_inside"] - 5, "run_xp": extended["run_xp"] - 5}
     assert archive(corrected)["reviews"][0]["error_xp"] == row["error_xp"] - 5
+
+
+def session_pair(made, *, goal="xp", level=38, rival_basis="kill_model"):
+    def option(name, xp, basis):
+        return {"dungeon": name, "time_s": 1000, "xp": xp, "basis": basis, "priority": "high",
+                "legs": {k: {"label": "route"} for k in forecast.LEGS}}
+
+    predicted = {**option("Library", 800, "kill_model"), "state": {"level": level}, "objective": goal,
+                 "kind": "group", "personal_runs": 0, "alternatives": [option("Armory", 500, rival_basis)]}
+    return {"made_t": made, "hours": 2, "dungeon_forecast": predicted}
+
+
+def played(name, entry, xp, seconds=1000, level=38):
+    return {"dungeon": name, "entry_t": entry, "level_start": level, "start_t": entry - 50,
+            "end_t": entry + seconds - 50, "exit_t": entry + seconds - 100,
+            "online_s": seconds, "xp_inside": xp, "xp_quests": 0, "quests_outside": 0,
+            "inside_s": seconds - 100, "pickup_s": 25, "travel_to_s": 25,
+            "travel_back_s": 25, "handin_s": 25}
+
+
+def test_xp_order_uses_two_subsequent_whole_trips_and_keeps_the_alternative(tmp_path):
+    import json
+
+    env = {"ANALYSIS_STATE_DIR": str(tmp_path)}
+    p = session_pair(100)
+    store.path(env).write_text(json.dumps({"schema": 1, "plans": {"A": [p]}}))
+    # Library's 800 and Armory's 500 XP were each budgeted for 1000 s.
+    # Library actually pays 600 in 1000 s. Armory pays 400 in 500 s and wins.
+    inp = {"who": {"char": "A"}, "trips": [played("Library", 200, 600), played("Armory", 1500, 400, 500)]}
+    r = store.dungeon_review(env, inp, archive=True)
+    assert r["by_basis"]["modeled"] == {"n": 2, "mean_absolute_error_s": 250.0, "mean_absolute_error_xp": 150.0}
+    assert r["xp_order"]["modeled"] == {"held": 0, "reversed": 1, "tied": 0, "changed_forecast": 0}
+    assert r["counts"]["matched"] == 1  # one first pick, two independently measured runs
+    assert store.dungeon_review(env, {**inp, "trips": []}) == r
+    assert store.dungeon_review(env, {**inp, "who": {"char": "B"}})["timing"]["modeled"]["n"] == 0
+
+
+def test_rank_comparisons_across_plans_need_common_options_and_goal():
+    first, second = session_pair(100), session_pair(1600, rival_basis="runs")
+    trips = [played("Library", 300, 600), played("Armory", 2000, 600)]
+
+    def order():
+        return forecast.report([first, second], trips, [])["xp_order"]
+
+    assert order()["mixed"]["tied"] == 1
+    trips[1]["xp_inside"] = 400
+    assert order()["mixed"]["held"] == 1
+    second["dungeon_forecast"]["alternatives"][0]["xp"] = 900
+    assert order()["mixed"]["changed_forecast"] == 1
+    for change in ({"kind": "branch"}, {"objective": "gear"}, {"state": {"level": 39}}, {"alternatives": []}):
+        p = {**second, "dungeon_forecast": {**second["dungeon_forecast"], **change}}
+        out = forecast.report([first, p], trips, [])
+        assert not any(sum(o.values()) for o in out["xp_order"].values())
+    for field, value in (("xp", None), ("priority", "some")):
+        second["dungeon_forecast"]["alternatives"][0][field] = value
+        assert not any(sum(o.values()) for o in order().values())
+        second = session_pair(1600, rival_basis="runs")
+
+
+def test_an_unplayed_option_has_no_rank_and_partial_xp_still_has_timing():
+    p = session_pair(100)
+    p["dungeon_forecast"]["xp"] = None
+    r = forecast.report([p], [played("Armory", 50, 850), played("Library", 200, 600, 800)], [])
+    assert r["by_basis"]["modeled"]["n"] == 0
+    assert r["timing"]["modeled"] == {"n": 1, "mean_absolute_error_s": 200}
+    assert not any(sum(o.values()) for o in r["xp_order"].values())
+    assert r["reviews"][0]["missing"] == ["forecast XP"]

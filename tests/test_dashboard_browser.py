@@ -398,6 +398,8 @@ def test_private_plan_panel_shows_dungeon_forecast_errors(dashboards, browser):
                                                             "mean_absolute_error_xp": 800},
                                                 "personal_runs": {"n": 1, "mean_absolute_error_s": 60,
                                                                   "mean_absolute_error_xp": 250}},
+                  "xp_order": {k: {"held": int(k == "modeled"), "reversed": 0, "tied": 0, "changed_forecast": 0}
+                               for k in ("modeled", "personal_runs", "mixed")},
                   "counts": {"pending": 1, "incomplete": 2, "ambiguous": 0, "abandoned": 1}}
         page.route("**/api/plan?*", lambda r: r.fulfill(json={"available": True, "dungeon_forecasts": report,
                                                            "gold": "2g", "tiers": []}))
@@ -406,3 +408,4 @@ def test_private_plan_panel_shows_dungeon_forecast_errors(dashboards, browser):
         assert "Modeled: 2 matched trips. Mean absolute error 3m and 800 XP." in text
         assert "Personal runs: 1 matched trip. Mean absolute error 1m and 250 XP." in text
         assert "1 pending, 2 incomplete, 0 ambiguous, 1 abandoned." in text
+        assert "Modeled: 1 held, 0 reversed, 0 tied" in text

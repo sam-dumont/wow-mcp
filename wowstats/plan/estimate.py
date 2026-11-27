@@ -1016,7 +1016,8 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
     if best_d and (est["branch"] or any(b.get("dungeon") for b in blocks)):
         from .forecast import decision
 
-        est["dungeon_forecast"] = decision(inp, best_d, cons.get("dungeon_goal"), "group" if group_mode else "branch")
+        est["dungeon_forecast"] = decision(inp, best_d, cons.get("dungeon_goal"),
+                                           "group" if group_mode else "branch", fitting_trips[1:])
     est["facts"] = facts(est)
     return est
 

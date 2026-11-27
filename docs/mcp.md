@@ -51,7 +51,7 @@ The same list, generated from the server's registry with every argument:
 | `sanity_check` | "Is there anything stupid I'm doing?" Death clusters (zone, creature, level gap) with the likely killer, guide steps far over plan, steps passed over, upgrades not taken, a capped profession, unspent talent points, slow levels; each finding with its data |
 | `plan_session` | A time-boxed plan for the next `hours` (0.5 to 8), with `constraints` in plain text ("no dungeons", "level tailoring") and `context` (`levelling`; `max-level-pve` and `pvp` answer "not supported yet" with KB pointers). Returns the estimator's `facts` (every number), its own `markdown`, the `blocks` and a `brief` for the client's model. See "Session plans" |
 | `check_plan` | A write-up of the latest plan against its facts and the player's own constraints: lists every number in the text that no fact holds, and every sentence that breaks a constraint from `plan_session` (an activity ruled out, such as "no dungeons", or more time than the plan has), naming it |
-| `how_did_my_plan_go` | Planned and actual online time per checkpoint, plus the calibration factor for the next plan. For dungeon forecasts saved before entry, it reports the number of matched trips and mean absolute error in seconds and XP, separately for modeled and personal-run forecasts. The counts cover all retained decisions. The three latest show what happened. |
+| `how_did_my_plan_go` | Planned and actual online time per checkpoint, plus the calibration factor for the next plan. For dungeon forecasts saved before entry, it reports the number of matched trips and mean absolute error in seconds and XP, separately for modeled and personal-run forecasts. The XP ranking counts pairs of eligible dungeons you actually played. The three latest decisions show what happened to the first pick. |
 | `next_step` | The next 30 to 45 minutes: the first block of a short plan, the town errands, what to drop |
 | `mount_goal` | Each riding tier (from `data/kb/rules.json`): gold needed, gold left, net gold per hour, ETA in played time and level, priced options to speed it up; what isn't known (the time to a level past the route's clock) is listed under `unknown` |
 | `whats_new` | Analysis findings new, held again on newer play or dropped in the last `days` (7 by default), and the nudges |
@@ -254,6 +254,19 @@ data only: the planner never reads Battle.net data, so nothing there needs
 the 30-day expiry). `how_did_my_plan_go` lays each plan over the XP that
 followed; the median of time needed over time planned becomes the
 calibration the next plans divide their XP rate by (0.5 to 2, with its n).
+
+When a session plan includes a dungeon, it also saves the other trips that
+fit your goal and time budget. Run any of them and the next review can score
+the whole trip. A missing XP reading can still leave a usable time. Runs with
+missing travel or an uncertain instance entry stay out of the timing average.
+
+For XP or levelling plans, the review also checks which of two dungeons was
+faster in XP per hour. Both need a complete trip at the planned level. Across
+two plans, both dungeons must have qualified in each plan, at the same priority,
+with the same goal and group setting. A switch in the forecast order, or a tie,
+gets its own count. The sample size is pairs of runs. One run can appear in
+several pairs. A gear plan contributes trip times but has no XP ranking to test.
+Plans saved before this change can still score their first pick.
 
 The client's model writes the plan up from `facts` per the `brief`, then
 calls `check_plan`, which lists any number not in the facts and any sentence
@@ -669,6 +682,6 @@ multi-user install can turn on "Battle.net data to my AI" in Settings
 (their own data to their own assistant); then
 their MCP lists `market`, and only theirs. A one-person install has no
 such setting and never serves it. The server's own analysis has no
-Battle.net source, so without that setting Battle.net data reaches no model at all; the full view's
-market strip shows it to you only. `prices`, your own Auctionator scans,
-is game data, not API data: the MCP always has it.
+Battle.net source. Older shared accounts also start with sharing off after the upgrade.
+Turning it off takes effect on the next MCP call. Your AI provider can keep earlier answers.
+The `prices` tool reads Auctionator scans with either setting.

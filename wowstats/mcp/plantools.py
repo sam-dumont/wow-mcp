@@ -43,7 +43,8 @@ def _inputs(ctx: T.Ctx, args: dict) -> dict:
     mode = None if mode == gearmod.DEFAULT_MODE else mode
     # PvP rewards: gear's `pvp` when asked, else the saved toggle (plan.inputs).
     pvp = T.truthy(args["pvp"]) if args.get("pvp") is not None else None
-    return plan.inputs(_env(ctx), char, store=ctx.store, battlenet=T.bnet_worn(ctx, char),
+    worn = T.bnet_worn(ctx, char) if T.bnet_vm_url(ctx) else None
+    return plan.inputs(_env(ctx), char, store=ctx.store, battlenet=worn,
                        gear_inputs=lambda: T._views(ctx).gear_inputs(char), mode=mode, pvp=pvp)
 
 
@@ -133,8 +134,7 @@ def t_how_did_my_plan_go(ctx: T.Ctx, args: dict) -> dict:
     if not revs:
         result = _no_data(char, "no plan to compare yet: make one (plan_session), play past its first checkpoint, "
                                 "then ask again")
-        if forecasts["reviews"]:
-            result.update(latest=None, dungeon_forecasts=forecasts)
+        result.update(latest=None, dungeon_forecasts=forecasts)
         return result
     last = revs[-1]
     return {"char": char, "latest": {**last, "made": _iso(last["made_t"]), "played_since": T.dur(
@@ -408,7 +408,8 @@ PLAN_TOOLS: tuple[T.Tool, ...] = (
     T.Tool("how_did_my_plan_go", "Plan vs actual",
            "The latest plan against what happened: each checkpoint's planned and actual online time, the end "
            "level, and the calibration it feeds into the next plans. Dungeon forecast errors compare whole trips "
-           "by modeled or personal-run basis.", S({"char": CHAR}), t_how_did_my_plan_go),
+           "by modeled or personal-run basis. xp_order counts observed pairs that kept or reversed their predicted "
+           "XP/hour order.", S({"char": CHAR}), t_how_did_my_plan_go),
     T.Tool("next_step", "Next 45 minutes",
            "The first 45 minutes of a plan: the block(s), why, a town stop if it falls there, the two quests "
            "most worth dropping.", S({"char": CHAR}), t_next_step),
