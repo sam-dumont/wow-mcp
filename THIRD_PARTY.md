@@ -46,14 +46,14 @@ The browser reads the public icons from the demo and decrypts the friends' copie
 Blizzard owns the artwork. The source repository and wheel contain no game icons.
 
 Blizzard Entertainment owns the nine character models, their gear at every recorded level,
-the bear, the Voidwalker, the Warhorse and the Swift Timber Wolf. Their models,
-textures, animations and appearance tables come from the game client.
+the bear, the Voidwalker, the Warhorse, the Swift Timber Wolf and the spell effects.
+The models, textures, animations, appearance tables and spell visuals come from the game client.
 The names and play histories in the demo are invented. `tools/fixtures/demo3d.py`
 reads the artwork from the maintainer's installed Forever client through the
 shipper's CASC reader. The project licence covers its own code. Blizzard
 retains the rights to the artwork. The Pages build checks a separate archive
 against the SHA-256 in `site/demo3d-roster.sha256` before it copies the required
-files into the demo. [Demo artwork archive](https://github.com/sam-dumont/wow-mcp/releases/tag/demo-3d-6).
+files into the demo. [Demo artwork archive](https://github.com/sam-dumont/wow-mcp/releases/tag/demo-3d-7).
 The source repository, Python wheel and shipper installer contain the scripts
 and no extracted game models. [Blizzard's fansite policy](https://www.blizzard.com/en-us/legal/28d5ebbf-c245-4408-8ba9-043dd5f056bf/legal-faq).
 
@@ -202,3 +202,7 @@ Changes: only the tables the 3D view and the item facts read are kept, and in ea
 its COLUMNS section and the definition blocks whose builds are Forever's
 (1.60.x); nothing else is altered. `data/dbd/` as a whole is distributed
 under CC BY-SA 4.0. No warranties are given.
+
+The spell visual decoder uses the event, target and effect type numbers from
+WoWDBDefs' `meta/enums`. Its definitions and enum values come from
+[WoWDBDefs commit 8308f391](https://github.com/wowdev/WoWDBDefs/tree/8308f39154b540e71e7e6e896be1ae28261f4e8c).

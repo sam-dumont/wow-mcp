@@ -330,7 +330,7 @@ def test_the_publisher_reads_each_persons_files_through_the_share_port(several, 
 def test_wanted_covers_every_outfit_of_the_history_once(tmp_path, monkeypatch):
     """Now, each past level, every gear sheet the shipper sent and every
     point of the Recorder's replay (an outfit worn for half a level too);
-    the same outfit is worked out once."""
+    the same outfit at a given level is worked out once."""
     from datetime import UTC, datetime
     from types import SimpleNamespace
 
@@ -355,10 +355,11 @@ def test_wanted_covers_every_outfit_of_the_history_once(tmp_path, monkeypatch):
     monkeypatch.setattr(model3d, "find_look", lambda app, name: None)
     m = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path)}, tmp_path, None)
     seen = []
-    monkeypatch.setattr(m, "needs", lambda gear, header, look: seen.append(gear["items"][0]["item_id"])
+    monkeypatch.setattr(m, "needs", lambda gear, header, look: seen.append((gear["items"][0]["item_id"], gear.get("level")))
                         or {gear["items"][0]["item_id"]})
     assert m.wanted(app) == {100, 200, 300, 400, 500}
-    assert sorted(seen) == [100, 200, 300, 400, 500]
+    assert {(100, 23), (200, 22), *((i, None) for i in (100, 200, 300, 400, 500))} == set(seen)
+    assert len(seen) == len(set(seen))
 
 
 def test_wanted_asks_again_once_the_tables_came(tmp_path, monkeypatch):

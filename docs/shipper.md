@@ -114,10 +114,10 @@ your own server, the one in `[ship]`, with the same upload password as
 `/ingest`:
 
 - it asks `GET <server>/install/assets/need` what the server still wants:
-  about 30 client tables (how races are built, how items dress them, some
-  11 MB once per game patch), then the models and textures your characters
-  wear, the last recorded hunter pet or warlock demon, and mounts learned by
-  that character. The models name their skins, skeletons and animations,
+  53 client tables on Forever build 1.60.1.71139 (23 MB per patch). They
+  describe character models, gear and spells. The shipper then sends the
+  models and textures for the character’s outfits, spell effects, ranged shots,
+  last recorded hunter pet or warlock demon, and learned mounts. The models name their skins, skeletons and animations,
   including the rider's seated pose and the mount's walk and run.
 - it sends them one by one, at most 96 MB a run, within the same daily
   budget as your events. A file the server already has is never sent again.

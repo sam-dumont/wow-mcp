@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from wowstats import character3d
+from wowstats import character3d, db2, redact
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools" / "fixtures"))
@@ -42,6 +42,50 @@ def test_trim_keeps_the_recipes(tmp_path):
         (tmp_path / f"{name}.db2").write_bytes(golden3d.wdc5(name, r))
     again = demo3d.answers(character3d.load_tables(tmp_path), looks, sheets)
     assert _dump(again) == _dump(full)
+
+
+def test_trim_keeps_the_spell_and_missile_of_each_recorded_rank(tmp_path):
+    g = golden3d.build()
+    rows = {n: g["tables"].get(n, {}) for n in character3d.TABLES}
+    # A different missile for each rank. The level 8 gnome has previously
+    # been level 4. The third missile belongs to a rank she's never reached.
+    spells = (116, 205, 837)
+    for name, subset in {
+        "SpellLevels": {i: {"SpellID": s, "SpellLevel": i * 4} for i, s in enumerate(spells, 1)},
+        "SpellMisc": {i: {"SpellID": s} for i, s in enumerate(spells, 1)},
+        "SpellXSpellVisual": {i: {"SpellID": s, "SpellVisualID": 20 + i, "Probability": 1}
+                              for i, s in enumerate(spells, 1)},
+        "SpellVisual": {20 + i: {"SpellVisualMissileSetID": 30 + i} for i in (1, 2, 3)},
+        "SpellVisualMissile": {i: {"SpellVisualMissileSetID": 30 + i, "SpellVisualEffectNameID": 40 + i}
+                               for i in (1, 2, 3)},
+        "SpellVisualEffectName": {40 + i: {"ModelFileDataID": 50 + i, "Scale": 1, "Alpha": 1} for i in (1, 2, 3)},
+    }.items():
+        # The reader supplies the other fields' zero values and the row ID.
+        rows[name] = db2.Table(golden3d.wdc5(name, subset), name, golden3d.BUILD,
+                               columns=character3d.TABLES[name]).rows
+    mage = demo3d.Profile("Test mage", "Gnome", 0, "MAGE", levels=(4, 8))
+    looks, sheets = {mage.name: g["look"]}, {mage: [[]]}
+    trimmed = demo3d.trim(rows, looks, sheets)
+    assert set(trimmed["SpellVisualEffectName"]) == {41, 42}
+    for name, subset in trimmed.items():
+        (tmp_path / f"{name}.db2").write_bytes(golden3d.wdc5(name, subset))
+    answers = demo3d.answers(character3d.load_tables(tmp_path, golden3d.BUILD), looks, sheets)
+    shots = [(a["recipe"]["actions"][0], set(a["needs"])) for a in answers if "recipe" in a]
+    assert sorted(action["rank"] for action, _ in shots) == [1, 1, 2, 2]  # both model styles
+    for action, needs in shots:
+        assert action["missiles"][0]["model"] == 50 + action["rank"]
+        assert action["missiles"][0]["model"] in needs
+        # Both published tiers must preserve the spell while dropping unrelated
+        # fields even in nested client records. A missing rotation/animation
+        # is distinct from an explicitly requested zero-valued animation.
+        missile = action["missiles"][0]
+        source = {**action, "private": "account", "missiles": [{**missile, "private": "account"}]}
+        projectile = {**missile, "textures": {2: 500, "note": "account", "4": "account"}}
+        with_ammo = {**action, "missiles": [projectile]}
+        for tier in (redact.public, redact.zogzog):
+            saved, saved_ammo = tier("model3d", {"recipe": {"actions": [source, with_ammo]}})["recipe"]["actions"]
+            assert saved == action
+            assert saved_ammo["missiles"][0]["textures"] == {"2": 500}
 
 
 def test_trim_keeps_only_the_riders_mount_and_its_skin():

@@ -68,8 +68,8 @@ TABLE_MAGIC = (b"WDC3", b"WDC4", b"WDC5")
 # the shipper's CASC_ANIMATIONS) equal. A sequence the model carries itself
 # needs nothing; one in its own .anim file (Forever's HD models keep the
 # emotes there) is named by the model's AFID and asked for with it.
-ANIMATIONS = frozenset({0, 4, 5, 15, 16, 17, 18, 19, 25, 26, 27, 28, 29, 46, 48, 49, 51, 52, 53, 54, 55, 60, 64,
-                        65, 66, 68, 70, 91, 95, 107, 108, 124, 125})
+ANIMATIONS = frozenset({0, 4, 5, 9, 10, 14, 15, 16, 17, 18, 19, 25, 26, 27, 28, 29, 46, 48, 49, 51, 52, 53, 54, 55,
+                        60, 64, 65, 66, 68, 70, 91, 95, 105, 106, 107, 108, 109, 110, 111, 112, 124, 125, 159})
 # What the still pictures play (wowstats.renderer): Stand and the closed hands.
 STILL = frozenset({0, 15})
 # The client tables the 3D view reads, with their file ids (the same in
@@ -86,7 +86,12 @@ TABLES = {
     "ItemAppearance": 982462, "ItemDisplayInfo": 1266429, "ItemDisplayInfoMaterialRes": 1280614,
     "ItemDisplayInfoModelMatRes": 4050937, "ItemModifiedAppearance": 982457, "ItemVisuals": 1343605,
     "ItemVisualsXEffect": 3043873, "ModelFileData": 1337833, "Mount": 921760, "MountXDisplay": 1576117,
-    "SpellItemEnchantment": 1362771,
+    "AnimKitSegment": 1304324, "ItemRangedDisplayInfo": 1270315, "ItemSparse": 1572924, "SpellCastTimes": 1134089,
+    "SpellChainEffects": 1343310, "SpellDuration": 1137828, "SpellLevels": 1140079, "SpellMisc": 1003144,
+    "SpellProceduralEffect": 1140477, "SpellVisual": 897952, "SpellVisualAnim": 1140479,
+    "SpellVisualEffectName": 897948, "SpellVisualEvent": 1685317, "SpellVisualKit": 897949,
+    "SpellVisualKitEffect": 1140480, "SpellVisualKitModelAttach": 897953, "SpellVisualMissile": 897954,
+    "SpellXSpellVisual": 1101657, "SpellItemEnchantment": 1362771,
     "TextureFileData": 982459,
 }
 

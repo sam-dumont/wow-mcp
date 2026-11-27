@@ -1,0 +1,159 @@
+COLUMNS
+int ID
+int AllowableClass
+int AllowableRace
+int<Artifact::ID> ArtifactID
+int BagFamily
+int Bonding
+int BuyPrice
+int ContainerSlots
+int Damage_damageType
+locstring Description_lang
+locstring Display_lang
+locstring Display1_lang
+locstring Display2_lang
+locstring Display3_lang
+float DmgVariance
+int DurationInInventory
+int ExpansionID
+int Flags
+int<GemProperties::ID> Gem_properties
+int<Map::ID> InstanceBound
+int InventoryType
+int ItemDelay
+int ItemLevel
+int<ItemNameDescription::ID> ItemNameDescriptionID
+int ItemRandomSuffixGroupID
+float ItemRange
+int<ItemSet::ID> ItemSet
+int<Languages::ID> LanguageID
+int LimitCategory
+int<Lock::ID> LockID
+int<Material::ID> Material
+int MaxCount
+int<Faction::ID> MinFactionID
+int MinReputation
+int OverallQualityID
+int PageID
+int<PageTextMaterial::ID> PageMaterialID
+float PriceRandomValue
+float PriceVariance
+float QualityModifier
+int RandomSelect
+int RequiredAbility
+int<Holidays::ID> RequiredHoliday
+int RequiredLevel
+int RequiredPVPMedal
+int RequiredPVPRank
+int<SkillLine::ID> RequiredSkill
+int RequiredSkillRank
+int<Holidays::ID> RequiredTransmogHoliday
+int<ScalingStatDistribution::ID> ScalingStatDistributionID
+int SellPrice
+int SheatheType
+int SocketType
+int Socket_match_enchantment_ID
+int SpellWeight
+int SpellWeightCategory
+int Stackable
+int<QuestV2::ID> StartQuestID
+int StatModifier_bonusStat
+int StatPercentEditor
+float StatPercentageOfSocket
+int<TotemCategory::ID> TotemCategoryID
+int VendorStackCount
+int<AreaTable::ID> ZoneBound
+int<Item::ID> OppositeFactionItemID?
+int StatModifier_bonusAmount
+int MaxDurability?
+int MinDamage
+int MaxDamage
+int Resistances
+int AmmunitionType
+int DamageType
+int<ModifiedCraftingReagentItem::ID> ModifiedCraftingReagentItemID?
+int<ContentTuning::ID> ContentTuningID?
+int<Curve::ID> PlayerLevelToItemLevelCurveID?
+int Field_7_3_2_25549_048? // probably RequiredPVPRank
+int Field_7_3_2_25549_049? // probably RequiredPVPMedal
+int Field_4_4_0_53750_013?
+int Field_1_15_3_55112_014?
+int Field_1_15_7_59706_054?
+int<Curve::ID> ItemLevelOffsetCurveID?
+int ItemLevelOffsetItemLevel? // same purpose as ItemScalingConfig::ItemLevel (curve parameter for ItemLevelOffsetCurveID)
+int<ItemSquishEra::ID> ItemSquishEraID?
+int AllowableRaces?
+
+LAYOUT 6FCC3191
+BUILD 12.1.7.70424, 12.1.7.70493, 12.1.7.70668, 12.1.7.70740, 12.1.7.70892, 12.1.7.70986, 12.1.7.71087
+BUILD 1.60.1.69876, 1.60.1.69893, 1.60.1.69913, 1.60.1.69977, 1.60.1.70009, 1.60.1.70058, 1.60.1.70094, 1.60.1.70124, 1.60.1.70170, 1.60.1.70178, 1.60.1.70205, 1.60.1.70235, 1.60.1.70245, 1.60.1.70291, 1.60.1.70334, 1.60.1.70338, 1.60.1.70374, 1.60.1.70425, 1.60.1.70450, 1.60.1.70532, 1.60.1.70630, 1.60.1.70634, 1.60.1.70658, 1.60.1.70685, 1.60.1.70707, 1.60.1.70753, 1.60.1.70755, 1.60.1.70790, 1.60.1.70840, 1.60.1.70862, 1.60.1.70888, 1.60.1.70938, 1.60.1.70959, 1.60.1.71037, 1.60.1.71091, 1.60.1.71139
+COMMENT table is sparse
+$noninline,id$ID<32>
+Description_lang
+Display3_lang
+Display2_lang
+Display1_lang
+Display_lang
+ExpansionID<32>
+DmgVariance
+LimitCategory<32>
+DurationInInventory<u32>
+QualityModifier
+BagFamily<u32>
+StartQuestID<32>
+LanguageID<32>
+ItemRange
+StatPercentageOfSocket[10]
+StatPercentEditor<32>[10]
+StatModifier_bonusStat<32>[10]
+Stackable<32>
+MaxCount<32>
+MinReputation<32>
+RequiredAbility<u32>
+AllowableRace<32>[2]
+SellPrice<u32>
+BuyPrice<u32>
+VendorStackCount<u32>
+PriceVariance
+PriceRandomValue
+Flags<32>[5]
+OppositeFactionItemID<32>
+ModifiedCraftingReagentItemID<32>
+ContentTuningID<32>
+PlayerLevelToItemLevelCurveID<32>
+ItemLevelOffsetCurveID<32>
+ItemLevelOffsetItemLevel<32>
+ItemSquishEraID<32>
+ItemNameDescriptionID<u16>
+RequiredTransmogHoliday<u16>
+RequiredHoliday<u16>
+Gem_properties<u16>
+Socket_match_enchantment_ID<u16>
+TotemCategoryID<u16>
+InstanceBound<u16>
+ZoneBound<u16>[2]
+ItemSet<u16>
+LockID<u16>
+PageID<u16>
+ItemDelay<u16>
+MinFactionID<u16>
+RequiredSkillRank<u16>
+RequiredSkill<u16>
+ItemLevel<u16>
+AllowableClass<16>
+ArtifactID<u8>
+SpellWeight<u8>
+SpellWeightCategory<u8>
+SocketType<u8>[3]
+SheatheType<u8>
+Material<u8>
+PageMaterialID<u8>
+Bonding<u8>
+DamageType<u8>
+ContainerSlots<u8>
+RequiredPVPMedal<u8>
+RequiredPVPRank<8>
+RequiredLevel<8>
+InventoryType<8>
+OverallQualityID<8>
+AmmunitionType<u8>

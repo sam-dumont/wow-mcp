@@ -5,8 +5,8 @@
 
 The shipper reads .build.info and Data/. The gear and customization belong
 to the invented demo roster. Keep both model styles, the viewer's animation
-files, the two companions and the known mounts. Reassemble every outfit from the trimmed
-tables before packing any files.
+files, the two companions, known mounts and spells for each recorded level.
+Reassemble every outfit from the trimmed tables before packing any files.
 
 build-roster writes store/ and roster-3d.tar.gz with its SHA-256. The store
 includes roster.json (version, client build, and choices keyed by character
@@ -26,7 +26,7 @@ import sys
 import tarfile
 import tempfile
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cache
 from pathlib import Path
 
@@ -57,6 +57,7 @@ class Profile:
     cls: str
     companion: tuple[int, int] | None = None
     mount_spell: int | None = None
+    levels: tuple[int, ...] = (1,)
 
 
 NIBBET = Profile(generate.DEMO, "Gnome", 0, "PRIEST")
@@ -132,11 +133,30 @@ def recorded_outfits(rows: list[dict]) -> list[list[dict]]:
 def roster_outfits() -> dict[Profile, list[list[dict]]]:
     rows = defaultdict(list)
     for r in generate.demo_roster("2026-01-31"):
-        if r["feed"] in ("wow-gear", "wow-level") or (
+        if r["feed"] in ("wow-gear", "wow-level", "wow-character") or (
             r["feed"] == "wow-recorder" and r.get("kind") in ("level", "turnin", "loot", "craft")
         ):
             rows[r["char"]].append(r)
-    return {p: outfit_phases(recorded_outfits(rows[p.name])) for p in profiles()}
+    result = {}
+    for p in profiles():
+        history_rows = rows[p.name]
+        levels = {int(r["level"]) for r in history_rows if r.get("level") and
+                  (r["feed"] in ("wow-level", "wow-character") or r.get("kind") == "level")}
+        result[replace(p, levels=tuple(sorted(levels)))] = outfit_phases(recorded_outfits(history_rows))
+    return result
+
+
+def outfit_levels(p: Profile, outfits: list[list[dict]]):
+    """Spell ranks depend on level. A ranged shot also depends on its weapon and ammunition."""
+    current = p.levels[-1]
+    ranged_outfits = {}
+    for items in outfits:
+        yield items, current
+        ranged = tuple(sorted((i["slot"], i["item_id"]) for i in items if i["slot"] in (0, 18)))
+        ranged_outfits.setdefault(ranged, items)
+    for level in p.levels[:-1]:
+        for items in ranged_outfits.values():
+            yield items, level
 
 
 # ------------------------------------------------------------------ recording lookups
@@ -223,11 +243,11 @@ def answers(tables, looks: dict[str, list[dict]], sheets: dict[Profile, list[lis
         riding = character3d.mounts(tables, mounts.resolve(ix.mounts, [p.mount_spell])) if p.mount_spell else []
         if p.mount_spell and not riding:
             raise ValueError(f"{p.name}: no mount model for spell {p.mount_spell}")
-        for items in outfits:
+        for items, level in outfit_levels(p, outfits):
             worn = [{"slot": i["slot"], "item_id": i["item_id"], "name": i.get("name"), "enchant": i.get("enchant_id")}
                     for i in items]
             for model in ("hd", "sd"):
-                result = character3d.assemble(tables, rid, p.sex, cid, look, worn, model)
+                result = character3d.assemble(tables, rid, p.sex, cid, look, worn, model, level=level)
                 recipe = result["recipe"]
                 if not recipe:
                     raise ValueError(f"{p.name}: {result['why']}")
@@ -266,13 +286,14 @@ def trim(rows: dict[str, dict[int, dict]], looks: dict[str, list[dict]], sheets:
     for attr in MAPS:
         setattr(ix, attr, Seen(getattr(ix, attr)))
     ix._rows = {n: Seen(t) for n, t in ix._rows.items()}
+    ix.spell_art.used = {}
     tables = character3d.Tables(dict(ix._rows), "")
     tables.index = ix
     unknown = [a for a, v in vars(ix).items() if isinstance(v, dict) and a not in MAPS and a != "_rows"]
     if unknown:
         raise SystemExit(f"demo3d: Index maps this tool doesn't trim yet: {unknown}")
     answers(tables, looks, sheets)
-    keep: dict[str, set[int]] = {n: set() for n in rows}
+    keep: dict[str, set[int]] = {n: ix.spell_art.used.get(n, set()) for n in rows}
     for name, t in ix._rows.items():
         keep[name] |= set(t) if t.walked else {k for k in t.asked if dict.__contains__(t, k)}
     for attr, (name, key) in MAPS.items():
@@ -351,7 +372,7 @@ def read_looks(root: Path) -> dict[str, list[dict]]:
         ):
             raise ValueError(f"demo3d: {p.name} needs choices for its own model")
     # A local store may be from an older roster or may have lost a file.
-    # Follow both model styles, gear history, companions, mounts and animations.
+    # Follow both model styles, gear history, spells, companions, mounts and animations.
     assembled = answers(tables, looks, sheets)
     require_equipment(assembled)
     need = {f for answer in assembled for f in answer.get("needs", ())}
@@ -405,7 +426,7 @@ def build(wow_root: Path, out: Path, *, roster_models: bool = False) -> int:
 
         needs = {f for a in full for f in a.get("needs", ())}
         # The shipper limits each ordinary upload to 512 MiB. This offline
-        # export contains nine HD models, their outfits, companions and mounts.
+        # export includes nine characters and the effects of their spells.
         files, _t, absent = ship.casc_files(casc, sorted(needs), (), follow=True, max_bytes=2 * 1024**3)
         anims = set().union(*(assets.anim_refs(d) for d in files.values() if assets.kind_of(d) in ("m2", "skel")))
         have, gone = assets.closure(needs, files.get)
@@ -427,7 +448,9 @@ def build(wow_root: Path, out: Path, *, roster_models: bool = False) -> int:
             (stage / name).replace(out / name)
 
     n_rows = sum(map(len, small.values()))
-    print(f"demo3d: client {casc.version}, {len(looks)} characters, {sum(map(len, sheets.values()))} outfits")
+    n_recipes = sum("recipe" in a for a in full)
+    print(f"demo3d: client {casc.version}, {len(looks)} characters, {sum(map(len, sheets.values()))} outfits, "
+          f"{n_recipes} HD/SD recipes across their recorded levels")
     print(f"demo3d: {len(small)} tables, {n_rows} rows (of {sum(map(len, rows.values()))})")
     print(f"demo3d: {len(have)} files, {sum(have.values()) / 1e6:.1f} MB; {archive} "
           f"{(out / archive).stat().st_size / 1e6:.1f} MB, sha256 {digest}")

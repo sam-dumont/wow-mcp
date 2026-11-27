@@ -148,12 +148,13 @@ def companion_display(app, name: str, cls: str) -> tuple[int, int] | None:
 
 
 def _outfit(gear: dict) -> tuple:
-    """What a gear sheet draws: race, class, sex and each item with its
-    enchant; two sheets with the same outfit need the same files."""
+    """A character, level and outfit. A new spell rank can change the
+    visual files even when every equipped item stays the same."""
     items = tuple(sorted((str(i.get("slot")), str(i.get("item_id")), str(i.get("enchant_id") or 0))
                          for i in gear.get("items") or [] if isinstance(i, dict)))
     displays = tuple(m["display_id"] for m in gear.get("mounts", []))
-    return (gear.get("race"), gear.get("class"), gear.get("sex"), gear.get("companion_display"), displays, items)
+    return (gear.get("race"), gear.get("class"), gear.get("sex"), gear.get("level"), gear.get("companion_display"),
+            displays, items)
 
 
 def history_outfits(app, name: str) -> list[list[dict]]:
@@ -300,8 +301,10 @@ class Model3D:
             # The snapshot supplies the outfit. Today's pet and mount spellbook
             # describe the current model only.
             identity = {k: gear.get(k) for k in ("race", "class", "sex")}
-            gear = {**identity, "items": snap["gear"].get("items") or []}
+            gear = {**identity, "level": level, "items": snap["gear"].get("items") or []}
         else:
+            if current_level := (d.get("header") or {}).get("level"):
+                gear = {**gear, "level": current_level}
             cls = str(gear.get("class") or (d.get("header") or {}).get("class") or "").upper()
             if pet := companion_display(app, name, cls):
                 gear = {**gear, "companion_display": pet}
@@ -361,8 +364,10 @@ class Model3D:
                           "the race isn't known yet (Battle.net's profile gives it)")
             return out
         sex, cid = GENDERS[x["sex"]], character3d.class_id(x["class"])
-        hd = character3d.assemble(tables, rid, sex, cid, x["choices"], x["items"], "hd")
-        sd = character3d.assemble(tables, rid, sex, cid, x["choices"], x["items"], "sd")
+        at = opt_num(level if level is not None else (header or {}).get("level") or gear.get("level"))
+        ability_level = at if isinstance(at, int) and 1 <= at <= 60 else 1
+        hd = character3d.assemble(tables, rid, sex, cid, x["choices"], x["items"], "hd", level=ability_level)
+        sd = character3d.assemble(tables, rid, sex, cid, x["choices"], x["items"], "sd", level=ability_level)
         have = self.store.have() if hasattr(self.store, "have") else None
         if hd["recipe"] is None:
             out["why"] = hd.get("why") or "no model"
@@ -386,8 +391,6 @@ class Model3D:
             out["recipe_sd"] = sd["recipe"]
             out["no_classic"] = character3d.classic_gaps(tables, rid, sex, x["choices"])
         # A snapshot has its own level even when its reconstructed gear has none.
-        at = level if level is not None else (header or {}).get("level") or gear.get("level")
-        at = opt_num(at)
         if isinstance(at, int) and 1 <= at <= 60:
             for recipe in (out["recipe"], out["recipe_sd"]):
                 if recipe:
@@ -428,6 +431,8 @@ class Model3D:
         out = character3d.creature_files(pet) if pet else set()
         for mount in character3d.mounts(tables, gear.get("mounts")):
             out.update(character3d.creature_files(mount))
+        at = opt_num(gear.get("level") or (header or {}).get("level"))
+        ability_level = at if isinstance(at, int) and 1 <= at <= 60 else 1
         for sex in ("male", "female"):
             x = self.inputs(gear, header, sex, look)
             if x["sex_known"] and x["sex"] != sex:
@@ -437,14 +442,14 @@ class Model3D:
                 return out
             for models in MODELS:
                 got = character3d.assemble(tables, rid, GENDERS[x["sex"]], character3d.class_id(x["class"]),
-                                           x["choices"], x["items"], models)
+                                           x["choices"], x["items"], models, level=ability_level)
                 out.update(got["needs"])
         return out
 
     def wanted(self, app) -> set[int]:
         """What the person's shipper should send: the union of every
         character's needs, now, at each past level and in every gear sheet
-        of its history, each outfit once. Kept WANTED_TTL seconds for the
+        of its history, each outfit once per level. Kept WANTED_TTL seconds for the
         same tables: a set made before the tables came (empty, nothing to
         resolve the outfits with) is never kept, so the shipper's next ask,
         right after it sent them, gets the files. A failure keeps the last set."""
