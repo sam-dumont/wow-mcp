@@ -27,7 +27,9 @@ EOF
   (cd "$vm" && curl --fail --location --retry 3 --output "$img" "$base/$img" &&
     curl --fail --location --retry 3 "$base/SHA256SUMS" | grep -F "$img" | grep -E " [*]?$img$" | sha256sum -c -)
   qemu-img create -q -f qcow2 -F qcow2 -b "$vm/$img" "$vm/disk" 16G
-  qemu-system-x86_64 -daemonize -machine accel=kvm -cpu host -smp 2 -m 2048 -display none \
+  guest_mb=2048
+  if [[ "$2" == default-control ]]; then guest_mb=4096; fi
+  qemu-system-x86_64 -daemonize -machine accel=kvm -cpu host -smp 2 -m "$guest_mb" -display none \
     -serial "file:$vm/console" -drive "file=$vm/disk,if=virtio,format=qcow2" \
     -drive "file=$vm/seed,if=virtio,format=raw,readonly=on" \
     -nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2222-:22
@@ -43,6 +45,8 @@ results)
   guest 'sudo journalctl -k --no-pager | grep -Ei "killed process|oom-kill" || true' >evidence/kernel-oom.log || true
   guest 'sudo docker ps -a --format "{{.Names}} {{.Status}}"; free -m; df -h /' >evidence/final.txt || true
   guest 'sudo cat /var/tmp/host-budget/samples.csv' >evidence/samples.csv || true
+  guest 'sudo docker logs --tail 16 measured 2>&1' >evidence/publisher.log || true
+  guest 'sudo docker logs --tail 10 renderer 2>&1' >evidence/renderer.log || true
   cat evidence/final.txt evidence/kernel-oom.log
   ;;
 esac

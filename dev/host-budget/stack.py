@@ -20,7 +20,9 @@ from pathlib import Path
 ROOT = Path.cwd()
 OUT = Path("/var/tmp/host-budget")
 OUT.mkdir()
-full = sys.argv[1] == "default"
+full = sys.argv[1].startswith("default")
+control = sys.argv[1] == "default-control"
+recovery_only = sys.argv[1].endswith("-recovery")
 app = "ghcr.io/sam-dumont/wow-mcp:0.13.0@sha256:03e3d9297da20d82d9dfedb6f6a6fab361760842eed9fead52ad7902678b5aa3"
 render = "ghcr.io/sam-dumont/wow-mcp-render:0.13.0@sha256:2f26dc2da261cefc368e07e3c1f9ad20844a8bf5f01f933455ff3afffcc23a4e"
 images = re.findall(r"^    image: (docker.io/victoriametrics/\S+)$", (ROOT/"deploy/compose/compose.yaml").read_text(), re.M)
@@ -119,10 +121,10 @@ def counts(path):
                 assert cx.execute("pragma integrity_check").fetchone()==("ok",)
                 for char, n, distinct in cx.execute("select char,count(*),count(distinct source_id) from events where char is not null group by char"):
                     if char in expected:
-                        assert n==distinct,(char,n,distinct)
-                        result[char]=n
+                        result[char]=distinct
     assert result==expected,(result,expected)
     log("verified event counts",distinct_ids=result)
+    return result
 def sample(stop):
     out=OUT/"samples.csv"
     with out.open("w",1) as f:
@@ -170,7 +172,8 @@ else:
 for img in ([app,render,vl,vm] if full else [app]):
     docker("pull", img,timeout=480)
 assert os.cpu_count()==2
-assert int(Path("/proc/meminfo").read_text().splitlines()[0].split()[1]) in range(1750000,2097153)
+installed = int(Path("/proc/meminfo").read_text().splitlines()[0].split()[1])
+assert installed in (range(3750000,4194305) if control else range(1750000,2097153))
 assert len(Path("/proc/swaps").read_text().splitlines())==1
 log("guest",profile=sys.argv[1],cpus=os.cpu_count(),disk_bytes=shutil.disk_usage(OUT).total)
 driver_job("fixture","prepare")
@@ -180,6 +183,7 @@ wait(lambda:req("http://127.0.0.1:8441/.well-known/openid-configuration"))
 where=OUT/("vl" if full else "events")
 if full:
     start_vl("events",where)
+if full and not recovery_only:
     start("metrics",vm,["--user","10001:10001","-v",f"{OUT}/vm:/data"],["-storageDataPath=/data","-httpListenAddr=127.0.0.1:8428","-retentionPeriod=23d"])
     wait_service("metrics", "http://127.0.0.1:8428/health")
     req(env["VM_URL"]+"/api/v1/import",(OUT/"metrics.ndjson").read_bytes())
@@ -187,49 +191,54 @@ if full:
     app_job("renderer",["-m","wowstats","render"],image=render,PORT="8083")
     wait_service("renderer","http://127.0.0.1:8083/healthz")
 start_ui("ui",where)
-app_job("static",["-m","wowstats","static"],PORT="8084")
+if not recovery_only:
+    app_job("static",["-m","wowstats","static"],PORT="8084")
 stop=threading.Event()
 thread=threading.Thread(target=sample,args=(stop,),daemon=True)
 thread.start()
 errors=[]
 try:
-    # Establish a valid previous site for a single character before adding the full history.
-    seed("initial")
-    if full:
-        req(env["VL_URL"]+"/internal/force_flush",b"")
-    driver_job("initial","publish",RENDER_URL="",MODEL3D="off",WOW_ITEMS="off")
-    await_exit("initial")
-    prior=last_good()
-    link=os.readlink(OUT/"site/current")
-    timed("upload full roster",lambda:seed("roster"))
-    if full:
-        req(env["VL_URL"]+"/internal/force_flush",b"")
-    driver_job("interrupted","publish")
-    wait(lambda:list((OUT/"site").glob(".build-*")),180)
-    docker("kill","interrupted")
-    assert os.readlink(OUT/"site/current")==link and last_good()==prior
-    log("last good survived SIGKILL",current=link,sha256=prior)
-    docker("restart","ui")
-    wait(lambda:req("http://127.0.0.1:8080/healthz"))
-    try:
-        # Login first so the expensive first analysis, write and actual build overlap.
-        driver_job("mcp-client","mcp")
-        wait(lambda:(OUT/"logged-in").exists())
-        stale=set((OUT/"site").glob(".build-*"))
-        start_time=time.monotonic()
-        driver_job("measured","publish")
-        wait(lambda:set((OUT/"site").glob(".build-*"))-stale,180)
-        (OUT/"go").touch()
-        wait(lambda:(OUT/"mcp-start").exists())
-        timed("in-flight POST",lambda:seed("overlap"))
-        await_exit("mcp-client",240)
-        await_exit("measured",1100)
-        log("publish wall",seconds=round(time.monotonic()-start_time,3),target=os.readlink(OUT/"site/current"))
-        driver_job("check","check-site")
-        await_exit("check")
-    except Exception as e:
-        errors.append(str(e))
-        log("concurrent workload failure",error=str(e))
+    if recovery_only:
+        timed("upload full roster",lambda:seed("roster"))
+        seed("overlap")
+    else:
+        # Establish a valid previous site for a single character before adding the full history.
+        seed("initial")
+        if full:
+            req(env["VL_URL"]+"/internal/force_flush",b"")
+        driver_job("initial","publish",RENDER_URL="",MODEL3D="off",WOW_ITEMS="off")
+        await_exit("initial")
+        prior=last_good()
+        link=os.readlink(OUT/"site/current")
+        timed("upload full roster",lambda:seed("roster"))
+        if full:
+            req(env["VL_URL"]+"/internal/force_flush",b"")
+        driver_job("interrupted","publish")
+        wait(lambda:list((OUT/"site").glob(".build-*")),180)
+        docker("kill","interrupted")
+        assert os.readlink(OUT/"site/current")==link and last_good()==prior
+        log("last good survived SIGKILL",current=link,sha256=prior)
+        docker("restart","ui")
+        wait(lambda:req("http://127.0.0.1:8080/healthz"))
+        try:
+            # Login first so the expensive first analysis, write and actual build overlap.
+            driver_job("mcp-client","mcp")
+            wait(lambda:(OUT/"logged-in").exists())
+            stale=set((OUT/"site").glob(".build-*"))
+            start_time=time.monotonic()
+            driver_job("measured","publish")
+            wait(lambda:set((OUT/"site").glob(".build-*"))-stale,180)
+            (OUT/"go").touch()
+            wait(lambda:(OUT/"mcp-start").exists())
+            timed("in-flight POST",lambda:seed("overlap"))
+            await_exit("mcp-client",240)
+            await_exit("measured",1100)
+            log("publish wall",seconds=round(time.monotonic()-start_time,3),target=os.readlink(OUT/"site/current"))
+            driver_job("check","check-site")
+            await_exit("check")
+        except Exception as e:
+            errors.append(str(e))
+            log("concurrent workload failure",error=str(e))
     # The guest still needs to prove recovery even if the simultaneous work ran out of memory.
     for svc in ["measured","mcp-client","ui","renderer","metrics","identity","static"]:
         if svc in docker("ps","--format","{{.Names}}").splitlines():
@@ -240,6 +249,9 @@ try:
     if full:
         start_vl("restored",restored)
     counts(restored)
+    if not full:
+        original_rows = sqlite3.connect(restored / "events-0.sqlite").execute("select count(*) from events").fetchone()[0]
+        log("restored SQLite rows",rows=original_rows)
     if full:
         docker("stop","restored")
     fresh=OUT/"replay"
@@ -258,6 +270,16 @@ try:
         app_job(name,["/review/shipper/wow_stats.py","--replay"],WOW_STATS_CONFIG="/bench/ship.toml")
         timed("full shipper replay "+str(i),lambda:await_exit(name,300))
         counts(fresh)
+        if not full:
+            physical = sqlite3.connect(fresh / "events-0.sqlite").execute("select count(*) from events").fetchone()[0]
+            log("SQLite rows after replay",rows=physical)
+            assert physical == original_rows
+    if recovery_only and not full:
+        docker("stop","replay-ui","identity")
+        driver_job("serial-publish","publish",ANALYSIS_SHARE_URL="")
+        timed("publish after stopping the UI", lambda:await_exit("serial-publish",720))
+        driver_job("serial-check","check-site")
+        await_exit("serial-check")
 finally:
     stop.set()
     thread.join()

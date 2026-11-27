@@ -11,13 +11,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [default]
+        profile: [default-control, default-recovery, minimal-recovery]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       - name: Prepare a disposable Ubuntu guest
-        run: bash dev/host-budget/guest.sh prepare
+        run: bash dev/host-budget/guest.sh prepare ${{ matrix.profile }}
       - name: Measure publication, interruption and recovery
         run: bash dev/host-budget/guest.sh run ${{ matrix.profile }}
       - name: Collect guest totals
