@@ -1,6 +1,6 @@
 # The live demo
 
-Nibbet is a Gnome priest on WoW Forever who doesn't exist. A script plays the character from level 22 to 46 over thirty-three sessions: Polestar's guides through Darkshore, the Wetlands, Hillsbrad, Arathi, Stranglethorn, Dustwallow, Feralas, Tanaris and the Hinterlands, eight dungeons (Blackfathom Deeps, the Stockade, City of Dalaran, Razorfen Kraul, Scarlet Monastery's four wings, Razorfen Downs, Uldaman, Zul'Farrak), a Shadow build with Shadowform, Tailoring, Enchanting and Cooking, a few deaths and some auction house scans. The product's own publisher then builds Nibbet's pages, the same way it builds yours.
+Nibbet is a made-up Gnome priest. The journal records 34 sessions from level 22 to 46, including 11 runs across eight dungeons. The same publisher that builds a player's dashboard turns that history into two demo pages.
 
 <div class="demo-links">
 <a href="@BASE@demo/">Open the public page</a>
@@ -15,14 +15,14 @@ Nibbet is a Gnome priest on WoW Forever who doesn't exist. A script plays the ch
 
 The Battle.net side is made up too: a profile with a guild, the look, the talents read once a day (a Discipline start, then a respec into Shadow at 30) and one Legacy point. Nibbet's player has WoWSims Exporter, so the talent changes go back to level 22, not only 3 weeks.
 
-The picture and "View in 3D" come from made-up game files: a blocky gnome and its gear, written in the formats the shipper sends (the client's tables, models, textures) by a script in the repository. Nothing in them comes from Blizzard's files. The product draws them the way it draws yours: the 3D view in your browser, the pictures in its renderer.
+Open **View in 3D** on the character's gear panel to turn the model around. Nibbet wears Blizzard's models and textures from the Forever client. His play history is invented. [Artwork and credits](../../THIRD_PARTY.md).
 
 ## What the demo can't do
 
 The pages are plain files on GitHub Pages, so anything that needs the server is off:
 
 - no login, no full view (other players, gold over time, the live timeline);
-- no MCP: [a recorded session](mcp-session.md) shows what an assistant gets from the same data.
+- no MCP: [the 0.13.0 recording](mcp-session.md) shows six calls for Nibbet, using the single-character demo.
 
 The dates move: every build shifts the play so the last session is the day before. The auction house only lists what was on sale today or yesterday, so a demo frozen in October would have an empty auction house.
 
@@ -34,4 +34,4 @@ The dates move: every build shifts the play so the last session is the day befor
 
 ## Build it yourself
 
-The demo is rebuilt from a seeded script on every change: [Development](../../docs/development.md#the-docs-site-and-its-demo).
+Each release rebuilds the demo from the same script. [Build the demo locally](../../docs/development.md#the-docs-site-and-its-demo).

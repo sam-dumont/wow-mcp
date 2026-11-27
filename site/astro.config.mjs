@@ -44,7 +44,7 @@ export default defineConfig({
         { tag: "meta", attrs: { property: "og:image", content: `${ORIGIN}${BASE}images/social.png` } },
         { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
         { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
-        { tag: "meta", attrs: { property: "og:image:alt", content: "The Overview of a made-up level 34 priest: pace against the route, hours to the next level, next moves" } },
+        { tag: "meta", attrs: { property: "og:image:alt", content: "Nibbet, a level 46 Gnome priest, with 1h 45m of play to the next level and a better belt already in the bags." } },
         { tag: "meta", attrs: { name: "twitter:card", content: "summary_large_image" } },
         // Page counts (scripts/analytics.mjs): nothing unless the build sets both variables.
         ...analyticsHead(BASE),

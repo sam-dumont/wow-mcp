@@ -67,6 +67,11 @@ jobs:
         with:
           path: .cache/test-fixtures
           key: derived-fixtures-${{ hashFiles('tools/fixtures/**', 'wowstats/**', 'data/**', 'tests/data/**', 'uv.lock') }}
+      # One stdio session per scenario, shared by its questions. Running this file
+      # alone keeps the other xdist workers from competing with its MCP servers.
+      - name: MCP answers and probes
+        if: matrix.shard == 2
+        run: uv run pytest -q -rs --timeout 300 --durations 0 tests/test_eval_mcp.py
       # Everything but the browser suites, on every core; docker compose and
       # Polestar tests (ci_only) are in, they skip without their tool.
       # --timeout: a test stuck past 5 minutes fails with its name and every
@@ -76,7 +81,7 @@ jobs:
       # tools/shard_times.py reads back from these logs to split the parts.
       - run: >-
           uv run pytest -q -rs -n auto -m "not browser" --timeout 300 --durations 0
-          --shard ${{ matrix.shard }}/${{ strategy.job-total }}
+          --ignore=tests/test_eval_mcp.py --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
   # The required check: the parts' result and logsql's, then what needs the
   # whole tree once. It runs when a part failed too (a skipped required check

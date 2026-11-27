@@ -7,7 +7,7 @@ Everything here is in the Character tab: your gear at the top, the upgrades unde
 
 ## Your gear
 
-![The Equipment panel of the demo priest: the picture in the middle with View in 3D under it, every slot with its item, item level and BiS badge, a green "▲ 70% → 100% with the best at hand" under the slots with an upgrade, the badge legend with "Leveling · Weights: ForeverDB.net", item level 39.8 and professions below](../images/gear.webp)
+![Nibbet’s equipped items surround the character portrait. Scored items show how they compare with the best for that slot. The average item level is 39.8.](../images/gear.webp)
 
 The badge on each item's icon says how close it is to the best you can wear at your level for
 that slot: **BiS** (orange) is the best, then **2nd** or a share like **84%** (purple from 85%,
@@ -25,41 +25,38 @@ yet, and **View in 3D** shows the model meanwhile.
 
 ## The upgrades list
 
-![The Upgrades list grouped by where you get them: Tailoring crafts, each with its badge, its slot's share before and after ("42% → 100% on your waist"), its source and how hard it is to get, then two Auction House buys with their prices, then vendors in Ashenvale and Arathi Highlands](../images/upgrades.webp)
+![The auction house list starts with Shadoweave Shoulders, Shadoweave Mask and Underworld Band. Dungeon and world drops appear in their own groups below.](../images/upgrades.webp)
 
 Every item has the same badge and says what it does to its slot: "70% → 91% on your chest"
-("empty → 91%" for an empty slot). The slot furthest from its best comes first.
+("empty → 91%" for an empty slot).
 
 - **By where you get it** (the default) groups them by trip: a dungeon, the quests of a zone, a
   profession, the auction house. Each group says what the trip holds: "31% chance one of your 3
   upgrades drops" for a dungeon, "2 upgrades you can take now" for quests or crafts, "2
-  upgrades for 4g 10s in all" at the auction house.
-- **By slot** shows your pick per slot: **Now** (you can wear it), **Level 35** (not yet),
+  upgrades for 4g 10s in all" at the auction house. Auction listings put the most gain per
+  gold first.
+- **By slot** starts with the slot furthest from its best and shows your pick for each slot:
+  **Now** (you can wear it), **Level 35** (not yet),
   **cheap** (on the auction house for at most what you earn in a level). Under it, the slot's
   **BiS**: see below.
 
 ## Crafts
 
-A craft says everything between you and the item, in one line:
+![Shadoweave Mask card with the priced materials, missing prices and the last auction price for the finished mask](../images/craft.webp)
 
-> You don't have Pattern: Filigreed Shadow Circlet. Pattern: Filigreed Shadow Circlet was on the
-> auction house for 75s (2 days ago). 4 Tailoring points to go: ~7 Stylish Red Shirt. Bags and
-> bank cover 1 of 8 mats; in all ~3g 71s of your 29g 69s; riding at 40 still needs 70g 30s. It
-> binds when picked up: nobody sells it.
+Read the bold next step first. For Filigreed Shadow Circlet at Tailoring 121, it can tell you
+to make about seven Stylish Red Shirts to reach 125. If the pattern is already in your bank
+and you have the skill, it tells you to take it out and learn it.
 
-- **The recipe**: you know it, you hold the pattern (bags or bank: learn it), or where it comes
-  from (a vendor and its price, a trainer, the auction house at your last scan's price). Holding
-  a pattern for a different item of the same family (the Silky circlet for the Shadow one) is
-  said too, because they're easy to mix up.
-- **The skill-ups**: Polestar's profession guide from your skill to the one the recipe needs,
-  craft by craft with the expected count at each recipe's colours (orange always gives a
-  point, yellow and green less often), plus the bolts to make first, the recipes to learn and
-  the trainer rank to buy on the way.
-- **The gold**: the mats both take, less what your bags and bank hold, at the vendor's price
-  for vendor goods and your house's newest auction price for the rest (any age: the
-  professions answer says how old). Against your gold and your next riding training.
-- **Or buy it**: an item that doesn't bind when picked up shows its auction house price, so
-  "can't craft yet, buy it for 4g 50s" is one line.
+The card counts the materials in your bags and bank. **Estimated cost** covers the whole
+craft. **Priced part** gives the subtotal the page can work out. A price or bag count can be
+missing, or the skill-up route can stop short of the required rank. A finished item on the
+auction house gets its own price and scan date. An older scan says **Last auction price**. The
+circlet binds on pickup. You can buy its pattern and make it yourself.
+
+Open **Recipe and skill-up details** for the crafts along the way and the gold you still need
+for riding. Check the trainer and pattern ranks separately. For Black Slippers, a recorded
+trainer offer requires Tailoring 150. The pattern requires 140.
 
 What we can't price is named, with the one thing that fixes it: scan the auction house with
 Auctionator, open the profession window once (Altoholic saves the recipe list), or update the

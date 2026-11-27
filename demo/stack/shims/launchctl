@@ -1,0 +1,3 @@
+#!/bin/sh
+# The recording lab's installers and terminal commands use this in place of launchd.
+exit 0

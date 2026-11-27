@@ -13,6 +13,7 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 state=${LAB_STATE:-${TMPDIR:-/tmp}/wow-demo-lab}
+[[ $state == /* ]] || state="$PWD/$state"
 cmd=${1:-}
 
 case "$cmd" in

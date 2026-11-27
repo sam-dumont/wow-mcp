@@ -6,7 +6,7 @@ top of your page and you know which move to do first.
 The Overview is the first tab: open it before you log in. The line at the top says whether
 you're on Polestar's route (up to 1.5× its time), behind it, or well behind it, and how much play the next level takes.
 
-![The Overview of the demo character Nibbet, a level 46 Gnome priest: on track at 1.0 times Polestar's route time, level 47 in 1h 45m of play, 83% of guide steps in order, 0.05 levels of rested XP, then the next moves and time per level](../images/overview.webp)
+![Nibbet at level 46. The last five levels took 0.7× Polestar’s route time. Level 47 is 1h 45m away, with 83% of guide steps in order and 0.04 levels of rested XP.](../images/overview.webp)
 
 *Nibbet, the made-up priest of the [live demo](../../site/pages/demo.md).*
 
@@ -26,21 +26,27 @@ Recorder missed about 2h 10m of play (level 31): deaths from then aren't counted
 Recorder is on (`/psrec on`, then `/reload`); the second at Battle.net's next read, within 2
 hours. Your public page only says "Equipment may be out of date."
 
+At the bottom of any dashboard, open **Data sources** to check the wow-stats version,
+the Polestar release and the client build used for items and recipes. A shared page
+shows the versions used when it was published.
+
 ## Next moves
 
-![The Next moves box: equip the Deathmage Sash from your bags (42% → 50% on your waist), then Razorfen Downs, a 35-minute trip with the quests to pick up first and a drop you could wear now, then Apprentice Riding at level 40 if not trained yet](../images/next-moves.webp)
+![Nibbet’s next moves. Equip Deathmage Sash for a waist upgrade from 42% to 50%, run Scarlet Monastery Cathedral, then check Apprentice Riding.](../images/next-moves.webp)
 
 Up to 3 things to do now, the most useful first, each with what, where and what blocks it. The
 usual ones:
 
 - **Upgrade**: the best item for one slot, what it does to that slot ("70% → 91% on your
   chest": the slot's share of its best item, now and with this one) and the boss or quest it
-  comes from. "In your bags: equip it" means you already carry it.
+  comes from. "In your bags: equip it" means you already carry it. A rare world drop can
+  still appear in the gear list. Next moves needs an easy or medium way to get it, such
+  as an auction listing with a price and scan date.
 - **Dungeon**: the run worth doing at your level, the quests to pick up first and the drops
   you'd wear.
 - **Talents**: points you haven't spent.
 - **Profession** or **Riding**: the rank to train, the trainer and the price. When your
-  addons didn't see the training, the title ends "if not done yet" and says what was last
+  addons didn't see the training, the riding move says "if not trained yet" and shows what was last
   seen and when: already trained, skip it. [Why](../faq.md#why-does-a-move-say-if-not-done-yet).
 
 Do the first one. "See the upgrade" or "See the drops" jumps to the details in the Character

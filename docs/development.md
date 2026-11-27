@@ -196,14 +196,15 @@ the length of the build it starts an empty VictoriaLogs (the character's events)
 (the Battle.net series, as the exporter writes them: `bnet_series`) and the picture renderer
 (`wow-stats render`).
 
-Nibbet's game files are `tools/fixtures/golden3d.py`: a blocky gnome and every item the character wears,
-written as the shipper sends a player's files (WDC5 tables, M2 models and skins, BLP
-textures), with made-up row and file ids. Nothing comes from Blizzard's files. Only the
-generator is committed: its output is about 200 kB and takes a second to make
-(`uv run python tools/fixtures/golden3d.py <dir>` writes a store to look at). The same files
-are the 3D tests' golden input (`tests/test_golden3d.py`, `tests/test_golden3d_browser.py`).
-The portrait is the renderer's still of that model, left in the armory cache under the address
-the Battle.net series names, so the publisher's usual path finds it.
+The demo reads Blizzard character models and gear from a separate archive.
+`site/scripts/demo3d-asset.sh` verifies its SHA-256 before use. The source
+repository holds the checksum and build scripts. [Artwork and credits](../THIRD_PARTY.md).
+
+In 0.13.0 the archive is `demo-3d-2`. It contains Nibbet. That release falls
+back to the generated gnome when the archive is missing. The 3D tests use
+`tools/fixtures/golden3d.py` for their small, reproducible models.
+The publisher sends the model recipe to the renderer and caches the portrait by character
+and recipe. A gear change gets a new picture.
 
 `tests/test_demo_complete_browser.py` opens every tab of both pages at 390 px and 1280 px in
 Chromium and WebKit and fails on any empty section, fallback line or silhouette, and on a 3D

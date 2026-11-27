@@ -1,7 +1,7 @@
 # Is the shipper running? It runs every 5 minutes and writes a log: the last
 # lines say what it found and what reached the page. (The run before the
 # take stands in for the background job, which this take doesn't load.)
-Source demo/tapes/.settings.tape
+Source @SETTINGS@
 Hide
 Type "uv run --script ~/.local/share/wow-stats/wow_stats.py >/dev/null 2>&1; clear"
 Enter
