@@ -134,8 +134,9 @@
 		// the closest fit of the pair, which is not symmetric.
 		const cx = centred ? 0 : (rightPlane - leftPlane) * tan_x / (2 * margin);
 		const cy = (topPlane - bottomPlane) * tan_y / (2 * margin);
-		const d = Math.max(0.1, centred ? Math.max(leftPlane, rightPlane) : (leftPlane + rightPlane) / 2,
-			(bottomPlane + topPlane) / 2);
+		// The same distance either way: a centred long mount may clip a little
+		// at its near end rather than shrink to fit it.
+		const d = Math.max(0.1, (leftPlane + rightPlane) / 2, (bottomPlane + topPlane) / 2);
 		camera.near = Math.max(0.001, d / 100);
 		camera.far = 10 * d + 4 * Math.max(right - left, top - bottom);
 		camera.update_projection();
