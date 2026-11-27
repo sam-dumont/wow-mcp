@@ -107,7 +107,7 @@
 		return points;
 	}
 
-	function fit_turntable(camera, box, css_width, angle = 0, centred = false) {
+	function fit_turntable(camera, box, css_width, angle = 0) {
 		const cos = Math.cos(angle), sin = Math.sin(angle);
 		const tilt = 0.08, up = Math.cos(tilt), forward = Math.sin(tilt);
 		const tan_y = Math.tan(camera.fov * Math.PI / 360), tan_x = tan_y * camera.aspect;
@@ -129,13 +129,8 @@
 		}
 		// Opposite frustum planes meet at the closest valid eye position.
 		// Perspective makes that center differ from the midpoint of a horse.
-		// Centred: the turn axis stays at the middle of the stage (x = 0), so a
-		// lone model or a mount turns in place. A character with its pet keeps
-		// the closest fit of the pair, which is not symmetric.
-		const cx = centred ? 0 : (rightPlane - leftPlane) * tan_x / (2 * margin);
+		const cx = (rightPlane - leftPlane) * tan_x / (2 * margin);
 		const cy = (topPlane - bottomPlane) * tan_y / (2 * margin);
-		// The same distance either way: a centred long mount may clip a little
-		// at its near end rather than shrink to fit it.
 		const d = Math.max(0.1, (leftPlane + rightPlane) / 2, (bottomPlane + topPlane) / 2);
 		camera.near = Math.max(0.001, d / 100);
 		camera.far = 10 * d + 4 * Math.max(right - left, top - bottom);
