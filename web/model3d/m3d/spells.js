@@ -260,8 +260,10 @@
 				const phase = n.phase;
 				n.at = phase === 'precast' ? 0 : phase === 'missile' ? this.launch : ['impact','aura'].includes(phase) ? this.impact : this.cast;
 				n.at += sec(n.kit?.delay_ms || n.delay_ms) + sec((n.kit || n).start_offset_ms?.[0]) + sec(n.def?.delay_ms);
+				// An aura plays its own visual length, not the buff's game duration
+				// (30 minutes for Fortitude): it stayed at the feet after the cast.
 				const duration = phase === 'precast' ? this.cast - n.at : phase === 'missile' ? n.flight :
-					(phase === 'aura' || phase === 'channel' || (phase === 'cast' && channel)) ? sec(spec.duration_ms) :
+					(phase === 'channel' || (phase === 'cast' && channel)) ? sec(spec.duration_ms) :
 					Math.max(sec(n.kit?.min_ms || n.min_ms), natural(n));
 				n.until = n.at + Math.max(0, duration);
 			};
