@@ -51,7 +51,7 @@ reads the artwork from the maintainer's installed Forever client through the
 shipper's CASC reader. The project licence covers its own code. Blizzard
 retains the rights to the artwork. The Pages build checks a separate archive
 against the SHA-256 in `site/demo3d-roster.sha256` before it copies the required
-files into the demo. [Demo artwork archive](https://github.com/sam-dumont/wow-mcp/releases/tag/demo-3d-4).
+files into the demo. [Demo artwork archive](https://github.com/sam-dumont/wow-mcp/releases/tag/demo-3d-5).
 The source repository, Python wheel and shipper installer contain the scripts
 and no extracted game models. [Blizzard's fansite policy](https://www.blizzard.com/en-us/legal/28d5ebbf-c245-4408-8ba9-043dd5f056bf/legal-faq).
 

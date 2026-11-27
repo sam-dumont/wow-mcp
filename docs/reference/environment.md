@@ -258,7 +258,7 @@ Read by `docker compose` in `deploy/compose`, not by a program. The other compos
 |---|---|---|---|---|---|
 | `ACME_EMAIL` | compose | email address | required by `compose.traefik.yaml` | `you@example.org` | Where Let's Encrypt writes before a certificate expires (Traefik). |
 | `DEMO_3D_STORE` | compose | absolute directory path | empty (the demo downloads the pinned roster archive) | `/Users/sam/wow-demo/.demo3d/store` | A prepared nine-character Forever store on the host. The demo kit mounts it read-only for the seed, dashboard and publisher. |
-| `DEMO_3D_URL` | compose | archive URL | the roster-3d.tar.gz asset on the demo-3d-4 release | `https://example.org/wow/roster-3d.tar.gz` | A mirror for the demo artwork archive. The demo checks the same pinned SHA-256 before unpacking its contents. |
+| `DEMO_3D_URL` | compose | archive URL | the roster-3d.tar.gz asset on the demo-3d-5 release | `https://example.org/wow/roster-3d.tar.gz` | A mirror for the demo artwork archive. The demo checks the same pinned SHA-256 before unpacking its contents. |
 | `MCP_PUBLISH` | compose | `address:port` | `127.0.0.1:8090` | `127.0.0.1:8090` | Where the MCP port is published on the host. |
 | `PUBLIC_ALLOWED_HOSTS` | compose | host names, comma separated | empty | `wow.example.org` | `ALLOWED_HOSTS` for the `ui-public` service. |
 | `PUBLIC_ALLOW_OPEN` | compose | `1` or empty | empty | `1` | `ALLOW_OPEN` for the `ui-public` service, when you publish it beyond `127.0.0.1`. |
