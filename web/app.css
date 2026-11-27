@@ -176,6 +176,13 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 .doll > .slots.left { grid-area: left; }
 .doll > .slots.right { grid-area: right; }
 .doll > .weapons { grid-area: weapons; }
+/* Broad shoulders and mounts need room between the two equipment lists.
+   The friends' view can have taller rows when it shows upgrade details. */
+@media (min-width: 641px) {
+  .doll:has(> .stage.in3d) {
+    grid-template-columns: minmax(0, 1fr) min(39%, 420px) minmax(0, 1fr);
+  }
+}
 .stage {
   grid-area: stage; position: relative; min-height: 480px; border-radius: 6px; overflow: hidden;
   background: radial-gradient(ellipse at 50% 38%, #3A2C1E 0%, #1A130D 55%, #0B0806 100%);
@@ -203,8 +210,7 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
   font: 600 13px var(--display); letter-spacing: .05em; color: var(--gold-hi); white-space: nowrap;
   background: rgba(14, 10, 7, .82); border: 1px solid var(--gold-lo); border-radius: 4px; padding: 6px 14px; cursor: pointer;
 }
-/* The action buttons belong to the frame. Give the picture switch its
-   own row so it cannot intercept a spell or ranged attack. */
+/* Keep the picture switch below the viewer where it won't intercept a drag. */
 .stage.in3d { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
 .stage.in3d .m3dframe { position: static; grid-row: 1; min-height: 0; }
 .stage.in3d > .m3dtoggle {

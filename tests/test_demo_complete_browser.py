@@ -353,18 +353,27 @@ def check_mounted_rider(frame, recipe):
     assert select.input_value() == "foot"
     assert select.locator("option").all_text_contents() == ["On foot", "On mount"]
     select.select_option(label="On mount")
-    frame.wait_for_function("motion.handle.mounted >= 0")
-    assert mount["name"] in frame.locator("#mount-note").inner_text()
+    note = frame.locator("#mount-note")
+    sync_api.expect(note).to_have_text(mount["name"], timeout=15000)
+    assert frame.evaluate("() => motion.handle.mounted") >= 0
     check_framing(frame, 0.68)
     for clip, draw in ((4, 0), (5, 0.99)):
-        frame.evaluate("r => {motion.mountRandom=r; motion.now=motion.handle.debug.idle().next_at+1}", draw)
-        frame.wait_for_function("id => motion.handle.debug.idle().playing === id", arg=clip)
-        frame.evaluate("async () => {motion.now += 80; await motion.frame()}")
-        frame.wait_for_function("""id => [...window.saddles].filter(s => s.startsWith(id + '/')).length >= 2""",
-                                arg=clip)
+        poses = frame.evaluate("""async ([clip, draw]) => {
+          motion.mountRandom = draw;
+          motion.now = motion.handle.debug.idle().next_at + 1;
+          await motion.frame();
+          const poses = () => [...window.saddles].filter(s => s.startsWith(clip + '/'));
+          for (let i = 0; i < 12 && poses().length < 2; ++i) {
+            motion.now += 40;
+            await motion.frame();
+          }
+          return poses();
+        }""", [clip, draw])
+        assert len(poses) >= 2, (mount["name"], clip, poses)
         frame.evaluate("async () => {motion.now += 10000; await motion.frame()}")
     select.select_option(label="On foot")
-    frame.wait_for_function("motion.handle.mounted === -1")
+    sync_api.expect(note).to_have_text("")
+    assert frame.evaluate("() => motion.handle.mounted") == -1
 
 
 def test_switching_a_published_character_reads_its_file_once(browser, base):
