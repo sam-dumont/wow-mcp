@@ -200,7 +200,7 @@ The demo reads Blizzard character models and gear from a separate archive.
 `site/scripts/demo3d-asset.sh` verifies its SHA-256 before use. The source
 repository holds the checksum and build scripts. [Artwork and credits](../THIRD_PARTY.md).
 
-In 0.13.0 the archive is `demo-3d-2`. It contains Nibbet. That release falls
+Since 0.13.1 the archive holds all nine demo characters. The demo falls
 back to the generated gnome when the archive is missing. The 3D tests use
 `tools/fixtures/golden3d.py` for their small, reproducible models.
 The publisher sends the model recipe to the renderer and caches the portrait by character

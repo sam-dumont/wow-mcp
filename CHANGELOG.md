@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Battle.net sharing with your AI starts off on shared installs. Older accounts need to opt in again in Settings. Their old setting used the same value for a default and a deliberate choice.
+- Battle.net sharing with your AI starts off for new accounts on shared installs. Existing accounts keep the setting they had.
+- Whether the faster XP forecast held up now compares only dungeons whose priority stayed the same from one plan to the next. Pairs whose verdict changed in between counted too.
+- A dungeon's open-quest XP (`quest_xp_open`) is unknown when the knowledge base has no XP rule for a quest's level. It used to read 0.
 - Dungeon pickups and hand-ins check who your character can talk to. For Tabetha’s Task, Nibbet’s route from Stormwind now names Jennea Cannon on the quest card.
 - A saved session plan tracks the other dungeons that fit, even if you skip the first pick. The private dashboard and MCP compare whole-trip time and XP with what you actually played. Once two eligible dungeons have recorded runs at the same level, you can see whether the faster XP forecast held up.
 - A new SQLite Compose profile keeps the UI and MCP online during publication on a 4 GiB host. Two 2-CPU guests published nine characters in 4m37s and 5m07s while answering a cold MCP call and accepting an upload. The profile turns off 3D and item downloads. [Setup and measurements](docs/self-host/sizing.md)

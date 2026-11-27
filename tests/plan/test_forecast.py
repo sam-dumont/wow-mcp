@@ -278,6 +278,18 @@ def test_rank_comparisons_across_plans_need_common_options_and_goal():
         first["dungeon_forecast"]["alternatives"][0][field] = value
         assert not any(sum(o.values()) for o in order().values())
         first = session_pair(100)
+    assert order()["modeled"]["reversed"] == 1
+
+    def demote(x):  # the later plan rates both options lower: still alike, but not the forecast made
+        if isinstance(x, dict):
+            x.update({"priority": "some"} if "priority" in x else {})
+            for v in x.values():
+                demote(v)
+        elif isinstance(x, list):
+            for v in x:
+                demote(v)
+    demote(second["dungeon_forecast"])
+    assert not any(sum(o.values()) for o in order().values())
 
 
 def test_an_unplayed_option_has_no_rank_and_partial_xp_still_has_timing():

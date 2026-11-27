@@ -420,12 +420,16 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
         run = kb_runs.get(k) or {}
         quests_open = [open_ids[qq] for qq in (run.get("objectives") or []) + (run.get("pickups") or [])
                        if qq in open_ids]
-        quest_xp = sum((o.get("xp_full") or 0) * (share(inp, level, o.get("level")) or 0) for o in quests_open)
+        shares = [(o.get("xp_full") or 0, share(inp, level, o.get("level"))) for o in quests_open]
+        # No sourced XP rule for a quest's level: its XP is unknown, not 0.
+        quest_xp = None if any(sh is None for _, sh in shares) else sum(xp * sh for xp, sh in shares)
         mine = [t for t in inp.get("trips") or [] if dkey(wings.trip_name(t)) == k]
         v = vsguide.named((b or {}).get("vs_guide"), d["name"])
         # His quests of it in the log count whether or not Polestar has a
         # run of it (the panel's quests: forever-db's zone, Polestar's run).
-        quest_xp = max(quest_xp, (v or {}).get("numbers", {}).get("quest_xp_in_log") or 0)
+        in_log = (v or {}).get("numbers", {}).get("quest_xp_in_log")
+        if in_log is not None:
+            quest_xp = max(quest_xp or 0, in_log)
         # Fits now: on Polestar's list for his level, or a reason measured
         # on him to go anyway (vsguide); a dungeon under Polestar's floor
         # waits for it otherwise, whatever its gear.
@@ -440,7 +444,7 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
                  "items_later": len(later), "quest_rewards": qrew[:3],
                  "deferred_quest_rewards": b["deferred_quest_rewards"] if b else [],
                  "quests_open": [{"quest_id": o["quest_id"], "name": o["name"]} for o in quests_open],
-                 "quest_xp_open": round(quest_xp)}
+                 "quest_xp_open": round(quest_xp) if quest_xp is not None else None}
         # One more run, the same estimate the Overview's move and the
         # Dungeons panel show (wowstats.plan.dungeongain): his runs there,
         # else the kill estimate's time inside and Polestar's pick-up and

@@ -23,7 +23,7 @@ docker compose --env-file .env.demo run --rm demo
 ```
 
 Open <http://127.0.0.1:8080/>. Nibbet, a made-up level 46 Gnome priest, has a DEMO DATA banner.
-The v0.13.0 kit contains Nibbet alone. Kits with `compose.demo.yaml` also load the other eight
+Since 0.13.1 the kit also loads the other eight
 classes, their models and simulated armory profiles. The demo keeps its own Docker volumes.
 
 For PowerShell, ports, or the nine-character demo from a development checkout, see [Try the demo](self-host/demo.md).

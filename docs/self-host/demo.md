@@ -35,7 +35,7 @@ docker compose --env-file .env.demo run --rm demo
 ```
 
 The seed sends Nibbet's evenings to the local page. His last session ends yesterday.
-The v0.13.0 kit ships Nibbet alone. Kits with `compose.demo.yaml` add eight characters at levels 10 through 60. Each has its own sessions, gear, talent picks and simulated armory reads. The first seed downloads the roster’s 190 MB client
+Since 0.13.1 the kit adds eight characters at levels 10 through 60. Each has its own sessions, gear, talent picks and simulated armory reads. The first seed downloads the roster’s 190 MB client
 artwork archive, checks its SHA-256 and keeps it in the demo volume for later runs.
 
 ## 3. Look around

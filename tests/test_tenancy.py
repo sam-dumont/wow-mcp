@@ -279,7 +279,7 @@ def bnet_setting(server, sub, on):
 
 
 @pytest.mark.parametrize("old", [True, False, None])
-def test_legacy_registry_needs_a_recorded_opt_in(server, old):
+def test_legacy_registry_keeps_its_setting(server, old):
     h = friend_ready(server)
     path = server.t.registry.path
     registry = json.loads(path.read_text())
@@ -288,11 +288,11 @@ def test_legacy_registry_needs_a_recorded_opt_in(server, old):
     if old is not None:  # early records omitted it, later records wrote True even at signup
         record["bnet_to_model"] = old
     path.write_text(json.dumps(registry))
-    assert json.loads(server.get("/api/me", headers=h)[2])["bnet_to_model"] is False
-    # An unrelated Settings save mustn't turn an old True into consent.
+    assert json.loads(server.get("/api/me", headers=h)[2])["bnet_to_model"] is (old is True)
+    # An unrelated Settings save keeps it as it was.
     assert server.get("/api/me/settings", headers={**h, "Content-Type": "application/json"}, method="POST",
                       data=b'{"models":"sd"}')[0] == 200
-    assert not tenancy.Registry(path).get(FRIEND).bnet_to_model
+    assert tenancy.Registry(path).get(FRIEND).bnet_to_model is (old is True)
     for choice in (True, False):
         bnet_setting(server, FRIEND, choice)
         assert tenancy.Registry(path).get(FRIEND).bnet_to_model_choice is choice
