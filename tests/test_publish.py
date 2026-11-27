@@ -1316,7 +1316,7 @@ class GappyCatalog(FakeCatalog):
         return None if name == "inv_not_on_zamimg" else super().icon(name, size)
 
 
-def publish_items(tmp_path, monkeypatch, catalog, store_cls=None, **options):
+def publish_items(tmp_path, monkeypatch, catalog, store_cls=None, MODEL3D="off", MODEL3D_ASSETS_DIR="", **options):
     from wowstats import itemcard
 
     monkeypatch.setattr(itemcard, "shared", lambda: catalog)
@@ -1327,8 +1327,10 @@ def publish_items(tmp_path, monkeypatch, catalog, store_cls=None, **options):
         return s
 
     monkeypatch.setattr(ui, "Store", store)
-    env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "off",
+    env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": MODEL3D,
            "PUBLISH_DIR": str(tmp_path / "site-gap"), "ZOGZOG_KEY_FILE": str(tmp_path / "zz-gap.key")}
+    if MODEL3D_ASSETS_DIR:
+        env["MODEL3D_ASSETS_DIR"] = MODEL3D_ASSETS_DIR
     with redirect_stdout(io.StringIO()):
         return publish.publish(env, **options)
 
@@ -1500,3 +1502,57 @@ def test_a_person_without_characters_gets_the_empty_page(tmp_path, public_on):
     finally:
         httpd.shutdown()
         httpd.server_close()
+
+
+class ClientArtCatalog(FakeCatalog):
+    """Every item has the one icon the client store holds. Asking this catalog
+    for an icon is the bug under test: a store with client icons never does."""
+
+    def many(self, ids):
+        return {k: {**v, "i": "inv_client_a"} for k, v in super().many(ids).items()}
+
+    def icon(self, name, size):
+        pytest.fail(f"the demo asked the catalog (Wowhead) for an icon: {name} {size}")
+
+
+def client_store(root, names=("inv_client_a", "inv_misc_questionmark")):
+    """A 3D art store that carries the game client's icons (tools/fixtures/demo_icons.py's layout)."""
+    for name in names:
+        for size in ("large", "medium"):
+            path = root / "icons" / size / f"{name}.jpg"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"\xff\xd8\xff\xe0" + f"client-{name}-{size}".encode() + b"\xff\xd9")
+    (root / "icons.json").write_text(json.dumps({"build": "1.60.1.71139", "names": list(names)}))
+    return root
+
+
+def test_hosted_demo_takes_every_icon_from_the_client_store_and_never_fetches(tmp_path, monkeypatch):
+    """The demo build shows icons extracted from the game client. Nothing asks
+    wow.zamimg.com: not the catalog's icon fetch, not the talent frame's."""
+    from wowstats import talents, upstream
+
+    def no_network(*args, **kwargs):
+        pytest.fail(f"the demo build contacted an outside site: {args}")
+
+    monkeypatch.setattr(upstream, "fetch", no_network)
+    monkeypatch.setattr(upstream, "urlopen", no_network)
+    monkeypatch.setattr(talents, "icon_bytes", no_network)
+    art = client_store(tmp_path / "art")
+    assert publish_items(tmp_path, monkeypatch, ClientArtCatalog(), MODEL3D="on", MODEL3D_ASSETS_DIR=str(art))["built"]
+    pub = files(tmp_path / "site-gap" / "current" / "public")
+    icons = {p: body for p, body in pub.items() if p.startswith("data/icon/")}
+    assert icons, "no icon in the bundle"
+    for path, body in icons.items():
+        size, name = path.split("/")[2], path.split("/")[3].removesuffix(".jpg")
+        assert body == (art / "icons" / size / f"{name}.jpg").read_bytes(), f"{path} isn't the client's"
+    assert {p.split("/")[3] for p in icons} <= {"inv_client_a.jpg", "inv_misc_questionmark.jpg"}
+
+
+def test_hosted_demo_fails_loudly_for_an_icon_the_client_store_lacks(tmp_path, monkeypatch):
+    from wowstats import upstream
+
+    monkeypatch.setattr(upstream, "fetch", lambda *a, **k: pytest.fail("fetched an icon"))
+    art = client_store(tmp_path / "art", names=("inv_misc_questionmark",))
+    with pytest.raises(publish.PublishError, match=r"inv_client_a"):
+        publish_items(tmp_path, monkeypatch, ClientArtCatalog(), MODEL3D="on", MODEL3D_ASSETS_DIR=str(art))
+    assert not (tmp_path / "site-gap" / "current").exists(), "nothing published"

@@ -763,7 +763,8 @@
 			const angle = this.rotation + (scene.mount?.angleOffset || 0), cos = Math.cos(angle), sin = Math.sin(angle);
 			const offset = scene.petVisible ? scene.spacing / 2 : 0;
 			const k = scene.mount?.scale || 1;
-			const position = [-offset * sin, 0, -offset * cos];
+			const [px, pz] = scene.pivot || [0, 0];
+			const position = [-offset * sin - (px * cos + pz * sin), 0, -offset * cos - (-px * sin + pz * cos)];
 			let aim = angle;
 			const spell = this.spell;
 			if (spell?.other) {
@@ -843,7 +844,12 @@
 			scene.petVisible = !!scene.pet;
 			const rider = frame_box(scene.char);
 			const char = scene.mount?.box || (scene.standingBox ??= dressed_box(scene));
-			this.box = char;
+			// Turn about the middle of the model's own outline, not its origin:
+			// a mount's origin sits off its body, so it swung around a point
+			// beside it. The camera looks straight down that axis.
+			const pivot = scene.pivot = scene.pet ? [0, 0] :
+				[(char.min[0] + char.max[0]) / 2, (char.min[2] + char.max[2]) / 2];
+			this.box = scene_box([{ box: char, offset: [-pivot[0], 0, -pivot[1]] }]);
 			if (scene.petVisible) {
 				const pet = frame_box(scene.pet);
 				const height = Math.max(0.1, rider.max[1] - rider.min[1]);

@@ -58,7 +58,7 @@ jobs:
       # this job's minutes, and hung for 30 minutes once.
       # The analysis extras: the server-side analysis' tests build both SDKs'
       # clients (credentials passed explicitly), on fake clients, no calls.
-      - run: uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai
+      - run: uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai --group demo-art
       # The derived fixtures (planner inputs, gear answer: tests/derived.py),
       # built by the first test that needs them (about 20 s) and kept here
       # while nothing they are made from changed. tests/derived.py checks its

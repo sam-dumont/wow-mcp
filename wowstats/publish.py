@@ -85,7 +85,7 @@ from wowstats import (
 from wowstats import assets as m3d_assets
 from wowstats import model3d as m3d
 from wowstats.sitesettings import PageSettings, fetch_users
-from wowstats.upstream import Upstream
+from wowstats.upstream import Upstream, cached_icon
 
 MAX_AGE_S = 86400
 KEEP = 2  # builds kept besides current, for a request in flight during the swap
@@ -334,7 +334,18 @@ def fetch_analysis(env: dict) -> dict | None:
     return {"available": bool(chars), "chars": chars}
 
 
-def put_items(b: Bundle, tier: str, cards_of=None) -> int:
+def client_icons(full_app: ui.App):
+    """`icon(name, size) -> bytes | None` over the icons the 3D store holds
+    from the game client, or None when it holds none (a person's own site,
+    which fetches Wowhead's). With a store's icons, nothing else is asked."""
+    store = full_app.model3d.store if full_app.model3d is not None else None
+    root = getattr(store, "icon_root", lambda: None)()
+    if root is None:
+        return None
+    return lambda name, size: cached_icon(None, root, size, name)
+
+
+def put_items(b: Bundle, tier: str, cards_of=None, icons=None) -> int:
     """The tooltips of every item the bundle's answers name, and their icons
     (both sizes) under data/icon/, sealed in /zogzog/ like every data file:
     which icons a bundle holds would list its loot. Icons come from the
@@ -346,7 +357,8 @@ def put_items(b: Bundle, tier: str, cards_of=None) -> int:
     show an empty frame (0.2.3: Forever's new items, whose icon is only on
     their appearance, came out blank and nothing said so). `cards_of(ids)`:
     the person's cards (ui.App.item_cards: the catalog's, and their item
-    facts for what it lacks), else the catalog's."""
+    facts for what it lacks), else the catalog's. `icons` (client_icons):
+    the icons come from there and only there."""
     cat = itemcard.shared()
     ids = sorted(b.item_ids)
     catalog = cat.many(ids)
@@ -366,7 +378,7 @@ def put_items(b: Bundle, tier: str, cards_of=None) -> int:
     n, failed = 0, set()
     for name in sorted(set(icon_of.values()) | {itemcard.QUESTION}):
         for size in itemcard.SIZES:
-            body = cat.icon(name, size)
+            body = icons(name, size) if icons else cat.icon(name, size)
             if body is None:
                 failed.add(name)
                 continue
@@ -470,7 +482,7 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
                                                                 "coverage": static_coverage(full_app, tier, name)},
                                                                still))
         if "char" in files:
-            copy_icons(b, talents.icon_names(app.char(name)))
+            copy_icons(b, talents.icon_names(app.char(name)), icons=client_icons(full_app))
         put("journal", data_path("journal", name), lambda: app.journal(name))
         put("gear", data_path("gear", name), lambda: app.gear(name, None))
         put("overview", data_path("overview", name), lambda: app.overview(name))
@@ -503,7 +515,7 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
                 sn = {**sn, **put_picture(b, pics, name, lv, ans, store_reader(full_app))}
             put("snapshot", data_path("snapshot", name, lv), lambda: sn)
     if "items" in files:
-        put_items(b, tier, full_app.item_cards)
+        put_items(b, tier, full_app.item_cards, client_icons(full_app))
     check_names(b, tier, full_app.item_cards)
 
 
@@ -564,11 +576,21 @@ def with_still(d: dict, still: dict | None) -> dict:
     return d
 
 
-def copy_icons(b: Bundle, names: set[str], size: str = "medium") -> int:
+def copy_icons(b: Bundle, names: set[str], size: str = "medium", icons=None) -> int:
     """The talent frame's icons, fetched once here (Wowhead's icon host)
-    so a visitor's browser never calls an outside site."""
+    so a visitor's browser never calls an outside site. With `icons`
+    (client_icons) they come from the game client's and a missing one fails
+    the publish with its name."""
     n = 0
+    if icons:
+        lost = sorted(name for name in names if icons(name, size) is None)
+        if lost:
+            raise PublishError(f"no client icon for talent(s): {', '.join(lost)}")
     for name in sorted(names):
+        if icons:
+            b.put(talents.icon_path(name, size), icons(name, size))
+            n += 1
+            continue
         try:
             body = talents.icon_bytes(name, size)
         except Upstream as e:

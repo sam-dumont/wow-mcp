@@ -221,8 +221,11 @@ Hesta's Warhorse and Brakka's Swift Timber Wolf. It also includes the client spe
 textures and visual tables used by each class and its ranged weapons at those levels.
 To use your installed Forever client,
 run `uv run python tools/fixtures/demo3d.py build-roster .demo3d --wow-root "/Applications/World of Warcraft"`,
-then set `DEMO_3D_STORE` to the absolute path of `.demo3d/store`. The hosted build stops
-if it cannot verify the archive. [Nine-character artwork archive](https://github.com/sam-dumont/wow-mcp/releases/tag/demo-3d-7).
+then `uv run --group demo-art python tools/fixtures/demo3d.py build-icons .demo3d --wow-root "/Applications/World of Warcraft"`.
+The second step adds the item, spell and talent icons from the same client and packs the archive again.
+Set `DEMO_3D_STORE` to the absolute path of `.demo3d/store`. The hosted build takes every icon from
+that store and never fetches one: a missing icon fails the build with its name. It stops
+if it cannot verify the archive. [Nine-character artwork archive](https://github.com/sam-dumont/wow-mcp/releases/tag/demo-3d-8).
 
 The manual's screenshots come from that demo, never from a real player:
 `uv run --extra render python site/scripts/screenshots.py <address of the built site>` writes

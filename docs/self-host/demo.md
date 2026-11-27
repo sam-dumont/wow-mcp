@@ -127,6 +127,7 @@ To use your own Forever install, run this from the repository root before starti
 
 ```sh
 uv run python tools/fixtures/demo3d.py build-roster .demo3d --wow-root "/Applications/World of Warcraft"
+uv run --group demo-art python tools/fixtures/demo3d.py build-icons .demo3d --wow-root "/Applications/World of Warcraft"
 ```
 
 Set `DEMO_3D_STORE` in `.env.demo` to the absolute path of `.demo3d/store`. Compose mounts
