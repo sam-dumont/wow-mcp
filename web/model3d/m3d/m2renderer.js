@@ -102,6 +102,31 @@
 		return ctx._m2_shader;
 	}
 
+	// Face an authored billboard bone toward the eye in its parent's
+	// coordinate system. M2's forward axis is +X, up becomes WebGL +Y.
+	function face_eye(local, world, view, pivot, translation, lockUp) {
+		const axis = i => world.subarray(i*4, i*4+3);
+		const dot = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+		const cross = (a,b) => [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+		const unit = v => {
+			const length = Math.hypot(...v);
+			return length > 1e-8 ? v.map(n => n/length) : null;
+		};
+		const eye = [0,1,2].map(i => -(view[i*4]*view[12] + view[i*4+1]*view[13] + view[i*4+2]*view[14]) - world[12+i]);
+		const toLocal = v => [0,1,2].map(i => dot(axis(i),v)/Math.max(1e-12,dot(axis(i),axis(i))));
+		let forward = unit(toLocal(eye).map((x,i) => x-pivot[i]-translation[i]));
+		if (!forward) return;
+		let up = lockUp ? [0,1,0] : toLocal([view[1],view[5],view[9]]);
+		const lateral = unit(cross(forward,up));
+		if (!lateral) return;
+		if (lockUp) forward = cross(up,lateral);
+		else up = cross(lateral,forward);
+		for (let i=0; i<3; i++) {
+			const j = i*4, x = local[j], y = local[j+1], z = local[j+2];
+			for (let k=0; k<3; k++) local[j+k] = x*forward[k] + y*up[k] + z*lateral[k];
+		}
+	}
+
 	class M2RendererGL {
 		/**
 		 * @param {M3D.Reader} data the .m2 file
@@ -113,6 +138,8 @@
 			// particles and ribbons (M3D.ParticleSystem), seeded for repeatable pictures
 			this.seed = Number(opts.seed) >>> 0 || 1;
 			this.particles = null;
+			this.opacity = 1;
+			this.tint = [1, 1, 1];
 			this.ctx = gl_context;
 			this.gl = gl_context.gl;
 			this.fetch = fetch;
@@ -551,9 +578,18 @@
 
 		// Switch already-loaded clocks together (rider and mount), without a
 		// pending file fetch restoring an older action after a dismount.
-		playPreparedAnimation(index) {
+		playPreparedAnimation(index, blend = false) {
 			const seq = this._sequence(index);
 			if (!seq) return;
+			const previous = this._current_anim();
+			if (blend && previous && this.pose) {
+				// Authored sequence blend times are in milliseconds. Older clips
+				// without a transition get a short crossfade on the turntable.
+				this.transition = {
+					from: this.pose.slice(), elapsed: 0,
+					duration: (Math.max(previous.blendTimeOut || 0, seq.clip.blendTimeIn || 0) || 150) / 1000
+				};
+			} else this.transition = null;
 			const { source: anim_source, index: anim_index } = seq;
 			this.current_anim_source = anim_source;
 			this.current_anim_index = anim_index;
@@ -587,7 +623,7 @@
 		}
 
 		_update_animation(delta_time) {
-			if (this.current_animation === null || !this.bones)
+			if (this.current_animation === null)
 				return;
 
 			const anim_source = this.current_anim_source || this.skelLoader || this.m2;
@@ -611,7 +647,11 @@
 			if (duration_sec > 0)
 				this.animation_time = this.animation_time % duration_sec;
 
-			this._update_bone_matrices();
+			if (this.transition) {
+				this.transition.elapsed += delta_time;
+				if (this.transition.elapsed >= this.transition.duration) this.transition = null;
+			}
+			if (this.bones) this._update_bone_matrices();
 			this._update_tex_matrices();
 			this._update_submesh_colors();
 			this._update_tex_weights();
@@ -632,12 +672,7 @@
 			const close_l = this.close_left_hand && hands_closed_idx !== null;
 
 			const local_mat = this._scratch_local;
-			const trans_mat = this._scratch_trans;
-			const rot_mat = this._scratch_rot;
-			const scale_mat = this._scratch_scale;
-			const pivot_mat = this._scratch_pivot;
-			const neg_pivot_mat = this._scratch_neg_pivot;
-			const temp_result = this._scratch_result;
+			if (!this.pose) this.pose = new Float32Array(bone_count * 10);
 
 			const calculated = this._scratch_calculated;
 			calculated.fill(0);
@@ -670,51 +705,38 @@
 				const has_rot = hand_bone?.rotation?.timestamps?.[effective_anim_idx]?.length > 0;
 				const has_scale = hand_bone?.scale?.timestamps?.[effective_anim_idx]?.length > 0;
 				const has_scale_fallback = !has_scale && effective_anim_idx !== 0 && hand_bone?.scale?.timestamps?.[0]?.length > 0;
-				const has_animation = has_trans || has_rot || has_scale || has_scale_fallback;
+				const vec = (track, idx, time, fallback) => this._sample_raw_vec3(track.timestamps[idx], track.values[idx], time, fallback);
+				const t = has_trans ? vec(hand_bone.translation, effective_anim_idx, effective_time_ms, [0,0,0]) : [0,0,0];
+				const q = has_rot ? this._sample_raw_quat(hand_bone.rotation.timestamps[effective_anim_idx],
+					hand_bone.rotation.values[effective_anim_idx], effective_time_ms) : [0,0,0,1];
+				const size = (has_scale || has_scale_fallback) ? vec(hand_bone.scale,
+					has_scale ? effective_anim_idx : 0, has_scale ? effective_time_ms : 0, [1,1,1]) : [1,1,1];
 
-				mat4_copy(local_mat, IDENTITY_MAT4);
-
-				if (has_animation) {
-					mat4_from_translation(pivot_mat, px, py, pz);
-					mat4_multiply(temp_result, local_mat, pivot_mat);
-					mat4_copy(local_mat, temp_result);
-
-					if (has_trans) {
-						const ts = hand_bone.translation.timestamps[effective_anim_idx];
-						const vals = hand_bone.translation.values[effective_anim_idx];
-						const [tx, ty, tz] = this._sample_raw_vec3(ts, vals, effective_time_ms);
-
-						mat4_from_translation(trans_mat, tx, ty, tz);
-						mat4_multiply(temp_result, local_mat, trans_mat);
-						mat4_copy(local_mat, temp_result);
+				const p = idx * 10;
+				if (this.transition) {
+					const { from, elapsed, duration } = this.transition;
+					const f = elapsed / duration;
+					for (let i = 0; i < 3; i++) {
+						t[i] = lerp(from[p + i], t[i], f);
+						size[i] = lerp(from[p + 7 + i], size[i], f);
 					}
-
-					if (has_rot) {
-						const ts = hand_bone.rotation.timestamps[effective_anim_idx];
-						const vals = hand_bone.rotation.values[effective_anim_idx];
-						const [qx, qy, qz, qw] = this._sample_raw_quat(ts, vals, effective_time_ms);
-
-						mat4_from_quat(rot_mat, qx, qy, qz, qw);
-						mat4_multiply(temp_result, local_mat, rot_mat);
-						mat4_copy(local_mat, temp_result);
-					}
-
-					if (has_scale || has_scale_fallback) {
-						const scale_anim_idx = has_scale ? effective_anim_idx : 0;
-						const ts = hand_bone.scale.timestamps[scale_anim_idx];
-						const vals = hand_bone.scale.values[scale_anim_idx];
-						const scale_time = has_scale ? effective_time_ms : 0;
-						const [sx, sy, sz] = this._sample_raw_vec3(ts, vals, scale_time, [1, 1, 1]);
-
-						mat4_from_scale(scale_mat, sx, sy, sz);
-						mat4_multiply(temp_result, local_mat, scale_mat);
-						mat4_copy(local_mat, temp_result);
-					}
-
-					mat4_from_translation(neg_pivot_mat, -px, -py, -pz);
-					mat4_multiply(temp_result, local_mat, neg_pivot_mat);
-					mat4_copy(local_mat, temp_result);
+					quat_slerp(q, ...from.subarray(p + 3, p + 7), ...q, f);
 				}
+				this.pose.set(t, p);
+				this.pose.set(q, p + 3);
+				this.pose.set(size, p + 7);
+				mat4_from_quat(local_mat, ...q);
+				for (let axis = 0; axis < 3; axis++)
+					for (let j = 0; j < 3; j++) local_mat[axis * 4 + j] *= size[axis];
+				if (this.billboardView && (bone.flags & 0x48)) {
+					const parent = parent_idx >= 0 ? this.bone_matrices.subarray(16*parent_idx, 16*parent_idx+16) : null;
+					const world = this._scratch_result;
+					if (parent) mat4_multiply(world, this.model_matrix, parent);
+					face_eye(local_mat, parent ? world : this.model_matrix, this.billboardView, pivot, t, bone.flags & 0x40);
+				}
+				local_mat[12] = t[0] + px - local_mat[0]*px - local_mat[4]*py - local_mat[8]*pz;
+				local_mat[13] = t[1] + py - local_mat[1]*px - local_mat[5]*py - local_mat[9]*pz;
+				local_mat[14] = t[2] + pz - local_mat[2]*px - local_mat[6]*py - local_mat[10]*pz;
 
 				const offset = idx * 16;
 				if (parent_idx >= 0 && parent_idx < bone_count && parent_idx !== idx) {
@@ -1080,7 +1102,8 @@
 
 				shader.set_uniform_1i('u_vertex_shader', dc.vertex_shader);
 				shader.set_uniform_1i('u_pixel_shader', dc.pixel_shader);
-				shader.set_uniform_1i('u_blend_mode', dc.blend_mode);
+				const blend = this.opacity < 1 && dc.blend_mode <= 1 ? GLContext.BlendMode.ALPHA : dc.blend_mode;
+				shader.set_uniform_1i('u_blend_mode', blend);
 
 				const tmi0 = dc.tex_matrix_idxs[0];
 				const tmi1 = dc.tex_matrix_idxs[1];
@@ -1091,17 +1114,17 @@
 				if (dc.color_idx !== -1)
 					color = this.submesh_colors.subarray(dc.color_idx * 4, (dc.color_idx * 4) + 4);
 
-				let alpha = color[3];
+				let alpha = color[3] * this.opacity;
 				if (dc.tex_weight_idx !== -1)
 					alpha *= this.tex_weights[dc.tex_weight_idx];
 
 				if (alpha <= 0)
 					continue;
 
-				shader.set_uniform_4f('u_mesh_color', color[0], color[1], color[2], alpha);
+				shader.set_uniform_4f('u_mesh_color', color[0] * this.tint[0], color[1] * this.tint[1], color[2] * this.tint[2], alpha);
 				shader.set_uniform_1i('u_apply_lighting', dc.flags & 0x1 ? 0 : 1);
 
-				ctx.apply_blend_mode(dc.blend_mode);
+				ctx.apply_blend_mode(blend);
 
 				if (dc.flags & 0x04) {
 					ctx.set_cull_face(false);
@@ -1165,8 +1188,21 @@
 			}
 		}
 
+		// An offscreen spell target needs bone transforms, but no mesh,
+		// texture, particle system, or duplicated GPU buffer.
+		skeletonInstance() {
+			const target = new M2RendererGL(null, this.ctx, this.fetch);
+			target.m2 = this.m2;
+			target.skelLoader = this.skelLoader;
+			target.childSkelLoader = this.childSkelLoader;
+			target.bones = this.bones;
+			target.bone_matrices = new Float32Array(this.bone_matrices?.length || 0);
+			target.playPreparedAnimation(target.find_animation(0));
+			return target;
+		}
+
 		// The world transform of one of this model's attachment points.
-		getAttachmentTransform(attachmentId) {
+		getAttachmentTransform(attachmentId, local = false) {
 			if (!this.m2)
 				return null;
 
@@ -1177,6 +1213,10 @@
 			if (!attachment)
 				return null;
 
+			return this.bonePointTransform(attachment);
+		}
+
+		bonePointTransform(attachment) {
 			const bone_idx = attachment.bone;
 			let bone_mat = IDENTITY_MAT4;
 			if (this.bone_matrices && this.bones && bone_idx < this.bones.length && bone_idx * 16 + 16 <= this.bone_matrices.length)
@@ -1193,31 +1233,44 @@
 
 			const result = new Float32Array(16);
 			mat4_multiply(result, bone_mat, att_mat);
-			mat4_multiply(result, this.model_matrix, result);
+			if (!local) mat4_multiply(result, this.model_matrix, result);
 			return result;
 		}
 
-		// The box of what is drawn (visible submeshes, bind pose) in WebGL
-		// coordinates, or null. A character's own bounds cover every
-		// animation (an HD gnome's spans 4.3 by 4.3 yards for a 1-yard
-		// model): framed by them, it drew a tenth of the frame's height.
+		// Visible vertices in the current skeletal pose, in model space. Fit this
+		// once when the outfit or mount changes. Bind-pose arms and the box
+		// for a whole animation are both wider than a standing Tauren.
 		getDrawnBox() {
-			const v = this.m2 && this.m2.vertices, idx = this.indices_data;
-			if (!v || !idx || this.draw_calls.length === 0)
-				return null;
+			const m = this.m2, idx = this.indices_data;
+			if (!m?.vertices || !idx) return null;
+			const seen = new Uint8Array(m.vertices.length / 3);
 			const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+			const points = [], bones = this.bone_matrices;
 			for (const dc of this.draw_calls) {
-				if (!dc.visible)
-					continue;
-				for (let i = dc.start, end = Math.min(dc.start + dc.count, idx.length); i < end; i++) {
-					const o = idx[i] * 3;  // the loader's vertices are WebGL's axes already
-					for (let k = 0; k < 3; k++) {
-						if (v[o + k] < min[k]) min[k] = v[o + k];
-						if (v[o + k] > max[k]) max[k] = v[o + k];
+				if (!dc.visible) continue;
+				for (let i = dc.start, end = Math.min(dc.start + dc.count, idx.length); i < end; ++i) {
+					const n = idx[i];
+					if (seen[n]) continue;
+					seen[n] = 1;
+					const x = m.vertices[n * 3], y = m.vertices[n * 3 + 1], z = m.vertices[n * 3 + 2];
+					let px = 0, py = 0, pz = 0, total = 0;
+					for (let j = n * 4; bones && j < n * 4 + 4; ++j) {
+						const w = m.boneWeights[j] / 255, b = m.boneIndices[j] * 16;
+						if (!w || b + 15 >= bones.length) continue;
+						px += w * (bones[b] * x + bones[b + 4] * y + bones[b + 8] * z + bones[b + 12]);
+						py += w * (bones[b + 1] * x + bones[b + 5] * y + bones[b + 9] * z + bones[b + 13]);
+						pz += w * (bones[b + 2] * x + bones[b + 6] * y + bones[b + 10] * z + bones[b + 14]);
+						total += w;
+					}
+					points.push(...(total ? [px, py, pz] : [x, y, z]));
+					for (let k = 0; k < 3; ++k) {
+						const value = points[points.length - 3 + k];
+						min[k] = Math.min(min[k], value);
+						max[k] = Math.max(max[k], value);
 					}
 				}
 			}
-			return min[0] <= max[0] ? { min, max } : null;
+			return points.length ? { min, max, points: new Float32Array(points) } : null;
 		}
 
 		// The model's bounding box in WebGL coordinates.

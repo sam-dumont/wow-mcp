@@ -434,7 +434,7 @@
 		p.blend = data.readUInt8();
 		p.emitterType = data.readUInt8();           // 1 plane, 2 sphere, 3 spline, 4 bone
 		p.colorIndex = data.readUInt16LE();         // ParticleColor.dbc: not applied
-		data.move(2);                               // multiTexScale
+		p.multiScale = data.readUInt8(2).map(v => v / 32);
 		p.priorityPlane = data.readInt16LE();
 		p.rows = data.readUInt16LE();
 		p.columns = data.readUInt16LE();
@@ -472,7 +472,9 @@
 		data.move(16);                              // follow speed / scale
 		data.move(8);                               // spline points
 		p.enabled = tr('uint8');
-		data.move(16);                              // multiTexScrollMid / Range
+		const fixed = () => data.readInt16LE(4).map(v => v / 512);
+		p.scroll = fixed();
+		p.scrollVariation = fixed();
 		if (data.offset !== start + PARTICLE_SIZE)
 			throw new Error('particle emitter size ' + (data.offset - start));
 		return p;
@@ -809,6 +811,12 @@
 			const buf = this.animFiles.get(animIndex);
 			patch_bones(this.bones, animIndex, buf);
 			if (buf) {
+				for (const e of this.castEvents || []) {
+					const entry = e.times.offsets[animIndex];
+					if (!entry?.count || entry.offset + 4*entry.count > buf.byteLength) continue;
+					buf.seek(entry.offset);
+					e.times.arr[animIndex] = buf.readUInt32LE(entry.count);
+				}
 				for (const { track, type } of this.emitterTracks || [])
 					patch_track_animation(track, animIndex, buf, type);
 			}
@@ -910,7 +918,21 @@
 				return entries;
 			});
 			this.attachmentLookup = this.read_array(ofs, (n) => this.data.readInt16LE(n));
-			this.data.move(4 * 8); // events, lights, cameras, camera lookup
+			this.castEvents = this.read_array(ofs, count => {
+				const d = this.data, events = [];
+				for (let i = 0; i < count; i++) {
+					const id = d.readString(4);
+					d.move(4);
+					const bone = d.readUInt32LE(), position = d.readFloatLE(3);
+					d.move(4); // interpolation, global sequence
+					if (['$BWR', '$CST', '$CSR', '$CSL'].includes(id)) {
+						const times = read_m2_array_array(d, ofs, 'uint32', true, this.animations);
+						events.push({ id, bone, position, times });
+					} else d.move(8);
+				}
+				return events;
+			});
+			this.data.move(3 * 8); // lights, cameras, camera lookup
 			this.parseChunk_MD21_emitters(ofs);
 		}
 

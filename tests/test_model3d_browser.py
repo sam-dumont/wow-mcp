@@ -162,7 +162,7 @@ def test_the_toggle_draws_the_model_and_the_switch_changes_it(browser, tmp_path,
         httpd.shutdown()
 
 
-def test_optional_companion_can_be_hidden_without_loading_new_files(browser, tmp_path, monkeypatch):
+def test_public_view_shows_a_known_companion_without_action_controls(browser, tmp_path, monkeypatch):
     assemble = model3d.Model3D.character
 
     def with_pet(self, *args, **kwargs):
@@ -180,42 +180,8 @@ def test_optional_companion_can_be_hidden_without_loading_new_files(browser, tmp
         page.locator("#gear button.m3dtoggle").first.click()
         frame = frame_of(page)
         assert wait_state(frame) == "drawn"
-        control = frame.get_by_role("checkbox", name="Show demon")
-        assert control.is_checked()
-        before = frame.evaluate(COVERED)
-        count = asked.count(f"/model3d/file/{w.SD_M2}")
-        assert count > 0
-        control.focus()
-        control.press("Space")
-        assert not control.is_checked()
-        assert frame.evaluate(COVERED) != before
-        control.check()
-        assert asked.count(f"/model3d/file/{w.SD_M2}") == count
-        assert not outside and not errors
-    finally:
-        ctx.close()
-        httpd.shutdown()
-
-
-def test_public_frame_plays_a_class_spell_from_the_keyboard(browser, tmp_path, monkeypatch):
-    from tests import test_m3d_idle_browser as idle
-
-    # Give this test's published priest a model with the omni cast clip.
-    old_files = w.files()
-    monkeypatch.setattr(w, "files", lambda: {**old_files, **idle.FILES, w.FX.CHAR_M2: idle.FILES[idle.COMBAT_MODEL]})
-    httpd, base = bundle(tmp_path, monkeypatch)
-    ctx, page, _, outside, errors = open_page(browser, base)
-    try:
-        page.emulate_media(reduced_motion="reduce")
-        page.locator("#gear button.m3dtoggle").first.click()
-        frame = frame_of(page)
-        spell = frame.get_by_role("group", name="Character actions").get_by_role("button", name="Power Word: Shield")
-        spell.focus()
-        spell.press("Enter")
-        frame.wait_for_function("""() => {
-          const c = document.querySelector('#effects');
-          return c.getContext('2d').getImageData(0, 0, c.width, c.height).data.some(x => x);
-        }""")
+        assert f"/model3d/file/{w.SD_M2}" in asked
+        assert not frame.locator("button, input[type=checkbox], #effects").count()
         assert not outside and not errors
     finally:
         ctx.close()

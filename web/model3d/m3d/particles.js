@@ -128,13 +128,16 @@
 	const VERT = `#version 300 es
 in vec3 a_pos;
 in vec2 a_uv;
+in vec4 a_detail;
 in vec4 a_color;
 uniform mat4 u_view;
 uniform mat4 u_proj;
 out vec2 v_uv;
+out vec4 v_detail;
 out vec4 v_color;
 void main() {
 	v_uv = a_uv;
+	v_detail = a_detail;
 	v_color = a_color;
 	gl_Position = u_proj * u_view * vec4(a_pos, 1.0);
 }
@@ -145,12 +148,19 @@ void main() {
 	const FRAG = `#version 300 es
 precision highp float;
 in vec2 v_uv;
+in vec4 v_detail;
 in vec4 v_color;
 uniform sampler2D u_tex;
+uniform sampler2D u_detail1;
+uniform sampler2D u_detail2;
+uniform bool u_multi;
+uniform float u_opacity;
 uniform int u_mode;
 out vec4 o_color;
 void main() {
 	vec4 c = texture(u_tex, v_uv) * v_color;
+	if (u_multi) c *= texture(u_detail1, fract(v_detail.xy)) * texture(u_detail2, fract(v_detail.zw));
+	c.a *= u_opacity;
 	if (u_mode == 0) {
 		o_color = vec4(c.rgb, 1.0);
 		return;
@@ -173,7 +183,7 @@ void main() {
 }
 `;
 
-	const FLOATS = 9; // x y z u v r g b a
+	const FLOATS = 13; // position, atlas UV, color, two scrolling UVs
 
 	function program(ctx) {
 		if (ctx._particle_program)
@@ -204,9 +214,14 @@ void main() {
 			a_pos: gl.getAttribLocation(prog, 'a_pos'),
 			a_uv: gl.getAttribLocation(prog, 'a_uv'),
 			a_color: gl.getAttribLocation(prog, 'a_color'),
+			a_detail: gl.getAttribLocation(prog, 'a_detail'),
 			u_view: gl.getUniformLocation(prog, 'u_view'),
 			u_proj: gl.getUniformLocation(prog, 'u_proj'),
 			u_tex: gl.getUniformLocation(prog, 'u_tex'),
+			u_detail1: gl.getUniformLocation(prog, 'u_detail1'),
+			u_detail2: gl.getUniformLocation(prog, 'u_detail2'),
+			u_opacity: gl.getUniformLocation(prog, 'u_opacity'),
+			u_multi: gl.getUniformLocation(prog, 'u_multi'),
 			u_mode: gl.getUniformLocation(prog, 'u_mode')
 		};
 		return ctx._particle_program;
@@ -250,7 +265,7 @@ void main() {
 				rand: rng(mix_seed(seed, i + 1)),
 				acc: 0,
 				parts: [],
-				world: (def.flags & 0x10) !== 0,
+				world: (def.flags & 0x10) === 0,
 				mode: particle_mode(def.blend)
 			}));
 			this.ribbons = (m2.ribbons || []).map((def, i) => {
@@ -421,8 +436,12 @@ void main() {
 				spin = -spin;
 			const cells = Math.max(1, d.rows * d.columns);
 			const tw = d.twinkleScale || [0, 0];
+			const detail = (d.flags & 0x10000000) ? {
+				uv: [rand(), rand(), rand(), rand()],
+				velocity: d.scroll.map((v,i) => v + u() * d.scrollVariation[i])
+			} : null;
 			return {
-				p, v,
+				p, v, detail,
 				age: 0,
 				life: Math.max(0.01, prm.life + u() * d.lifespanVariation),
 				sx, sy,
@@ -517,6 +536,8 @@ void main() {
 				gl.vertexAttribPointer(p.a_uv, 2, gl.FLOAT, false, stride, 12);
 				gl.enableVertexAttribArray(p.a_color);
 				gl.vertexAttribPointer(p.a_color, 4, gl.FLOAT, false, stride, 20);
+				gl.enableVertexAttribArray(p.a_detail);
+				gl.vertexAttribPointer(p.a_detail, 4, gl.FLOAT, false, stride, 36);
 			}
 			if (!this.buffer || this.buffer.length < floats)
 				this.buffer = new Float32Array(Math.max(floats, 6 * FLOATS * 64));
@@ -535,6 +556,9 @@ void main() {
 			gl.uniformMatrix4fv(p.u_view, false, view);
 			gl.uniformMatrix4fv(p.u_proj, false, proj);
 			gl.uniform1i(p.u_tex, 0);
+			gl.uniform1i(p.u_detail1, 1);
+			gl.uniform1i(p.u_detail2, 2);
+			gl.uniform1f(p.u_opacity, this.r.opacity ?? 1);
 			gl.bindVertexArray(this.vao);
 			gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
 			gl.enable(gl.DEPTH_TEST);
@@ -551,8 +575,19 @@ void main() {
 				if (e.parts.length === 0)
 					continue;
 				const n = this._fill_particles(e, view, right, upv, model_scale);
-				this._draw(p, e.mode, this._texture(e.def.flags & 0x10000000 ? e.def.texture & 0x1F : e.def.texture), n);
+				const multi = (e.def.flags & 0x10000000) !== 0;
+				const ids = e.def.texture;
+				gl.uniform1i(p.u_multi, multi ? 1 : 0);
+				if (multi) {
+					for (const unit of [1, 2]) {
+						gl.activeTexture(gl.TEXTURE0 + unit);
+						gl.bindTexture(gl.TEXTURE_2D, this._texture((ids >> (5 * unit)) & 31).texture);
+					}
+					gl.activeTexture(gl.TEXTURE0);
+				}
+				this._draw(p, e.mode, this._texture(multi ? ids & 31 : ids), n);
 			}
+			gl.uniform1i(p.u_multi, 0);
 			for (const rb of this.ribbons) {
 				const n = this._fill_ribbon(rb);
 				if (n > 0)
@@ -615,6 +650,10 @@ void main() {
 					buf[o++] = g;
 					buf[o++] = b;
 					buf[o++] = alpha;
+					for (let i = 0; i < 4; i++) {
+						const uv = i % 2 ? v : u;
+						buf[o++] = p.detail ? uv*d.multiScale[i >> 1] + p.detail.uv[i] + p.age*p.detail.velocity[i] : 0;
+					}
 				};
 				corner(-1, 1, u0, v0);
 				corner(1, 1, u1, v0);
@@ -646,6 +685,7 @@ void main() {
 				buf[o++] = c[1];
 				buf[o++] = c[2];
 				buf[o++] = a;
+				o += 4;
 			};
 			for (let i = 0; i + 1 < list.length; i++) {
 				const e0 = list[i], e1 = list[i + 1];

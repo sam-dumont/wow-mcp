@@ -95,43 +95,50 @@
 		}
 	}
 
-	// Below this width the frame is a phone's: more room around the model.
-	const NARROW = 560;
+	// For this turn of the model, solve the perspective frustum against its
+	// visible vertices. A mount's nose contributes depth when viewed head on,
+	// and width when viewed in profile. A circumscribed sphere charges for both.
+	function box_points(box) {
+		if (box.points?.length) return box.points;
+		const points = [];
+		for (const x of [box.min[0], box.max[0]])
+			for (const y of [box.min[1], box.max[1]])
+				for (const z of [box.min[2], box.max[2]]) points.push(x, y, z);
+		return points;
+	}
 
-	/**
-	 * Head-to-feet framing of a turntable: the model turns about the Y axis
-	 * through the origin, so its horizontal extent is the radius of the
-	 * box's corners about that axis.
-	 * @param {PerspectiveCamera} camera
-	 * @param {{min: number[], max: number[]}} box WebGL coordinates, unrotated
-	 * @param {number} css_width
-	 */
-	function fit_turntable(camera, box, css_width) {
-		const min = box.min, max = box.max;
-		const radius = Math.max(
-			Math.hypot(min[0], min[2]), Math.hypot(min[0], max[2]),
-			Math.hypot(max[0], min[2]), Math.hypot(max[0], max[2]), 0.01);
-		const half_h = Math.max((max[1] - min[1]) / 2, 0.01);
-		const cy = (min[1] + max[1]) / 2;
-
-		const narrow = css_width < NARROW;
-		const margin = narrow ? 1.14 : 1.06;
-		const t = Math.tan(camera.fov * 0.5 * Math.PI / 180);
-
-		const dist_v = half_h * margin / t + radius;
-		const dist_h = radius * margin / (t * camera.aspect) + radius;
-		const d = Math.max(dist_v, dist_h);
-
-		// a little above the middle, looking slightly down, as a character
-		// screen does
-		const elev = 0.08;
-		camera.near = Math.max(0.01, d / 100);
-		camera.far = d * 10 + radius * 4;
+	function fit_turntable(camera, box, css_width, angle = 0) {
+		const cos = Math.cos(angle), sin = Math.sin(angle);
+		const tilt = 0.08, up = Math.cos(tilt), forward = Math.sin(tilt);
+		const tan_y = Math.tan(camera.fov * Math.PI / 360), tan_x = tan_y * camera.aspect;
+		const margin = css_width < 560 ? 1.13 : 1.1;
+		const points = box_points(box);
+		let left = Infinity, right = -Infinity, bottom = Infinity, top = -Infinity;
+		let leftPlane = -Infinity, rightPlane = -Infinity, topPlane = -Infinity, bottomPlane = -Infinity;
+		for (let i = 0; i < points.length; i += 3) {
+			const x = points[i] * cos + points[i + 2] * sin;
+			const z = -points[i] * sin + points[i + 2] * cos;
+			const y = up * points[i + 1] - forward * z;
+			const depth = forward * points[i + 1] + up * z;
+			left = Math.min(left, x); right = Math.max(right, x);
+			bottom = Math.min(bottom, y); top = Math.max(top, y);
+			leftPlane = Math.max(leftPlane, depth - x * margin / tan_x);
+			rightPlane = Math.max(rightPlane, depth + x * margin / tan_x);
+			bottomPlane = Math.max(bottomPlane, depth - y * margin / tan_y);
+			topPlane = Math.max(topPlane, depth + y * margin / tan_y);
+		}
+		// Opposite frustum planes meet at the closest valid eye position.
+		// Perspective makes that center differ from the midpoint of a horse.
+		const cx = (rightPlane - leftPlane) * tan_x / (2 * margin);
+		const cy = (topPlane - bottomPlane) * tan_y / (2 * margin);
+		const d = Math.max(0.1, (leftPlane + rightPlane) / 2, (bottomPlane + topPlane) / 2);
+		camera.near = Math.max(0.001, d / 100);
+		camera.far = 10 * d + 4 * Math.max(right - left, top - bottom);
 		camera.update_projection();
-		camera.position[0] = 0;
-		camera.position[1] = cy + d * elev;
-		camera.position[2] = d;
-		camera.lookAt(0, cy, 0);
+		camera.position[0] = cx;
+		camera.position[1] = cy * up + d * forward;
+		camera.position[2] = -cy * forward + d * up;
+		camera.lookAt(cx, cy * up, -cy * forward);
 	}
 
 	// Drag (mouse or finger) turns the model about its vertical axis.
@@ -200,4 +207,5 @@
 	M3D.PerspectiveCamera = PerspectiveCamera;
 	M3D.TurntableControls = TurntableControls;
 	M3D.fit_turntable = fit_turntable;
+	M3D.box_points = box_points;
 })();
