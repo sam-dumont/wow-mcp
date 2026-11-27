@@ -399,17 +399,12 @@ class Catalog:
 
     def icon(self, name: str, size: str) -> bytes | None:
         """The icon's JPEG in the requested size; None when unavailable."""
-        from wowstats.upstream import Upstream, cached_icon, icon_url
+        from wowstats.upstream import Upstream, cached_icon
 
         if not self.on or size not in SIZES:
             return None
-        try:  # checked before it is a file name or a URL
-            url = icon_url(self.icon_url, size, name)
-        except ValueError:
-            return None
-        path = self.cache / "icons" / size / f"{name}.jpg" if self.cache else None
         try:
-            return cached_icon(url, path)
+            return cached_icon(self.icon_url, self.cache, size, name)
         except Upstream:
             return None
 

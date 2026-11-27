@@ -134,6 +134,18 @@ def test_catalog_reads_wago_once_and_caches_icons(tmp_path, monkeypatch):
     assert cat.icon("inv_sword_39", "huge") is None
 
 
+def test_cache_accepts_only_an_icon_name_and_size(tmp_path, monkeypatch):
+    from wowstats import upstream
+
+    def unexpected_fetch(*args, **kwargs):
+        pytest.fail("invalid icon reached the upstream")
+
+    monkeypatch.setattr(upstream, "fetch", unexpected_fetch)
+    for size, name in (("poster", "inv_sword_39"), ("large", "Sword picture.jpg")):
+        assert upstream.cached_icon(itemcard.ICON_URL, tmp_path, size, name) is None
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_icon_cache_recovers_from_throttling_and_a_truncated_jpeg(tmp_path, monkeypatch):
     import io
     import urllib.error

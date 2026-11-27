@@ -195,15 +195,25 @@ def _jpeg(body: bytes) -> bool:
     return body.startswith(b"\xff\xd8\xff") and body.endswith(b"\xff\xd9")
 
 
-def cached_icon(url: str, path: Path | None) -> bytes | None:
+def cached_icon(base: str, cache: Path | None, size: str, name: str) -> bytes | None:
     """Read this size's JPEG or fetch it. A missing icon returns None.
     Retry interrupted transfers and temporary server errors twice. A long
     Retry-After waits for the next publish instead of tying up the caller."""
-    if path:
+    if not isinstance(size, str) or not ICON_SIZE.fullmatch(size):
+        return None
+    if not isinstance(name, str) or not ICON_NAME.fullmatch(name):
+        return None
+    path = None
+    if cache is not None:
+        root = (cache / "icons").resolve()
+        path = (root / size / f"{name}.jpg").resolve()
+        if not path.is_relative_to(root):
+            return None
         with contextlib.suppress(OSError):
             cached = path.read_bytes()
             if _jpeg(cached):
                 return cached
+    url = icon_url(base, size, name)
     for attempt in range(3):
         try:
             body = fetch(url, timeout=10)
