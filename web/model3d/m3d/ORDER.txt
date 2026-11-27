@@ -7,4 +7,5 @@ m2renderer.js
 particles.js
 material.js
 camera.js
+actions.js
 draw.js

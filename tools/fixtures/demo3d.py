@@ -1,34 +1,17 @@
-"""The demo's real 3D model: Nibbet's own game files, read from an installed
-WoW Forever client by the shipper's CASC reader, as the store a player's
-shipper fills (wowstats.assets.Store), packed for a release asset.
+"""Build the demo's 3D asset store from a local Forever install.
 
-    uv run python tools/fixtures/demo3d.py build <out dir> [--wow-root <folder with .build.info>]
+    python tools/fixtures/demo3d.py build-roster OUT [--wow-root ROOT]
+    python tools/fixtures/demo3d.py build OUT [--wow-root ROOT]
 
-The owner's call (2026-11-22): the public demo shows a real model, like
-Wowhead's dressing room, instead of golden3d's block figure. Blizzard's
-files are never committed: this tool writes them to <out dir>, the owner
-publishes the archive as the `demo-3d` release (tag `demo-3d-2`), and
-the Pages build downloads it (site/scripts/demo3d-asset.sh), checks its
-SHA-256 and builds the demo from it; without it the demo keeps golden3d.
+The shipper reads .build.info and Data/. The gear and customization belong
+to the invented demo roster. Keep both model styles, the viewer's animation
+files, the two companions and the known mounts. Reassemble every outfit from the trimmed
+tables before packing any files.
 
-What it reads from the install, read-only: `.build.info` and `Data/`
-(the shipper's Casc). Nothing else.
-
-What it keeps, Nibbet's alone:
-- the files his recipes name (both models, every outfit of his gear
-  history), and what those models and skeletons name;
-- the client tables, trimmed to the rows his assembly looks up: every
-  lookup the assembly makes is recorded, the rows behind it kept, and the
-  recipes worked out again from the trimmed tables must match the full
-  ones exactly, or the build fails.
-
-The look (look.json) is the Battle.net customization the demo's profile
-series carries (tools/fixtures/generate.py bnet_series), as real option and
-choice ids of the gnome male model.
-
-Output: <out dir>/store/ (tables/, files/, look.json) and
-<out dir>/nibbet-3d.tar.gz with its .sha256 (byte-identical for the same
-install: sorted entries, fixed times and owners).
+build-roster writes store/ and roster-3d.tar.gz with its SHA-256. The store
+includes roster.json (version, client build, and choices keyed by character
+name). build writes the older Nibbet-only archive. Both keep look.json for
+consumers of Nibbet's gear history. Generated assets stay outside git.
 """
 
 from __future__ import annotations
@@ -37,12 +20,12 @@ import argparse
 import gzip
 import hashlib
 import importlib.util
-import io
 import json
 import os
-import shutil
 import sys
 import tarfile
+import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -50,16 +33,52 @@ sys.path[:0] = [str(ROOT), str(ROOT / "tools" / "fixtures")]
 
 import generate  # noqa: E402
 import golden3d  # noqa: E402
+import roster  # noqa: E402
 
-from wowstats import assets, character3d, db2  # noqa: E402
+from wowstats import assets, character3d, db2, mounts  # noqa: E402
 
 DEFAULT_WOW = {"darwin": "/Applications/World of Warcraft",
                "win32": r"C:\Program Files (x86)\World of Warcraft"}.get(sys.platform, "")
-RACE, SEX, CLASS = "Gnome", "male", "PRIEST"  # build_demo's and bnet_series' Nibbet
 # His look: option name -> the choice's place in the option (OrderIndex order).
 LOOK = {"Skin Color": 1, "Face": 2, "Hair Style": 3, "Hair Color": 6, "Facial Hair": 2, "Eyebrows": 1,
         "Eye Color": 0, "Eye Style": 0}
 ARCHIVE = "nibbet-3d.tar.gz"
+
+ROSTER_ARCHIVE = "roster-3d.tar.gz"
+
+
+@dataclass(frozen=True)
+class Profile:
+    name: str
+    race: str
+    sex: int  # ChrRaceXChrModel, 0 male / 1 female
+    cls: str
+    companion: tuple[int, int] | None = None
+    mount_spell: int | None = None
+
+
+NIBBET = Profile(generate.DEMO, "Gnome", 0, "PRIEST")
+
+
+def profiles() -> list[Profile]:
+    companions = {"HUNTER": (1, roster.BEAR_DISPLAY), "WARLOCK": (2, 1132)}
+    return [NIBBET, *(Profile(c.name, c.race, c.sex - 2, c.cls, companions.get(c.cls), c.mount_spell)
+                      for c in roster.CHARACTERS)]
+
+
+# Zero-based positions among this race and sex's choices. Options absent
+# on a model take the client's defaults. Nibbet keeps his original look.
+STYLES = {
+    "WARRIOR": {"Skin Color": 5, "Face": 4, "Hair Style": 10, "Hair Color": 1, "Piercings": 3},
+    "PALADIN": {"Skin Color": 8, "Face": 3, "Hair Style": 7, "Hair Color": 4, "Eyebrows": 2},
+    "HUNTER": {"Skin Color": 2, "Face": 5, "Hair Style": 4, "Hair Color": 3, "Beard": 6, "Mustache": 3},
+    "ROGUE": {"Skin Color": 5, "Face": 2, "Hair Style": 8, "Hair Color": 4, "Feathers": 1, "Feather Color": 3},
+    "SHAMAN": {"Skin Color": 2, "Face": 3, "Horn Style": 4, "Horn Color": 1, "Facial Hair": 2, "Hair": 2},
+    "MAGE": {"Skin Color": 3, "Face": 2, "Hair Style": 6, "Hair Color": 3, "Tusks": 3},
+    "WARLOCK": {"Skin Color": 2, "Face": 4, "Hair Style": 4, "Hair Color": 1, "Jaw Features": 3},
+    "DRUID": {"Skin Color": 4, "Face": 2, "Hair Style": 3, "Hair Color": 5, "Facial Hair": 4, "Eyebrows": 2},
+    "PRIEST": LOOK,
+}
 
 
 def shipper():
@@ -87,6 +106,10 @@ def outfits() -> list[list[dict]]:
     every = {(i["slot"], i["item_id"]): i for sheet in out for i in sheet}
     out += [[i] for _k, i in sorted(every.items())]
     return out
+
+
+def roster_outfits() -> dict[Profile, list[list[dict]]]:
+    return {NIBBET: outfits(), **{p: [roster.worn(c)] for p, c in zip(profiles()[1:], roster.CHARACTERS, strict=True)}}
 
 
 # ------------------------------------------------------------------ recording lookups
@@ -151,6 +174,7 @@ MAPS = {
     "model_textures": ("ItemDisplayInfoModelMatRes", lambda r: r.get("ItemDisplayInfoID", 0)),
     "helmet_hides": ("HelmetGeosetData", lambda r: (r.get("HelmetGeosetVisDataID", 0), r.get("RaceID", 0))),
     "effects": ("ItemVisualsXEffect", lambda r: r.get("ItemVisualsID", 0)),
+    "mounts": ("Mount", lambda r: r.get("SourceSpellID", 0)),
 }
 
 
@@ -159,38 +183,58 @@ def parse(blobs: dict[str, bytes], build: str) -> dict[str, dict[int, dict]]:
             for name in character3d.TABLES}
 
 
-def answers(tables, look: list[dict], sheets: list[list[dict]]) -> list[dict]:
-    """What the server works out for each outfit, both models: the recipes,
-    what they miss, the Classic gaps and what is drawn (wowstats.model3d)."""
-    rid, cid, sex = character3d.race_id(tables, RACE), character3d.class_id(CLASS), 0
+def answers(tables, looks: dict[str, list[dict]], sheets: dict[Profile, list[list[dict]]]) -> list[dict]:
+    """Record the same assembly, wearability and appearance lookups as the server."""
     out = []
-    for items in sheets:
-        worn = [{"slot": i["slot"], "item_id": i["item_id"], "name": i.get("name"), "enchant": i.get("enchant_id")}
-                for i in items]
-        for models in ("hd", "sd"):
-            out.append(character3d.assemble(tables, rid, sex, cid, look, worn, models))
-        out.append({"gaps": character3d.classic_gaps(tables, rid, sex, look),
-                    "worn": character3d.worn(tables, worn, cid)})
     ix = character3d.index(tables)
-    out.append({"options": [o for o, _r in ix.options.get(ix.race_models.get((rid, sex)), [])]})
+    for p, outfits in sheets.items():
+        rid, cid = character3d.race_id(tables, p.race), character3d.class_id(p.cls)
+        look = looks[p.name]
+        pet = character3d.companion(tables, p.companion)
+        if p.companion and not pet:
+            raise ValueError(f"{p.name}: no companion for display {p.companion[1]}")
+        riding = character3d.mounts(tables, mounts.resolve(ix.mounts, [p.mount_spell])) if p.mount_spell else []
+        if p.mount_spell and not riding:
+            raise ValueError(f"{p.name}: no mount model for spell {p.mount_spell}")
+        for items in outfits:
+            worn = [{"slot": i["slot"], "item_id": i["item_id"], "name": i.get("name"), "enchant": i.get("enchant_id")}
+                    for i in items]
+            for model in ("hd", "sd"):
+                result = character3d.assemble(tables, rid, p.sex, cid, look, worn, model)
+                recipe = result["recipe"]
+                if not recipe:
+                    raise ValueError(f"{p.name}: {result['why']}")
+                if pet:
+                    recipe["companion"] = pet
+                if riding:
+                    recipe["mounts"] = riding
+                if pet or riding:
+                    result["needs"] = sorted(character3d.needs(recipe))
+                out.append(result)
+            out.append({"gaps": character3d.classic_gaps(tables, rid, p.sex, look),
+                        "worn": character3d.worn(tables, worn, cid)})
+        out.append({"options": [o for o, _r in ix.options.get(ix.race_models.get((rid, p.sex)), [])]})
     return out
 
 
-def pick_look(rows: dict[str, dict[int, dict]]) -> list[dict]:
-    ix = character3d.Index(rows)
-    rid = character3d.race_id(rows, RACE)
-    model = ix.race_models[(rid, 0)]
+def pick_look(tables, p: Profile) -> list[dict]:
+    ix = character3d.index(tables)
+    model = ix.race_models[(character3d.race_id(tables, p.race), p.sex)]
+    style = STYLES[p.cls]
     out = []
-    for oid, r in ix.options.get(model, []):
-        name = str(r.get("Name_lang") or "")
-        if name in LOOK and ix.choices.get(oid):
-            ch = ix.choices[oid]
-            out.append({"optionId": oid, "choiceId": ch[min(LOOK[name], len(ch) - 1)]})
+    for oid, row in ix.options.get(model, []):
+        name = row.get("Name_lang")
+        choices = ix.choices.get(oid)
+        if name in style and choices:
+            out.append({"optionId": oid, "choiceId": choices[min(style[name], len(choices) - 1)]})
+    if not out:
+        raise ValueError(f"{p.name}: no customization choices for {p.race} model {model}")
     return out
 
 
-def trim(rows: dict[str, dict[int, dict]], look: list[dict], sheets: list[list[dict]]) -> dict[str, dict[int, dict]]:
-    """The rows Nibbet's assembly looks up, and the rows behind them."""
+def trim(rows: dict[str, dict[int, dict]], looks: dict[str, list[dict]], sheets: dict[Profile, list[list[dict]]]
+         ) -> dict[str, dict[int, dict]]:
+    """Keep every row read while assembling the requested profiles and outfits."""
     ix = character3d.Index(rows)
     for attr in MAPS:
         setattr(ix, attr, Seen(getattr(ix, attr)))
@@ -200,7 +244,7 @@ def trim(rows: dict[str, dict[int, dict]], look: list[dict], sheets: list[list[d
     unknown = [a for a, v in vars(ix).items() if isinstance(v, dict) and a not in MAPS and a != "_rows"]
     if unknown:
         raise SystemExit(f"demo3d: Index maps this tool doesn't trim yet: {unknown}")
-    answers(tables, look, sheets)
+    answers(tables, looks, sheets)
     keep: dict[str, set[int]] = {n: set() for n in rows}
     for name, t in ix._rows.items():
         keep[name] |= set(t) if t.walked else {k for k in t.asked if dict.__contains__(t, k)}
@@ -211,6 +255,7 @@ def trim(rows: dict[str, dict[int, dict]], look: list[dict], sheets: list[list[d
             continue
         keep[name] |= {i for i, r in rows[name].items() if (i if key is None else key(r)) in m.asked}
     # Rows the Index folds in from the kept ones.
+    keep["MountXDisplay"].update(i for i, r in rows["MountXDisplay"].items() if r.get("MountID") in keep["Mount"])
     for i in keep["ItemModifiedAppearance"]:
         keep["ItemAppearance"].add(rows["ItemModifiedAppearance"][i].get("ItemAppearanceID", 0))
     for i in keep["ChrCustomizationElement"]:
@@ -221,9 +266,8 @@ def trim(rows: dict[str, dict[int, dict]], look: list[dict], sheets: list[list[d
                            ("ChrCustomizationCondModelID", "ChrCustomizationCondModel")):
             if e.get(col):
                 keep[table].add(e[col])
-    for i in keep["ChrCustomizationOption"]:
-        keep["ChrCustomizationChoice"] |= {c for c, r in rows["ChrCustomizationChoice"].items()
-                                           if r.get("ChrCustomizationOptionID") == i}
+    keep["ChrCustomizationChoice"].update(c for c, r in rows["ChrCustomizationChoice"].items()
+                                          if r.get("ChrCustomizationOptionID") in keep["ChrCustomizationOption"])
     return {n: {i: rows[n][i] for i in sorted(keep[n]) if i in rows[n]} for n in rows}
 
 
@@ -231,90 +275,145 @@ def trim(rows: dict[str, dict[int, dict]], look: list[dict], sheets: list[list[d
 
 def pack(store: Path, archive: Path) -> str:
     """A tar.gz of `store` that is the same bytes every time."""
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w", format=tarfile.PAX_FORMAT) as tar:
+    with (
+        archive.open("wb") as f,
+        gzip.GzipFile(fileobj=f, mode="wb", compresslevel=9, mtime=0, filename="") as gz,
+        tarfile.open(fileobj=gz, mode="w|", format=tarfile.PAX_FORMAT) as tar,
+    ):
         for p in sorted(store.rglob("*")):
             info = tar.gettarinfo(str(p), arcname=str(p.relative_to(store.parent)))
             info.mtime, info.uid, info.gid, info.uname, info.gname = 0, 0, 0, "", ""
             info.mode = 0o755 if p.is_dir() else 0o644
             if p.is_file():
-                with p.open("rb") as f:
-                    tar.addfile(info, f)
+                with p.open("rb") as src:
+                    tar.addfile(info, src)
             else:
                 tar.addfile(info)
-    with archive.open("wb") as f, gzip.GzipFile(fileobj=f, mode="wb", mtime=0, filename="") as gz:
-        gz.write(buf.getvalue())
-    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    with archive.open("rb") as f:
+        digest = hashlib.file_digest(f, "sha256").hexdigest()
     archive.with_name(archive.name + ".sha256").write_text(f"{digest}  {archive.name}\n")
     return digest
 
 
-def build(wow_root: Path, out: Path) -> int:
+def read_looks(root: Path) -> dict[str, list[dict]]:
+    """Read the personalized roster used by the demo. Reject incomplete or legacy stores."""
+    store = assets.Store(root)
+    try:
+        meta = json.loads((root / "roster.json").read_text())
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"demo3d: {root} needs roster.json from demo3d.py build-roster: {exc}") from exc
+    build = store.build()
+    if not isinstance(meta, dict) or meta.get("version") != 1 or not build or meta.get("build") != build:
+        raise ValueError("demo3d: roster.json needs version 1 and the client build from tables/build.json")
+    sheets = roster_outfits()
+    looks = meta.get("looks")
+    if not isinstance(looks, dict) or set(looks) != {p.name for p in sheets}:
+        raise ValueError("demo3d: roster.json needs the appearance of every demo character")
+    tables = character3d.load_tables(store)
+    if tables.problems:
+        raise ValueError(f"demo3d: unreadable roster tables: {tables.problems}")
+    ix = character3d.index(tables)
+    for p in sheets:
+        rid = character3d.race_id(tables, p.race)
+        model = ix.race_models.get((rid, p.sex))
+        options = {oid for oid, _ in ix.options.get(model, [])}
+        choices = looks[p.name]
+        if not isinstance(choices, list) or not choices or any(
+            not isinstance(c, dict) or not isinstance(c.get("optionId"), int) or c["optionId"] not in options
+            or c.get("choiceId") not in ix.choices.get(c["optionId"], ()) for c in choices
+        ):
+            raise ValueError(f"demo3d: {p.name} needs choices for its own model")
+    # A local store may be from an older roster or may have lost a file.
+    # Follow both model styles, gear history, companions, mounts and animations.
+    assembled = answers(tables, looks, sheets)
+    require_equipment(assembled)
+    need = {f for answer in assembled for f in answer.get("needs", ())}
+    _, missing = assets.closure(need, store.read)
+    if missing:
+        raise ValueError(f"demo3d: {root} is missing client files {sorted(missing)[:20]}; rerun build-roster")
+    return looks
+
+
+def require_equipment(assembled: list[dict]) -> None:
+    missing = {(m["item_id"], m["why"]) for a in assembled for m in a.get("missing", ())}
+    if missing:
+        raise ValueError(f"demo3d: unresolved roster equipment: {sorted(missing)}")
+
+
+def build(wow_root: Path, out: Path, *, roster_models: bool = False) -> int:
     ship = shipper()
     casc = ship.Casc(wow_root)
     want = {n: assets.TABLES[n] for n in character3d.TABLES}
     got, by_table, missing = ship.casc_files(casc, [], want, follow=False)
-    lost = [n for n in character3d.TABLES if n not in by_table]
+    lost = [n for n, f in want.items() if f not in got]
     if lost:
         raise SystemExit(f"demo3d: tables not in this install: {lost} ({missing})")
     rows = parse({n: got[f] for n, f in by_table.items()}, casc.version)
-    look = pick_look(rows)
-    sheets = outfits()
-    full = answers(character3d.Tables(rows, casc.version), look, sheets)
-    small = trim(rows, look, sheets)
+    sheets = roster_outfits() if roster_models else {NIBBET: outfits()}
+    tables = character3d.Tables(rows, casc.version)
+    looks = {p.name: pick_look(tables, p) for p in sheets}
+    full = answers(tables, looks, sheets)
+    if roster_models:
+        require_equipment(full)
+    small = trim(rows, looks, sheets)
+    archive = ROSTER_ARCHIVE if roster_models else ARCHIVE
 
-    store = out / "store"
-    shutil.rmtree(store, ignore_errors=True)
-    (store / "tables").mkdir(parents=True)
-    (store / "files").mkdir()
-    # golden3d's writer: the layout of data/dbd/ for its build, the same
-    # layout hash as this client's (the reader picks the definition by it).
-    for name, r in small.items():
-        (store / "tables" / f"{name}.db2").write_bytes(golden3d.wdc5(name, r))
-    (store / "tables" / "build.json").write_text(json.dumps({"build": casc.version}))
-    (store / "look.json").write_text(json.dumps(look, indent=1) + "\n")
+    # Keep the previous store usable if this install lacks any recipe or file.
+    out.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=out) as temp:
+        stage = Path(temp)
+        store = stage / "store"
+        (store / "tables").mkdir(parents=True)
+        (store / "files").mkdir()
+        for name, r in small.items():
+            (store / "tables" / f"{name}.db2").write_bytes(golden3d.wdc5(name, r))
+        (store / "tables" / "build.json").write_text(json.dumps({"build": casc.version}))
+        (store / "look.json").write_text(json.dumps(looks[NIBBET.name], indent=1) + "\n")
+        if roster_models:
+            meta = {"version": 1, "build": casc.version, "looks": looks}
+            (store / "roster.json").write_text(json.dumps(meta, indent=1) + "\n")
+        again = answers(character3d.load_tables(store / "tables"), looks, sheets)
+        if again != full:
+            raise SystemExit("demo3d: the trimmed tables give other recipes than the client's")
 
-    again = answers(character3d.load_tables(store / "tables"), look, sheets)
-    if json.dumps(again, sort_keys=True, default=list) != json.dumps(full, sort_keys=True, default=list):
-        raise SystemExit("demo3d: the trimmed tables give other recipes than the client's: not written")
+        needs = {f for a in full for f in a.get("needs", ())}
+        # The shipper limits each ordinary upload to 512 MiB. This offline
+        # export contains nine HD models, their outfits, companions and mounts.
+        files, _t, absent = ship.casc_files(casc, sorted(needs), (), follow=True, max_bytes=2 * 1024**3)
+        anims = set().union(*(assets.anim_refs(d) for d in files.values() if assets.kind_of(d) in ("m2", "skel")))
+        have, gone = assets.closure(needs, files.get)
+        if gone:
+            raise SystemExit(f"demo3d: missing files in client: { {f: absent.get(f) for f in sorted(gone)} }")
+        for f in sorted(have):
+            data = files[f]
+            kind = assets.kind_of(data, anim=f in anims)
+            if kind is None:
+                raise SystemExit(f"demo3d: file {f} isn't a kind the viewer reads")
+            (store / "files" / f"{f}.{kind}").write_bytes(data)
+        if roster_models:
+            read_looks(store)
+        digest = pack(store, stage / archive)
+        if (out / "store").exists():
+            (out / "store").rename(stage / "previous")
+        store.rename(out / "store")
+        for name in (archive, archive + ".sha256"):
+            (stage / name).replace(out / name)
 
-    needs = set()
-    for a in full:
-        if a.get("recipe"):
-            needs |= set(a["needs"])
-    files, _t, absent = ship.casc_files(casc, sorted(needs), (), follow=True)
-    anims = set().union(*(assets.anim_refs(d) for d in files.values() if assets.kind_of(d) in ("m2", "skel")))
-    for f, data in sorted(files.items()):
-        kind = assets.kind_of(data, anim=f in anims)
-        if kind is None:
-            raise SystemExit(f"demo3d: file {f} isn't a kind the viewer reads")
-        (store / "files" / f"{f}.{kind}").write_bytes(data)
-    have, gone = assets.closure(needs, assets.Store(store).read)
-    if gone:
-        raise SystemExit(f"demo3d: files the recipes need that the install lacks: {sorted(gone)[:20]} {absent}")
-    extra = set(files) - set(have)
-    for f in extra:  # read by casc_files' follow but named by nothing the viewer loads
-        assets.Store(store).path(f).unlink()
-
-    digest = pack(store, out / ARCHIVE)
-    n_rows = sum(len(r) for r in small.values())
-    size = sum(p.stat().st_size for p in (store / "files").iterdir())
-    print(f"demo3d: client {casc.version}, {len(sheets)} outfits, {len(look)} look options")
-    print(f"demo3d: {len(small)} tables, {n_rows} rows (of {sum(len(r) for r in rows.values())})")
-    print(f"demo3d: {len(have)} files, {size / 1e6:.1f} MB; {ARCHIVE} "
-          f"{(out / ARCHIVE).stat().st_size / 1e6:.1f} MB, sha256 {digest}")
+    n_rows = sum(map(len, small.values()))
+    print(f"demo3d: client {casc.version}, {len(looks)} characters, {sum(map(len, sheets.values()))} outfits")
+    print(f"demo3d: {len(small)} tables, {n_rows} rows (of {sum(map(len, rows.values()))})")
+    print(f"demo3d: {len(have)} files, {sum(have.values()) / 1e6:.1f} MB; {archive} "
+          f"{(out / archive).stat().st_size / 1e6:.1f} MB, sha256 {digest}")
     return 0
 
 
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    sub = ap.add_subparsers(dest="cmd", required=True)
-    b = sub.add_parser("build")
-    b.add_argument("out", type=Path)
-    b.add_argument("--wow-root", type=Path, default=Path(os.environ.get("WOW_ROOT") or DEFAULT_WOW))
+    ap.add_argument("cmd", choices=("build", "build-roster"))
+    ap.add_argument("out", type=Path)
+    ap.add_argument("--wow-root", type=Path, default=Path(os.environ.get("WOW_ROOT") or DEFAULT_WOW))
     a = ap.parse_args(argv)
-    a.out.mkdir(parents=True, exist_ok=True)
-    return build(a.wow_root, a.out)
+    return build(a.wow_root, a.out, roster_models=a.cmd == "build-roster")
 
 
 if __name__ == "__main__":

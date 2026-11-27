@@ -45,8 +45,9 @@ import threading
 import time
 from pathlib import Path
 
-from wowstats import character3d
+from wowstats import character3d, mounts
 from wowstats.eventstore import generation_of
+from wowstats.stores import opt_num, parse_t
 
 # /model3d/view: the frame the viewer runs in. `sandbox="allow-scripts"`
 # with no allow-same-origin makes its origin opaque: it can't read the page
@@ -126,12 +127,33 @@ def find_look(app, name: str) -> dict | None:
 
 
 
+def companion_display(app, name: str, cls: str) -> tuple[int, int] | None:
+    """The last pet this character's shipper saw, in the current view only.
+    A later unresolved appearance supersedes an older known one."""
+    if cls not in ("HUNTER", "WARLOCK"):
+        return None
+    with contextlib.suppress(Exception):
+        store = app.store
+        cf = app.views.char_filter(name)
+        rows = store.vl(f'{store.stream} feed:="wow-companion" {cf} kind:={cls.lower()} '
+                        '| stats by (display_id) max(_time) as last', ("display_id",), {"last": "maxtime"})
+        if rows:
+            # An observation can be resolved on a later poll when WoW writes
+            # its cache. Prefer that display over zero at the same timestamp.
+            last = max(rows, key=lambda r: (parse_t(r["last"]), int(r["display_id"]) > 0))
+            display = int(last["display_id"])
+            if display > 0:
+                return (1 if cls == "HUNTER" else 2), display
+    return None
+
+
 def _outfit(gear: dict) -> tuple:
     """What a gear sheet draws: race, class, sex and each item with its
     enchant; two sheets with the same outfit need the same files."""
     items = tuple(sorted((str(i.get("slot")), str(i.get("item_id")), str(i.get("enchant_id") or 0))
                          for i in gear.get("items") or [] if isinstance(i, dict)))
-    return (gear.get("race"), gear.get("class"), gear.get("sex"), items)
+    displays = tuple(m["display_id"] for m in gear.get("mounts", []))
+    return (gear.get("race"), gear.get("class"), gear.get("sex"), gear.get("companion_display"), displays, items)
 
 
 def history_outfits(app, name: str) -> list[list[dict]]:
@@ -276,6 +298,13 @@ class Model3D:
             if not snap.get("gear"):
                 return gear, d.get("header"), f"no gear known at level {level}"
             gear = {**gear, **snap["gear"]}
+            gear.pop("mounts", None)
+        else:
+            cls = str(gear.get("class") or (d.get("header") or {}).get("class") or "").upper()
+            if pet := companion_display(app, name, cls):
+                gear = {**gear, "companion_display": pet}
+            if owned := mounts.owned(app, name, self.tables()):
+                gear = {**gear, "mounts": owned}
         return gear, d.get("header"), None
 
     def for_char(self, app, name: str, level: int | None = None, sex: str = "") -> dict:
@@ -283,7 +312,7 @@ class Model3D:
         gear, header, why = self.gear_at(app, name, level)
         if why:
             return {**self.empty(why), "level": level, "models": self.default_models(app)}
-        return {**self.character(gear, header, sex, find_look(app, name)), "level": level,
+        return {**self.character(gear, header, sex, find_look(app, name), level=level), "level": level,
                 "models": self.default_models(app)}
 
     @staticmethod
@@ -314,7 +343,7 @@ class Model3D:
                 "choices": (look or {}).get("options") or []}
 
     def character(self, gear: dict, header: dict | None = None, sex_override: str = "",
-                  look: dict | None = None) -> dict:
+                  look: dict | None = None, *, level: int | None = None) -> dict:
         """The answer for one gear sheet (the module's docstring)."""
         x = self.inputs(gear, header, sex_override, look)
         out = {**self.empty(""), "race": x["race"], "sex": x["sex"], "sex_known": x["sex_known"],
@@ -339,10 +368,28 @@ class Model3D:
         if have is not None and hd["recipe"]["model"] not in have:
             out["why"] = "the shipper sends this model's files from your computer on its next run"
             return out
+        pet = character3d.companion(tables, gear.get("companion_display"))
+        if pet and (have is None or character3d.creature_files(pet) <= have):
+            hd["recipe"]["companion"] = pet
+            if sd["recipe"]:
+                sd["recipe"]["companion"] = pet
+        available = [m for m in character3d.mounts(tables, gear.get("mounts"))
+                     if have is None or character3d.creature_files(m) <= have]
+        if available:
+            for recipe in (hd["recipe"], sd["recipe"]):
+                if recipe:
+                    recipe["mounts"] = available
         out["recipe"] = hd["recipe"]
         if sd["classic"] and sd["recipe"] and (have is None or sd["recipe"]["model"] in have):
             out["recipe_sd"] = sd["recipe"]
             out["no_classic"] = character3d.classic_gaps(tables, rid, sex, x["choices"])
+        # A snapshot has its own level even when its reconstructed gear has none.
+        at = level if level is not None else (header or {}).get("level") or gear.get("level")
+        at = opt_num(at)
+        if isinstance(at, int) and 1 <= at <= 60:
+            for recipe in (out["recipe"], out["recipe_sd"]):
+                if recipe:
+                    recipe["level"] = at
         ix = character3d.index(tables)
         options = {o for o, _r in ix.options.get(ix.race_models.get((rid, sex)), [])}
         if look and any(isinstance(o, dict) and o.get("optionId") in options for o in look.get("options") or []):
@@ -372,7 +419,10 @@ class Model3D:
         tables = self.tables()
         if tables is None:
             return set()
-        out: set[int] = set()
+        pet = character3d.companion(tables, gear.get("companion_display"))
+        out = character3d.creature_files(pet) if pet else set()
+        for mount in character3d.mounts(tables, gear.get("mounts")):
+            out.update(character3d.creature_files(mount))
         for sex in ("male", "female"):
             x = self.inputs(gear, header, sex, look)
             if x["sex_known"] and x["sex"] != sex:

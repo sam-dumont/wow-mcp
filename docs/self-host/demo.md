@@ -1,51 +1,43 @@
 # Try the demo
 
-**For:** anyone curious, before installing anything for real. **At the end:** wow-stats runs on
-your computer with a made-up character, you've seen the page, the two sites for friends,
-and (if you use Claude Code) your assistant answering from the demo data. About 10 minutes.
+**For:** anyone trying the demo at home. **At the end:** you can open Nibbet's page and the
+two sites for friends, or ask Claude Code about a dungeon run. Allow about 10 minutes.
 
-You need [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on Mac and Windows,
-started once so it says "Engine running") and a copy of this repository: `git clone` it, or
-download a release's source zip and unpack it. No game, no Battle.net account, no Docker Hub
-login.
+Start [Docker](https://docs.docker.com/get-docker/) and extract the
+[release v{{app_version}} kit](https://github.com/sam-dumont/wow-mcp/archive/refs/tags/v{{app_version}}.zip).
+The public GHCR image works without a Docker Hub login, a game install or a Battle.net account.
 
 ## 1. Start the page
 
-From the top of your copy (the folder with `README.md` in it):
+On Mac, Linux or Git Bash for Windows, run [Quick start, step 1](../quickstart.md#1-start-the-demo),
+then skip to [Look around](#3-look-around). For PowerShell, run these commands in the extracted folder.
 
-```sh
+```powershell
 cd deploy/compose
-cp .env.example .env
+$files = if (Test-Path compose.demo.yaml) { 'compose.yaml,compose.demo.yaml' } else { 'compose.yaml' }
+@(
+  'COMPOSE_PROJECT_NAME=wow-stats-demo'
+  'COMPOSE_PATH_SEPARATOR=,'
+  "COMPOSE_FILE=$files"
+  'INGEST_PASSWORD=demo-password-only'
+  'WOW_STATS_IMAGE={{release_image}}'
+) | Set-Content -Encoding ascii .env.demo
+docker compose --env-file .env.demo pull ui
+docker compose --env-file .env.demo up -d --no-build --wait ui
 ```
 
-Open `.env` in any text editor and set `INGEST_PASSWORD` to anything of 12 characters or more.
-Nothing starts without it, and step 2 sends the demo's events with it, the way a player's
-computer sends theirs. Set `WOW_STATS_IMAGE={{release_image}}` too: the latest release,
-pinned by its digest. On a machine with no internet, or a
-small one, also set `MODEL3D=off` and `WOW_ITEMS=off` (no 3D view, no item icons; the
-pages still work).
+The first run downloads the released image. The demo has its own Compose project and volumes.
 
-Then start the page. The first time downloads the image, a few hundred MB.
+## 2. Load the characters
 
 ```sh
-docker compose pull ui
-docker compose up -d ui
+docker compose --env-file .env.demo run --rm demo
 ```
 
-## 2. Load the demo character
-
-The same line on Mac, Linux and Windows (PowerShell or Git Bash):
-
-```sh
-docker compose run --rm demo
-```
-
-It plays Nibbet-Gearholt's evenings, the made-up character of the
-[docs site's demo](../../site/pages/demo.md), shifted so the last one was yesterday, and sends
-them to the page the way a player's computer sends theirs. It prints one line,
-`<N> events for Nibbet-Gearholt into http://ui:8080/ingest`, with N in the tens of thousands
-(the demo grows with the product, so don't expect an exact number). What to check instead: the
-page in step 3 lists Nibbet at level 46.
+The seed sends Nibbet's evenings to the local page. His last session ends yesterday.
+The v0.13.0 kit ships Nibbet alone. Kits with `compose.demo.yaml` add eight shorter
+histories covering levels 10 to 60 and simulated armory samples. The first seed downloads the roster’s 188 MB client
+artwork archive, checks its SHA-256 and keeps it in the demo volume for later runs.
 
 ## 3. Look around
 
@@ -57,21 +49,13 @@ quest list and two days of auction house scans, under a DEMO DATA banner.
 
 [Your page at a glance](../players/your-page.md) walks through each tab.
 
-The docs site's demo is the same history. Three parts of it need what this kit doesn't run:
+In the nine-character demo, choose **Hesta** (53) or **Brakka** (60) and open **View in 3D**.
+Pick the Warhorse or Swift Timber Wolf under **Mount**, then try **Walk** or **Run**.
+Choose **On foot** to dismount. Flintwick has a bear, and Duskwick has a Voidwalker.
+The hosted demo lists all nine characters and shows Nibbet’s gear at each recorded level. [Demo roster](../../site/pages/demo.md)
 
-- **Battle.net**: the exporter and its VictoriaMetrics, with your own API client
-  ([Battle.net](battlenet.md)). The Character tab says so where the talents and Legacy points
-  would be;
-- **the 3D view**: drawn from the game files a player's computer sends, and the demo has none
-  to send. View in 3D says the shipper sends them on its next run;
-- **the pictures** (the paperdoll, Back in time at each level): the picture renderer draws
-  them from those same files, so a silhouette stands in.
-
-That's what a player without them sees too.
-
-Port 8080 already taken on your computer? `docker compose up` says `port is already
-allocated`. Set `UI_PUBLISH=127.0.0.1:18080` in `.env`, run step 1's command again, and open
-<http://127.0.0.1:18080/>.
+If port 8080 is taken, add `UI_PUBLISH=127.0.0.1:18080` to `.env.demo`, rerun the
+`up` command and open <http://127.0.0.1:18080/>.
 
 ## 4. See the sites for friends
 
@@ -79,15 +63,15 @@ The full view on 8080 is yours. Friends get static copies, rebuilt after each pl
 a public one and a sealed one. Start the two services that build and serve them:
 
 ```sh
-docker compose up -d publish site
+docker compose --env-file .env.demo up -d --no-build publish site
 ```
 
-Give it a minute (watch `docker compose logs -f publish` until it says it built), then open
+Give it a minute (watch `docker compose --env-file .env.demo logs -f publish` until it says it built), then open
 <http://127.0.0.1:8081/>: the public site, with only the parts anyone may see. The sealed site
 needs its key in the link; print it with:
 
 ```sh
-docker compose run --rm publish zogzog-key link
+docker compose --env-file .env.demo run --rm publish zogzog-key link
 ```
 
 It prints a link like `http://127.0.0.1:8081/zogzog/#<43 characters>`. Open it: the same page
@@ -100,7 +84,7 @@ With [Claude Code](https://docs.anthropic.com/en/docs/claude-code) on this compu
 `deploy/compose`:
 
 ```sh
-claude mcp add wow-stats -- docker compose -f "$PWD/compose.yaml" exec -T ui wow-stats mcp-stdio
+claude mcp add wow-stats -- docker compose --env-file "$PWD/.env.demo" -f "$PWD/compose.yaml" exec -T ui wow-stats mcp-stdio
 ```
 
 Then in Claude Code: "With wow-stats, which level took Nibbet-Gearholt longest, and how long
@@ -110,11 +94,44 @@ minutes in Blackfathom Deeps. Other assistants: [Connect your AI](../ai/connect.
 ## 6. Clean up
 
 ```sh
-docker compose down -v
+docker compose --env-file .env.demo --profile demo down -v
 ```
 
 That removes the containers and the demo data. `claude mcp remove wow-stats` removes the
 Claude Code entry.
+
+## Run the nine-character demo from a development checkout
+
+Use a checkout that contains `deploy/compose/compose.demo.yaml`. The build pulls its base
+from `dhi.io`, which requires a free Docker Hub account. From that checkout's
+`deploy/compose` folder, create `.env.demo` with these four lines:
+
+```dotenv
+COMPOSE_PROJECT_NAME=wow-stats-demo
+COMPOSE_PATH_SEPARATOR=,
+COMPOSE_FILE=compose.yaml,compose.demo.yaml
+INGEST_PASSWORD=demo-password-only
+```
+
+```sh
+docker login dhi.io
+docker compose --env-file .env.demo build ui
+docker compose --env-file .env.demo up -d --no-build --wait ui
+docker compose --env-file .env.demo run --rm demo
+```
+
+Open <http://127.0.0.1:8080/> and pick a character. The seed loads the client artwork and
+writes the armory samples locally. The Battle.net exporter stays off. Steps 4 to 6 also
+work with this checkout.
+
+To use your own Forever install, run this from the repository root before starting Compose:
+
+```sh
+uv run python tools/fixtures/demo3d.py build-roster .demo3d --wow-root "/Applications/World of Warcraft"
+```
+
+Set `DEMO_3D_STORE` in `.env.demo` to the absolute path of `.demo3d/store`. Compose mounts
+it read-only. The UI, seed and publisher use those same files.
 
 ## Next
 

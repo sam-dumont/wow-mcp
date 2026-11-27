@@ -90,11 +90,11 @@ BFD_XP = 18211
 # took the priest to 33 where the script says 32. Each mark sits mid-level:
 # the guides' quest XP lands on top of it, and the level must hold.
 KILL_S = 75.0  # seconds per kill, pulls and walks between them: the pace's estimate of the kills left
-# Classic's XP to the next level.
-XP_MAX = {1: 400, 21: 26000, 22: 27300, 23: 29400, 24: 31700, 25: 34000, 26: 36400, 27: 38900, 28: 41400,
-          29: 44300, 30: 47400, 31: 50800, 32: 54500, 33: 58600, 34: 62800, 35: 67100, 36: 71600, 37: 76100,
-          38: 80800, 39: 85700, 40: 90700, 41: 95800, 42: 101000, 43: 106300, 44: 111800, 45: 117500, 46: 123200,
-          47: 129100}
+# XP to the next level for the fixture characters (Polestar tools/lib/game/xp.js).
+XP_MAX = {1: 400, 10: 7600, 16: 16000, 21: 26000, 22: 27300, 23: 29400, 24: 31700, 25: 34000, 26: 36400, 27: 38900,
+          28: 41400, 29: 44300, 30: 47400, 31: 50800, 32: 54500, 33: 58600, 34: 62800, 35: 67100, 36: 71600,
+          37: 76100, 38: 80800, 39: 85700, 40: 90700, 41: 95800, 42: 101000, 43: 106300, 44: 111800, 45: 117500,
+          46: 123200, 47: 129100, 53: 167100, 60: 0}
 SESSION_FIELDS = {"build": "70888", "interface": "16001", "locale": "enUS", "polestar_version": "0.4.1",
                   "recorder_version": "0.4.1", "region": "3"}
 MAPS = {"Darkshore": 1439, "Ashenvale": 1440, "Stonetalon Mountains": 1442, "Wetlands": 1437, "Ironforge": 1455,
@@ -107,7 +107,8 @@ MAPS = {"Darkshore": 1439, "Ashenvale": 1440, "Stonetalon Mountains": 1442, "Wet
         # The demo's way to 46 (sessions_demo_46).
         "Tirisfal Glades": 1420, "Scarlet Monastery": 302, "Loch Modan": 1432, "Badlands": 1418,
         "Stranglethorn Vale": 1434, "Swamp of Sorrows": 1435, "Razorfen Downs": 300, "Uldaman": 230,
-        "Feralas": 1444, "Thousand Needles": 1441, "Tanaris": 1446, "Zul'Farrak": 219, "The Hinterlands": 1425}
+        "Feralas": 1444, "Thousand Needles": 1441, "Tanaris": 1446, "Zul'Farrak": 219, "The Hinterlands": 1425,
+        "Durotar": 1411, "Un'Goro Crater": 1449, "Eastern Plaguelands": 1423}
 # A map's frame in world yards (the Recorder's `map` record): what makes
 # positions into distances.
 FRAMES = {1439: (-16000.0, -19200.0, 7466.6, 1600.0), 1440: (1700.0, -4066.6, 4672.9, 829.1),
@@ -124,7 +125,8 @@ AREAS = {"Darkshore": 148, "Ashenvale": 331, "Stonetalon Mountains": 406, "Wetla
          "Stormwind City": 1519, "Ironforge": 1537, "Darnassus": 1657, "Teldrassil": 141,
          "Alterac Mountains": 36, "Arathi Highlands": 45, "Badlands": 3, "Stranglethorn Vale": 33,
          "Dustwallow Marsh": 15, "Swamp of Sorrows": 8, "Loch Modan": 38, "Feralas": 357, "Tanaris": 440,
-         "Thousand Needles": 400, "The Hinterlands": 47}
+         "Thousand Needles": 400, "The Hinterlands": 47, "Durotar": 14, "Un'Goro Crater": 490,
+         "Eastern Plaguelands": 139}
 TAXI = {"Auberdine": 26, "Astranaar": 28, "Stormwind City": 2, "Ironforge": 6, "Menethil Harbor": 7,
         "Darkshire": 12, "Lakeshire": 5, "Sentinel Hill": 4, "Rut'theran Village": 27, "Southshore": 14}
 # The demo's flight points past 34 (sessions_demo_46): known once he lands there.
@@ -384,17 +386,20 @@ class Player:
     # -------------------------------------------------------- xp
 
     def gain(self, xp: int, kill: bool = False) -> int:
+        if self.level >= 60:
+            return 0
         bonus = 0
         if kill and self.rested > 0:
             bonus = min(xp, self.rested)
             self.rested -= bonus
         got = xp + bonus
+        before = self.gained
         self.xp += got
         self.gained += got
-        while self.xp >= XP_MAX[self.level]:
+        while self.level < 60 and self.xp >= XP_MAX[self.level]:
             self.xp -= XP_MAX[self.level]
             self.ding()
-        return got
+        return self.gained - before
 
     def ding(self) -> None:
         secs = round(self.played - self.level_t0)
@@ -402,6 +407,10 @@ class Player:
                    quests=self.level_quests, seconds=secs,
                    xp=XP_MAX[self.level] if not self.first_level else XP_MAX[self.level] - 15555)
         self.level += 1
+        if self.level == 60:
+            # The final ding empties the XP bar.
+            self.gained -= self.xp
+            self.xp = 0
         self.first_level = False
         self.level_t0 = self.played
         self.level_kills = self.level_quests = 0
@@ -442,7 +451,8 @@ class Player:
                 xp = max(0, round(per))
         uid = f"{self.rnd.getrandbits(40):010X}"
         self.rec("spawn", npc_id=npc, spawn_uid=uid, **self.here())
-        got = self.gain(xp, kill=not forced) if xp else 0
+        # A kill at the cap produces no XP chat line for the Recorder to match.
+        got = self.gain(xp, kill=not forced) if self.level < 60 else None
         self.rec("kill", classification=cl, level=lv, npc_id=npc, quests=quest, tapped=False, xp_reward=got,
                  **self.here())
         self.level_kills += 1
@@ -2096,6 +2106,21 @@ def build_demo(end_day: str | None = None) -> list[dict]:
     return rows
 
 
+def demo_roster(end_day: str | None = None) -> list[dict]:
+    """All nine characters. Nibbet remains the latest played, including on a
+    fresh local install that has no DEFAULT_CHAR setting."""
+    import roster
+
+    rows = build_demo(end_day)
+    last = max(_epoch(r["_time"]) for r in rows if r["feed"] == "wow-character")
+    alts = roster.sessions(last)
+    in_forever(alts)
+    for r in rows:
+        if r["feed"] == "wow-setup":
+            r["saved_chars"] = str(1 + len(roster.CHARACTERS))
+    return sorted(rows + alts, key=lambda r: r["_time"])
+
+
 # ---------------------------------------------------------------- Battle.net
 
 # Battle.net's slot types (the exporter's `slot` label) by inventory slot.
@@ -2109,13 +2134,11 @@ BNET_STEP = 120     # seconds between pushes (the exporter pushes every minute)
 def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] | None = None) -> list[dict]:
     """The Battle.net exporter's series for the demo character
     (wowstats.exporter.poll_profile), as VictoriaMetrics' /api/v1/import
-    takes them: the profile, the look (golden3d's options), the equipment,
+    takes them: the profile, the look (client option and choice IDs), the equipment,
     the item level, the talents and the Legacy achievement, each read once
     a day at BNET_READ_HOUR and pushed every BNET_STEP seconds, over the
     last `days` (the talent history reads them back). `rows`: build_demo's,
     already shifted."""
-    import golden3d
-
     who = {"character": DEMO, "account_id": "0"}
     respec = respec_time(rows)
     info = priest_talents()
@@ -2125,6 +2148,8 @@ def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] |
     stamps = list(range(t0, int(now), BNET_STEP))
     day = 86400
     read = {t: (t - BNET_READ_HOUR * 3600) // day * day + BNET_READ_HOUR * 3600 for t in stamps}
+    # The exporter reads once a day. All 720 pushes between two reads share a level.
+    daily_level = {r: level_at(rows, r) for r in set(read.values())}
     series: dict[tuple, dict] = {}
 
     def put(name: str, labels: dict, t: int, value: float) -> None:
@@ -2133,13 +2158,10 @@ def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] |
         s["values"].append(value)
         s["timestamps"].append(t * 1000)
 
-    # The game files' own option and choice ids: golden3d's, or the real
-    # model's (tools/fixtures/demo3d.py look.json) when the demo draws that.
-    look = golden3d.build()["look"] if look is None else look
     recent = now - 3 * day  # the profile's series: last_over_time(...[2d]) needs the last two days
     for t in stamps:
         r = read[t]
-        lv = level_at(rows, r)
+        lv = daily_level[r]
         build = talent_build(lv, r >= respec)
         spent = {name: 0 for name in BNET_TREES}
         for name, rank in build.items():
@@ -2154,7 +2176,7 @@ def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] |
                                       "guild": GUILD}, t, lv)
         put("wow_character_profile_found", who, t, 1)
         put("wow_character_profile_refreshed_timestamp_seconds", who, t, r)
-        for o in look:
+        for o in look or ():
             put("wow_character_customization", {**who, "option_id": str(o["optionId"])}, t, o["choiceId"])
         sheet = [g for g in gear if _epoch(g["_time"]) <= r]
         items = json.loads(sheet[-1]["items"]) if sheet else []
@@ -2167,6 +2189,13 @@ def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] |
         put("wow_character_achievements_read", who, t, 1)
         put("wow_character_achievement", {**who, "achievement_id": str(LEGACY_PRIEST_25)}, t, int(ding25))
     return [s for _k, s in sorted(series.items())]
+
+
+def demo_series(rows: list[dict], now: float, looks: dict[str, list[dict]] | None = None) -> list[dict]:
+    import roster
+
+    priest = bnet_series([r for r in rows if r.get("char") == DEMO], now, look=(looks or {}).get(DEMO))
+    return priest + roster.series(rows, now, looks)
 
 
 def shifted(r: dict, secs: int) -> dict:
@@ -2252,7 +2281,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--check", action="store_true", help="compare with the committed files, write nothing")
     ap.add_argument("--levels", action="store_true", help="print each logout's level and XP")
-    ap.add_argument("--demo", metavar="FILE", help="write the docs site's demo character's events (NDJSON), "
+    ap.add_argument("--demo", metavar="FILE", help="write the docs site's nine demo characters (NDJSON), "
                                                    "nothing else")
     ap.add_argument("--end-day", metavar="YYYY-MM-DD", help="with --demo: shift the play so it ends that day")
     ap.add_argument("--game", action="store_true", help=f"rewrite {GAME.relative_to(ROOT)} from the KB first")
@@ -2264,7 +2293,7 @@ def main() -> int:
     global VERBOSE
     VERBOSE = a.levels
     if a.demo:
-        Path(a.demo).write_bytes(jsonl(build_demo(a.end_day)))
+        Path(a.demo).write_bytes(jsonl(demo_roster(a.end_day)))
         return 0
     if a.derived_out:
         out = Path(a.derived_out)

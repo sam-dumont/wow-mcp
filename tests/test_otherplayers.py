@@ -251,6 +251,11 @@ def test_ingest_endpoint_stores_the_screened_events(run_app, fake_vl):  # noqa: 
     assert_no_other_players([json.loads(x) for _, _, sent in FakeVL.got for x in sent.splitlines()])
 
 
+def test_companion_keeps_the_display_and_drops_extra_pet_details():
+    event = {"feed": "wow-companion", "char": "Demo", "kind": "hunter", "display_id": 71}
+    assert otherplayers.allowed({**event, "pet_name": "Example", "pet_guid": "private"}) == event
+
+
 def test_the_two_copies_are_equal(shipper):
     """wowstats/otherplayers.py copies the shipper's allow lists and the
     code that applies them: a change to one is a change to both."""

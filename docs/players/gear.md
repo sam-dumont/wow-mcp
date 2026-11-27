@@ -23,6 +23,19 @@ both read 100% only when two different items that good are in reach.
 The picture in the middle is your character in that gear. "Picture on its way": it isn't drawn
 yet, and **View in 3D** shows the model meanwhile.
 
+Open **View in 3D** and pick an action under your character. A hunter with a gun can fire
+**Arcane Shot**. A priest can cast **Power Word: Shield**. If you carry both a melee weapon
+and a ranged weapon, you can try each one.
+
+A hunter’s last recorded pet or a warlock’s last summoned demon stands beside the character.
+Untick **Show pet** or **Show demon** to hide it. The shipper reads your combat log and the
+creature appearance saved by your WoW client. If the skin is uncertain, you’ll see just
+your character. Past-level views show the gear recorded for that level.
+
+If your spellbook or a recorded spell learn shows you own a mount, pick it under **Mount**
+in the current 3D view. **Idle**, **Walk** and **Run** keep your character in the saddle.
+Pick **On foot** to dismount and use your class actions again.
+
 ## The upgrades list
 
 ![The auction house list starts with Shadoweave Shoulders, Shadoweave Mask and Underworld Band. Dungeon and world drops appear in their own groups below.](../images/upgrades.webp)

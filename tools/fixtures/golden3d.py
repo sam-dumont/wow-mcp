@@ -4,14 +4,8 @@ in the formats a player's shipper sends (wowstats.assets): client tables
 
     uv run python tools/fixtures/golden3d.py <store dir>   # a person's store: tables/, files/
 
-They serve twice:
-
-- the docs site's demo (site/scripts/demo.py) draws Nibbet with them, live,
-  through the product's own path: the store, character3d's assembly, the
-  publisher's copy into the bundle and the viewer;
-- the 3D tests (tests/test_golden3d.py in CI, tests/test_golden3d_browser.py
-  in the local browser gate), which can never have real game files,
-  assemble and draw them end to end in Chromium and WebKit.
+The 3D unit and browser tests assemble and draw these fixtures end to end.
+The docs site's test mode can run its publisher and viewer on them offline.
 
 Nothing in them comes from the game: the meshes are boxes, the textures
 are drawn here pixel by pixel, and every id the files and tables make up
@@ -32,14 +26,14 @@ The items: every piece the demo character wears in his history, plus a
 helmet and a shield the tests put on (TEST_HELM, TEST_SHIELD).
 
 Deterministic: the same bytes every run (tests/test_golden3d.py checks).
-Small (about 200 kB in all), so only this generator is committed; the demo
-build and the tests run it.
+Small (about 200 kB in all). The tests run the generator.
 """
 
 from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import struct
 import sys
 from pathlib import Path
@@ -241,7 +235,7 @@ ATTACH = {
 }
 
 
-def character() -> dict[int, bytes]:
+def character(*, model_id=CHAR_M2, skin_id=CHAR_SKIN, scale=(1., 1., 1.), features=(), gestures=()) -> dict[int, bytes]:
     """The gnome: (geoset, mesh, texture unit) per submesh."""
     sides = uv(FACE, (0.0, 0.0, 0.5, 1.0))
     face = uv(FACE, (0.5, 0.0, 1.0, 1.0))
@@ -278,12 +272,50 @@ def character() -> dict[int, bytes]:
         (1302, box((-0.12, -0.16, 0.12), (0.12, 0.16, 0.46), uv(5)), 0),                   # robe skirt
         (1502, box((-0.15, -0.16, 0.2), (-0.12, 0.16, 0.78), uv(8)), 2),                   # cape
     ]
+    for lo, hi in features:
+        subs.append((0, box(lo, hi, sides), 0))
+
+    def scaled(pos):
+        return tuple(coord * factor for coord, factor in zip(pos, scale, strict=True))
+
     skin_file, verts = FX.skin([(g, v, i) for g, (v, i), _t in subs], [(k, t) for k, (_g, _m, t) in enumerate(subs)])
-    m2 = FX.m2(verts=verts, textures=[(1, 0), (6, 0), (2, 0)], bounds=((-0.22, -0.34, 0.0), (0.2, 0.34, 1.42)),
-               skin_id=CHAR_SKIN, bones=[lambda d: FX.bone(d, (0.0, 0.0, 0.0), -1, 0)],
-               sequences=[FX.sequence(0, 2000, 0x20)],
-               attachments=[(a, 0, pos) for a, pos in sorted(ATTACH.items())], material_flags=0x4)
-    return {CHAR_M2: m2, CHAR_SKIN: skin_file}
+    bones = [lambda d: FX.bone(d, (0., 0., 0.), -1, 0)]
+    sequences = [FX.sequence(0, 2000, 0x20)]
+    attachment_bones = {}
+    if gestures:
+        # Each cuboid has 24 vertices. Give the arm cuboids, their cuffs,
+        # and the items in their hands the same shoulder joint.
+        for start in range(0, len(verts), 24):
+            part = verts[start:start + 24]
+            y, z = (sum(v[0][axis] for v in part) / 24 for axis in (1, 2))
+            joint = (1 if y < 0 else 2) if abs(y) >= .17 and .25 < z < .78 else 0
+            if y < -.025 and z < .45 and any(clip == 95 for clip, _r, _l in gestures):
+                joint = 3
+            if joint:
+                verts[start:start + 24] = [(p, normal, tex, joint) for p, normal, tex, _ in part]
+        for joint, shoulder in enumerate((5, 6), 1):
+            tracks = [None]
+            for _clip, right, left in gestures:
+                angle = math.radians((right if joint == 1 else left) / 2)
+                rest = FX.compquat((0, 0, 0, 1))
+                raised = FX.compquat((0, -math.sin(angle), 0, math.cos(angle)))
+                tracks.append(("in", [0, 340, 530, 900], [rest, raised, raised, rest]))
+            pivot = scaled(ATTACH[shoulder])
+            bones.append(lambda d, at=pivot, keys=tracks: FX.bone(d, at, 0, 0, rot=keys))
+        if any(clip == 95 for clip, _r, _l in gestures):
+            rest = FX.compquat((0, 0, 0, 1))
+            kick = FX.compquat((0, -.65, 0, .76))
+            leg = [None] + [("in", [0, 320, 610, 900], [rest, kick, kick, rest]) if clip == 95 else None
+                            for clip, _r, _l in gestures]
+            bones.append(lambda d: FX.bone(d, scaled((0., -.09, .45)), 0, 0, rot=leg))
+        attachment_bones = {0: 2, 1: 1, 2: 2, 5: 1, 6: 2}
+        sequences.extend(FX.sequence(clip, 900, 0x20) for clip, _r, _l in gestures)
+    verts = [(scaled(p), normal, tex, bone) for p, normal, tex, bone in verts]
+    m2 = FX.m2(verts=verts, textures=[(1, 0), (6, 0), (2, 0)],
+               bounds=(scaled((-0.22, -0.34, 0.0)), scaled((0.2, 0.34, 1.42))), skin_id=skin_id, bones=bones,
+               sequences=sequences, attachments=[(a, attachment_bones.get(a, 0), scaled(pos))
+                                                  for a, pos in sorted(ATTACH.items())], material_flags=0x4)
+    return {model_id: m2, skin_id: skin_file}
 
 
 def item_model(n: int, parts, textures=((2, 0),), attachments=()) -> dict[int, bytes]:
@@ -327,7 +359,7 @@ def glow_model() -> bytes:
 
 # What each made-up look is: (kind, colours). Kinds: robe, trousers, belt,
 # boots, wrists, gloves, shirt, tabard, cloak (body and cape textures); shoulders, staff,
-# mace, rod, helm, shield (models).
+# mace, rod, wand, helm, shield (models).
 ITEMS: dict[int, tuple[str, tuple]] = {
     6264: ("robe", ((96, 112, 150), (214, 214, 230))),   # Greater Adept's Robe: slate blue, white trim
     273044: ("robe", ((110, 52, 150), (228, 184, 70))),  # Violet Sorcerer's Robes: violet, gold trim
@@ -350,7 +382,7 @@ ITEMS: dict[int, tuple[str, tuple]] = {
     5976: ("tabard", ((40, 90, 60), (220, 190, 80))),    # Guild Tabard: green, a gold band
     TEST_HELM: ("helm", ((150, 40, 40), None)),
     TEST_SHIELD: ("shield", ((150, 150, 160), (200, 60, 40))),
-    7001: ("wand", ((0, 0, 0), None)),                   # a wand in the ranged slot: never drawn
+    7001: ("wand", ((115, 94, 126), (198, 174, 224))),    # Gravestone Scepter
     # His outfits on the way to 46 (generate.py sessions_demo_46).
     7684: ("shoulders", ((120, 30, 40), (200, 170, 90))),  # Bloodmage Mantle
     10028: ("shoulders", ((50, 40, 70), None)),          # Shadoweave Shoulders: on the auction house today
@@ -364,7 +396,7 @@ ITEMS: dict[int, tuple[str, tuple]] = {
     254041: ("belt", ((150, 40, 30), (230, 140, 40))),              # Fiery Cord: his own, the fire one
     10776: ("cloak", ((200, 200, 210), None)),           # Silky Spider Cape
     249454: ("staff", ((70, 60, 110), (170, 140, 255))),  # Dreamstaff: his own enchanting, and it glows
-    274425: ("wand", ((0, 0, 0), None)),                 # White Obsidian Wand: never drawn
+    274425: ("wand", ((75, 71, 88), (225, 217, 212))),   # White Obsidian Wand
 }
 # The made-up items that glow, as their real ones do (ItemDisplayInfo.ItemVisual).
 GLOWS = {279838, 249454}
@@ -374,17 +406,17 @@ TEST_ITEMS = {TEST_HELM: (4, 4, 1), TEST_SHIELD: (4, 6, 14)}
 # Item ids the repository's item data doesn't know: as the game has them.
 KNOWN = {2576: (4, 0, 4), 5976: (4, 0, 19)}
 BODY = {"robe": (0, 1, 3, 4, 5), "trousers": (5, 6), "belt": (4,), "boots": (6, 7), "wrists": (1,),
-        "gloves": (2,), "shirt": (0, 3), "tabard": (3, 4)}
+        "gloves": (2,), "shirt": (0, 3), "tabard": (3, 4), "chest": (0, 3, 4)}
 GEOSETS = {"robe": [1, 0, 1], "boots": [1], "gloves": [1], "cloak": [1]}
 HIDE_HAIR = rid(700)  # HelmetGeosetVis: a helmet that hides the hair
 
 
-def item_kind_rows(gear_ref=None) -> dict[int, tuple[int, int, int]]:
+def item_kind_rows(gear_ref=None, items=ITEMS) -> dict[int, tuple[int, int, int]]:
     from wowstats import gear
 
     ref = gear_ref or gear.reference()
     out = {}
-    for item in ITEMS:
+    for item in items:
         if item in TEST_ITEMS:
             out[item] = TEST_ITEMS[item]
         elif item in KNOWN:
@@ -395,7 +427,7 @@ def item_kind_rows(gear_ref=None) -> dict[int, tuple[int, int, int]]:
     return out
 
 
-def build() -> dict:
+def build(extra_items=None, weapon_shapes=None) -> dict:
     """{"tables": {name: rows}, "files": {file id: bytes}, "look": [{optionId, choiceId}]}"""
     files: dict[int, bytes] = dict(character())
     t: dict[str, dict[int, dict]] = {n: {} for n in assets.TABLES}
@@ -489,11 +521,12 @@ def build() -> dict:
     t["ItemVisualsXEffect"][rid(951)] = {"ItemVisualsID": rid(950), "AttachmentID": 1, "DisplayWeaponSubclassID": -1,
                                          "AttachmentModelFileID": glow}
 
-    kinds = item_kind_rows()
-    for k, (item, (kind, (main, accent))) in enumerate(sorted(ITEMS.items())):
+    items = {**ITEMS, **(extra_items or {})}
+    kinds = item_kind_rows(items=items)
+    for k, (item, (kind, (main, accent))) in enumerate(sorted(items.items())):
         cls, sub, inv = kinds[item]
         t["Item"][item] = {"ClassID": cls, "SubclassID": sub, "InventoryType": inv}
-        if kind == "wand":
+        if kind == "jewelry":
             continue
         display, app = rid(1000 + k), rid(1100 + k)
         t["ItemModifiedAppearance"][rid(1200 + k)] = {"ItemID": item, "ItemAppearanceModifierID": 0,
@@ -534,6 +567,12 @@ def build() -> dict:
                             attachments=[(1, 0, (0.0, 0.0, 0.26))])
                 d["ModelResourcesID"], d["ModelMaterialResourcesID"] = [res, 0], [mat, 0]
                 d["ItemVisual"] = rid(950)
+            elif kind == "wand":
+                parts = [_b((-.015, -.015, -.04), (.015, .015, .23)), _b((-.032, -.032, .23), (.032, .032, .29))]
+                d["ModelResourcesID"], d["ModelMaterialResourcesID"] = [model(parts), 0], [mat, 0]
+            elif weapon_shapes and kind in weapon_shapes:
+                d["ModelResourcesID"] = [model(weapon_shapes[kind]), 0]
+                d["ModelMaterialResourcesID"] = [mat, 0]
             elif kind == "helm":
                 # A hood: crown, back and sides around the head, the face left open.
                 res = model([_b((-0.17, -0.18, 0.15), (0.17, 0.18, 0.22)),

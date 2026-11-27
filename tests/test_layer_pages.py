@@ -39,13 +39,12 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
-import sys
 import warnings
 from pathlib import Path
 
 import pytest
 
+from tools.fixtures.generate import build_demo
 from wowstats import eventcache, logsql, stores, ui
 from wowstats.stores import parse_t
 
@@ -58,16 +57,13 @@ VOLATILE = {"generated_at", "stale"}
 NOT_LAYER = {"snapshot": {"bis", "gear"}, "char": {"gear"}, "overview": {"moves", "next_moves", "upgrades"}}
 
 
-# The local demo (dev/seed.py: the docs site's demo character), on a fixed last evening.
+# The single-character history used for the snapshot, before dev/seed.py adds the rest of the roster.
 CHAR = "Nibbet-Gearholt"
 END = "2026-11-18"
 
 
-def seed_rows(tmp: Path) -> list[dict]:
-    out = tmp / "seed.ndjson"
-    subprocess.run([sys.executable, str(ROOT / "dev" / "seed.py"), "--out", str(out), "--end-day", END], check=True,
-                   capture_output=True)
-    return [json.loads(x) for x in out.read_text().splitlines() if x.strip()]
+def seed_rows(_tmp: Path) -> list[dict]:
+    return [{**r, "demo": True} for r in build_demo(END)]
 
 
 class SeedVL:

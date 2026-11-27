@@ -7,6 +7,26 @@ Nibbet is a made-up Gnome priest. The journal records 34 sessions from level 22 
 <a href="@BASE@demo/friends/">Open the friends' link</a>
 </div>
 
+## The nine characters
+
+Pick a character in the selector. Each wears gear they can use and has one talent point per level from 10 on. The eight characters besides Nibbet each have one short play session. [Blizzard’s Forever race and class table](https://worldofwarcraft.blizzard.com/en-us/news/24304075/)
+
+| Level | Character | Race and spec |
+| ---: | --- | --- |
+| 10 | Sleetpin | Troll Frost mage |
+| 16 | Valeleaf | Skyborne Combat rogue |
+| 23 | Duskwick | Undead Affliction warlock, with a Voidwalker |
+| 29 | Flintstep | Tauren Enhancement shaman |
+| 34 | Flintwick | Dwarf Beast Mastery hunter, with a bear |
+| 39 | Mossbranch | Night Elf Feral druid |
+| 46 | Nibbet | Gnome Shadow priest |
+| 53 | Hesta | Human Retribution paladin, with a Warhorse |
+| 60 | Brakka | Orc Arms warrior, with a Swift Timber Wolf |
+
+Open **Character** and choose **View in 3D**. Pick Hesta’s Warhorse or Brakka’s epic wolf under **Mount**. Try **Walk** and **Run**, then choose **On foot** to use the character’s own attacks again. Brakka carries an Arcanite Reaper and wears four epic Glory pieces. Flintwick and Duskwick have a separate control for their companions.
+
+The models, gear, companions and mounts come from the installed Forever client. The demo draws its own 2D icons. [Artwork and credits](../../THIRD_PARTY.md)
+
 ## The two pages
 
 **The public page** is what anyone with the address sees: the card, the gear, the climb level by level, the dungeons cleared and the gear at each past level. [Privacy tiers](../../docs/explanation/privacy.md) lists what stays out.

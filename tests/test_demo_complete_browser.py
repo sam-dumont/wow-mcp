@@ -4,7 +4,7 @@ Chromium and WebKit (the owner reads it in Safari on an iPhone).
 
 The demo is built the way the pages workflow builds it
 (site/scripts/build-demo.sh: VictoriaLogs, VictoriaMetrics, the renderer,
-the golden game files), unless WOW_DEMO_DIR names one already built
+the pinned client files), unless WOW_DEMO_DIR names one already built
 (the pages workflow, after its build). WOW_DEMO_ENGINES narrows the
 engines (chromium,webkit).
 
@@ -18,10 +18,11 @@ Every tab of the public page and of the friends' page is opened; on each:
   item frame still on its "?" or its slot's glyph, no talent showing its letter,
   no broken `<img>` (naturalWidth 0), and no item on the game's question
   mark (an item the bundle has no card or icon for);
-- "View in 3D" opens a model the viewer drew (data-state drawn).
+- each of the nine characters opens its own dressed client model through
+  the selector and plays its class and equipped weapon's animations.
 
 The demo has no degraded section on purpose: a section that falls back is
-a gap in the demo's data (tools/fixtures/generate.py, golden3d.py) or in
+a gap in the demo's data (tools/fixtures/generate.py, demo3d.py) or in
 the publisher, never something to allow here.
 
 Needs the `browser` group and its browsers (`uv run --group browser
@@ -45,7 +46,9 @@ import pytest
 
 sync_api = pytest.importorskip("playwright.sync_api")
 
+from tests.demo_models import LEVEL, MOUNT, PET, RANGED, ROSTER, check_answer, check_m2  # noqa: E402
 from tests.test_browser import settled  # noqa: E402
+from tests.test_model3d_browser import COVERED  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 WIDTHS = (390, 1280)
@@ -185,14 +188,165 @@ def open_3d(page, i: int) -> str:
     """Click the i-th visible "View in 3D", return the viewer's state."""
     page.locator("button.m3dtoggle:visible").nth(i).click()
     frame = page.wait_for_selector("iframe.m3dframe >> visible=true", timeout=15000).content_frame()
-    # The frame is still on its way from about:blank to the viewer: no root
-    # element for a moment, and a throw there ends the wait instead of polling.
-    frame.wait_for_function("() => { const r = document.documentElement;"
-                            " return !!r && ['drawn', 'error'].includes(r.dataset.state); }", timeout=60000)
-    state = frame.evaluate("() => document.documentElement.dataset.state + ' '"
-                           " + ((document.getElementById('status') || {}).textContent || '')")
+    state = viewer_state(frame)
     page.locator("button.m3dtoggle[aria-pressed=true]:visible").first.click()
     return state
+
+
+def viewer_state(frame) -> str:
+    # The frame can still be on about:blank, before the viewer's <html>.
+    frame.wait_for_function("() => ['drawn', 'error'].includes(document.documentElement?.dataset.state)",
+                            timeout=60000)
+    return frame.evaluate("() => document.documentElement.dataset.state")
+
+
+CLASS_ACTION = {"PRIEST": "Power Word: Shield", "WARRIOR": "Battle Shout", "PALADIN": "Holy Light",
+                "HUNTER": "Hunter's Mark", "ROGUE": "Kick", "SHAMAN": "Lightning Bolt", "MAGE": "Frostbolt",
+                "WARLOCK": "Drain Life", "DRUID": "Rejuvenation"}
+# The human female M2 aliases its omni precast (52) to its directed precast (51).
+CLASS_CLIPS = {"PRIEST": [54], "WARRIOR": [55], "PALADIN": [51, 54], "HUNTER": [53], "ROGUE": [95],
+               "SHAMAN": [51, 53], "MAGE": [51, 53], "WARLOCK": [124], "DRUID": [52, 54]}
+RANGED_ACTION = {2: ("Shoot bow", [46]), 3: ("Fire gun", [49]), 19: ("Shoot wand", [53])}
+
+
+def play_clips(frame, label, clips):
+    """Record the M2 animation the renderer entered after the button click.
+    A bow or gun can also have an optional ready pose before its release."""
+    frame.evaluate("window.demoClips = []")
+    frame.get_by_role("button", name=label, exact=True).click(timeout=30000)
+    frame.wait_for_function("clips => clips.every(id => window.demoClips.includes(id))", arg=clips, timeout=30000)
+
+
+def check_mounted_rider(frame, recipe):
+    """Sample both real draws in the same frame. The rider's origin should stay at
+    attachment 0 through the mount's gait, including when that bone moves."""
+    mount, = recipe["mounts"]
+    frame.evaluate("""mountName => {
+      const proto = M3D.M2RendererGL.prototype, render = proto.render;
+      let saddle, gait;
+      window.saddles = new Set();
+      proto.render = function(...args) {
+        if (this.m2.name === mountName) {
+          saddle = this.getAttachmentTransform(0);
+          gait = this._current_anim()?.id;
+        } else if (saddle && this._current_anim()?.id === 91) {
+          const origin = this.model_matrix.slice(12, 15);
+          if (origin.every((x, i) => Math.abs(x - saddle[12+i]) < 0.001))
+            window.saddles.add(gait + '/' + Array.from(origin, x => x.toFixed(4)).join(','));
+        }
+        return render.apply(this, args);
+      };
+    }""", {123410: "PvPRidingDireWolf", 126407: "WarHorse"}[mount["model"]])
+    select = frame.get_by_role("combobox", name="Mount")
+    assert select.input_value() == "-1"
+    select.select_option(label=mount["name"])
+    for label, clip in (("Idle", 0), ("Walk", 4), ("Run", 5)):
+        frame.get_by_role("button", name=label, exact=True).click()
+        frame.wait_for_function("""([clip, samples]) =>
+          [...window.saddles].filter(pose => pose.startsWith(clip + '/')).length >= samples""",
+                                arg=[clip, 1 if clip == 0 else 2], timeout=15000)
+    hit, colours = frame.evaluate(COVERED)
+    assert hit > 20 and colours >= 3
+    select.select_option(label="On foot")
+    frame.get_by_role("button", name="Run", exact=True).wait_for(state="hidden")
+
+
+def test_switching_a_published_character_reads_its_file_once(browser, base):
+    with browser.new_context(viewport={"width": 390, "height": 844}) as ctx:
+        page = ctx.new_page()
+        page.clock.install()
+        page.goto(base)
+        page.locator("#hero").get_by_role("heading", name="Nibbet", exact=True).wait_for()
+        name = "Flintwick-Bearhide"
+        path = page.evaluate("name => new URL(window.wowApi('char', {name}), document.baseURI).href", name)
+        requests = []
+        page.on("request", lambda request: requests.append(request.url) if request.url == path else None)
+        page.get_by_role("combobox", name="Character", exact=True).select_option(name)
+        page.locator("#hero").get_by_role("heading", name="Flintwick", exact=True).wait_for()
+        page.clock.run_for(3 * 60 * 1000 + 1000)
+        assert requests == [path]
+        assert not page.locator(".newspill:visible").count()
+
+
+@pytest.mark.parametrize("which", ["public", "friends"])
+@pytest.mark.parametrize(("name", "width"), [(name, 1280) for name in ROSTER]
+                         + [(name, 390) for name, (cls, _, _) in ROSTER.items() if cls in {*MOUNT, "HUNTER"}])
+def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):
+    with browser.new_context(viewport={"width": width, "height": 900}, reduced_motion="reduce") as ctx:
+        page = ctx.new_page()
+        served = set()
+        page.on("response", lambda r: served.add(int(r.url.rsplit("/", 1)[1]))
+                if r.ok and "/model3d/file/" in r.url else None)
+        page.goto(base + ("friends/" if which == "friends" else ""))
+        select = page.get_by_role("combobox", name="Character", exact=True)
+        select.locator("option").nth(8).wait_for(state="attached")
+        assert set(select.locator("option").evaluate_all("opts => opts.map(o => o.value)")) == set(ROSTER)
+        assert (page.locator("html").get_attribute("data-sealed") == "1") == (which == "friends")
+        page.get_by_role("tab", name="Character", exact=True).click()
+        select.select_option(name)
+        page.locator("#hero").get_by_role("heading", name=name.split("-")[0], exact=True).wait_for()
+        page.locator("#hero").get_by_label(f"Level {LEVEL[name]}", exact=True).wait_for()
+        if LEVEL[name] == 60:
+            page.locator("#hero").get_by_text("Level cap reached", exact=True).wait_for()
+            assert not page.locator("#hero").get_by_role("progressbar").count()
+        answer = page.evaluate("name => window.wowGetJSON(window.wowApi('model3d', {name}))", name)
+        recipe = check_answer(name, answer)
+        files = (demo_dir / "zogzog" if which == "friends" else demo_dir) / "model3d" / "file"
+        for part in (recipe, recipe.get("companion"), *recipe.get("mounts", [])):
+            if part:
+                with (files / str(part["model"])).open("rb") as stream:
+                    check_m2(part["model"], stream)
+        page.locator("#gear").get_by_role("button", name="View in 3D").click(timeout=30000)
+        iframe = page.wait_for_selector(f"#gear iframe.m3dframe[data-name='{name}']", timeout=30000)
+        frame = iframe.content_frame()
+        assert viewer_state(frame) == "drawn", frame.locator("#status").inner_text()
+        if width == 390:
+            size = iframe.bounding_box()
+            card = page.locator("#gear .doll").bounding_box()
+            slots = page.locator("#gear .doll > .slots.left").bounding_box()
+            assert size["width"] >= card["width"] - 2
+            assert slots["y"] >= size["y"] + size["height"]
+        hit, colours = frame.evaluate(COVERED)
+        assert hit > 20 and colours >= 3, (name, hit, colours)
+        outfit = {layer["file"] for mat in recipe["materials"] for layer in mat["layers"]}
+        outfit.update(a["model"] for a in recipe["attachments"] + recipe["collections"])
+        assert {recipe["model"], *outfit} <= served, (name, outfit - served)
+
+        cls = ROSTER[name][0]
+        if cls in PET:
+            toggle = frame.get_by_role("checkbox", name=PET[cls][1])
+            assert toggle.is_checked()
+            toggle.uncheck()
+            assert frame.evaluate(COVERED) != [hit, colours], name
+            toggle.check()
+            pet = recipe["companion"]
+            assert {pet["model"], *pet["textures"].values()} <= served, name
+        else:
+            assert not frame.locator("#companion-control").is_visible()
+
+        if cls in MOUNT:
+            check_mounted_rider(frame, recipe)
+            mount = recipe["mounts"][0]
+            assert {mount["model"], *(f for f in mount["textures"].values() if f)} <= served
+        else:
+            assert not frame.get_by_role("combobox", name="Mount").count()
+
+        frame.evaluate("""() => {
+          window.demoClips = [];
+          const proto = M3D.M2RendererGL.prototype, render = proto.render;
+          proto.render = function(...args) {
+            const id = this._current_anim()?.id;
+            if (id !== undefined && !window.demoClips.includes(id)) window.demoClips.push(id);
+            return render.apply(this, args);
+          };
+        }""")
+        play_clips(frame, CLASS_ACTION[cls], CLASS_CLIPS[cls])
+        if cls in RANGED:
+            play_clips(frame, *RANGED_ACTION[RANGED[cls][0]])
+        else:
+            assert not frame.locator('button[data-action="ranged"]').count()
+        if cls == "HUNTER":
+            play_clips(frame, "Arcane Shot", [49])
 
 
 @pytest.mark.parametrize("width", WIDTHS)
@@ -206,6 +360,9 @@ def test_demo_has_no_gap(browser, base, which, width):
     page.on("pageerror", lambda e: None if "ResizeObserver loop" in str(e) else errors.append(str(e)))
     page.goto(base + ("" if which == "public" else "friends/"))
     page.wait_for_selector(".tabs [role=tab]")
+    page.wait_for_selector("#char option:nth-child(9)", state="attached")
+    assert page.locator("#char").input_value() == "Nibbet-Gearholt"
+    assert page.locator("#char option").count() == 9
     found: dict[str, list[str]] = {}
     tabs = page.eval_on_selector_all(".tabs [role=tab]", "els => els.map(e => e.id)")
     assert tabs

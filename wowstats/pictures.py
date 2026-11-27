@@ -37,7 +37,7 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
-from wowstats import bearer, renderer
+from wowstats import bearer, character3d, renderer
 
 MAX_AGE_S = 25 * 86400
 RETRY_S = 900
@@ -51,7 +51,7 @@ def request(answer: dict | None) -> dict | None:
     """The renderer's request for a 3D answer, or None when there is nothing
     to draw (no recipe: the race unknown, the game files not sent yet)."""
     recipe = (answer or {}).get("recipe")
-    return {"recipe": recipe} if isinstance(recipe, dict) and recipe.get("model") else None
+    return {"recipe": character3d.standing_recipe(recipe)} if isinstance(recipe, dict) and recipe.get("model") else None
 
 
 def scope(env: dict) -> str:

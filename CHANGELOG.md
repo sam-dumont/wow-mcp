@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- View in 3D plays class abilities and switches to your ranged weapon when you fire it. Hunters and warlocks can show or hide their last locally recorded companion.
+- The nine demo characters span levels 10 to 60. Hesta rides a Warhorse at 53. Brakka rides a Swift Timber Wolf at 60 and carries an Arcanite Reaper.
+- Pick a learned mount in **View in 3D** to see your character sit, walk and run in the saddle. Choose **On foot** to dismount.
+
 ## 0.13.0 (2026-11-26)
 
 The Climb shows your played time beside Polestar’s planned time on all three dashboards. Craft cards break out recipe requirements, materials and auction prices. The dashboard and MCP also show which client build and data sources those recommendations use.

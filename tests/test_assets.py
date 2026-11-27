@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from tests import casc_fixture as cf
-from tests.test_shipper_casc import BODY, CHAR, ITEM_DB2, PARENT, PSTAND, SKEL, SKIN0, STAND, TEX
+from tests.test_shipper_casc import BODY, CHAR, ITEM_DB2, PARENT, PSTAND, SKEL, SKIN0, STAND, TEX, WALK
 from tests.test_shipper_casc import install as casc_install
 from tests.test_tenancy import FRIEND, OWNER, TenantVL, as_user
 from wowstats import assets, tenancy, ui
@@ -83,18 +83,19 @@ def test_a_raw_anim_is_taken_when_a_stored_model_names_it(tmp_path):
     M2 without a skeleton): 48 of them were refused (415) on the owner's own
     data until the store asked the models that name them."""
     raw = bytes(4) + b"!\x00\x00\x00C\x00\x00\x00" + bytes(64)  # how one starts on the real client
-    talk, walk = 900941, 900950
+    talk, walk, swim = 900941, 900950, 900951
     assert assets.kind_of(raw) is None and assets.kind_of(raw, anim=True) == "anim"
     s = assets.Store(tmp_path)
-    for fid in (talk, walk):  # no model names them yet
+    for fid in (talk, walk, swim):  # no model names them yet
         with pytest.raises(assets.Refused) as e:
             s.put_file(fid, raw)
         assert e.value.status == 415
-    s.put_file(CHAR, cf.m2(skins=(SKIN0,), anims=((60, 0, talk), (4, 0, walk))))
-    assert talk in s.refs() and walk not in s.refs()  # Walk isn't played: never asked for
+    s.put_file(CHAR, cf.m2(skins=(SKIN0,), anims=((60, 0, talk), (4, 0, walk), (42, 0, swim))))
+    assert {talk, walk} <= s.refs() and swim not in s.refs()
     assert s.put_file(talk, raw) == "anim" and s.read(talk) == raw
+    assert s.put_file(walk, raw) == "anim"
     with pytest.raises(assets.Refused):
-        s.put_file(walk, raw)
+        s.put_file(swim, raw)
     # A new Store on the same folder (a restart) knows it from the stored model.
     assert assets.Store(tmp_path).put_file(talk, raw) == "anim"
     # The still pictures never ask for the moves' files.
@@ -106,10 +107,11 @@ def test_model_refs_match_the_shippers(shipper):
     for data in (model(), cf.m2(skins=(1, 2), textures=(3, 4), skel=0, anims=((0, 0, 5), (4, 0, 6), (0, 2, 7))),
                  cf.skel(parent=PARENT, anims=((0, 0, 8), (1, 0, 9))), cf.skel(), b"MD21", b""):
         assert assets.model_refs(data) == shipper.model_refs(data)
-    # Both follow the animations the viewer plays (closed hands 15, the emotes 60-70 Forever's HD
-    # models keep in .anim files), every variation, never another one (4 is Walk).
-    hands = cf.skel(parent=PARENT, anims=((0, 0, 8), (15, 0, 10), (15, 3, 11), (4, 0, 12), (66, 0, 13), (60, 1, 14)))
-    assert assets.model_refs(hands) == shipper.model_refs(hands) == {PARENT, 8, 10, 11, 13, 14}
+    # Keep every variation the viewer can play, including the mount's gaits and seated rider.
+    anims = ((0, 0, 8), (15, 0, 10), (15, 3, 11), (4, 0, 12), (66, 0, 13), (60, 1, 14),
+             (5, 0, 20), (91, 0, 21), (42, 0, 22))
+    hands = cf.skel(parent=PARENT, anims=anims)
+    assert assets.model_refs(hands) == shipper.model_refs(hands) == {PARENT, 8, 10, 11, 12, 13, 14, 20, 21}
     assert shipper.CASC_ANIMATIONS == assets.ANIMATIONS
 
 
@@ -244,8 +246,8 @@ def test_the_shipper_sends_what_the_server_asks(one, shipper, tmp_path, monkeypa
     assert shipper.ship_assets(state, now=1000) == "sent"
     # Rounds: the character and the texture asked for, then the skin,
     # texture, skeleton and animation the model names, the parent skeleton,
-    # its animation. Never the second skin or the walk.
-    assert store.have() == {CHAR, BODY, SKIN0, TEX, SKEL, PARENT, STAND, PSTAND}
+    # its animation and the walking gait.
+    assert store.have() == {CHAR, BODY, SKIN0, TEX, SKEL, PARENT, STAND, PSTAND, WALK}
     assert store.table("Item") == b"WDC5" + b"rows" * 50 and store.build() == "1.60.1.70959"
     assert store.table("ChrModel") is None and ITEM_DB2 not in store.have()
     assert shipper.ship_assets(state, now=1001) is None  # 15 minutes between runs

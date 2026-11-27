@@ -180,6 +180,8 @@ def allowed(ev):
     feed, msg = ev.get("feed"), ev.get("_msg")
     if feed == "wow-player":
         keys = PLAYER_KEYS
+    elif feed == "wow-companion":
+        keys = ("display_id",)
     elif feed == "wow-recorder":
         kind = ev.get("kind")
         keys = rec_keys(kind) if isinstance(kind, str) else frozenset()

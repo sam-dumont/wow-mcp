@@ -103,9 +103,64 @@
 
   // ------------------------------------------------------------ icons
 
+  const glyphPaths = {
+    head: 'M5 15a7 7 0 0 1 14 0v4H5z M5 15h14 M12 8v11',
+    neck: 'M6 3c0 6 2.5 9 6 9s6-3 6-9 M12 12v2.5 M9.5 17.5a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0',
+    shoulder: 'M3 14c2-5 5.5-7.5 9-7.5s7 2.5 9 7.5l-3 2c-1-3-3-4.5-6-4.5s-5 1.5-6 4.5z',
+    back: 'M8 4h8l3.5 16-7.5-3-7.5 3z M8 4l4 4 4-4',
+    chest: 'M8 4l4 3 4-3 4 3-2 5v8H6v-8L4 7z',
+    shirt: 'M8 4l4 2 4-2 5 4-3 3-1-1v10H7V10l-1 1-3-3z',
+    tabard: 'M7 4h10v13l-5 3-5-3z M10 9h4',
+    wrist: 'M7 6h10v12H7z M7 10h10 M7 14h10',
+    hands: 'M8 21v-7l-2.5-3 1-1 2.5 2V6a1 1 0 0 1 2 0v5 M10.5 5.5a1 1 0 0 1 2 0V11 M12.5 6.5a1 1 0 0 1 2 0V11 M14.5 8a1 1 0 0 1 2 0v6c0 4-2 7-5 7H8',
+    waist: 'M3 10h18v4H3z M10 8.5h4v7h-4z',
+    legs: 'M7 4h10l1 16h-4l-2-10-2 10H6z',
+    feet: 'M8 3h5v10l6 3v4H6v-4l2-2z',
+    finger: 'M12 21a6 6 0 1 0 0-12a6 6 0 1 0 0 12z M9.5 9l2.5-5 2.5 5',
+    trinket: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9z',
+    main: 'M19 3l2 2-11 11-2-2z M6 13l5 5 M7.5 16.5l-3.5 3.5 M3 21l1-1',
+    off: 'M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z M12 6v12',
+    ranged: 'M5 19L16 8 M14 4l2 4 4 2-4 2-2 4-2-4-4-2 4-2z',
+  };
+  window.wowGlyphPaths = glyphPaths;
+  // The hosted demo shares these drawings with the equipment slots. Game
+  // icon names are metadata. No art is downloaded to illustrate them.
+  const iconFamilies = [
+    [/helm|helmet|crown|hat_/, 'head'], [/neck|amulet/, 'neck'], [/shoulder|pauldron/, 'shoulder'],
+    [/cape|cloak/, 'back'], [/shirt/, 'shirt'], [/tabard/, 'tabard'], [/chest|robe|armor/, 'chest'], [/bracer|wrist/, 'wrist'],
+    [/glove|gauntlet/, 'hands'], [/belt|girdle/, 'waist'], [/pants|leg|kilt/, 'legs'],
+    [/boot|shoe/, 'feet'], [/ring|jewelry/, 'finger'], [/shield|buckler/, 'off'],
+    [/bow|rifle|gun|wand|crossbow/, 'ranged'], [/sword|axe|hammer|mace|staff|dagger|weapon/, 'main'],
+  ];
+  const spellPaths = {
+    fire: 'M13 3c1 5-3 6-1 10 2-1 3-3 3-5 4 4 5 7 3 10-2 4-9 4-12 0-2-4 0-7 3-10 0 3 0 4 1 5 0-5 2-6 3-10z',
+    frost: 'M12 3v18 M4 7l16 10 M4 17L20 7 M9 5l3 3 3-3 M9 19l3-3 3 3',
+    nature: 'M4 19c0-9 4-14 16-15-1 11-5 16-13 15 M5 20l10-11',
+    shadow: 'M16 4A8.5 8.5 0 1 0 20 15 7.5 7.5 0 0 1 16 4z',
+    holy: 'M10 3h4v6h6v4h-6v8h-4v-8H4V9h6z',
+  };
+  const drawings = new Map();
+  function drawnPath(name) {
+    // A missing card has its own mark. Known items can share a category drawing.
+    if (name === QUESTION) return 'M8 8a4 4 0 0 1 8 0c0 3-4 3-4 6 M12 18v1';
+    const school = name.split('_')[1];
+    const family = iconFamilies.find(([pattern]) => pattern.test(name));
+    return school && Object.hasOwn(spellPaths, school) ? spellPaths[school]
+      : glyphPaths[family ? family[1] : 'trinket'];
+  }
+  function drawnIcon(name) {
+    const path = drawnPath(name);
+    if (!drawings.has(path)) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="3" fill="#292018"/><path d="${path}" fill="none" stroke="#e7c581" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      drawings.set(path, 'data:image/svg+xml,' + encodeURIComponent(svg));
+    }
+    return drawings.get(path);
+  }
+
   const icons = new Map();
   function wowIcon(name, size) {
     if (!name || !/^[a-z0-9_-]+$/.test(name)) return Promise.resolve(null);
+    if (root.dataset.iconArt === 'drawn') return Promise.resolve(drawnIcon(name));
     if (!STATIC) return Promise.resolve(FULL ? `/icons/${size}/${name}.jpg` : null);
     const path = `data/icon/${size}/${name}.jpg`;
     if (!SEALED) return Promise.resolve(path);

@@ -34,21 +34,36 @@ MODEL, SKIN, TEX, TALK_ANIM, ABSENT_ANIM = 100081, 100082, 200021, 100083, 10008
 INLINE = 0x20
 
 
-def files() -> dict[int, bytes]:
+COMBAT_MODEL = 100085
+MOUNT_MODEL = 100086
+
+
+def files(combat=False) -> dict[int, bytes]:
     verts, idx = FX.box((-0.3, -0.3, 0.0), (0.3, 0.3, 2.0), 0)
     skin_file, all_verts = FX.skin([(0, verts, idx)], [(0, 0)])
     data, _ts, _vs = FX.anim_payload([0], [b"\0" * 8])
     model = FX.m2(verts=all_verts, textures=[(0, TEX)], bounds=((-0.3, -0.3, 0.0), (0.3, 0.3, 2.0)), skin_id=SKIN,
                   bones=[lambda d: FX.bone(d, FX.PIVOT_ROOT, -1, 0)],
+                  attachments=[(1, 0, (0, -.3, 1)), (2, 0, (0, .3, 1))],
                   sequences=[FX.sequence(0, 1000, INLINE), FX.sequence(51, 400, INLINE),
                              FX.sequence(53, 600, INLINE), FX.sequence(60, 2000, 0),
-                             FX.sequence(27, 500, 0), FX.sequence(18, 700, 0)],
+                             FX.sequence(27, 500, 0), FX.sequence(18, 700, 0)]
+                            + ([FX.sequence(i, 400, INLINE) for i in (17, 26, 29, 46, 48, 49, 52, 54, 55, 91, 95, 124)]
+                               if combat else []),
                   afid=[(60, 0, TALK_ANIM), (27, 0, ABSENT_ANIM), (18, 0, ABSENT_ANIM)])
     return {MODEL: model, SKIN: skin_file, TEX: FX.blp_bgra(4, 4, [(200, 200, 200, 255)] * 16), TALK_ANIM: data}
 
 
-FILES = files()
+FILES = {**files(), COMBAT_MODEL: files(combat=True)[MODEL]}
+mount_verts, _ = FX.box((-.3, -.3, 0), (.3, .3, 2))
+saddle_track = ("in", [0, 500, 1000], [(0, 0, 0), (0, 0, .4), (0, 0, 0)])
+FILES[MOUNT_MODEL] = FX.m2(verts=mount_verts, textures=[(0, TEX)], bounds=((-1, -.5, 0), (1, .5, 2)),
+                           skin_id=SKIN, bones=[lambda d: FX.bone(d, FX.PIVOT_ROOT, -1, 0),
+                                                lambda d: FX.bone(d, (0, 0, 1), 0, 1, trans=[None, saddle_track])],
+                           attachments=[(0, 1, (-.1, 0, 1))], sequences=[FX.sequence(i, 1000, INLINE) for i in (0, 5)])
 RECIPE = {**FX.emitter_recipe(MODEL), "attack": 18}
+COMBAT = {**RECIPE, "model": COMBAT_MODEL, "attack": 17, "class_id": 3, "level": 30, "ranged": {"kind": 2, "at_rest": False},
+          "attachments": [{"slot": slot, "attach": hand, "model": MODEL} for slot, hand in [(16, 1), (17, 2), (18, 2)]]}
 
 PAGE = r"""
 'use strict';
@@ -58,7 +73,7 @@ const canvas = document.getElementById('c');
 const get = (id) => fetch('/f/' + id).then((r) => (r.ok ? r.arrayBuffer() : null));
 window.__asked = [];
 const asked = (id) => { window.__asked.push(id); return get(id); };
-const o = { clock: () => window.__t, random: () => opts.random };
+const o = { clock: () => window.__t, random: () => opts.random, effects: document.getElementById('effects') };
 if (opts.idle !== undefined) o.idle = opts.idle;
 if (opts.reduced) o.reducedMotion = () => true;
 window.__ready = M3D.draw(canvas, JSON.parse(document.getElementById('recipe').textContent), asked, o).then(
@@ -107,11 +122,11 @@ def server():
     names = [n.strip() for n in (M3D / "ORDER.txt").read_text().splitlines() if n.strip()]
     scripts = "".join(f"<script>{(M3D / n).read_text()}</script>" for n in names)
 
-    def add(name, opts):
+    def add(name, opts, recipe):
         pages["/" + name] = (
             "<!doctype html><html><head><meta charset='utf-8'><style>canvas{width:300px;height:400px}"
-            "</style></head><body><canvas id='c'></canvas>"
-            f"<script type='application/json' id='recipe'>{json.dumps(RECIPE)}</script>"
+            "</style></head><body><canvas id='c'></canvas><canvas id='effects'></canvas>"
+            f"<script type='application/json' id='recipe'>{json.dumps(recipe)}</script>"
             f"<script type='application/json' id='opts'>{json.dumps(opts)}</script>"
             f"{scripts}<script>{PAGE}</script></body></html>")
         return base + "/" + name
@@ -136,10 +151,10 @@ def browser(request):
 def view(browser, server):
     pages = []
 
-    def go(**opts):
+    def go(recipe=RECIPE, **opts):
         page = browser.new_page(viewport={"width": 340, "height": 440})
         pages.append(page)
-        page.goto(server(f"p{len(pages)}-{browser.browser_type.name}", {"idle": True, "random": 0.5, **opts}))
+        page.goto(server(f"p{len(pages)}-{browser.browser_type.name}", {"idle": True, "random": 0.5, **opts}, recipe))
         assert page.evaluate("() => window.__ready") == "ok"
         return page
 
@@ -204,3 +219,81 @@ def test_reduced_motion_plays_nothing(view):
 def test_off_by_default_for_the_renderers_pictures(view):
     page = view(idle=None)
     assert page.evaluate("() => window.__h.debug.idle()") is None
+
+
+def test_weapons_switch_for_a_real_clip_then_both_melee_hands_return(view):
+    page = view(recipe=COMBAT, reduced=True)
+    actions = lambda: [m["name"] for m in page.evaluate("__h.actions()")]  # noqa: E731
+    slots = lambda: page.evaluate("__h.debug.equippedSlots()")  # noqa: E731
+    assert actions() == ["attack", "ranged", "hunters-mark", "arcane-shot"]
+    assert slots() == [16, 17]
+    assert page.evaluate("__h.play('arcane-shot')")
+    assert slots() == [18] and walk(page, 100)["playing"] == 29
+    assert walk(page, 600)["playing"] == 46
+    assert page.evaluate("""() => {
+      const c = document.querySelector('#effects');
+      return c.getContext('2d').getImageData(0, 0, c.width, c.height).data.some(x => x);
+    }""")
+    assert walk(page, 1100)["playing"] == 0 and slots() == [16, 17]
+    assert page.evaluate("__h.play('attack')") and slots() == [16, 17]
+    # Missing thrown release, then missing bow model, then missing hand on this model.
+    for patch in ({"ranged": {"kind": 16}}, {"attachments": []},
+                  {"attachments": [{"slot": 18, "attach": 98, "model": MODEL}]}):
+        page.evaluate("r => __h.redraw(r).then(() => true)", {**COMBAT, **patch})
+        assert "ranged" not in actions() and "arcane-shot" not in actions()
+        assert not page.evaluate("__h.play('ranged')")
+
+
+def test_class_buttons_require_their_own_animation_and_follow_redraw(view):
+    page = view(recipe=COMBAT)
+    for cls, ability in [(1, "battle-shout"), (2, "holy-light"), (3, "hunters-mark"), (4, "kick"),
+                         (5, "power-word-shield"), (7, "lightning-bolt"), (8, "frostbolt"),
+                         (9, "drain-life"), (11, "rejuvenation")]:
+        page.evaluate("r => __h.redraw(r).then(() => true)", {**COMBAT, "class_id": cls})
+        names = [m["name"] for m in page.evaluate("__h.actions()")]
+        assert ability in names
+        assert page.evaluate("name => __h.play(name)", ability)
+        assert page.evaluate("__h.debug.idle().move") == ability
+    page.evaluate("r => __h.redraw(r).then(() => true)", {**COMBAT, "model": MODEL, "class_id": 4})
+    assert not page.evaluate("__h.play('kick')")
+
+
+def test_rider_follows_the_animated_seat_and_dismounts_to_its_own_gear(view):
+    mount = {"name": "Test mount", "model": MOUNT_MODEL, "scale": 1.2, "textures": {}}
+    page = view(recipe={**COMBAT, "mounts": [mount, {**mount, "model": MODEL}]}, reduced=True)
+    assert page.evaluate("() => __h.mounted") == -1
+    assert MOUNT_MODEL not in page.evaluate("__asked")
+    assert page.evaluate("__h.ride(0)")
+    assert page.evaluate("__h.debug.equippedSlots()") == []
+    assert [row["name"] for row in page.evaluate("__h.actions()")] == ["idle", "run"]
+    assert not page.evaluate("__h.play('attack')")
+    assert not page.evaluate("__h.ride(1)")  # this model has no saddle
+    assert page.evaluate("() => __h.mounted") == 0
+    assert page.evaluate("__h.play('run')")
+    walk(page, 100)
+    low = page.evaluate("__h.debug.project([0,0,0])")
+    walk(page, 500)
+    high = page.evaluate("__h.debug.project([0,0,0])")
+    assert high[1] < low[1] - 5  # animated saddle bone lifted the rider
+    assert page.evaluate("__h.ride(-1)")
+    assert page.evaluate("__h.debug.equippedSlots()") == [16, 17]
+    assert page.evaluate("__h.play('attack')")
+    page.evaluate("r => __h.redraw(r).then(() => true)", {**RECIPE, "mounts": [mount]})
+    assert not page.evaluate("__h.ride(0)")  # this rider lacks Mount (91)
+
+
+def test_late_mount_files_do_not_remount_a_character_who_dismounted(view):
+    page = view(recipe={**COMBAT, "mounts": [{"name": "Test mount", "model": MOUNT_MODEL}]})
+    assert page.evaluate("""async () => {
+      const proto = M3D.M2RendererGL.prototype, prepare = proto.prepareAnimation;
+      let release;
+      const wait = new Promise(resolve => { release = resolve; });
+      proto.prepareAnimation = async function(index, fetch) {
+        if (this._sequence(index)?.requested === 91) await wait;
+        return prepare.call(this, index, fetch);
+      };
+      const pending = __h.ride(0);
+      await __h.ride(-1);
+      release();
+      return !await pending && __h.mounted === -1 && await __h.play('attack');
+    }""")

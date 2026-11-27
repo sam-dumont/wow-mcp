@@ -485,23 +485,14 @@
 			return out;
 		}
 
-		// A sequence's length in seconds (0 when it has none).
-		animation_duration(index) {
-			const a = ((this.skelLoader || this.m2).animations || [])[index];
-			return a ? a.duration / 1000 : 0;
-		}
-
-		// Whether a sequence can be played: its data is in the model (or
-		// skeleton) itself, or its .anim file comes through `fetch` (the
-		// caller's, quiet about a file that doesn't come: the shipper sends
-		// the .anim files of draw.js's M3D.ANIMATIONS only, and a server
-		// may not have them yet). A loaded .anim is kept, so playAnimation
-		// finds it.
-		async prepareAnimation(index, fetch) {
+		// Resolve the child skeleton and the client's own aliases before
+		// reading tracks. Human female SpellPrecastOmni (52), for example,
+		// points to SpellPrecastDirected (51) in the same model.
+		_sequence(index) {
 			let source = this.skelLoader || this.m2;
 			const a = (source.animations || [])[index];
 			if (!a)
-				return false;
+				return null;
 			let source_index = index;
 			if (this.childSkelLoader) {
 				const child = (this.childSkelLoader.animations || []).findIndex(
@@ -512,19 +503,30 @@
 				}
 			}
 			const list = source.animations || [];
-			let r = list[source_index];
-			let guard = 0;
-			while (r && (r.flags & 0x40) === 0x40 && guard++ < list.length)
-				r = list[r.aliasNext];
-			if (!r)
+			for (let n = 0; n < list.length; n++) {
+				const clip = list[source_index];
+				if (!clip) break;
+				if (!(clip.flags & 0x40))
+					return { source, index: source_index, clip, requested: a.id };
+				source_index = clip.aliasNext;
+			}
+			return null;
+		}
+
+		// A sequence's length in seconds (0 when it has none).
+		animation_duration(index) {
+			return (this._sequence(index)?.clip.duration || 0) / 1000;
+		}
+
+		// A move aliased to Stand has no action to display. Every other
+		// sequence needs inline tracks or its actual external .anim file.
+		async prepareAnimation(index, fetch) {
+			const seq = this._sequence(index);
+			if (!seq || !seq.clip.duration || (seq.clip.id === 0 && seq.requested !== 0))
 				return false;
-			if ((r.flags & 0x20) === 0x20)
+			if (seq.clip.flags & 0x20)
 				return true;
-			if (!source.loadAnimsForIndex || !source.animFileIDs)
-				return false;
-			if (source.animFiles && source.animFiles.has(source_index))
-				return true;
-			return !!(await source.loadAnimsForIndex(source_index, fetch));
+			return !!(await seq.source.loadAnimsForIndex?.(seq.index, fetch));
 		}
 
 		// Plays an AnimationData id (falls back to Stand, 0). Resolves to
@@ -540,26 +542,19 @@
 		}
 
 		async playAnimation(index) {
-			let anim_source = this.skelLoader || this.m2;
-			let anim_index = index;
+			const seq = this._sequence(index);
+			if (!seq) return;
+			if (seq.source.loadAnimsForIndex)
+				await seq.source.loadAnimsForIndex(seq.index, this.fetch);
+			this.playPreparedAnimation(index);
+		}
 
-			if (this.childSkelLoader && anim_source.animations?.[index]) {
-				const anim = anim_source.animations[index];
-				const child_anims = this.childSkelLoader.animations;
-				if (child_anims) {
-					for (let i = 0; i < child_anims.length; i++) {
-						if (child_anims[i].id === anim.id && child_anims[i].variationIndex === anim.variationIndex) {
-							anim_source = this.childSkelLoader;
-							anim_index = i;
-							break;
-						}
-					}
-				}
-			}
-
-			if (anim_source.loadAnimsForIndex)
-				await anim_source.loadAnimsForIndex(anim_index, this.fetch);
-
+		// Switch already-loaded clocks together (rider and mount), without a
+		// pending file fetch restoring an older action after a dismount.
+		playPreparedAnimation(index) {
+			const seq = this._sequence(index);
+			if (!seq) return;
+			const { source: anim_source, index: anim_index } = seq;
 			this.current_anim_source = anim_source;
 			this.current_anim_index = anim_index;
 			this.current_animation = index;
@@ -1226,12 +1221,13 @@
 		}
 
 		// The model's bounding box in WebGL coordinates.
-		getBoundingBox() {
+		getBoundingBox(animationIndex) {
 			if (!this.m2 || !this.m2.boundingBox)
 				return null;
 
-			const src_min = this.m2.boundingBox.min;
-			const src_max = this.m2.boundingBox.max;
+			const clip = animationIndex === undefined ? null : this._sequence(animationIndex)?.clip;
+			const src_min = clip ? clip.boxPosMin : this.m2.boundingBox.min;
+			const src_max = clip ? clip.boxPosMax : this.m2.boundingBox.max;
 			return {
 				min: [src_min[0], src_min[2], -src_max[1]],
 				max: [src_max[0], src_max[2], -src_min[1]]

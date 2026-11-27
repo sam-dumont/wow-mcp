@@ -12,6 +12,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 KIT = ROOT / "deploy" / "compose"
+RELEASE_IMAGE = "ghcr.io/example/wow-mcp:1.0@sha256:" + "a" * 64
 
 
 def config(*profiles: str, **env) -> dict:
@@ -95,7 +96,10 @@ def test_the_demo_service_loads_the_demo_through_the_uis_ingest():
     has no generator, so the service reads this repository, read-only, and
     sends the docs site's demo character to /ingest as a shipper would."""
     assert "demo" not in config()  # a profile: never started by `up`
-    d = config("demo")["demo"]
+    services = config("demo", WOW_STATS_IMAGE=RELEASE_IMAGE)
+    assert all(services[s]["image"] == RELEASE_IMAGE for s in ("ui", "publish", "site", "demo"))
+    assert "exporter" not in services and "victoriametrics" not in services
+    d = services["demo"]
     assert d["entrypoint"] == ["python", "/src/dev/seed.py"]
     assert d["command"] == ["--ingest", "http://ui:8080/ingest"]
     assert d["environment"]["INGEST_PASSWORD"] == "x" * 12
@@ -103,6 +107,27 @@ def test_the_demo_service_loads_the_demo_through_the_uis_ingest():
     assert src["type"] == "bind" and src["read_only"] is True and Path(src["source"]) == ROOT
     assert d["read_only"] is True and d["user"] == "10001:10001" and d["restart"] == "no"
     assert (ROOT / "dev" / "seed.py").is_file() and (ROOT / "tools" / "fixtures" / "generate.py").is_file()
+
+
+def test_isolated_demo_uses_the_chosen_image_and_its_own_armory():
+    for image in ("", RELEASE_IMAGE):
+        services = config("demo", COMPOSE_FILE="compose.yaml,compose.demo.yaml", COMPOSE_PATH_SEPARATOR=",", WOW_STATS_IMAGE=image)
+        assert {services[s]["image"] for s in ("ui", "publish", "site", "demo")} == {image or "wow-stats:demo"}
+        assert "exporter" not in services and not services["victoriametrics"].get("secrets")
+        assert {services[s]["environment"]["VM_URL"] for s in ("ui", "publish")} == {"http://victoriametrics:8428"}
+        assert "victoriametrics" in services["demo"]["depends_on"]
+        assert all(v["type"] == "volume" for v in services["ui"]["volumes"])
+        fixture_mounts = {v["target"] for v in services["demo"]["volumes"] if v["type"] == "bind"}
+        assert fixture_mounts == {"/src/dev/seed.py", "/src/tools", "/src/tests/data", "/src/data",
+                                  "/src/site/demo3d-roster.sha256"}
+
+    supplied = config("demo", COMPOSE_FILE="compose.yaml,compose.demo.yaml", COMPOSE_PATH_SEPARATOR=",",
+                      DEMO_3D_STORE=str(ROOT / ".demo3d" / "store"))
+    for service in ("ui", "demo", "publish"):
+        mount = next(v for v in supplied[service]["volumes"] if v["target"] == "/demo-store")
+        assert mount["read_only"] and mount["type"] == "bind"
+        assert Path(mount["source"]) == ROOT / ".demo3d" / "store"
+    assert supplied["demo"]["environment"]["DEMO_3D_STORE"] == "/demo-store"
 
 
 def kit_app(**env):

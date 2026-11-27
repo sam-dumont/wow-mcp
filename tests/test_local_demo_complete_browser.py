@@ -1,23 +1,11 @@
-"""The local demo (dev/seed.py, what `docker compose run --rm demo` loads)
-shows every section with data on the full view, like the docs site's demo
-(tests/test_demo_complete_browser.py): one history, tools/fixtures/generate.py's
-build_demo, two ways to see it.
+"""Check the full dashboard when dev/seed.py sends the nine demo histories to /ingest.
 
-The path is the compose kit's: the ui as the kit runs it (MODEL3D and
-WOW_ITEMS on), the events sent by dev/seed.py through /ingest, the page
-read once the ui lists him. The ui runs in its own process; the store is
-tests/degraded.py's VictoriaLogs stand-in (wowstats.logsql over what /ingest wrote).
-
-What the kit doesn't run, the docs site's demo has: the Battle.net exporter's
-series (VictoriaMetrics, your own API client), the game files a player's
-computer sends for the 3D view, and the picture renderer. There the page says
-what is missing, as it does for any player without them (docs/self-host/demo.md
-lists the three): KIT_LACKS holds those lines, word for word, and nothing
-else may show. A
-section that falls back for any other reason is a gap in the demo's data or
-in the page: fix that, don't add it here.
-
-Needs the `browser` group and its browsers; skipped without them."""
+This test runs the UI against a VictoriaLogs stand-in. It leaves out VictoriaMetrics,
+the client model store and the portrait renderer so it can check exactly what a player
+sees with event data alone. KIT_LACKS lists the expected messages for those inputs.
+The image CI smoke runs the Compose overlay with the real model store. The hosted
+browser suite checks both published pages with models and portraits.
+"""
 
 from __future__ import annotations
 
@@ -130,6 +118,9 @@ def test_local_demo_has_no_gap_but_what_the_kit_lacks(browser, base, width):
     page.on("pageerror", lambda e: None if "ResizeObserver loop" in str(e) else errors.append(str(e)))
     page.goto(base + "/")
     page.wait_for_selector(".tabs [role=tab]")
+    page.wait_for_selector("#char option:nth-child(9)", state="attached")
+    assert page.locator("#char").input_value() == "Nibbet-Gearholt"
+    assert page.locator("#char option").count() == 9
     settled(page, timeout=90)
     assert "Nibbet" in page.inner_text("body")
     found: dict[str, list[str]] = {}
@@ -138,8 +129,7 @@ def test_local_demo_has_no_gap_but_what_the_kit_lacks(browser, base, width):
     for tab in tabs:
         page.click(f"#{tab}")
         settled(page, timeout=90)
-        # The kit fetches item icons from Wago on first sight (WOW_ITEMS),
-        # where the docs site's demo has them baked in: give them the time.
+        # The live UI loads its first item icons on demand.
         end = time.monotonic() + 90
         while (icons := icon_gaps(page)) and time.monotonic() < end:
             page.wait_for_timeout(2000)

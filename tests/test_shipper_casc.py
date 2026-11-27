@@ -26,7 +26,7 @@ def install(tmp_path, shipper, write=None, extra=None, **kw) -> Path:
     inst = cf.Install(shipper.jenkins96, **kw)
     if extra:
         extra(inst)
-    inst.file(CHAR, cf.m2(skins=(SKIN0, SKIN1), textures=(TEX,), skel=SKEL, anims=((0, 0, 9999), (4, 0, 9998))))
+    inst.file(CHAR, cf.m2(skins=(SKIN0, SKIN1), textures=(TEX,), skel=SKEL, anims=((0, 0, 9999), (42, 0, 9998))))
     inst.file(SKIN0, b"SKIN" + b"lod0" * 200)
     inst.file(SKIN1, b"SKIN" + b"lod1" * 200)
     inst.file(TEX, b"BLP2" + bytes(range(256)) * 8)
@@ -61,8 +61,8 @@ def test_reads_files_and_follows_the_model(tmp_path, shipper, root_version):
     assert casc.version == "1.60.1.70959" and casc.locale_name == "enUS"
     got, tables, missing = shipper.casc_files(casc, [CHAR, BODY], ["Item", "NoSuchTable"])
     # The model, its first skin, texture, skeleton, parent skeleton and the
-    # standing animations: never the second skin or the walk.
-    assert set(got) == {CHAR, SKIN0, TEX, SKEL, PARENT, STAND, PSTAND, BODY, ITEM_DB2}
+    # standing and walking animations.
+    assert set(got) == {CHAR, SKIN0, TEX, SKEL, PARENT, STAND, WALK, PSTAND, BODY, ITEM_DB2}
     assert got[BODY].startswith(b"BLP2body")  # this locale's copy, not the French or low-violence one
     assert tables == {"Item": ITEM_DB2}
     assert missing == {"NoSuchTable": "not in this build", 9999: "not in this build",
@@ -135,7 +135,7 @@ def test_extract_cli_is_read_only(tmp_path, shipper):
     names = sorted(f["name"] for f in man["files"].values())
     assert "Item.db2" in names and f"{CHAR}.m2" in names and f"{SKIN0}.skin" in names and f"{BODY}.blp" in names
     assert (out / f"{STAND}.anim").read_bytes().startswith(b"AFM2")
-    assert "9 files" in r.stderr
+    assert f"{len(names)} files" in r.stderr
 
 
 @pytest.mark.parametrize("write", [{"offset_bits": 28}, {"encoding_in_older": True}])

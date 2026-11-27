@@ -64,7 +64,10 @@ M3D_ITEM = {k: None for k in ("slot", "slot_name", "item_id", "name", "why")}
 # numbers only, game data with nothing of the player's but how they look.
 M3D_GEOSETS = {"set": {}, "groups": {}}
 M3D_RECIPE = {
+    "companion": {"kind": None, "model": None, "textures": {}},
+    "mounts": [{"name": None, "model": None, "textures": {"11": None, "12": None, "13": None}, "scale": None}],
     "v": None, "model": None, "geosets": M3D_GEOSETS, "animation": None, "textures": {},
+    "attack": None, "class_id": None, "level": None, "ranged": {"kind": None, "at_rest": None},
     "materials": [{"type": None, "width": None, "height": None,
                    "layers": [{k: None for k in ("file", "target", "x", "y", "w", "h", "blend")}]}],
     "skinned": [{"model": None, "textures": {}, "geosets": M3D_GEOSETS}],
@@ -133,7 +136,7 @@ PUBLIC: dict[str, dict] = {
     "char": {
         "char": None, "generated_at": None, "stale": None, "route_source": None,
         "header": {k: None for k in (
-            "char", "name", "race", "class", "faction", "level", "xp", "xp_max", "polestar", "title",
+            "char", "name", "race", "class", "faction", "level", "at_level_cap", "xp", "xp_max", "polestar", "title",
             # The climb: played time (Polestar's splits, Altoholic's /played)
             # and how far into the level in play.
             "played_s", "played_total_s", "first_level", "first_partial", "time_in_level_s")},
@@ -250,7 +253,7 @@ MOVE = {**_keys("text", "link", "cite", "kind", "title", "detail", "action", "bl
         "deaths": {**_keys("n", "above", "crowd", "come_back_at"), "levels": [None]}, "gain": GAIN,
         "vs_guide": VS_GUIDE}
 HEADER_Z = _keys("char", "name", "full_name", "race", "class", "faction", "guild", "guild_known", "spec", "title",
-                 "sex", "level",
+                 "sex", "level", "at_level_cap",
                  "xp",
                  "xp_max", "rested_xp", "time_in_level_s", "played_s", "played_total_s", "played_total_from",
                  "played_total_at", "first_partial", "first_level", "avg_level_s", "avg_levels", "xp_per_hour",

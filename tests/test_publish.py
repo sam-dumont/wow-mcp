@@ -387,7 +387,7 @@ ALLOWED = {
                *keys("data_versions.kb_digest_week.", ("news", "community"))},
     "chars": {"chars", *keys("chars[].", ("char", "level", "demo"))},
     "char": {"char", "generated_at", "stale", "route_source", "header", "levels", "dungeons", "gear",
-             *keys("header.", ("char", "name", "race", "class", "faction", "level", "xp", "xp_max", "polestar",
+             *keys("header.", ("char", "name", "race", "class", "faction", "level", "at_level_cap", "xp", "xp_max", "polestar",
                                "played_s", "played_total_s", "first_level", "first_partial", "time_in_level_s", "title")),
              *keys("levels[].", ("level", "seconds", "partial", "route_s")),
              *keys("dungeons[].", ("name", "level", "t")),
@@ -408,8 +408,7 @@ ALLOWED = {
                  "gear_reconstructed", *keys("gear.items[].", (*ITEM, "certainty", "source")),
                  "gear.items[].source.kind", "picture", "picture.ext", "picture.pending"},
     "items": {"items", *keys("items[].", CARD)},
-    # The recipe is file ids and numbers only (redact.M3D_RECIPE); its
-    # inside is checked by shape, not listed key by key here.
+    # The recipe's nested render data is checked below.
     "model3d": {"race", "sex", "sex_known", "class", "level", "why", "appearance", "items", "missing",
                 "appearance.source", "appearance.refreshed", "recipe", "recipe_sd", "no_classic", "models",
                 *keys("items[].", M3D_ITEM), *keys("missing[].", M3D_ITEM)},
@@ -477,9 +476,13 @@ def assert_public_allowlist(pub: dict) -> set:
         d = json.loads(body)
         extra = set(key_paths(d)) - ALLOWED[what]
         if what == "model3d":
-            # A recipe holds numbers and true/false only: no name can hide in it.
+            # The mount's game name labels the picker. The rest of this
+            # fixture's recipe holds only ids, numbers and booleans.
             for r in (d.get("recipe"), d.get("recipe_sd")):
-                assert not any(isinstance(x, str) for x in leaves(r)), f"{path}: text in a recipe"
+                if r:
+                    numeric = {**r, "mounts": [{k: v for k, v in m.items() if k != "name"}
+                                                for m in r.get("mounts", [])]}
+                    assert not any(isinstance(x, str) for x in leaves(numeric)), f"{path}: text in a recipe"
             extra = {k for k in extra if not k.startswith(("recipe.", "recipe_sd."))}
         assert not extra, f"{path}: {sorted(extra)} not on the public allow-list"
         seen.add(what)
@@ -1293,7 +1296,7 @@ class GappyCatalog(FakeCatalog):
         return None if name == "inv_not_on_zamimg" else super().icon(name, size)
 
 
-def publish_items(tmp_path, monkeypatch, catalog, store_cls=None):
+def publish_items(tmp_path, monkeypatch, catalog, store_cls=None, **options):
     from wowstats import itemcard
 
     monkeypatch.setattr(itemcard, "shared", lambda: catalog)
@@ -1307,7 +1310,28 @@ def publish_items(tmp_path, monkeypatch, catalog, store_cls=None):
     env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "off",
            "PUBLISH_DIR": str(tmp_path / "site-gap"), "ZOGZOG_KEY_FILE": str(tmp_path / "zz-gap.key")}
     with redirect_stdout(io.StringIO()):
-        return publish.publish(env)
+        return publish.publish(env, **options)
+
+
+def test_hosted_demo_keeps_cards_without_fetching_or_shipping_game_icons(tmp_path, monkeypatch):
+    catalog = FakeCatalog()
+    monkeypatch.setattr(catalog, "icon", lambda *args: pytest.fail(f"demo fetched a game icon: {args}"))
+    monkeypatch.setattr(publish, "copy_icons", lambda *args: pytest.fail("demo fetched talent icons"))
+    writes = []
+    put = publish.Bundle.put
+
+    def capture(bundle, path, body):
+        writes.append((bundle.key is not None, path))
+        return put(bundle, path, body)
+
+    monkeypatch.setattr(publish.Bundle, "put", capture)
+    assert publish_items(tmp_path, monkeypatch, catalog, game_icons=False)["built"]
+    root = tmp_path / "site-gap" / "current"
+    for is_sealed, tier in ((False, "public"), (True, "zogzog")):
+        assert (is_sealed, "data/items.json") in writes
+        assert 'data-icon-art="drawn"' in (root / tier / "index.html").read_text()
+    assert not any(path.startswith("data/icon/") for _, path in writes)
+    assert json.loads((root / "public/data/items.json").read_text())["items"]
 
 
 def test_an_icon_that_cant_be_had_fails_the_publish_with_the_list(tmp_path, monkeypatch):

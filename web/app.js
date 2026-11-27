@@ -524,7 +524,7 @@ function renderHero(d) {
     h('div', {}, h('dt', { text: 'Pace' }),
       h('dd', {}, hd.avg_level_s ? dur(hd.avg_level_s) : 'not yet',
         h('span', { class: 'sub', text: hd.avg_level_s ? (hd.avg_levels > 1 ? `a level, over the last ${hd.avg_levels}` : 'for the one finished level') : 'needs a finished level' }))),
-    h('div', {}, h('dt', { text: 'Next level' }),
+    !hd.at_level_cap && h('div', {}, h('dt', { text: 'Next level' }),
       h('dd', {}, hd.eta_s ? 'in ' + dur(hd.eta_s) : 'not yet',
         h('span', { class: 'sub', text: hd.xp_per_hour ? `at ${fmtK(hd.xp_per_hour)} XP an hour` : 'needs XP and a pace' }))));
 
@@ -541,7 +541,7 @@ function renderHero(d) {
         where.length ? h('p', { class: 'where', text: where.join(', ') + (hd.resting ? '. Logged out resting.' : '') }) : null),
       h('p', { class: 'lvring', 'aria-label': `Level ${hd.level ?? 'unknown'}` },
         h('b', { text: hd.level ?? '?' }), h('small', { text: 'Level' }))),
-    h('div', { class: 'xpwrap' }, bar,
+    hd.at_level_cap ? h('p', { class: 'xpline', text: 'Level cap reached' }) : h('div', { class: 'xpwrap' }, bar,
       h('div', { class: 'xpline' },
         h('span', {}, pct !== null ? [h('strong', { text: fmtNum(hd.xp) }), ` / ${fmtNum(hd.xp_max)} XP`] : 'No XP reading yet',
           rested > 0 ? h('span', { class: 'restnote', text: `, ${fmtNum(hd.rested_xp)} rested` }) : null),
@@ -561,25 +561,6 @@ function renderHero(d) {
 // Small glyphs per slot, drawn for this page (24x24, stroked in the
 // item's quality colour): an empty slot, and the fallback while (or when)
 // an item has no icon. The icons themselves are the game's (web/items.js).
-const GLYPHS = {
-  head: 'M5 15a7 7 0 0 1 14 0v4H5z M5 15h14 M12 8v11',
-  neck: 'M6 3c0 6 2.5 9 6 9s6-3 6-9 M12 12v2.5 M9.5 17.5a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0',
-  shoulder: 'M3 14c2-5 5.5-7.5 9-7.5s7 2.5 9 7.5l-3 2c-1-3-3-4.5-6-4.5s-5 1.5-6 4.5z',
-  back: 'M8 4h8l3.5 16-7.5-3-7.5 3z M8 4l4 4 4-4',
-  chest: 'M8 4l4 3 4-3 4 3-2 5v8H6v-8L4 7z',
-  shirt: 'M8 4l4 2 4-2 5 4-3 3-1-1v10H7V10l-1 1-3-3z',
-  tabard: 'M7 4h10v13l-5 3-5-3z M10 9h4',
-  wrist: 'M7 6h10v12H7z M7 10h10 M7 14h10',
-  hands: 'M8 21v-7l-2.5-3 1-1 2.5 2V6a1 1 0 0 1 2 0v5 M10.5 5.5a1 1 0 0 1 2 0V11 M12.5 6.5a1 1 0 0 1 2 0V11 M14.5 8a1 1 0 0 1 2 0v6c0 4-2 7-5 7H8',
-  waist: 'M3 10h18v4H3z M10 8.5h4v7h-4z',
-  legs: 'M7 4h10l1 16h-4l-2-10-2 10H6z',
-  feet: 'M8 3h5v10l6 3v4H6v-4l2-2z',
-  finger: 'M12 21a6 6 0 1 0 0-12a6 6 0 1 0 0 12z M9.5 9l2.5-5 2.5 5',
-  trinket: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9z',
-  main: 'M19 3l2 2-11 11-2-2z M6 13l5 5 M7.5 16.5l-3.5 3.5 M3 21l1-1',
-  off: 'M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z M12 6v12',
-  ranged: 'M5 19L16 8 M14 4l2 4 4 2-4 2-2 4-2-4-4-2 4-2z',
-};
 const SLOT_GLYPH = { 1: 'head', 2: 'neck', 3: 'shoulder', 4: 'shirt', 5: 'chest', 6: 'waist', 7: 'legs', 8: 'feet',
   9: 'wrist', 10: 'hands', 11: 'finger', 12: 'finger', 13: 'trinket', 14: 'trinket', 15: 'back', 16: 'main', 17: 'off',
   18: 'ranged', 19: 'tabard' };
@@ -590,7 +571,7 @@ const QUALITY = ['Poor', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
 
 function glyph(name) {
   return s('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor',
-    'stroke-width': 1.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, s('path', { d: GLYPHS[name] }));
+    'stroke-width': 1.6, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, s('path', { d: window.wowGlyphPaths[name] }));
 }
 
 // One equipment slot: the item's icon (56 px, the game's) in a dark frame
@@ -2395,8 +2376,9 @@ function renderClimb(container, d) {
       svg.append(s('path', { class: 'ding', d: `M${cx} ${cy - 6}L${cx + 5} ${cy}L${cx} ${cy + 6}L${cx - 5} ${cy}Z` },
         s('title', { text: `Level ${p.level}` + (played ? ` after ${dur(off + p.x - x0)} played` : '') + other })));
     } else if (p.now) {
+      const progress = hd.at_level_cap ? '' : `, ${Math.floor((p.level % 1) * 100)}% through`;
       svg.append(s('circle', { class: 'now', cx: x(p.x), cy: y(p.level), r: 5 },
-        s('title', { text: `Now: level ${hd.level}, ${Math.floor((p.level % 1) * 100)}% through` + (played ? `, ${dur(off + p.x - x0)} played` : '') + other })));
+        s('title', { text: `Now: level ${hd.level}${progress}` + (played ? `, ${dur(off + p.x - x0)} played` : '') + other })));
     }
   }
   const since = off
@@ -2418,7 +2400,8 @@ function renderLevels(d) {
   const lv = d.levels;
   const hd = d.header;
   if (!lv.length) {
-    emptyNote(body, 'No finished level yet.', 'Play to the next level with Polestar on, then /reload.');
+    if (hd.at_level_cap) fill(body, h('p', { text: `No level splits were recorded before level ${hd.level}.` }));
+    else emptyNote(body, 'No finished level yet.', 'Play to the next level with Polestar on, then /reload.');
     return;
   }
   const done = lv.filter((l) => !l.partial);
@@ -3478,6 +3461,7 @@ function verdictLine(ov) {
       `${v}: the last ${n === 1 ? 'level' : n + ' levels'} took ${fmtX(tr.route_ratio)} Polestar’s route time`
       + (tr.eta_s && hd.level ? `, and level ${hd.level + 1} is about ${dur(tr.eta_s)} of play away.` : '.')];
   }
+  if (hd.at_level_cap) return ['good', `Level ${hd.level}. Level cap reached.`];
   if (hd.level) return ['', `Level ${hd.level}. Finish a level with Polestar on to see your pace against its route.`];
   return ['', 'Nothing recorded yet. ' + RECORDER_ON];
 }
@@ -3495,17 +3479,17 @@ function overviewTiles(ov) {
       hint ? h('span', { class: 'hint', text: hint }) : null));
   const slow = g.over_plan_s > 0 ? `Guide steps past 3× their plan cost ${dur(g.over_plan_s)}: look at what held them up` : null;
   return h('dl', { class: 'facts ovtiles' },
-    tile('Pace', tr.route_ratio ? fmtX(tr.route_ratio) : 'not yet',
+    (tr.route_ratio || !hd.at_level_cap) ? tile('Pace', tr.route_ratio ? fmtX(tr.route_ratio) : 'not yet',
       tr.route_ratio ? `Polestar’s route time, level${lv.length > 1 ? `s ${lv[0]}-${lv[lv.length - 1]}` : ` ${lv[0]}`}` : 'needs a finished level',
       tr.route_ratio ? slow : 'Finish a level to start it',
-      tr.route_ratio ? `${dur(tr.played_s)} played against ${dur(tr.route_s)} planned` : null),
-    tile('Next level', tr.eta_s ? 'in ' + dur(tr.eta_s) : 'not yet',
+      tr.route_ratio ? `${dur(tr.played_s)} played against ${dur(tr.route_s)} planned` : null) : null,
+    !hd.at_level_cap && tile('Next level', tr.eta_s ? 'in ' + dur(tr.eta_s) : 'not yet',
       hd.xp_per_hour ? `of play at ${fmtNum(hd.xp_per_hour)} XP an hour` : 'needs XP and a pace',
       null),
     tile('Guide', g.total ? `${Math.round((100 * g.in_order) / g.total)}%` : 'not yet',
       g.total ? `${fmtNum(g.in_order)} of ${fmtNum(g.total)} step${g.total === 1 ? '' : 's'} in order` : 'no guide steps recorded',
       g.total ? `${fmtNum(g.skipped || 0)} skipped by hand, ${fmtNum(g.jumped || 0)} passed over` : 'Follow a Polestar guide to start it'),
-    tile('Rested', restLv ? `${restLv.toFixed(2)} level${restLv.toFixed(2) === '1.00' ? '' : 's'}` : 'none',
+    !hd.at_level_cap && tile('Rested', restLv ? `${restLv.toFixed(2)} level${restLv.toFixed(2) === '1.00' ? '' : 's'}` : 'none',
       restLv ? `${fmtNum(hd.rested_xp)} XP banked, double XP from kills` : 'nothing banked',
       'Grows while logged out in an inn or a city: log out there'));
 }
@@ -4329,6 +4313,7 @@ function newsWatch() {
 // One timer, only while the tab is visible: a hidden tab asks nothing, and
 // one that comes back late asks once, right away.
 function newsSchedule() {
+  if (STATIC) return;  // Switching characters also calls newsHide; a bundle has no live feed.
   clearTimeout(news.timer);
   news.timer = null;
   if (document.visibilityState !== 'visible' || (news.pill && !news.pill.hidden)) return;
@@ -4454,6 +4439,7 @@ function renderAll(d) {
 
 function selectChar(name) {
   requests.clear();
+  news.shown = null;  // Compare the new character only after its own answer is on screen.
   Object.assign(state, { char: name, data: null, advice: null, dungeons: null, thist: null,
     journal: null, overview: null, timeline: null, snapLevel: null });
   analysisMemo = { name: null, at: 0, p: null };

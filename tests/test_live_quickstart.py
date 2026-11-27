@@ -27,6 +27,13 @@ def test_the_released_image_passes():
     assert live.problems(INLINE.format(img=IMAGE), IMAGE) == []
 
 
+def test_both_demo_guides_hand_out_the_pinned_image():
+    values = docs_values.values() | {"release_image": IMAGE}
+    for path in ("docs/quickstart.md", "docs/self-host/demo.md"):
+        page = docs_values.fill((docs_values.ROOT / path).read_text(), values)
+        assert live.problems(page, IMAGE) == [], path
+
+
 def test_the_placeholder_fails():
     page = BLOCK.format(img="ghcr.io/sam-dumont/wow-mcp:0.11.0@sha256:&lt;digest from the release notes&gt;")
     assert live.problems(page, IMAGE), "the 0.11.0 page passed"

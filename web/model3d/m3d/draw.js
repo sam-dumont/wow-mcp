@@ -93,44 +93,7 @@
 
 	// ------------------------------------------------------------------ idle
 
-	// AnimationData ids (wow.export's AnimMapper names). Stand is 0; the
-	// rest are what a character does now and then in Idle. READY: the
-	// guard before a swing, by attack (16 unarmed, 17 1H, 18 2H, 19 2HL).
 	const STAND = 0;
-	const READY = { 16: 25, 17: 26, 18: 27, 19: 28 };
-	const READY_SPELL_DIRECTED = 51, READY_SPELL_OMNI = 52, SPELL_CAST_DIRECTED = 53, SPELL_CAST_OMNI = 54;
-	const CHANNEL_CAST_DIRECTED = 124, CHANNEL_CAST_OMNI = 125, BATTLE_ROAR = 55;
-	const EMOTE_TALK = 60, EMOTE_TALK_EXCLAMATION = 64, EMOTE_TALK_QUESTION = 65, EMOTE_BOW = 66;
-	const EMOTE_CHEER = 68, EMOTE_LAUGH = 70;
-
-	// What a character does between two stretches of Stand: each a list of
-	// (AnimationData id, times played). `attack` is the recipe's: the swing
-	// the game gives the weapon in the right hand (wowstats/character3d.py).
-	function moves(attack) {
-		const swing = READY[attack] ? attack : 16;
-		return [
-			{ name: 'attack', steps: [[READY[swing], 1], [swing, 1], [swing, 1], [READY[swing], 1]] },
-			{ name: 'cast', steps: [[READY_SPELL_DIRECTED, 2], [SPELL_CAST_DIRECTED, 1]] },
-			{ name: 'cast-omni', steps: [[READY_SPELL_OMNI, 2], [SPELL_CAST_OMNI, 1]] },
-			{ name: 'channel', steps: [[CHANNEL_CAST_DIRECTED, 4]] },
-			{ name: 'channel-omni', steps: [[CHANNEL_CAST_OMNI, 4]] },
-			{ name: 'roar', steps: [[BATTLE_ROAR, 1]] },
-			{ name: 'talk', steps: [[EMOTE_TALK, 1]] },
-			{ name: 'exclaim', steps: [[EMOTE_TALK_EXCLAMATION, 1]] },
-			{ name: 'question', steps: [[EMOTE_TALK_QUESTION, 1]] },
-			{ name: 'bow', steps: [[EMOTE_BOW, 1]] },
-			{ name: 'cheer', steps: [[EMOTE_CHEER, 1]] },
-			{ name: 'laugh', steps: [[EMOTE_LAUGH, 1]] }
-		];
-	}
-
-	// Every AnimationData id the viewer plays: Stand, HandsClosed (15,
-	// m2renderer's loadHandsClosed) and each move's steps, for any weapon.
-	// The server asks the shipper for the .anim files of these and no
-	// other (wowstats/assets.py ANIMATIONS; a test keeps the two equal).
-	M3D.ANIMATIONS = Object.freeze(Array.from(new Set([STAND, 15, ...Object.keys(READY).flatMap(
-		(a) => moves(Number(a)).flatMap((m) => m.steps.map(([id]) => id)))])).sort((x, y) => x - y));
-
 	const IDLE_MIN = 8000, IDLE_MAX = 20000;  // ms of Stand between two moves
 	const AFTER_DRAG = 3000;  // ms after the person lets go before a move may start
 
@@ -158,6 +121,8 @@
 			this.starting = false;
 			this.last_move = null;
 			this.available = null;
+			this.loading = new Map();
+			this.clips = new Map();
 			this.played = [];
 			this.schedule(now);
 		}
@@ -166,34 +131,68 @@
 			this.next_at = now + IDLE_MIN + this.random() * (IDLE_MAX - IDLE_MIN);
 		}
 
-		// The moves this model can play, each step as a sequence index:
-		// worked out once per drawing, when the first move is due (an .anim
-		// file is asked for then, never at load).
-		async moves_for(char, files, attack) {
+		// Validate each clip against this model and its available .anim files.
+		async moves_for(char, files, moves) {
 			const out = [];
-			const ok = new Map();
-			const playable = async (idx) => {
-				if (!ok.has(idx))
-					ok.set(idx, await char.prepareAnimation(idx, (fid) => files.quiet(fid)).catch(() => false));
-				return ok.get(idx);
+			const clips = this.clips;
+			const playable = (idx) => {
+				if (!clips.has(idx))
+					clips.set(idx, char.prepareAnimation(idx, (fid) => files.quiet(fid)).catch(() => false));
+				return clips.get(idx);
 			};
-			for (const m of moves(attack)) {
+			for (const m of moves) {
 				const steps = [];
-				for (const [id, times] of m.steps) {
+				for (const [id, times, optional] of m.steps) {
 					const all = char.animation_indices(id);
 					const variations = [];
 					for (const idx of all) {
 						if (await playable(idx))
 							variations.push(idx);
 					}
-					if (!variations.length)
+					if (!variations.length) {
+						if (optional) continue;
+						steps.length = 0;
 						break;
+					}
 					steps.push({ id, times, variations });
 				}
-				if (steps.length === m.steps.length)
-					out.push({ name: m.name, steps });
+				if (steps.length)
+					out.push({ ...m, steps });
 			}
 			return out;
+		}
+
+		prepare(selectableOnly = false) {
+			const v = this.viewer, scene = v.scene, gen = this.gen;
+			if (!scene || !scene.char || scene.mount) return Promise.resolve([]);
+			if (!this.loading.has(selectableOnly)) {
+				const canHold = (slot) => scene.attachments.some((a) => a.slot === slot && scene.char.getAttachmentTransform(a.attach));
+				const kind = canHold(18) ? scene.ranged.kind : 0;
+				const moves = M3D.moves(v.attack, v.classId, kind, v.level).filter((m) =>
+					(!selectableOnly || m.label) && (m.name !== 'attack' || v.attack === 16 || canHold(16) || !v.classId));
+				this.loading.set(selectableOnly, this.moves_for(scene.char, v.files, moves).then((moves) => {
+					if (gen !== this.gen || v.stopped) return [];
+					if (!selectableOnly) this.available = moves;
+					return moves;
+				}));
+			}
+			return this.loading.get(selectableOnly);
+		}
+
+		async play(name) {
+			const gen = this.gen, moves = await this.prepare(true);
+			const move = moves.find((m) => m.name === name);
+			if (!move || gen !== this.gen || this.viewer.stopped) return false;
+			this.begin(move, this.viewer.clock());
+			return true;
+		}
+
+		begin(move, now) {
+			this.last_move = move.name;
+			this.played.push(move.name);
+			this.playing = { move, at: -1, left: 0 };
+			equip(this.viewer.scene, move.equipment);
+			this.step(this.viewer.scene.char, now);
 		}
 
 		// Called on every frame, before the character's bones are updated.
@@ -218,18 +217,16 @@
 				this.schedule(now);
 				return;
 			}
-			this.start(char, now);
+			this.start();
 		}
 
-		async start(char, now) {
+		async start() {
 			const gen = this.gen;
 			this.starting = true;
 			try {
-				if (!this.available)
-					this.available = await this.moves_for(char, this.viewer.files, Number(this.viewer.attack) || 16);
-				if (gen !== this.gen)
+				await this.prepare();
+				if (gen !== this.gen || this.playing || this.viewer.stopped || !this.available)
 					return;
-				now = this.viewer.clock();
 				const pool = this.available.filter((m) => m.name !== this.last_move);
 				const list = pool.length ? pool : this.available;
 				if (!list.length) {
@@ -237,10 +234,7 @@
 					return;
 				}
 				const m = list[Math.min(list.length - 1, Math.floor(this.random() * list.length))];
-				this.last_move = m.name;
-				this.played.push(m.name);
-				this.playing = { move: m, at: -1, left: 0 };
-				await this.step(char, now);
+				this.begin(m, this.viewer.clock());
 			} finally {
 				if (gen === this.gen)
 					this.starting = false;
@@ -248,23 +242,21 @@
 		}
 
 		// The next step of the move playing, or Stand when it's done.
-		async step(char, now) {
+		step(char, now) {
 			const p = this.playing;
-			const gen = this.gen;
 			p.at++;
 			if (p.at >= p.move.steps.length) {
 				this.playing = null;
+				equip(this.viewer.scene);
 				this.schedule(now);
-				await char.playAnimationById(STAND);
+				char.playPreparedAnimation(char.find_animation(STAND));
 				return;
 			}
 			const s = p.move.steps[p.at];
 			const idx = s.variations[Math.min(s.variations.length - 1, Math.floor(this.random() * s.variations.length))];
-			p.left = Infinity;  // until the sequence is in
 			p.id = s.id;
-			await char.playAnimation(idx);
-			if (gen === this.gen && this.playing === p)
-				p.left = Math.max(0.2, char.animation_duration(idx)) * s.times;
+			char.playPreparedAnimation(idx);
+			p.duration = p.left = Math.max(0.2, char.animation_duration(idx)) * s.times;
 		}
 
 		// What is playing: the AnimationData id, or 0 for Stand (tests).
@@ -395,9 +387,45 @@
 
 	const skip_for = (textures) => new Set(entries(textures).map(([k]) => k));
 
+	// The mount's primary saddle is attachment 0. Its bone, position, and
+	// movement all come from the creature file. No saddle or rider clip
+	// means the character stays on foot.
+	const SADDLE = 0;
+	async function load_mount(ctx, spec, files, rider) {
+		const clip = async (r, id) => {
+			const index = r.find_animation(id);
+			const ready = await r.prepareAnimation(index, (fid) => files.quiet(fid)).catch(() => false);
+			return ready ? index : -1;
+		};
+		const riderClip = await clip(rider, M3D.RIDER_ANIMATION);
+		if (riderClip < 0) return null;
+		const skins = entries(spec.textures).filter(([, file]) => Number.isInteger(file) && file > 0);
+		const model = await load_model(ctx, spec.model, files, new Set(skins.map(([type]) => type)));
+		if (!model) return null;
+		try {
+			if (model.getAttachmentTransform(SADDLE)) {
+				const textures = await Promise.all(skins.map(([type, file]) => model.overrideTextureType(type, file)));
+				const gaits = new Map();
+				for (const [name, id] of Object.entries(M3D.GAITS)) {
+					const index = await clip(model, id);
+					if (index >= 0) gaits.set(name, index);
+				}
+				if (textures.every(Boolean) && gaits.has('idle') && gaits.size > 1)
+					return { model, riderClip, gaits, scale: Number(spec.scale) > 0 ? Number(spec.scale) : 1 };
+			}
+		} catch (e) {
+			files.fail(spec.model, e);
+		}
+		model.dispose();
+		return null;
+	}
+
 	async function load_scene(ctx, recipe, files) {
 		const r = obj(recipe);
 		const scene = { char: null, materials: new Map(), attachments: [], collections: [], skinned: [] };
+		scene.ranged = obj(r.ranged);
+		scene.mounts = list(r.mounts);
+		scene.visibleAttachments = [];
 
 		const material_list = list(r.materials);
 		const skip = skip_for(r.textures);
@@ -447,7 +475,7 @@
 				return { renderer: vis, attach: Number(v.attach) || 0 };
 			}))).filter(Boolean);
 			const scale = Number(a.scale) > 0 ? Number(a.scale) : 1;
-			return { renderer: item, attach: Number(a.attach) || 0, scale, visuals };
+			return { renderer: item, slot: Number(a.slot), attach: Number(a.attach) || 0, scale, visuals };
 		};
 		const with_bones = (mode) => async (c) => {
 			const model = await load_model(ctx, c.model, files, skip_for(c.textures));
@@ -460,30 +488,52 @@
 			return model;
 		};
 
-		const [attachments, collections, skinned] = await Promise.all([
+		const load_companion = async (pet) => {
+			if (!pet || !pet.model) return null;
+			const model = await load_model(ctx, pet.model, files, skip_for(pet.textures));
+			if (!model) return null;
+			try {
+				await bind_textures(model, pet.textures, scene.materials);
+				await model.playAnimationById(0);
+				return model;
+			} catch (e) {
+				files.fail(pet.model, e);
+				model.dispose();
+				return null;
+			}
+		};
+		const [pet, attachments, collections, skinned] = await Promise.all([
+			load_companion(r.companion),
 			Promise.all(list(r.attachments).map(attached)),
 			Promise.all(list(r.collections).map(with_bones('collection'))),
 			Promise.all(list(r.skinned).map(with_bones('skinned')))
 		]);
+		scene.pet = pet;
 		scene.attachments = attachments.filter(Boolean);
 		scene.collections = collections.filter(Boolean);
 		scene.skinned = skinned.filter(Boolean);
 
 		// a held weapon closes the hand around it (attachment 1 right hand,
 		// 2 left hand; a shield, 0, hangs from the wrist)
-		const close_r = scene.attachments.some((a) => a.attach === 1);
-		const close_l = scene.attachments.some((a) => a.attach === 2);
-		if (close_r || close_l) {
+		if (scene.attachments.some((a) => a.attach === 1 || a.attach === 2))
 			await char.loadHandsClosed();
-			char.setHandGrip(close_r, close_l);
-		}
-
+		equip(scene);
 		return scene;
 	}
 
+	function equip(scene, mode = 'stand') {
+		scene.visibleAttachments = scene.attachments.filter((a) => {
+			if (a.slot === 18) return mode === 'ranged' || (mode === 'stand' && scene.ranged.at_rest !== false);
+			if (a.slot === 16 || a.slot === 17) return mode !== 'ranged' && mode !== 'empty';
+			return true;
+		});
+		scene.char.setHandGrip(scene.visibleAttachments.some((a) => a.attach === 1),
+			scene.visibleAttachments.some((a) => a.attach === 2));
+	}
+
 	function all_renderers(scene) {
-		const all = [scene.char, ...scene.collections, ...scene.skinned];
-		for (const a of scene.attachments) {
+		const all = [scene.char, scene.mount?.model, scene.petVisible && scene.pet, ...scene.collections, ...scene.skinned];
+		for (const a of scene.visibleAttachments) {
 			all.push(a.renderer);
 			for (const v of a.visuals)
 				all.push(v.renderer);
@@ -494,7 +544,7 @@
 	function dispose_scene(scene) {
 		if (!scene)
 			return;
-		const all = [scene.char, ...scene.collections, ...scene.skinned];
+		const all = [scene.char, scene.mount?.model, scene.pet, ...scene.collections, ...scene.skinned];
 		for (const a of scene.attachments) {
 			all.push(a.renderer);
 			for (const v of a.visuals)
@@ -568,6 +618,8 @@
 			}, FACING);
 			this.attack = 16;
 			this.idle = opts.idle ? new Idle(this) : null;
+			this.effects = opts.effects?.getContext('2d');
+			this.effectDrawn = false;
 			// A hidden tab draws nothing and starts nothing: the loop stops,
 			// and comes back where it was (no jump: the first frame's dt is 0).
 			this.on_visibility = () => {
@@ -589,8 +641,90 @@
 		}
 
 		turn() {
-			if (this.scene && this.scene.char)
-				this.scene.char.setTransform([0, 0, 0], [0, this.rotation, 0], [1, 1, 1]);
+			const scene = this.scene;
+			if (!scene || !scene.char) return;
+			const angle = this.rotation + (scene.mount?.angleOffset || 0), cos = Math.cos(angle), sin = Math.sin(angle);
+			const offset = scene.petVisible ? scene.spacing / 2 : 0;
+			const k = scene.mount?.scale || 1;
+			(scene.mount?.model || scene.char).setTransform([-offset * sin, 0, -offset * cos], [0, angle, 0], [k, k, k]);
+			if (scene.petVisible) {
+				const k = scene.petScale;
+				scene.pet.setTransform([offset * sin, scene.petGround, offset * cos], [0, angle, 0], [k, k, k]);
+			}
+		}
+
+		async ride(index) {
+			const scene = this.scene, gen = this.gen;
+			if (!scene?.char) return false;
+			const request = scene.rideRequest = (scene.rideRequest || 0) + 1;
+			const spec = scene.mounts[index];
+			if (index !== -1 && !spec) return false;
+			const mount = spec ? await load_mount(this.ctx, spec, this.files, scene.char) : null;
+			if (request !== scene.rideRequest || this.gen !== gen || this.stopped) {
+				mount?.model.dispose();
+				return false;
+			}
+			if (spec && !mount) return false;
+			// From the untouched front view, show the saddle in three-quarter
+			// profile. A visitor who already turned the model keeps that angle.
+			if (mount) mount.angleOffset = scene.mount?.angleOffset ?? (this.rotation === FACING ? Math.PI / 4 : 0);
+			scene.mount?.model.dispose();
+			scene.mount = mount;
+			this.idle?.reset(this.clock());
+			equip(scene, mount ? 'empty' : 'stand');
+			if (mount) {
+				mount.index = index;
+				mount.model.playPreparedAnimation(mount.gaits.get('idle'));
+				scene.char.playPreparedAnimation(mount.riderClip);
+				mount.gait = 'idle';
+				// Frame the saddle, the seated pose and the creature as one
+				// turntable. The rider keeps its own size on a scaled mount.
+				const box = frame_box(mount.model), k = mount.scale;
+				const saddle = mount.model.getAttachmentTransform(SADDLE).subarray(12, 15);
+				let rider = scene.char.getBoundingBox(mount.riderClip);
+				if (!rider || rider.max[1] <= rider.min[1]) rider = frame_box(scene.char);
+				mount.box = {
+					min: box.min.map((v, i) => Math.min(v * k, saddle[i] * k + rider.min[i])),
+					max: box.max.map((v, i) => Math.max(v * k, saddle[i] * k + rider.max[i]))
+				};
+			} else {
+				scene.char.playPreparedAnimation(scene.char.find_animation(STAND));
+			}
+			this.showCompanion(this.petEnabled);
+			return true;
+		}
+
+		gait(name) {
+			const mount = this.scene?.mount;
+			if (!mount?.gaits.has(name)) return false;
+			mount.model.playPreparedAnimation(mount.gaits.get(name));
+			mount.gait = name;
+			return true;
+		}
+
+		showCompanion(show) {
+			this.petEnabled = !!show;
+			const scene = this.scene;
+			if (!scene || !scene.char) return;
+			scene.petVisible = this.petEnabled && !!scene.pet;
+			const rider = frame_box(scene.char);
+			const char = scene.mount?.box || rider;
+			this.box = char;
+			if (scene.petVisible) {
+				const pet = frame_box(scene.pet);
+				const height = Math.max(0.1, rider.max[1] - rider.min[1]);
+				// Fit the creature beside its owner, even for very large tames.
+				const k = scene.petScale = Math.min(1, 0.8 * height / Math.max(0.1, pet.max[1] - pet.min[1]));
+				scene.petGround = char.min[1] - k * pet.min[1];
+				scene.spacing = char.max[2] - k * pet.min[2] + height * 0.12;
+				const half = scene.spacing / 2;
+				this.box = {
+					min: [Math.min(char.min[0], k * pet.min[0]), char.min[1], Math.min(char.min[2] - half, k * pet.min[2] + half)],
+					max: [Math.max(char.max[0], k * pet.max[0]), char.max[1], Math.max(char.max[2] - half, k * pet.max[2] + half)]
+				};
+			}
+			this.fitted = '';
+			this.turn();
 		}
 
 		async show(recipe) {
@@ -607,12 +741,13 @@
 			dispose_scene(this.scene);
 			this.scene = scene;
 			this.files = files;
-			this.box = scene.char ? frame_box(scene.char) : null;
-			this.fitted = '';
+			this.box = null;
+			this.showCompanion(this.petEnabled !== false);
 			this.attack = Number(obj(recipe).attack) || 16;
+			this.classId = Number(obj(recipe).class_id) || 0;
+			this.level = Number(obj(recipe).level) || 1;
 			if (this.idle)
 				this.idle.reset(this.clock());
-			this.turn();
 			return true;
 		}
 
@@ -659,13 +794,27 @@
 			const char = scene && scene.char;
 			if (char) {
 				const view = this.camera.view_matrix, proj = this.camera.projection_matrix;
-				if (this.idle)
+				if (this.idle && !scene.mount)
 					this.idle.tick(now, dt);
+				if (scene.mount) {
+					const { model, scale } = scene.mount;
+					model.updateAnimation(dt);
+					model.render(view, proj);
+					const saddle = model.getAttachmentTransform(SADDLE);
+					// The saddle carries the rider's position and rotation.
+					// Remove the creature's display scale from the rider's axes.
+					for (let i = 0; i < 12; i++) saddle[i] /= scale;
+					char.setTransformMatrix(saddle);
+				}
 				char.updateAnimation(dt);
 				char.render(view, proj);
+				if (scene.petVisible) {
+					scene.pet.updateAnimation(dt);
+					scene.pet.render(view, proj);
+				}
 
 				const scale_mat = new Float32Array(16);
-				for (const a of scene.attachments) {
+				for (const a of scene.visibleAttachments) {
 					const tf = char.getAttachmentTransform(a.attach);
 					if (!tf)
 						continue;
@@ -699,6 +848,9 @@
 					r.renderParticles(view, proj);
 			}
 
+			const move = this.idle?.playing;
+			if (this.effects && (this.effectDrawn || move?.move.effect))
+				this.effectDrawn = M3D.drawAbilityEffect(this.effects, this, move);
 			this.raf = requestAnimationFrame(() => this.frame());
 		}
 
@@ -741,7 +893,8 @@
 	/**
 	 * Draw one character recipe on a canvas, and keep drawing it (its
 	 * animation, a drag turns it) until stop().
-	 * @returns {Promise<{stop: function(), redraw: function(object): Promise, missing: number[], errors: object[]}>}
+	 * ride(i) seats the character on recipe.mounts[i]. ride(-1) dismounts.
+	 * actions() and play(name) work for both on-foot actions and mounted gaits.
 	 */
 	M3D.draw = async function draw(canvas, recipe, get, opts = {}) {
 		const viewer = new Viewer(canvas, get, opts || {});
@@ -750,7 +903,15 @@
 
 		const handle = {
 			stop: () => viewer.stop(),
+			get hasCompanion() { return !!(viewer.scene && viewer.scene.pet); },
+			showCompanion: (visible) => viewer.showCompanion(visible),
+			ride: (index) => viewer.ride(index),
+			get mounted() { return viewer.scene?.mount?.index ?? -1; },
 			redraw: (next) => viewer.show(next).then(() => handle),
+			actions: async () => viewer.scene?.mount ? [...viewer.scene.mount.gaits.keys()]
+				.map((name) => ({ name, label: name[0].toUpperCase() + name.slice(1), pressed: name === viewer.scene.mount.gait })) :
+				viewer.idle ? (await viewer.idle.prepare(true)).map(({ name, label }) => ({ name, label })) : [],
+			play: async (name) => viewer.scene?.mount ? viewer.gait(name) : viewer.idle ? viewer.idle.play(name) : false,
 			// the files of the current drawing that `get` didn't give
 			get missing() { return viewer.files.missing.slice(); },
 			// files that came but couldn't be read: [{file, error}]
@@ -769,6 +930,7 @@
 				// Idle's state: {playing (AnimationData id, 0 Stand), move,
 				// next_at, played, available}; null when idle is off
 				idle: () => (viewer.idle ? viewer.idle.state() : null),
+				equippedSlots: () => viewer.scene?.visibleAttachments.map((a) => a.slot) || [],
 				// live particles and ribbon edges, over every model
 				particles: () => {
 					const out = { particles: 0, edges: 0, emitters: 0 };

@@ -10,6 +10,7 @@ build/
 # real secrets / local config, never committed
 .env
 deploy/compose/.env
+deploy/compose/.env.demo
 deploy/compose/secrets/*
 !deploy/compose/secrets/README.md
 *.pem
@@ -24,6 +25,8 @@ eval-mcp-out/
 .demo3d/
 nibbet-3d.tar.gz
 nibbet-3d.tar.gz.sha256
+roster-3d.tar.gz
+roster-3d.tar.gz.sha256
 *.m2
 *.skin
 *.skel

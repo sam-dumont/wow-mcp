@@ -47,6 +47,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from wowstats import db2
+from wowstats.mounts import catalog as mount_catalog
 
 log = logging.getLogger(__name__)
 
@@ -96,8 +97,8 @@ TABLES: dict[str, tuple[str, ...]] = {
     "ChrRaceXChrModel": ("ChrRacesID", "ChrModelID", "Sex"),
     "ComponentModelFileData": ("GenderIndex", "ClassID", "RaceID", "PositionIndex"),
     "ComponentTextureFileData": ("GenderIndex", "ClassID", "RaceID"),
-    "CreatureDisplayInfo": ("ModelID",),
-    "CreatureModelData": ("FileDataID",),
+    "CreatureDisplayInfo": ("ModelID", "TextureVariationFileDataID", "CreatureModelScale"),
+    "CreatureModelData": ("FileDataID", "ModelScale"),
     "HelmetGeosetData": ("RaceID", "HideGeosetGroup", "HelmetGeosetVisDataID"),
     "Item": ("ClassID", "SubclassID", "InventoryType"),
     "ItemAppearance": ("ItemDisplayInfoID",),
@@ -109,6 +110,8 @@ TABLES: dict[str, tuple[str, ...]] = {
     "ItemVisuals": ("ModelFileID",),
     "ItemVisualsXEffect": ("AttachmentID", "DisplayWeaponSubclassID", "AttachmentModelFileID", "ItemVisualsID"),
     "ModelFileData": ("FileDataID", "ModelResourcesID"),
+    "Mount": ("Name_lang", "SourceSpellID"),
+    "MountXDisplay": ("MountID", "CreatureDisplayInfoID", "PlayerConditionID"),
     "SpellItemEnchantment": ("ItemVisual",),
     "TextureFileData": ("FileDataID", "UsageType", "MaterialResourcesID"),
 }
@@ -171,8 +174,8 @@ ARMOR = {1, 3, 4, 5, 6, 7, 8, 9, 10, 16, 19, 20}
 HELD = {13, 14, 15, 17, 21, 22, 23, 25, 26}
 UNSEEN_SLOTS = {2, 11, 12, 13, 14}
 RIGHT, LEFT = 21, 22
-# The hand a ranged weapon takes when one is free (a bow in the left, a gun or thrown in the right).
-HAND = {13: RIGHT, 17: RIGHT, 21: RIGHT, 25: RIGHT, 26: RIGHT, 14: LEFT, 15: LEFT, 22: LEFT, 23: LEFT}
+# Item.SubclassID for bows, guns, thrown weapons, crossbows and wands.
+RANGED_HAND = {2: LEFT, 3: RIGHT, 16: RIGHT, 18: RIGHT, 19: RIGHT}
 # The main hand's item is in the right hand, the off hand's in the left (a one-hander there too);
 # Blizzard's renders, 2026-11-20 (tools/3dcases: four dual-wielders).
 SLOT_HAND = {16: RIGHT, 17: LEFT}
@@ -209,6 +212,7 @@ class Index:
         def t(name: str) -> Mapping[int, dict]:
             return tables.get(name) or {}
 
+        self.mounts = mount_catalog(tables)
         self.race_models: dict[tuple[int, int], int] = {}
         for r in t("ChrRaceXChrModel").values():
             self.race_models.setdefault((r.get("ChrRacesID", 0), r.get("Sex", 0)), r.get("ChrModelID", 0))
@@ -460,6 +464,7 @@ def assemble(tables: Mapping[str, Mapping[int, dict]], race_id: int, sex: int, c
     a.skinned_models()
     worn, missing = _worn(ix, items or [], class_id)
     a.equipment(worn)
+    ranged = next((w for w in worn if w["ranged"]), None)
     recipe = {
         "v": RECIPE_VERSION,
         "model": model_file,
@@ -472,6 +477,8 @@ def assemble(tables: Mapping[str, Mapping[int, dict]], race_id: int, sex: int, c
         "collections": a.collections,
         "animation": 0,
         "attack": attack_of(worn),
+        "class_id": class_id,
+        "ranged": {"kind": ranged["subclass"], "at_rest": ranged["at_rest"]} if ranged else None,
     }
     return {"recipe": recipe, "needs": sorted(_needs(recipe)), "missing": missing, "classic": classic}
 
@@ -484,6 +491,19 @@ def attack_of(worn: list[dict]) -> int:
     if r["inv"] == INV_2H:
         return ATTACK_2HL if r.get("class") == WEAPON and r.get("subclass") in LOOSE else ATTACK_2H
     return ATTACK_1H
+
+
+def standing_recipe(recipe: dict) -> dict:
+    """The single-character portrait uses the weapons visible on Stand."""
+    still = dict(recipe)
+    ranged = still.pop("ranged", None)
+    still.pop("class_id", None)
+    still.pop("level", None)
+    still.pop("companion", None)
+    still.pop("mounts", None)
+    if isinstance(ranged, dict) and ranged.get("at_rest") is False:
+        still["attachments"] = [a for a in still.get("attachments", []) if a["slot"] != RANGED_SLOT]
+    return still
 
 
 def _active_choices(ix: Index, chr_model: int, saved: Iterable[dict], updated: int | None,
@@ -581,11 +601,8 @@ def worn(tables: Mapping[str, Mapping[int, dict]], items: Iterable[dict] | None,
 
 def _worn(ix: Index, items: Iterable[dict], class_id: int) -> tuple[list[dict], list[dict]]:
     """The items drawn (with their display and hand) and the ones that
-    can't be: neck, rings, trinkets, ammo, relics and a ranged wand are left
-    out quietly. The main hand holds its item in the right hand, the off
-    hand in the left (a two-hander takes both); a ranged weapon only gets a
-    hand nothing else holds, whatever the class (Blizzard's renders of
-    hunters show the melee weapons, tools/3dcases)."""
+    can't be. Keep the ranged weapon for firing even when the standing
+    pose uses both hands for melee (tools/3dcases)."""
     rows, missing = [], []
     for it in items:
         if not isinstance(it, dict):
@@ -603,7 +620,7 @@ def _worn(ix: Index, items: Iterable[dict], class_id: int) -> tuple[list[dict], 
         inv, item_class, sub = row.get("InventoryType", 0), row.get("ClassID", 0), row.get("SubclassID", 0)
         if inv not in ARMOR and inv not in HELD:
             continue
-        if slot == RANGED_SLOT and item_class == WEAPON and sub == WAND:
+        if slot == RANGED_SLOT and (item_class != WEAPON or sub not in RANGED_HAND or inv not in {15, 25, 26}):
             continue
         display = ix.appearance.get(item_id)
         if not display or display not in ix.t("ItemDisplayInfo"):
@@ -618,12 +635,13 @@ def _worn(ix: Index, items: Iterable[dict], class_id: int) -> tuple[list[dict], 
     for r in rows:
         hand = SLOT_HAND.get(r["slot"]) if r["inv"] in HELD else None
         if r["ranged"]:
-            hand = HAND.get(r["inv"])
-        if hand:
+            hand = RANGED_HAND[r["subclass"]]
+            r["hand"] = hand
+            r["at_rest"] = hand not in held and r["subclass"] != WAND
+        elif hand:
             if hand in held:
-                if not r["ranged"]:  # a ranged weapon that loses its hand stays out quietly
-                    other = held[hand].get("name") or "another weapon"
-                    missing.append({"slot": r["slot"], "item_id": r["item_id"], "why": f"{other} is in that hand"})
+                other = held[hand].get("name") or "another weapon"
+                missing.append({"slot": r["slot"], "item_id": r["item_id"], "why": f"{other} is in that hand"})
                 continue
             held[hand] = r
             r["hand"] = hand
@@ -901,6 +919,35 @@ class _Assembly:
         return out
 
 
+def _creature(tables, display: int) -> dict | None:
+    ix = index(tables)
+    row = ix.t("CreatureDisplayInfo").get(display) or {}
+    model = ix.t("CreatureModelData").get(row.get("ModelID", 0)) or {}
+    if not model.get("FileDataID"):
+        return None
+    skins = row.get("TextureVariationFileDataID") or []
+    scale = (row.get("CreatureModelScale") or 1) * (model.get("ModelScale") or 1)
+    return {"model": model["FileDataID"], "scale": scale,
+            "textures": {str(11 + i): f for i, f in enumerate(skins[:3]) if isinstance(f, int) and f > 0}}
+
+
+def companion(tables, observed: tuple[int, int] | None) -> dict | None:
+    """Resolve an observed creature display through this client's model and skins."""
+    if observed and (creature := _creature(tables, observed[1])):
+        return {"kind": observed[0], "model": creature["model"], "textures": creature["textures"]}
+    return None
+
+
+def mounts(tables, observed: list[dict] | None) -> list[dict]:
+    """Resolve the character's owned displays against the same client as the rider."""
+    return [{"name": m["name"], **creature} for m in observed or []
+            if (creature := _creature(tables, m["display_id"]))]
+
+
+def creature_files(creature: dict) -> set[int]:
+    return {creature["model"], *creature["textures"].values()}
+
+
 def needs(recipe: dict | None) -> set[int]:
     """The file ids a recipe names (empty for none)."""
     return _needs(recipe) if recipe else set()
@@ -908,6 +955,10 @@ def needs(recipe: dict | None) -> set[int]:
 
 def _needs(recipe: dict) -> set[int]:
     out = {recipe["model"]}
+    if pet := recipe.get("companion"):
+        out.update(creature_files(pet))
+    for mount in recipe.get("mounts", []):
+        out.update(creature_files(mount))
     for m in recipe["materials"]:
         out.update(ly["file"] for ly in m["layers"])
     out.update(recipe["textures"].values())

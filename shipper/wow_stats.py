@@ -2698,6 +2698,13 @@ CL_LINE = re.compile(r"^(\d{1,2})/(\d{1,2})(?:/(\d{4}))? (\d{1,2}):(\d{2}):(\d{2
 CL_GUID = re.compile(r"^(?:[A-Za-z]+-\d|0000000000000000$)")
 AFFIL_MINE, AFFIL_GROUP = 0x1, 0x2 | 0x4
 TYPE_PLAYER = 0x400
+TYPE_PET = 0x1000
+# Permanent warlock summons on Forever. A summon names its owner directly,
+# even on clients that mark its destination as a Creature rather than a Pet.
+DEMON_NPCS = frozenset({416, 417, 1860, 1863, 185317})
+CL_PET_GUID = re.compile(r"(Pet|Creature)-\d+-\d+-\d+-\d+-(\d{1,10})-[0-9a-fA-F]+")
+CREATURE_CACHE_MAX = 16 * 1024 * 1024
+COMPANION_TAIL = 256 * 1024
 PLAYER_BUCKET_S = 600
 # What a combat log line sends (security review H1): its event, the zone, and
 # who did it to whom, where "who" is your own character or a creature. Any
@@ -2768,6 +2775,141 @@ def cl_owner(cols: list[str]) -> str | None:
     return None
 
 
+def cl_companion(event: str, cols: list[str], owner: str | None, t: float, fs: dict, state: dict) -> None:
+    """Keep the latest owned combat pet per character. The combat log feed
+    can fall back to a folder name. A companion needs a player flagged MINE
+    in this session, even on a one-character install."""
+    if event == "COMBAT_LOG_VERSION":
+        fs.pop("pet_owner", None)
+    if owner:
+        fs["pet_owner"] = owner if owner != "nil" and valid_char(owner) else None
+    char = fs.get("pet_owner")
+    if not char or not cl_standard(cols):
+        return
+    kind = state.get("cl_classes", {}).get(char)
+    for index in (0, 4):
+        match = CL_PET_GUID.fullmatch(cols[index])
+        if not match:
+            continue
+        npc = int(match[2])
+        if npc > 0x7fffffff:
+            continue
+        if (event == "SPELL_SUMMON" and index == 4 and npc in DEMON_NPCS and owner == char
+                and cols[0].startswith("Player-") and kind in (None, "warlock")):
+            # cl_owner confirmed the source: the destination is a creature.
+            kind = "warlock"
+        elif (kind not in ("hunter", "warlock") or match[1] != "Pet"
+              or not re.fullmatch("0x[0-9a-fA-F]+", cols[index + 2])
+              or int(cols[index + 2], 16) & (AFFIL_MINE | TYPE_PET) != (AFFIL_MINE | TYPE_PET)):
+            continue
+        seq = fs.get("pet_seq", 0) + 1 if fs.get("pet_tick") == t else 0
+        fs.update(pet_tick=t, pet_seq=seq)
+        latest = state.setdefault("cl_companions", {})
+        previous = latest.get(char, {})
+        if previous and [t, seq] <= previous["order"]:
+            return  # a rolled or replayed log can contain older sightings
+        if previous.get("npc") != npc or previous.get("kind") != kind:
+            # WoW can log a swap at the same instant as the old pet's last
+            # action. Keep file order on the wire, without changing the time
+            # of a later cache correction to this same observation.
+            at_us = max(round(t * 1_000_000), previous.get("at_us", 0) + 1)
+            latest[char] = {"kind": kind, "npc": npc, "at_us": at_us}
+        latest[char]["order"] = [t, seq]
+        return
+
+
+def creature_display(payload: bytes) -> int:
+    """The one possible display in a known creature query response. A GUID
+    identifies a species, so a list of multiple skins can't identify this pet."""
+    if len(payload) < 15 or payload[5:15] != bytes(10) or payload[4] < 2:
+        return 0
+    start = 15 + payload[4]
+    if start + 46 > len(payload) or payload.find(b"\0", 15, start) != start - 1:
+        return 0
+    count, total, display, scale, weight = struct.unpack_from("<IfIff", payload, start + 26)
+    # Some single-model species have no selection weight. A weight chooses
+    # between models; there is still only one listed display in this case.
+    if count != 1 or not (0 <= total == weight < float("inf") and 0 < scale < float("inf")):
+        return 0
+    return display if 0 < display <= 0x7fffffff else 0
+
+
+def creature_displays(data: bytes, wanted: set[int]) -> dict[int, int]:
+    """BOMW layout 688/4, observed on Forever 71139. Skip unknown headers, incomplete files
+    and conflicting duplicate rows; only the requested numeric IDs leave here."""
+    if (len(data) < 24 or data[:4] != b"BOMW" or struct.unpack_from("<I", data, 4)[0] < 71139
+            or not re.fullmatch(rb"[A-Z]{2}[a-z]{2}", data[8:12])
+            or data[12:24] != struct.pack("<III", 688, 4, 0)):
+        return {}
+    found = {}
+    offset = 24
+    while offset + 8 <= len(data):
+        npc, size = struct.unpack_from("<II", data, offset)
+        offset += 8
+        if not npc and not size and offset == len(data):
+            return found
+        if not npc or not size or size > len(data) - offset:
+            return {}
+        if npc in wanted:
+            display = creature_display(data[offset:offset + size])
+            found[npc] = display if found.get(npc, display) == display else 0
+        offset += size
+    return found if offset == len(data) else {}
+
+
+def emit_companions(state: dict, out: Out) -> None:
+    latest = state.get("cl_companions", {})
+    # A resolved observation stays resolved if the player deletes the cache.
+    waiting = {char: row for char, row in latest.items() if not row.get("display")}
+    if not waiting:
+        return
+    wanted = {row["npc"] for row in waiting.values() if row["npc"]}
+    paths, stamps = [], []
+    for path in sorted((WOW / "Cache" / "WDB").glob("*/creaturecache.wdb")):
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
+        paths.append(path)
+        stamps.append([path.parent.name, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns])
+    cache = state.get("cl_pet_cache", {})
+    displays = dict(cache.get("displays", {})) if cache.get("stamps") == stamps else {}
+    missing = {npc for npc in wanted if str(npc) not in displays}
+    if missing:
+        options: dict[int, set[int]] = {}
+        retry = False
+        for path, stamp in zip(paths, stamps, strict=True):
+            if stamp[2] > CREATURE_CACHE_MAX:
+                continue
+            try:
+                with path.open("rb") as f:
+                    data = f.read(stamp[2] + 1)
+                    stat = os.fstat(f.fileno())
+            except OSError:
+                retry = True
+                continue
+            if [stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns] != stamp[1:]:
+                retry = True
+                continue
+            for npc, display in creature_displays(data, missing).items():
+                options.setdefault(npc, set()).add(display)
+        for npc in missing:
+            ids = options.get(npc, set())
+            displays[str(npc)] = ids.pop() if len(ids) == 1 and not retry else 0
+        if not retry:
+            state["cl_pet_cache"] = {"stamps": stamps, "displays": displays}
+    for char, row in waiting.items():
+        display = displays.get(str(row["npc"]), 0)
+        if row.get("display") == display:
+            continue
+        at = datetime.fromtimestamp(row["at_us"] / 1_000_000, UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
+        kind = row["kind"]
+        out.emit({"_time": at, "feed": "wow-companion", "char": char, "kind": kind, "display_id": display,
+                  "source_id": f"companion:{char}:{kind}:{at}:{row['npc']}:{display}",
+                  "_msg": f"{char}'s last combat companion" + ("" if display else " (appearance unknown)")})
+        row["display"] = display
+
+
 def cl_append(path: Path, fs: dict) -> bytes:
     """Read complete new lines. Verify the consumed bytes on a changed
     file: copy-truncate can reuse both its inode and all its old offsets."""
@@ -2796,15 +2938,48 @@ def cl_append(path: Path, fs: dict) -> bytes:
     return data
 
 
+def cl_companion_tail(path: Path, end: int, fs: dict, state: dict) -> None:
+    """On upgrade, recover owner/pet evidence from the last 256 KiB of the
+    most recently changed checkpointed log without replaying other feeds."""
+    start = max(0, end - COMPANION_TAIL)
+    try:
+        with path.open("rb") as f:
+            f.seek(start)
+            raw = f.read(end - start)
+            stat = os.fstat(f.fileno())
+        if [stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns] != fs["version"]:
+            return  # the client rolled or rewrote the log between the cursor check and the tail read
+    except OSError:
+        return
+    if start:
+        raw = raw.partition(b"\n")[2]  # the first line may have started outside our window
+    for line in raw.splitlines():
+        m = CL_LINE.match(line.decode("utf-8", "replace"))
+        if m:
+            try:
+                cols = next(csv.reader([m.group(10) or ""]), [])
+                t = cl_time(m)
+            except (ValueError, OverflowError, csv.Error):
+                continue
+            cl_companion(m.group(9), cols, cl_owner(cols), t, fs, state)
+
+
 def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: dict, out: Out) -> None:
     logs = sorted((WOW / "Logs").glob("WoWCombatLog*.txt"))
     st = state.setdefault("cl", {})
     seen_players = state.setdefault("cl_players", {})
+    legacy = None
+    if "cl_companion_tail" not in state:
+        checked = [p for p in logs if st.get(p.name, {}).get("version") and st[p.name].get("offset")]
+        legacy = max(checked, key=lambda p: st[p.name]["version"][3], default=None)
     for path in logs:
         fs = dict(st.get(path.name) or {})
         if "copies" in fs:
             fs["copies"] = dict(fs["copies"])
+        old = fs.get("offset", 0)
         data = cl_append(path, fs)
+        if path == legacy and fs["offset"] - len(data) == old:
+            cl_companion_tail(path, old, fs, state)
         if not data:
             st[path.name] = fs
             continue
@@ -2823,6 +2998,7 @@ def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: di
                 fs.pop("zone", None)
                 fs["char"] = char = next(iter(our_chars)) if len(our_chars) == 1 else None
             owner = cl_owner(cols)
+            cl_companion(event, cols, owner, t, fs, state)
             if owner:
                 if char and char != owner:
                     fs.pop("zone", None)
@@ -2862,6 +3038,8 @@ def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: di
                               "player": player, "context": ctx, "source": "combatlog", "zone": fs.get("zone")})
             out.emit(ev)
         st[path.name] = fs
+    state["cl_companion_tail"] = True
+    emit_companions(state, out)
     cutoff = time.time() - 2 * 86400
     for k in [k for k, b in seen_players.items() if b < cutoff]:
         del seen_players[k]
@@ -2904,6 +3082,9 @@ def extract_tree(wtf: Path, state: dict, out: Out, live: bool = True) -> list[di
 
         sessions = step("recorder", recorder) or []
         chars = step("roster", roster, acct) or {}
+        classes = state.setdefault("cl_classes", {})
+        classes.update({name: char["class"].lower() for name, char in chars.items()
+                        if isinstance(char.get("class"), str) and char["class"]})
         latest = step("polestar", extract_polestar, acct, cdirs, sessions, char_ids, state, out)
         if not live:
             chars = {k: c for k, c in chars.items() if "polestar" in c["sources"]}
@@ -3924,10 +4105,11 @@ CASC_MAX_FILE = 64 * 1024 * 1024  # no model, texture or table of one character 
 CASC_MAX_SYSTEM = 1024 * 1024 * 1024
 # The AnimationData ids the 3D view plays: Stand (0), HandsClosed (15, on a
 # hand that holds a weapon) and the moves it plays now and then (attack,
-# cast, channel, roar, emotes). The server's list (wowstats.assets.ANIMATIONS,
+# cast, channel, roar, emotes), plus the seated rider (91) and its mount's
+# walk (4) and run (5). The server's list (wowstats.assets.ANIMATIONS,
 # from web/model3d/m3d/draw.js); a test keeps them equal.
-CASC_ANIMATIONS = frozenset({0, 15, 16, 17, 18, 19, 25, 26, 27, 28, 51, 52, 53, 54, 55, 60, 64, 65, 66, 68, 70,
-                             124, 125})
+CASC_ANIMATIONS = frozenset({0, 4, 5, 15, 16, 17, 18, 19, 25, 26, 27, 28, 29, 46, 48, 49, 51, 52, 53, 54, 55, 60,
+                             64, 65, 66, 68, 70, 91, 95, 107, 108, 124, 125})
 # What a file is, by its first four bytes.
 CASC_KINDS = {b"MD21": "m2", b"SKIN": "skin", b"SKL1": "skel", b"AFM2": "anim", b"AFSA": "anim",
               b"AFSB": "anim", b"BLP2": "blp", b"WDC3": "db2", b"WDC4": "db2", b"WDC5": "db2"}
