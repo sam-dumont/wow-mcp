@@ -909,10 +909,13 @@
 
 			const { css_w } = this.size();
 			const c = this.canvas;
+			// Fit at the pose on screen when the model or the canvas changes,
+			// never while it turns: a refit per drag angle followed a long
+			// mount's bounds, so the camera slid and zoomed during a turn.
 			const key = c.width + 'x' + c.height + ':' + css_w;
 			if (this.box && key !== this.fitted) {
 				this.camera.aspect = c.width / Math.max(1, c.height);
-				M3D.fit_turntable(this.camera, this.box, css_w);
+				M3D.fit_turntable(this.camera, this.box, css_w, this.rotation + (this.scene?.mount?.angleOffset || 0));
 				this.fitted = key;
 			}
 

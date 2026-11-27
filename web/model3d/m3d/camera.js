@@ -107,19 +107,14 @@
 		return points;
 	}
 
-	// The fit covers the whole turn, not the current angle: the camera stays
-	// put while the model turns about its vertical axis, so a long mount
-	// turns in place instead of sliding and zooming with its bounds.
-	const TURN_STEPS = 32;
-	function fit_turntable(camera, box, css_width) {
+	function fit_turntable(camera, box, css_width, angle = 0) {
+		const cos = Math.cos(angle), sin = Math.sin(angle);
 		const tilt = 0.08, up = Math.cos(tilt), forward = Math.sin(tilt);
 		const tan_y = Math.tan(camera.fov * Math.PI / 360), tan_x = tan_y * camera.aspect;
 		const margin = css_width < 560 ? 1.13 : 1.1;
 		const points = box_points(box);
 		let left = Infinity, right = -Infinity, bottom = Infinity, top = -Infinity;
 		let leftPlane = -Infinity, rightPlane = -Infinity, topPlane = -Infinity, bottomPlane = -Infinity;
-		for (let step = 0; step < TURN_STEPS; step++) {
-		const cos = Math.cos(2 * Math.PI * step / TURN_STEPS), sin = Math.sin(2 * Math.PI * step / TURN_STEPS);
 		for (let i = 0; i < points.length; i += 3) {
 			const x = points[i] * cos + points[i + 2] * sin;
 			const z = -points[i] * sin + points[i + 2] * cos;
@@ -131,7 +126,6 @@
 			rightPlane = Math.max(rightPlane, depth + x * margin / tan_x);
 			bottomPlane = Math.max(bottomPlane, depth - y * margin / tan_y);
 			topPlane = Math.max(topPlane, depth + y * margin / tan_y);
-		}
 		}
 		// Opposite frustum planes meet at the closest valid eye position.
 		// Perspective makes that center differ from the midpoint of a horse.
