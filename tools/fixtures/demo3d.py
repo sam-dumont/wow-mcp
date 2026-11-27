@@ -2,6 +2,7 @@
 
     python tools/fixtures/demo3d.py build-roster OUT [--wow-root ROOT]
     python tools/fixtures/demo3d.py build OUT [--wow-root ROOT]
+    uv run --group demo-art python tools/fixtures/demo3d.py build-icons OUT [--wow-root ROOT]
 
 The shipper reads .build.info and Data/. The gear and customization belong
 to the invented demo roster. Keep both model styles, the viewer's animation
@@ -12,6 +13,10 @@ build-roster writes store/ and roster-3d.tar.gz with its SHA-256. The store
 includes roster.json (version, client build, and choices keyed by character
 name). build writes the older Nibbet-only archive. Both keep look.json for
 consumers of Nibbet's gear history. Generated assets stay outside git.
+
+build-icons adds the demo's item, spell and talent icons from the same client
+to OUT/store/icons (see demo_icons.py) and packs roster-3d.tar.gz again, so
+the icons ship in the same release as the 3D art. Run it after build-roster.
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import shutil
 import sys
 import tarfile
 import tempfile
@@ -33,11 +39,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "tools" / "fixtures")]
 
+import demo_icons  # noqa: E402
 import generate  # noqa: E402
 import golden3d  # noqa: E402
 import roster  # noqa: E402
 
-from wowstats import assets, character3d, db2, gear, history, insights, mounts  # noqa: E402
+from wowstats import assets, character3d, db2, gear, history, insights, itemcard, mounts  # noqa: E402
 
 DEFAULT_WOW = {"darwin": "/Applications/World of Warcraft",
                "win32": r"C:\Program Files (x86)\World of Warcraft"}.get(sys.platform, "")
@@ -343,8 +350,9 @@ def pack(store: Path, archive: Path) -> str:
     return digest
 
 
-def read_looks(root: Path) -> dict[str, list[dict]]:
-    """Read the personalized roster used by the demo. Reject incomplete or legacy stores."""
+def read_looks(root: Path, with_icons: bool = False) -> dict[str, list[dict]]:
+    """Read the personalized roster used by the demo. Reject incomplete or legacy stores.
+    `with_icons`: the demo build also needs the client icons (build-icons)."""
     store = assets.Store(root)
     try:
         meta = json.loads((root / "roster.json").read_text())
@@ -373,6 +381,8 @@ def read_looks(root: Path) -> dict[str, list[dict]]:
             raise ValueError(f"demo3d: {p.name} needs choices for its own model")
     # A local store may be from an older roster or may have lost a file.
     # Follow both model styles, gear history, spells, companions, mounts and animations.
+    if with_icons:
+        read_icons(root, build)
     assembled = answers(tables, looks, sheets)
     require_equipment(assembled)
     need = {f for answer in assembled for f in answer.get("needs", ())}
@@ -380,6 +390,21 @@ def read_looks(root: Path) -> dict[str, list[dict]]:
     if missing:
         raise ValueError(f"demo3d: {root} is missing client files {sorted(missing)[:20]}; rerun build-roster")
     return looks
+
+
+def read_icons(root: Path, build: str) -> None:
+    """The store's client icons: from this build, every named file present."""
+    try:
+        meta = json.loads((root / "icons.json").read_text())
+        names = meta["names"]
+    except (OSError, ValueError, KeyError) as exc:
+        raise ValueError(f"demo3d: {root} has no client icons; run demo3d.py build-icons ({exc})") from exc
+    if meta.get("build") != build:
+        raise ValueError(f"demo3d: the icons are from client {meta.get('build')}, the store's tables from {build}")
+    gone = [f"{size}/{n}" for n in names for size in demo_icons.SIZES
+            if not (root / "icons" / size / f"{n}.jpg").is_file()]
+    if gone:
+        raise ValueError(f"demo3d: {root} is missing icon files {gone[:20]}; rerun build-icons")
 
 
 def require_equipment(assembled: list[dict]) -> None:
@@ -457,12 +482,60 @@ def build(wow_root: Path, out: Path, *, roster_models: bool = False) -> int:
     return 0
 
 
+def build_icons(wow_root: Path, out: Path) -> int:
+    """Add the icons the demo can show to OUT/store and repack the archive."""
+    ship = shipper()
+    store = out / "store"
+    casc = ship.Casc(wow_root)
+    if store.joinpath("tables", "build.json").is_file() and assets.Store(store).build() != casc.version:
+        raise SystemExit(f"demo3d: {store} is client {assets.Store(store).build()}, this install {casc.version}")
+    want = {n: assets.TABLES[n] for n in ("Item", "ItemModifiedAppearance", "ItemAppearance")}
+    got, by_table, missing = ship.casc_files(casc, [], {**want, "ManifestInterfaceData": demo_icons.MANIFEST},
+                                             follow=False)
+    lost = [n for n in (*want, "ManifestInterfaceData") if n not in by_table]
+    if lost:
+        raise SystemExit(f"demo3d: tables not in this install: {lost} ({missing})")
+    tab = {n: db2.Table(got[f], n, casc.version, columns=demo_icons.COLUMNS[n]).rows for n, f in by_table.items()
+           if n in want}
+    manifest = demo_icons.manifest_rows(got[demo_icons.MANIFEST], casc.version)
+    by_name = demo_icons.icon_files(manifest)
+    by_fdid = {f: n for n, f in by_name.items()}
+
+    sheets = roster_outfits()
+    ids = demo_icons.item_ids(generate.demo_roster("2026-01-31"), sheets)
+    item_names = demo_icons.item_icon_names(ids, tab["Item"], tab["ItemModifiedAppearance"], tab["ItemAppearance"],
+                                            by_fdid)
+    talents = demo_icons.talent_icon_names({p.cls for p in sheets})
+    names = {*item_names.values(), *talents, itemcard.QUESTION}
+    unknown = sorted(n for n in names if n not in by_name)
+    no_icon = sorted(i for i in ids if i not in item_names)
+    blps, _tables, _absent = ship.casc_files(casc, [by_name[n] for n in names if n in by_name], (), follow=False)
+    unread = sorted(n for n in names if n in by_name and by_name[n] not in blps)
+    if unknown or unread:
+        print(f"demo3d: icon names not found in the client: {unknown}; files not readable: {unread}")
+    keep = {n: by_name[n] for n in names if n in by_name and by_name[n] in blps}
+    shutil.rmtree(store / "icons", ignore_errors=True)
+    store.mkdir(parents=True, exist_ok=True)
+    files, size = demo_icons.write(store, casc.version, keep, blps)
+    print(f"demo3d: client {casc.version}, {len(ids)} items ({len(no_icon)} without an icon in the tables: "
+          f"{no_icon[:20]}), {len(talents)} talent icons")
+    print(f"demo3d: {len(keep)} icons, {files} files, {size / 1e6:.2f} MB; not found: {unknown + unread}")
+    if (store / "roster.json").is_file():
+        digest = pack(store, out / ROSTER_ARCHIVE)
+        print(f"demo3d: {ROSTER_ARCHIVE} sha256 {digest}")
+    else:
+        print("demo3d: no roster.json in the store, so no archive was packed (run build-roster first)")
+    return 1 if unknown or unread else 0
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("cmd", choices=("build", "build-roster"))
+    ap.add_argument("cmd", choices=("build", "build-roster", "build-icons"))
     ap.add_argument("out", type=Path)
     ap.add_argument("--wow-root", type=Path, default=Path(os.environ.get("WOW_ROOT") or DEFAULT_WOW))
     a = ap.parse_args(argv)
+    if a.cmd == "build-icons":
+        return build_icons(a.wow_root, a.out)
     return build(a.wow_root, a.out, roster_models=a.cmd == "build-roster")
 
 

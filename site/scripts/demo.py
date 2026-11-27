@@ -119,7 +119,7 @@ def main(argv: list[str]) -> int:
             if not os.environ.get("DEMO_3D_STORE"):
                 raise SystemExit("demo: provide a prepared DEMO_3D_STORE or run site/scripts/build-demo.sh")
             store = Path(os.environ["DEMO_3D_STORE"]).resolve()
-            looks = demo3d.read_looks(store)
+            looks = demo3d.read_looks(store, with_icons=True)
         rows = generate.demo_roster(end)
         n = send(vl, rows)
         print(f"demo: {n} events for nine characters, last session {end}")

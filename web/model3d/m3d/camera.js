@@ -129,9 +129,11 @@
 		}
 		// Opposite frustum planes meet at the closest valid eye position.
 		// Perspective makes that center differ from the midpoint of a horse.
-		const cx = (rightPlane - leftPlane) * tan_x / (2 * margin);
+		// The turn axis stays at the centre of the stage (x = 0), so the model
+		// turns in place; the distance fits this pose from that centre.
+		const cx = 0;
 		const cy = (topPlane - bottomPlane) * tan_y / (2 * margin);
-		const d = Math.max(0.1, (leftPlane + rightPlane) / 2, (bottomPlane + topPlane) / 2);
+		const d = Math.max(0.1, leftPlane, rightPlane, (bottomPlane + topPlane) / 2);
 		camera.near = Math.max(0.001, d / 100);
 		camera.far = 10 * d + 4 * Math.max(right - left, top - bottom);
 		camera.update_projection();

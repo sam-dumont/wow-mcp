@@ -79,6 +79,10 @@ audit = [
 kb = [
     "anthropic==2.8.0",
 ]
+# tools/fixtures/demo_icons.py: BLP icons to JPEG for the demo art. Never in the main image.
+demo-art = [
+    "pillow==13.0.0",
+]
 
 [build-system]
 requires = ["hatchling"]
