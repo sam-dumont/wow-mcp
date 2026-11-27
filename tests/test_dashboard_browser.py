@@ -81,12 +81,13 @@ def dashboards(tmp_path_factory, demo_clock):
 
 
 @pytest.fixture(scope="module")
-def browser():
+def browser(request):
+    browser_name = getattr(request, "param", "chromium")
     with sync_api.sync_playwright() as pw:
         try:
-            engine = pw.chromium.launch()
+            engine = getattr(pw, browser_name).launch()
         except sync_api.Error as e:
-            pytest.skip(f"no Chromium: {e}")
+            pytest.skip(f"no {browser_name}: {e}")
         yield engine
         engine.close()
 
@@ -391,6 +392,7 @@ def test_late_panel_answers_cannot_redraw_a_new_selection(dashboards, browser):
         assert "superseded panel" not in page.locator("body").text_content()
 
 
+@pytest.mark.parametrize("browser", ["chromium", "webkit"], indirect=True)
 def test_private_plan_panel_shows_dungeon_forecast_errors(dashboards, browser):
     with browser.new_context(viewport={"width": 390, "height": 844}) as ctx:
         page = ctx.new_page()

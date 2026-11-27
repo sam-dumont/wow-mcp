@@ -35,6 +35,13 @@ Time blocks, each with what to do and why:
 Next time, the planner compares the last plan with what happened ("you needed 1.3× the
 planned time") and scales the next one by it.
 
+Planning a dungeon night? Type `group for XP` and click **Plan it** before you set out.
+After you play, **Dungeon forecasts** shows how far the estimates missed in minutes and XP.
+You can run a different dungeon that fit the plan and it still counts. Once you’ve played
+two comparable dungeons at the same level, the panel shows whether the one predicted to
+give more XP per hour actually did. A missing pickup or return leg leaves that trip out
+of the time comparison.
+
 ## With your AI
 
 Ask your assistant "plan my next 2 hours, no dungeons": same plan, and you can talk it

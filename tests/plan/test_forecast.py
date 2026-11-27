@@ -106,7 +106,7 @@ def test_modeled_and_personal_errors_use_only_comparable_trips(priest):
     one = [plans[1]]
     zero = {**trips[0], "xp_inside": 0, "xp_quests": 0}
     assert forecast.report(one, [zero], [])["reviews"][0]["status"] == "matched"
-    for bad in ({"exit_t": None}, {"xp_inside": None}, {"inside_s": 0}, {"start_t": made}):
+    for bad in ({"exit_t": None}, {"end_t": None}, {"xp_inside": None}, {"inside_s": 0}, {"start_t": made}):
         r = forecast.report(one, [{**trips[0], **bad}], [])
         assert r["counts"]["incomplete"] == 1 and r["by_basis"]["personal_runs"]["n"] == 0
     # Schema-1 plans from before forecasts have no pair to reconstruct.
@@ -259,19 +259,25 @@ def test_rank_comparisons_across_plans_need_common_options_and_goal():
     def order():
         return forecast.report([first, second], trips, [])["xp_order"]
 
-    assert order()["mixed"]["tied"] == 1
+    assert order()["modeled"]["tied"] == 1
+    assert sum(order()["mixed"].values()) == 0  # the first forecast used two modeled options
     trips[1]["xp_inside"] = 400
-    assert order()["mixed"]["held"] == 1
+    assert order()["modeled"]["held"] == 1
     second["dungeon_forecast"]["alternatives"][0]["xp"] = 900
-    assert order()["mixed"]["changed_forecast"] == 1
+    assert order()["modeled"] == {"held": 1, "reversed": 0, "tied": 0, "changed_forecast": 1}
+    trips[0]["xp_inside"] = 200
+    assert order()["modeled"] == {"held": 0, "reversed": 1, "tied": 0, "changed_forecast": 1}
     for change in ({"kind": "branch"}, {"objective": "gear"}, {"state": {"level": 39}}, {"alternatives": []}):
         p = {**second, "dungeon_forecast": {**second["dungeon_forecast"], **change}}
         out = forecast.report([first, p], trips, [])
         assert not any(sum(o.values()) for o in out["xp_order"].values())
+    second["dungeon_forecast"]["alternatives"][0]["xp"] = None
+    assert order()["modeled"]["reversed"] == 1  # the original forecast and both actual XP readings still exist
+    assert order()["modeled"]["changed_forecast"] == 0
     for field, value in (("xp", None), ("priority", "some")):
-        second["dungeon_forecast"]["alternatives"][0][field] = value
+        first["dungeon_forecast"]["alternatives"][0][field] = value
         assert not any(sum(o.values()) for o in order().values())
-        second = session_pair(1600, rival_basis="runs")
+        first = session_pair(100)
 
 
 def test_an_unplayed_option_has_no_rank_and_partial_xp_still_has_timing():
@@ -282,3 +288,14 @@ def test_an_unplayed_option_has_no_rank_and_partial_xp_still_has_timing():
     assert r["timing"]["modeled"] == {"n": 1, "mean_absolute_error_s": 200}
     assert not any(sum(o.values()) for o in r["xp_order"].values())
     assert r["reviews"][0]["missing"] == ["forecast XP"]
+
+
+def test_overlapping_whole_trip_windows_cannot_establish_an_xp_order():
+    p = session_pair(100)
+    trips = [played("Library", 300, 800), played("Armory", 1350, 500)]
+    trips[1]["start_t"] = trips[0]["end_t"] - 150  # picked up a quest during the previous return leg
+    r = forecast.report([p], trips, [])
+    assert r["by_basis"]["modeled"]["n"] == 2
+    assert not any(sum(o.values()) for o in r["xp_order"].values())
+    trips[1]["start_t"] = trips[0]["end_t"]
+    assert forecast.report([p], trips, [])["xp_order"]["modeled"]["held"] == 1

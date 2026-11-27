@@ -52,6 +52,8 @@ def _missing(forecast: dict, actual: dict, made: float) -> list[str]:
         missing.append("handin_s")
     if actual["exit_t"] is None or actual["exit_t"] <= actual["entry_t"]:
         missing.append("exit")
+    if actual["end_t"] is None or (actual["exit_t"] is not None and actual["end_t"] < actual["exit_t"]):
+        missing.append("trip end")
     if actual["start_t"] is None or actual["start_t"] < made:
         missing.append("start after decision")
     if not actual["time_s"] or not actual["legs"]["inside_s"]:
@@ -197,6 +199,11 @@ def _rankings(samples: list) -> dict:
     result = {basis: dict(held=0, reversed=0, tied=0, changed_forecast=0)
               for basis in ("modeled", "personal_runs", "mixed")}
     for (first, first_offer, first_plan), (second, second_offer, second_plan) in combinations(samples, 2):
+        first_run, second_run = first["observations"][0], second["observations"][0]
+        # A breadcrumb for the next dungeon can start on the previous trip.
+        # Comparing overlapping brackets counts some played time on both sides.
+        if max(first_run["start_t"], second_run["start_t"]) < min(first_run["end_t"], second_run["end_t"]):
+            continue
         names = (first["forecast"]["dungeon"], second["forecast"]["dungeon"])
         if first_plan != second_plan or names[0] == names[1]:
             continue
@@ -204,17 +211,18 @@ def _rankings(samples: list) -> dict:
             continue
         earlier = [first_offer[name] for name in names]
         later = [second_offer[name] for name in names]
-        predictions = earlier + later
-        if (any(p["xp"] is None for p in predictions)
+        if (any(p["xp"] is None for p in earlier)
                 or any(a["priority"] != b["priority"] for a, b in (earlier, later))):
             continue
-        sources = {"personal_runs" if p["basis"] == "runs" else "modeled" for p in predictions}
+        sources = {"personal_runs" if p["basis"] == "runs" else "modeled" for p in earlier}
         basis = sources.pop() if len(sources) == 1 else "mixed"
         predicted = _pace_order(*earlier)
-        actual = _pace_order(first["observations"][0], second["observations"][0])
-        if predicted != _pace_order(*later):
-            outcome = "changed_forecast"
-        elif not predicted or not actual:
+        actual = _pace_order(first_run, second_run)
+        # A later plan may have learned from the first run. Its revision
+        # cannot erase the earlier forecast's win or miss.
+        if all(p["xp"] is not None for p in later) and predicted != _pace_order(*later):
+            result[basis]["changed_forecast"] += 1
+        if not predicted or not actual:
             outcome = "tied"
         else:
             outcome = "held" if predicted == actual else "reversed"
@@ -244,7 +252,7 @@ def report(plans: list[dict], trips: list[dict], progress: list[dict]) -> dict:
         for r in rows:
             if "error_s" in r:
                 measured.append(r)
-            if r["status"] != "matched":
+            if "error_s" not in r or r["observations"][0]["xp"] is None:
                 continue
             level = f["state"].get("level")
             if (len(offers) > 1 and f["objective"] in ("xp", "levelling") and level is not None

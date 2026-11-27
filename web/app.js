@@ -2793,6 +2793,8 @@ function needHow(needs) {
 // What stops a quest now: his level, a quest to hand in first.
 function questBlock(q, level) {
   const why = [];
+  if (q.pickup_unknown) why.push('no confirmed pickup for your character');
+  if (q.prerequisite_unavailable) why.push('no eligible prerequisite');
   if (q.state === 'new' && q.min_level > level) why.push(`needs level ${q.min_level}`);
   if (q.needs && q.needs.length) {
     why.push(h('span', {}, 'needs ', questRefs(q.needs), ' first', needHow(q.needs)));
@@ -4239,8 +4241,8 @@ function dungeonForecastLines(report) {
       const order = report.xp_order[basis];
       if (!Object.values(order).some(Boolean)) continue;
       any = true;
-      rows.push(h('p', { text: `${title}: ${order.held} held, ${order.reversed} reversed, ${order.tied} tied, ` +
-        `${order.changed_forecast} changed between plans.` }));
+      rows.push(h('p', { text: `${title}: ${order.held} held, ${order.reversed} reversed, ${order.tied} tied.` +
+        (order.changed_forecast ? ` A later plan revised the forecast for ${plural(order.changed_forecast, 'pair')}.` : '') }));
     }
     rows.push(h('p', { class: 'sub', text: any
       ? 'Pairs compare whole-trip XP per hour for two dungeons you actually ran at the same level.'

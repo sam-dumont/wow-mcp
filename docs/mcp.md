@@ -261,10 +261,12 @@ the whole trip. A missing XP reading can still leave a usable time. Runs with
 missing travel or an uncertain instance entry stay out of the timing average.
 
 For XP or levelling plans, the review also checks which of two dungeons was
-faster in XP per hour. Both need a complete trip at the planned level. Across
+faster in XP per hour. Both need a complete trip at the planned level, with
+separate time windows so one return leg cannot count twice. Across
 two plans, both dungeons must have qualified in each plan, at the same priority,
-with the same goal and group setting. A switch in the forecast order, or a tie,
-gets its own count. The sample size is pairs of runs. One run can appear in
+with the same goal and group setting. The first forecast gets scored even if a
+later plan changed its mind. Ties and revisions are shown separately. The sample
+size is pairs of runs. One run can appear in
 several pairs. A gear plan contributes trip times but has no XP ranking to test.
 Plans saved before this change can still score their first pick.
 
