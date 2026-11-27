@@ -1,0 +1,159 @@
+{
+  "app_commit": "6ebb1c109563ed8e8117ae2231a14f0214ffaea8",
+  "art_sha256": "81c3348aaa304aea6af06881d6f08759000e303ae0a5fd47b49953bdcee247d6",
+  "roster_rows": 183816,
+  "in_flight_rows": 1,
+  "vcpus": 2,
+  "swap_bytes": 0,
+  "runs": {
+    "default": {
+      "job_url": "https://github.com/sam-dumont/wow-mcp/actions/runs/45994347943/job/140489861886",
+      "harness_commit": "7262c238bebc53ea2fbebc14734fcf10df173b07",
+      "root_filesystem_bytes": 15523123200,
+      "ram_gib": 2,
+      "initial_used_kib": 920688,
+      "longest_sample_gap_seconds": 214.223,
+      "host": {
+        "samples": 397,
+        "memtotal_kib": 2014844,
+        "min_available_kib": 2004,
+        "peak_used_kib": 2012840,
+        "min_free_disk_bytes": 10803101696,
+        "start_disk_bytes": 10869317632,
+        "oom_kills": 0
+      },
+      "kernel_oom": [
+        "Out of memory: Killed process 4881 (chrome-headless) total-vm:1518446884kB, anon-rss:109368kB, file-rss:0kB, shmem-rss:1988kB, UID:10001 pgtables:1076kB oom_score_adj:300"
+      ],
+      "wall_seconds": {
+        "upload full roster": 14.217,
+        "in-flight POST": 0.094
+      },
+      "served_sha256_after_kill": {
+        "": "aa8fbc07c44cc7a440ddb9926cec90d096e2660d0202964b5fbc47779544f7ec",
+        "data/chars.json": "0f49f039cc614a6c38abfd28f7e109aa6fac58c4b11a949b6e3f240eb6a909ca",
+        "zogzog/": "464f1a91d51cc3f00b2383240512691a13ba313683ac84073755f3a03143ce0f"
+      },
+      "failure": "Command '['docker', 'wait', 'mcp-client']' timed out after 240 seconds",
+      "checked_bundles": []
+    },
+    "minimal": {
+      "job_url": "https://github.com/sam-dumont/wow-mcp/actions/runs/45993666691/job/140487558874",
+      "harness_commit": "54e41efb932fadbaa63b1a213f2f36ceaf7311b4",
+      "root_filesystem_bytes": 15523123200,
+      "ram_gib": 2,
+      "initial_used_kib": 648188,
+      "longest_sample_gap_seconds": 733.365,
+      "host": {
+        "samples": 919,
+        "memtotal_kib": 2014844,
+        "min_available_kib": 0,
+        "peak_used_kib": 2014844,
+        "min_free_disk_bytes": 12453949440,
+        "start_disk_bytes": 12552699904,
+        "oom_kills": 1
+      },
+      "kernel_oom": [
+        "Memory cgroup out of memory: Killed process 4405 (python) total-vm:1032024kB, anon-rss:159480kB, file-rss:1280kB, shmem-rss:0kB, UID:10001 pgtables:656kB oom_score_adj:1000"
+      ],
+      "wall_seconds": {
+        "upload full roster": 20.914,
+        "in-flight POST": 0.157,
+        "first MCP analysis_brief": 49.789
+      },
+      "served_sha256_after_kill": {
+        "": "f33f24bbafe39c6c187db037800265e05679c11cf088f3bdc8290da03d2a8f81",
+        "data/chars.json": "0f49f039cc614a6c38abfd28f7e109aa6fac58c4b11a949b6e3f240eb6a909ca",
+        "zogzog/": "464f1a91d51cc3f00b2383240512691a13ba313683ac84073755f3a03143ce0f"
+      },
+      "failure": "Command '['docker', 'wait', 'measured']' timed out after 1100 seconds",
+      "checked_bundles": []
+    },
+    "default-recovery": {
+      "job_url": "https://github.com/sam-dumont/wow-mcp/actions/runs/45997232907/job/140499569083",
+      "harness_commit": "9c8b53a07fbd294b6d53d58a922f25e16358fba8",
+      "root_filesystem_bytes": 15523123200,
+      "ram_gib": 2,
+      "initial_used_kib": 646180,
+      "longest_sample_gap_seconds": 0.252,
+      "host": {
+        "samples": 147,
+        "memtotal_kib": 2014844,
+        "min_available_kib": 951628,
+        "peak_used_kib": 1063216,
+        "min_free_disk_bytes": 10803437568,
+        "start_disk_bytes": 10869841920,
+        "oom_kills": 0
+      },
+      "kernel_oom": [],
+      "wall_seconds": {
+        "upload full roster": 4.829,
+        "backup stopped events": 0.107,
+        "extract to new directory": 0.107,
+        "full shipper replay 1": 5.816,
+        "full shipper replay 2": 5.278
+      },
+      "backup_bytes": 2514097,
+      "allocated_event_directory_bytes": 30699520,
+      "verified_counts_at": [
+        "restored store",
+        "first replay",
+        "second replay"
+      ],
+      "checked_bundles": []
+    },
+    "minimal-recovery": {
+      "job_url": "https://github.com/sam-dumont/wow-mcp/actions/runs/45997232907/job/140499569452",
+      "harness_commit": "9c8b53a07fbd294b6d53d58a922f25e16358fba8",
+      "root_filesystem_bytes": 15523123200,
+      "ram_gib": 2,
+      "initial_used_kib": 619284,
+      "longest_sample_gap_seconds": 0.254,
+      "host": {
+        "samples": 1860,
+        "memtotal_kib": 2013832,
+        "min_available_kib": 496356,
+        "peak_used_kib": 1517476,
+        "min_free_disk_bytes": 12246679552,
+        "start_disk_bytes": 12552826880,
+        "oom_kills": 0
+      },
+      "kernel_oom": [],
+      "wall_seconds": {
+        "upload full roster": 16.796,
+        "backup stopped events": 1.798,
+        "extract to new directory": 0.471,
+        "full shipper replay 1": 14.71,
+        "full shipper replay 2": 12.423,
+        "publish after stopping the UI": 385.563
+      },
+      "backup_bytes": 17605378,
+      "allocated_event_directory_bytes": 92667904,
+      "verified_counts_at": [
+        "restored store",
+        "first replay",
+        "second replay"
+      ],
+      "sqlite_rows_after_restore_and_each_replay": [
+        183817,
+        183817,
+        183817
+      ],
+      "checked_bundles": [
+        "published public 9 characters; 0 WebP portraits []",
+        "published zogzog 9 characters; 0 WebP portraits []"
+      ]
+    }
+  },
+  "distinct_source_ids_per_character": {
+    "Brakka-Ironvale": 22639,
+    "Duskwick-Cinderbell": 8902,
+    "Flintstep-Thunderhoof": 11213,
+    "Flintwick-Bearhide": 11928,
+    "Hesta-Bellforge": 16788,
+    "Mossbranch-Fernshade": 15302,
+    "Nibbet-Gearholt": 89358,
+    "Sleetpin-Rimefang": 2292,
+    "Valeleaf-Quickwing": 5394
+  }
+}

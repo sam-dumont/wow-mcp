@@ -1,11 +1,76 @@
 # Sizing
 
-**For:** self-hosters picking a machine. **At the end:** you know what three players used in a measured run, and what still needs measuring on your own box.
+**For:** self-hosters picking a machine. **At the end:** you know what fits when the whole host has two CPUs and 2 GiB of RAM.
 
 Compose caps the UI and its MCP at 1 GiB. VictoriaLogs gets another 1 GiB. The publisher
 and static server run alongside them without caps. A shared VictoriaLogs install adds a second
 log server for friends. These are service limits. The host also needs memory for the OS,
 Docker and anything else it runs. [Where your events live](../install.md#where-your-events-live).
+
+## Nine characters on a 2 GiB host
+
+**Neither profile finished a nine-character publish while the UI, cold MCP analysis and
+ingest were active on 2 GiB.** The Linux kernel killed Chromium in the default setup.
+SQLite could answer the MCP and take the upload, but its publisher was still running
+when its 1,100-second wait expired. Neither guest ran out of disk.
+
+| Whole guest, one run each | VictoriaLogs, items and renderer | SQLite, items and 3D off |
+|---|---:|---:|
+| RAM used with services ready | 899 MiB | 633 MiB |
+| Peak RAM used / least available | 1,966 / 2 MiB | 1,968 / 0 MiB |
+| Least free space on the root filesystem | 10.06 GiB | 11.60 GiB |
+| Upload 183,816 rows | 14.22 s | 20.91 s |
+| Upload one new event during publication | 94 ms | 157 ms |
+| First MCP `analysis_brief` after restart | Missed 240 s deadline | 49.79 s |
+| Kernel OOM kill | Chromium, host-wide | Python, in a memory-limited container |
+
+Linux reported 1,968 MiB of usable RAM after boot. Peak means the largest sampled
+`MemTotal - MemAvailable`. The sampler aimed for four reads per second. Under pressure
+the longest gaps were 214 s with Chromium and 733 s with SQLite. The kernel journal
+caught the Chromium kill after the sampler’s last read. [Default job](https://github.com/sam-dumont/wow-mcp/actions/runs/45994347943/job/140489861886) · [SQLite job](https://github.com/sam-dumont/wow-mcp/actions/runs/45993666691/job/140487558874).
+
+Both profiles used a fresh Ubuntu 24.04 x86-64 guest with two virtual CPUs, 2 GiB
+allocated to the whole machine, zero swap and a 16 GiB virtual disk. Docker, its
+containers, the OS and the test clients shared the guest. One owner had the current
+nine-character demo plus a second copy of Nibbet’s history dated one year earlier.
+The initial upload held 183,816 rows. The concurrent upload added one new Hesta event.
+The default profile included VictoriaLogs, synthetic armory samples in VictoriaMetrics,
+the checksum-pinned `demo-3d-7` game files, items, and the real Chromium renderer.
+The minimal profile used SQLite with items and 3D switched off.
+
+The static server already had a public and a sealed site for Hesta. We killed the
+next publisher with SIGKILL after its staging directory appeared. The server still
+returned the same bytes for the home page, character list and sealed-site entry page.
+The concurrent test then started a fresh publisher and called the MCP over HTTP after
+OAuth login. It allowed 900 seconds for pictures, as in the nine-character docs demo.
+
+### What fits on 2 GiB
+
+With the UI and MCP stopped, the SQLite publisher finished in 385.56 s. The public
+site held 125 files and the encrypted site held 190. Reading the public roster and
+decrypting the sealed roster returned all nine characters. This setup produced no
+portraits. On this 2 GiB machine, schedule a SQLite publish for a time when you can
+stop the UI and MCP, then restart them after the build. The guest kept at least
+485 MiB available through backup, restore, replay
+and publication, with zero OOM kills. [Minimal run](https://github.com/sam-dumont/wow-mcp/actions/runs/45997232907/job/140499569452).
+
+We repeated recovery on fresh 2 GiB guests with publication out of the way. We stopped the
+writers, archived the event directory, extracted into a new directory and compared every
+file by SHA-256. We then ran the real shipper’s `--replay` twice against a second, initially
+empty store. Both restored stores and all four replays returned the original distinct event
+counts for each of the nine characters (183,816 in total). SQLite passed `integrity_check`
+and held exactly 183,817 rows after restore and after each replay.
+
+| Event backup and recovery | VictoriaLogs | SQLite |
+|---|---:|---:|
+| Event directory on disk / compressed archive | 29.28 / 2.40 MiB | 88.38 / 16.79 MiB |
+| Backup / extract | 0.11 / 0.11 s | 1.80 / 0.47 s |
+| First / second shipper replay | 5.82 / 5.28 s | 14.71 / 12.42 s |
+| Least free disk, including the backup and second store | 10.06 GiB | 11.41 GiB |
+
+The VictoriaLogs recovery guest kept at least 929 MiB available. The measurements include
+Docker and the guest OS. The disk figures include the originals, the extracted copies and
+the shipper input on the same filesystem. [VictoriaLogs recovery](https://github.com/sam-dumont/wow-mcp/actions/runs/45997232907/job/140499569083) · [Exact measurements and per-character restore counts](https://github.com/sam-dumont/wow-mcp/blob/main/docs/self-host/host-budget-2026-11.json) · [Guest setup, fixture, workload and verification scripts](https://github.com/sam-dumont/wow-mcp/tree/9c8b53a07fbd294b6d53d58a922f25e16358fba8/dev/host-budget).
 
 ## Three players on two CPUs
 
@@ -30,7 +95,7 @@ We repeated those dates a year earlier. The friends each had one short outing.
 The VictoriaLogs run had the UI within 3 MiB of its cap. It completed the requests
 without an out-of-memory kill. The two log servers used 161 and 22 MiB at the end of the
 build, measured with `docker stats`. Their peaks weren't recorded. Each service can peak
-at a different time. A two-CPU VM with 2 GiB of RAM still needs a test under a host-wide limit.
+at a different time. The nine-character run above measures the whole guest.
 
 The publisher had a warm item catalog and icon cache. All six sites built. The owner’s
 public site contained 80 JPEG icons. The runs in the table started before the players
@@ -52,8 +117,8 @@ VictoriaMetrics 1.156.0. All three characters had both HD and Classic models. Ea
 public and friends’ bundle held 115 client files for Nibbet, 64 for Hesta or 75 for
 Brakka. Building all six sites took 134.87 s with no CPU or container memory cap.
 
-The renderer, live Battle.net exporter, fresh internet downloads, reverse proxy,
-simultaneous long AI queries and browser traffic still need their own measurements.
+These three-player runs omitted the renderer. The live Battle.net exporter, reverse
+proxy, simultaneous long AI queries and browser traffic still need their own measurements.
 
 ### Repeat the workload
 
