@@ -213,6 +213,10 @@ def test_orb_of_lorica_is_a_handin_and_never_an_armory_drop(priest, complete, mo
         else:
             assert [(r["item_id"], r["quest"]["other_wings"]) for r in waiting] == [(11262, ["Library", "Cathedral"])]
     assert block["missing_now"] == 0 and option["top_items"] == []
+    if complete:
+        reward = option["quest_rewards"][0]
+        assert reward["slot"] == orb["slot_name"] and reward["req_level"] == orb["level"]
+        assert reward["line"] == block["quest_rewards"][0]["line"]
 
 
 def test_a_locked_reward_is_visible_without_counting_on_the_trip(priest):

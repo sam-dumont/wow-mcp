@@ -413,7 +413,8 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
         now_items = [g for g in gear if g["now"]]
         later = [g for g in gear if not g["now"]]
         # Keep the planner's item/quest field names for its callers.
-        qrew = [{**r, "item": r["name"], "quest_id": r["quest"]["quest_id"], "quest": r["quest"]["name"]}
+        qrew = [{**r, "item": r["name"], "slot": r["slot_name"], "req_level": r["level"],
+                 "quest_id": r["quest"]["quest_id"], "quest": r["quest"]["name"]}
                 for r in rewards]
         odds = b["gain"] if b else drop_value(now_items)
         run = kb_runs.get(k) or {}

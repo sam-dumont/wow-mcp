@@ -475,8 +475,9 @@ def quest_rewards(drops: list[dict], quests: list[dict]) -> list[dict]:
         source = {k: q[k] for k in ("quest_id", "name", "url", "state", "complete", "min_level", "needs")}
         out.append({**{k: best[k] for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_pct",
                                             "fills_empty", "level", "now", "url", *BADGE)},
-                    "of": q["reward_choices"], "quest": {**source, "starts": q["starts"][:1],
-                                                         "other_wings": (q.get("wings") or {}).get("other_wings", [])}})
+                    "line": gain_words(best), "of": q["reward_choices"],
+                    "quest": {**source, "starts": q["starts"][:1],
+                              "other_wings": (q.get("wings") or {}).get("other_wings", [])}})
     out.sort(key=lambda r: (not r["now"], -(r["gain"] or 0), r["item_id"]))
     return out
 
