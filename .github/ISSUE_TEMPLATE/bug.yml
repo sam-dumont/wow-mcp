@@ -12,7 +12,7 @@ body:
     attributes:
       label: Version
       description: "`wow-stats --version`, or the image tag (and digest if you pinned one)."
-      placeholder: "wow-stats 0.13.0"
+      placeholder: "wow-stats 0.13.1"
     validations:
       required: true
   - type: dropdown
