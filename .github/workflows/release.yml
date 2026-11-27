@@ -231,7 +231,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: ["1/3", "2/3", "3/3", demo]
     env:
       VERSION: ${{ needs.plan.outputs.version }}
       KB_NOTE: ${{ needs.plan.outputs.kb-note }}
@@ -265,13 +265,24 @@ jobs:
       - name: Browsers
         timeout-minutes: 10
         run: uv run --frozen playwright install chromium webkit
+      - name: Build the published demo
+        if: matrix.shard == 'demo'
+        timeout-minutes: 20
+        run: site/scripts/build-demo.sh
+      - name: Exercise the published demo
+        if: matrix.shard == 'demo'
+        timeout-minutes: 25
+        env:
+          WOW_DEMO_DIR: site/public/demo
+        run: uv run --frozen --extra render --group browser pytest -v -rs -m browser --durations=5 tests/test_demo_complete_browser.py
       - name: Browser suite
+        if: matrix.shard != 'demo'
         timeout-minutes: 25
         env:
           SHARD: ${{ matrix.shard }}
         # A cold dashboard builds its DuckDB copy while the browser loads.
         # Give each runner one dashboard at a time.
-        run: uv run --frozen pytest -q -rs -m browser --durations=5 --shard "${SHARD}/4"
+        run: uv run --frozen pytest -q -rs -m browser --durations=5 --ignore=tests/test_demo_complete_browser.py --shard "$SHARD"
 
   # The shipper's release signature (security review 2026-11-20): the same
   # release commit prepare makes (release.py apply is deterministic for the
