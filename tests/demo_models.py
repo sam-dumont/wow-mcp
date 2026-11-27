@@ -85,29 +85,35 @@ def check_answer(name, answer):
     return recipe
 
 
+def open_before(url, deadline, timeout):
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("character check took over 120s")
+    return urlopen(url, timeout=min(timeout, remaining))  # noqa: S310 - CI's local UI
+
+
 def check_live(base):
-    # The seed imports profiles after the events. Give the live UI time to
-    # see those samples and replace any answers it built during ingestion.
-    pending, models = dict.fromkeys(ROSTER), set()
-    deadline = time.monotonic() + 120
-    while pending:
-        for name in list(pending):
+    models = set()
+    for name in ROSTER:
+        # A cold character page can take over 30s on the CI runner. The seed
+        # also imports its profiles last. Give each character its own retry window.
+        deadline = time.monotonic() + 120
+        while True:
             try:
-                with urlopen(f"{base}/api/model3d?name={name}", timeout=30) as response:  # noqa: S310
+                with open_before(f"{base}/api/model3d?name={name}", deadline, 60) as response:
                     recipe = check_answer(name, json.load(response))
                 for part in (recipe, recipe.get("companion"), *recipe.get("mounts", [])):
                     if part:
-                        with urlopen(f"{base}/model3d/file/{part['model']}", timeout=30) as response:  # noqa: S310
+                        with open_before(f"{base}/model3d/file/{part['model']}", deadline, 30) as response:
                             check_m2(part["model"], response)
             except (AssertionError, KeyError, OSError, TypeError) as exc:
-                pending[name] = str(exc)
+                if time.monotonic() + 2 >= deadline:
+                    raise AssertionError(f"{name}: {exc}") from exc
+                time.sleep(2)
                 continue
             models.add(recipe["model"])
             print(f"{name}: model {recipe['model']}", flush=True)
-            del pending[name]
-        if pending:
-            assert time.monotonic() < deadline, pending
-            time.sleep(2)
+            break
     assert len(models) == len(ROSTER) == 9, models
 
 

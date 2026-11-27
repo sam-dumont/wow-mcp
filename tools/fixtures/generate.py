@@ -2052,8 +2052,7 @@ def in_forever(rows: list[dict]) -> None:
     The Gurubashi Arena's Arena Master (its chest event isn't open in
     Forever, ForeverDB has Classic's data only)
     once sat in his trinket slot (owner, 2026-11-24)."""
-    from roster import TROLL_MAGE_LOADOUT
-
+    from tools.fixtures.roster import TROLL_MAGE_LOADOUT
     from wowstats import forever, gear
 
     fdb = (gear.sources_data() or {}).get("items") or {}

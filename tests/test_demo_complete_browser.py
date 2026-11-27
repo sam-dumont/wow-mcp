@@ -288,6 +288,8 @@ def test_roster_climbs_and_historical_gear_on_the_phone(browser, base, which):
             if name == "Brakka-Ironvale":
                 assert "31h 30m played since tracking began at level 55, including 10h 22m at level 60" in text
                 assert "Polestar’s route plans 19h 28m for 5 finished levels. You played 21h 09m on those levels" in text
+                ticks = page.locator("#levels .climb svg text.axis").all_text_contents()
+                assert max(int(t) for t in ticks if t.isdecimal()) == 60
             assert hd["level"] == level and hd["played_s"] > 3600
             splits = d["levels"]
             assert len(splits) >= 5 and all(s["seconds"] > 0 for s in splits)

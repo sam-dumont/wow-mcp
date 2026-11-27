@@ -2296,7 +2296,7 @@ function renderClimb(container, d) {
   // and the tooltips read total played since level 1.
   const off = played ? playedBefore(hd) : 0;
   const y0 = Math.floor(Math.min(...pts.map((p) => p.level)));
-  const y1 = Math.ceil(Math.max(...pts.map((p) => p.level)) + 0.01);
+  const y1 = Math.ceil(Math.max(...pts.map((p) => p.level)));
   const x = (v) => m.l + ((v - x0) / Math.max(1, x1 - x0)) * (W - m.l - m.r);
   const y = (v) => H - m.b - ((v - y0) / Math.max(1, y1 - y0)) * (H - m.t - m.b);
 
