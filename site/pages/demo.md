@@ -1,6 +1,6 @@
 # The live demo
 
-Nibbet is a Gnome priest on WoW Forever who doesn't exist. A script plays the character from level 22 to 46 over thirty-three sessions: Polestar's guides through Darkshore, the Wetlands, Hillsbrad, Arathi, Stranglethorn, Dustwallow, Feralas, Tanaris and the Hinterlands, eight dungeons (Blackfathom Deeps, the Stockade, City of Dalaran, Razorfen Kraul, Scarlet Monastery's four wings, Razorfen Downs, Uldaman, Zul'Farrak), a Shadow build with Shadowform, Tailoring, Enchanting and Cooking, a few deaths and some auction house scans. The product's own publisher then builds Nibbet's pages, the same way it builds yours.
+Nibbet is a made-up Gnome priest. The journal records 34 sessions from level 22 to 46, including 11 runs across eight dungeons. The same publisher that builds a player's dashboard turns that history into two demo pages.
 
 <div class="demo-links">
 <a href="@BASE@demo/">Open the public page</a>
@@ -54,4 +54,4 @@ The dates move: every build shifts the play so the last session is the day befor
 
 ## Build it yourself
 
-The demo is rebuilt from a seeded script on every change: [Development](../../docs/development.md#the-docs-site-and-its-demo).
+Each release rebuilds the demo from the same script. [Build the demo locally](../../docs/development.md#the-docs-site-and-its-demo).
