@@ -161,19 +161,30 @@ def blocker(s: dict, level: int | None) -> str | None:
     return None
 
 
-def in_reach(advice: dict | None, level: int | None) -> list[tuple[dict, dict]]:
+def in_reach(advice: dict | None, level: int | None, *, dungeon_panel: dict | None = None) -> list[tuple[dict, dict]]:
     """Upgrades the character could wear now, with the first source it can
     reach at its level, best first (the gear advice's order)."""
+    from .plan import dungeonview
+
+    allowed = None if dungeon_panel is None else {dungeonview.key(b["name"]) for b in dungeon_panel.get("dungeons", [])
+                                                  if b["fits_now"] and b["value"] == "high"}
+
+    def source(sources):
+        if allowed is not None:
+            sources = [s for s in sources if not (s.get("kind") == "drop" and s.get("dungeon"))
+                       or dungeonview.key(s.get("zone") or "") in allowed]
+        return gearmod.action_source(sources, level)
+
     out = []
     for u in (advice or {}).get("upgrades") or []:
         if not u.get("now") or u.get("vs_unknown"):
             continue
-        s = gearmod.action_source(u.get("sources") or [], level)
+        s = source(u.get("sources") or [])
         # A weapon setup is in reach when its other hand is too.
         w = u.get("with") or {}
         if w.get("kind") == "get":
             sources = w.get("sources") or []
-            other = gearmod.action_source(sources, level)
+            other = source(sources)
             if other is None:
                 continue
             if other is not sources[0]:
@@ -943,7 +954,7 @@ def _per_clear(pairs: list[tuple[dict, float | None]]) -> float:
     return total
 
 
-def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]]) -> list[dict]:
+def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]], panel: dict | None = None) -> list[dict]:
     """Dungeons at the character's level that drop upgrades it could wear
     now: the two with the most to gain per clear (drop chances counted).
     Polestar's list comes first (wowstats.plan.vsguide: from a dungeon's
@@ -976,6 +987,19 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]]) -> list[di
         return (later(z), -_per_clear(pairs), -sum(u.get("value", u["gain"]) or 0 for u, _ in pairs))
 
     out = []
+    if panel is not None:
+        from .plan import dungeonview
+
+        by_key = {dungeonview.key(z): pairs for z, pairs in by.items()}
+        for b in [b for b in panel.get("dungeons", []) if b["fits_now"] and b["value"] == "high"][:2]:
+            name = b["name"]
+            pairs = by_key.get(dungeonview.key(name), [])
+            items = {id(u): item_ref(u) for u, _ in pairs}
+            detail = f"{b['verdict'].capitalize()} with a group. {b['why'][:1].upper()}{b['why'][1:]}."
+            out.append(claim(f"{name}. {detail}", "#dungeons", "dungeon quests, gear sources and whole-trip forecast",
+                             kind="dungeon", title=name, detail=detail, weight=2.5,
+                             zone=zone_ref(name, [b["min"], b["max"]]), items=list(items.values())))
+        return dungeonview.with_gain(out, panel)
     for z, pairs in sorted(by.items(), key=rank)[:2]:
         lo, hi = lv_of[z]
         us = list({id(u): u for u, _ in pairs}.values())
@@ -993,9 +1017,9 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]]) -> list[di
 
 
 def next_moves(level: int | None, advice: dict | None, header: dict, track: dict, follow: dict,
-               gear_profs: list[dict], skills: dict[int, dict], *, done=()) -> dict:
+               gear_profs: list[dict], skills: dict[int, dict], *, done=(), dungeon_panel=None) -> dict:
     """Besides following Polestar: what pays now."""
-    reach = in_reach(advice, level)
+    reach = in_reach(advice, level, dungeon_panel=dungeon_panel)
     # The best for each slot: two pairs of trousers for the same legs are one
     # move, not two.
     # Held ones first: equipping one is a move that costs nothing.
@@ -1005,7 +1029,7 @@ def next_moves(level: int | None, advice: dict | None, header: dict, track: dict
     moves = [_upgrade_claim(u, s, _pick_text(u, s) + _bis_text(advice, u), "gear advice (ForeverDB.net's weights)",
                             level)
              for u, s in list(best.values())[:3]]
-    moves += dungeon_claims(level, reach)
+    moves += dungeon_claims(level, reach, dungeon_panel)
     moves += profession_claims(level, gear_profs, skills, header)
     moves += riding_claims(level, header, skills, done)
     rested = opt_num(header.get("rested_xp"))
@@ -1071,7 +1095,8 @@ def deaths_zone_claim(zone: str, ds: list[dict], level: int | None, ask: Ask) ->
 
 def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, advice: dict | None,
                  gear_profs: list[dict], skills: dict[int, dict], talents: list[dict] | None,
-                 gear_items: list[dict] | None = None, header: dict | None = None, *, ask: Ask) -> dict:
+                 gear_items: list[dict] | None = None, header: dict | None = None, *, ask: Ask,
+                 dungeon_panel=None) -> dict:
     """What looks like a mistake in the recorded play, worst first. The
     death counts are the semantic layer's (`ask`, death_clusters)."""
     found = []
@@ -1105,7 +1130,8 @@ def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, a
         found.append({**c, "weight": 2})
     if follow.get("skipped", 0) + follow.get("jumped", 0) >= 10 and follow.get("claims"):
         found.append({**follow["claims"][0], "weight": 1})
-    big = [(u, s) for u, s in in_reach(advice, level) if (u.get("gain_share_pct") or 0) >= 10]
+    big = [(u, s) for u, s in in_reach(advice, level, dungeon_panel=dungeon_panel)
+           if (u.get("gain_share_pct") or 0) >= 10]
     if big:
         u, s = big[0]
         found.append(_upgrade_claim(u, s, f"You could wear {u['name']} now: {gearmod.gain_words(u)} "
@@ -1160,6 +1186,11 @@ def overview_moves(nm: dict, sc: dict) -> list[dict]:
             lift[z] = max(lift[z], c.get("weight", 1))
             continue
         kept.append(c)
+    # Item deduplication can lift the dungeon recommendations above other kinds
+    # of move. Keep the highest-ranked trip first even when the runner-up has a named drop.
+    first_dungeon = next((c["zone"]["name"] for c in kept if c.get("kind") == "dungeon" and c.get("zone")), None)
+    if first_dungeon and lift:
+        lift[first_dungeon] = max(lift.values())
     kept = [{**c, "weight": max(c.get("weight", 1), lift[(c.get("zone") or {}).get("name")])}
             if c.get("kind") == "dungeon" and lift.get((c.get("zone") or {}).get("name")) else c for c in kept]
     seen, ranked = set(), []

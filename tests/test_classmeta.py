@@ -176,18 +176,31 @@ def test_the_score_is_the_weighted_parts(lane):
     expect = 0.4 * kept / total + 0.4 * 140 / 185 + 0.2 * 0.5
     assert a["score"] == round(expect * 100)
     kinds = [g["kind"] for g in a["gaps"]]
-    assert {"talents", "upgrade", "enchant"} <= set(kinds)
+    assert {"upgrade", "enchant"} <= set(kinds)
+    assert "talents" not in kinds
     # Every gap is actionable: a title, where to go or what to do.
     for g in a["gaps"]:
         assert g["title"] and g["link"].startswith("#")
         assert g.get("action") or g.get("source") or g.get("trainers"), g
     up = next(g for g in a["gaps"] if g["kind"] == "upgrade")
     assert up["item"]["name"] == "New Feet" and up["source"]["boss"] == "A Boss"  # the biggest gain first
-    respec = next(g for g in a["gaps"] if g["kind"] == "talents")
-    assert respec["trainers"] and all(t["url"].startswith("https://") for t in respec["trainers"])
-    assert "trainer" in respec["action"]
+    comparison = parts["talents"]["comparison"]
+    assert comparison["different"] == [{"name": "Some Arcane Talent", "points": total - kept}]
+    assert comparison["respec_cost"] and all(t["url"].startswith("https://") for t in comparison["trainers"])
     ench = next(g for g in a["gaps"] if g["kind"] == "enchant")
     assert ench["enchants"][0]["name"] == "Minor Speed" and ench["items"][0]["slot_name"] == "Feet"
+
+
+def test_one_different_point_is_a_comparison_not_a_respec_instruction(lane):
+    ranks = dict(build_ranks("MAGE", 30))
+    ranks[next(iter(ranks))] -= 1
+    ranks["Another talent"] = 1
+    part = cm.talents_part("MAGE", 30, tal_of("MAGE", ranks), {"race": "Gnome", "faction": "Alliance"})
+    assert part["off_build"] == 1 and part["free"] == 0 and part["gaps"] == []
+    assert part["comparison"]["different"] == [{"name": "Another talent", "points": 1}]
+    cited = cm.describe("Mage", "Frost", 30, cite=True, today=TODAY)
+    assert cited["summary_evidence"][0]["source_url"].startswith("https://")
+    assert cited["summary_evidence"][0]["confidence"] == "medium"
 
 
 def test_free_points_are_a_gap_with_the_next_talents(lane):

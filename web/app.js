@@ -1176,11 +1176,32 @@ function metaPart(p) {
     h('span', { class: 'mpname', text: META_PART[p.key] || p.key }),
     h('span', { class: 'mpbar', role: 'img', 'aria-label': pct == null ? 'not measured' : `${pct}%` }, fillEl),
     h('span', { class: 'mppct', text: pct == null ? '–' : `${pct}%` }),
-    h('span', { class: 'mpsub', text: sub }));
+    h('span', { class: 'mpsub', text: sub }),
+    p.comparison ? h('details', { class: 'mpsub' }, h('summary', { text: 'Where your build differs' }),
+      h('p', { text: p.comparison.different.map(x => `${x.name} (${x.points})`).join(', ') }),
+      h('p', { text: `If you choose to switch builds, the trainer charges ${p.comparison.respec_cost}.` })) : null);
+}
+function metaEvidence(row) {
+  const links = [...new Set([row.source_url, ...(row.sources || [])])].flatMap((raw) => {
+    try {
+      const url = new URL(raw);
+      return url.protocol === 'https:' ? [h('a', { href: url.href, text: url.hostname,
+        target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer' })] : [];
+    } catch { return []; }
+  });
+  if (!links.length) return null;
+  const details = [row.scope === 'classic_fallback' ? 'Classic fallback' : row.scope,
+    row.confidence && `${row.confidence} confidence`, row.last_verified && `checked ${row.last_verified}`].filter(Boolean);
+  return h('details', { class: 'metasources' }, h('summary', { text: 'Sources' }),
+    h('small', { text: details.join(' · ') }), h('ul', {}, links.map(link => h('li', {}, link))));
 }
 function metaList(head, rows, render) {
   if (!rows || !rows.length) return null;
-  return h('div', { class: 'metacol' }, h('h3', { text: head }), h('ul', { class: 'metalist' }, rows.map(render)));
+  return h('div', { class: 'metacol' }, h('h3', { text: head }), h('ul', { class: 'metalist' }, rows.map((row) => {
+    const li = render(row), evidence = metaEvidence(row);
+    if (evidence) li.append(evidence);
+    return li;
+  })));
 }
 const metaLine = (x) => h('li', {}, x.title ? h('b', { text: x.title + '. ' }) : null, x.text,
   x.url ? [' ', whRef({ url: x.url, name: 'Wowhead' })] : null);
@@ -1194,7 +1215,7 @@ function renderMetaFull(a) {
   const score = ad && ad.available ? h('div', { class: 'metascore' },
     h('div', { class: 'msnum' }, h('b', { text: String(ad.score) }), h('span', { text: '/100' })),
     h('div', { class: 'mslabel' }, h('b', { text: ad.label }),
-      ad.spec ? h('span', { class: 'sub', text: `against the ${ad.spec} meta at level ${ad.level}` }) : null),
+      ad.spec ? h('span', { class: 'sub', text: `alignment with the ${ad.spec} reference at level ${ad.level}` }) : null),
     h('ul', { class: 'metaparts' }, ad.parts.map(metaPart))) : null;
   // Getting ready for an event that is near (advice, not in the score) comes
   // first: it has a day.
@@ -1209,12 +1230,12 @@ function renderMetaFull(a) {
       ...(e.for_you || []).map((t) => h('span', { class: 'mcline you', text: t })))))) : null;
   const standing = metaList('How each spec stands', m.standing, (x) => h('li', {}, x.spec ? h('b', { text: x.spec + ': ' }) : null, x.text));
   const tg = m.build && m.build.target;
-  const build = tg ? metaList(`The build at 60 (${tg.spec} ${tg.role})`, [tg.none ? { text: 'No target yet: not scored.' } : { title: tg.split, text: tg.note || '' }], metaLine)
+  const build = tg ? metaList(`The build at 60 (${tg.spec} ${tg.role})`, [tg.none ? { text: 'No target yet: not scored.' } : { ...tg, title: tg.split, text: tg.note || '' }], metaLine)
     : m.build && (m.build.notes || []).length ? metaList(`The build${m.build.spec ? ` (${m.build.spec})` : ''}`, m.build.notes, metaLine) : null;
   const enchants = metaList('Enchants', m.enchants, (x) => h('li', {}, h('b', { text: `${x.slot || 'Any'}: ` }),
     x.url ? whRef({ url: x.url, name: x.enchant || x.title || 'enchant' }) : (x.enchant || x.title || ''), x.text ? h('span', { class: 'sub', text: ` ${x.text}` }) : null));
   const shifts = metaList('What changed lately', m.shifts, (x) => h('li', {}, x.date ? h('b', { text: `${metaDate(x.date)}: ` }) : null, x.text));
-  const more = [standing, build, metaList('Stats', m.stats, metaLine), metaList('Gear', m.gear, metaLine), enchants,
+  const more = [metaList('Summary sources', m.summary_evidence, metaLine), standing, build, metaList('Stats', m.stats, metaLine), metaList('Gear', m.gear, metaLine), enchants,
     metaList('Consumables', m.consumables, metaLine), metaList('Professions', m.professions, metaLine), shifts].filter(Boolean);
   const full = more.length ? h('details', { class: 'metamore' }, h('summary', { text: 'The meta in full' }),
     h('div', { class: 'metagrid' }, more)) : null;
@@ -1399,7 +1420,7 @@ function basisEl(sr) {
     h('a', { href: SOURCE_CREDIT.url, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer', text: SOURCE_CREDIT.text }));
 }
 // A drop's chance, with the looted kills players measured it over.
-const chanceText = (sr) => (sr.chance_pct ? `, ${sr.chance_pct}%${sr.kills ? ` over ${sr.kills} kills` : ''}` : '');
+const chanceText = (sr) => (sr.chance_pct != null ? `, ${sr.chance_pct}%${sr.kills ? ` over ${sr.kills} kills` : ''}` : '');
 
 // One source in words, with its link and the numbers that decide a trip.
 // ah: the item's auction house listing, for "or buy it" after another source.
@@ -1459,7 +1480,7 @@ function sourceEl(sr, level, ah) {
       const who = sr.boss ? ['Drops from ', wh('npc', sr.npc_id, sr.boss), lv || (sr.rare ? ' (rare)' : ''), sr.unplaced ? ', not placed yet' : '']
         : sr.npc_id ? 'Drops from an unnamed creature, not placed yet' : 'World drop';
       return h('span', { class: 'src' }, who, sr.zone ? ` in ${sr.zone}` : '', chanceText(sr),
-        sr.npc_id && !sr.chance_pct ? ', no drop rate known' : '', kills, basisEl(sr), buy);
+        sr.npc_id && sr.chance_pct == null ? ', no drop rate known' : '', kills, basisEl(sr), buy);
     }
     return h('span', { class: 'src' }, sr.boss ? wh('npc', sr.npc_id, sr.boss) : 'trash', ' in ', sr.zone || '?',
       chanceText(sr), runs ? ` (about ${runs.toLocaleString('en')} run${runs > 1 ? 's' : ''})` : '', basisEl(sr), buy);
@@ -1588,9 +1609,28 @@ function upText(u, where) {
 function upLine(u) {
   return `${upText(u)}${u.now === false ? ` at level ${u.level}` : ''}`;
 }
-// "chance one of your 3 upgrades drops", "chance your upgrade drops".
-function dropsOne(n) {
-  return n === 1 ? 'chance your upgrade drops' : `chance one of your ${plural(n, 'upgrade')} drops`;
+// One item can have several sources in the same run.
+function itemDropRate(sources) {
+  const known = sources.map((s) => s.chance_pct).filter((p) => p != null);
+  const chance = known.length ? Math.max(...known) : null;
+  return { chance, unknown_rate: known.length < sources.length && chance !== 100 };
+}
+
+// Rates are per item. Unknown rates leave the chance for the whole list open.
+function dropRates(items) {
+  const rates = items.map((x) => x.chance).filter((x) => x != null);
+  const known = rates.length ? rates.includes(100) ? 100
+    : Math.min(100 - 1e-14, -100 * Math.expm1(rates.reduce((sum, p) => sum + Math.log1p(-p / 100), 0))) : null;
+  const unknown = items.some((x) => x.chance == null || x.unknown_rate);
+  return { drop_upgrades: items.length, known_drop_chance_pct: known,
+    drop_chance_pct: unknown && !rates.includes(100) ? null : known };
+}
+
+function dropChanceText(odds) {
+  const p = odds.known_drop_chance_pct;
+  if (p == null) return 'drop chance unknown';
+  const pct = p > 99 && p < 100 ? '>99' : p > 0 && p < 1 ? Number(p.toPrecision(2)) : Math.round(p);
+  return `${pct}%${odds.drop_chance_pct == null ? ' from known rates' : ''}`;
 }
 
 // The display rule (owner, 2026-11-18, "WAY TOO MUCH options"): per slot the
@@ -2016,21 +2056,28 @@ function byWhere(a, list) {
   }
   for (const g of groups.values()) {
     if (g.kind === 'dungeon' || g.kind === 'world') {
-      const per = (pick) => {
-        const bySlot = {};
-        for (const { u, s } of g.items) (bySlot[slotKey(u)] = bySlot[slotKey(u)] || []).push([pick(u), (s.chance_pct || 0) / 100]);
-        return Object.values(bySlot).reduce((acc, xs) => {
-          let left = 1, e = 0;
-          for (const [gain, p] of xs.sort((x, y) => y[0] - x[0])) { e += gain * p * left; left *= 1 - p; }
-          return acc + e;
-        }, 0);
-      };
-      g.value = per((u) => u.gain);
-      g.rank = per(rankOf);
-      // Said as the chance a clear drops one of them, as the Dungeons panel
-      // does: the points behind the ranking are no scale the item lines use.
-      const none = g.items.reduce((x, { s }) => x * (1 - (s.chance_pct || 0) / 100), 1);
-      g.label = `${Math.round((1 - none) * 100)}% ${dropsOne(g.items.length)}`;
+      const items = new Map();
+      for (const { u } of g.items) {
+        if (!feasible(u, a.level).now) continue;
+        if (items.has(u.item_id) && rankOf(items.get(u.item_id).u) >= rankOf(u)) continue;
+        const sources = u.sources.filter((s) => sourceGroup(s).key === g.key);
+        items.set(u.item_id, { u, ...itemDropRate(sources) });
+      }
+      const open = [...items.values()];
+      const bySlot = {};
+      for (const { u, chance } of open) {
+        if (chance == null) continue;
+        (bySlot[slotKey(u)] ||= []).push([rankOf(u), chance / 100]);
+      }
+      g.rank = Object.values(bySlot).reduce((acc, xs) => {
+        let miss = 1;
+        for (const [gain, p] of xs.sort((x, y) => y[0] - x[0])) { acc += gain * p * miss; miss *= 1 - p; }
+        return acc;
+      }, 0);
+      const odds = dropRates(open);
+      if (!open.length) g.label = 'none open yet';
+      else if (g.kind === 'world') g.label = `${plural(open.length, 'world drop')} at your level`;
+      else g.label = `${plural(open.length, 'drop upgrade')} · ${dropChanceText(odds)}`;
     } else {
       const open = g.items.filter(({ u }) => feasible(u, a.level).now);
       g.value = open.reduce((x, { u }) => x + u.gain, 0);
@@ -2587,7 +2634,7 @@ function dropSource(it, dungeon, quests) {
   const best = it.drops[0];
   if (best) {
     return h('span', { class: 'src' }, best.boss ? whLink(best.url, best.boss) : 'trash',
-      best.chance_pct ? ` ${best.chance_pct}%` : '',
+      best.chance_pct != null ? ` ${best.chance_pct}%` : ', drop chance unknown',
       // A wing (Scarlet Monastery's Library), not the dungeon's own name again.
       best.wing && best.wing !== dungeon && best.wing.includes(':') ? h('span', { class: 'sub', text: `, ${best.wing.split(':').pop().trim()}` }) : null,
       best.summon ? h('span', { class: 'sub', text: `, ${best.summon}` }) : null,
@@ -2750,7 +2797,7 @@ function questBlock(q, level) {
 }
 
 const QSTATE = { open: 'in your log', new: 'not picked up', done: 'done' };
-function questRow(q, level) {
+function questRow(q, level, deferred) {
   const where = [];
   if (q.starts.length) where.push(h('span', {}, 'from ', npcs(q.starts)));
   if (q.ends.length && !(q.starts.length === 1 && q.ends.length === 1 && q.starts[0].id === q.ends[0].id)) {
@@ -2765,6 +2812,8 @@ function questRow(q, level) {
         q.xp_now ? `${fmtK(q.xp_now)} XP` : null].filter(Boolean).join(', ') })),
     where.length ? h('div', { class: 'sub where' }, where) : null,
     q.state === 'done' ? null : questBlock(q, level),
+    q.wings?.other_wings?.length ? h('div', { class: 'block-why', text: `Also needs ${q.wings.other_wings.join(' and ')}` }) : null,
+    deferred ? h('div', { class: 'sub' }, 'Later reward: ', whLink(deferred.url, deferred.name)) : null,
     q.route && q.route !== 'route' ? h('div', { class: 'sub note', text: cap(q.route.replace(`${q.name}: `, '')) }) : null);
 }
 
@@ -2775,9 +2824,11 @@ function dungeonQuests(b, level) {
   // Three in sight, the rest folded (open ones lead: dungeonview's order).
   const shown = b.state === 'soon' ? todo : todo.slice(0, 3);
   const more = todo.slice(shown.length);
-  const list = todo.length ? [h('ul', { class: 'dgqs' }, shown.map((q) => questRow(q, level))),
+  const deferred = new Map((b.deferred_quest_rewards || []).map((r) => [r.quest.quest_id, r]));
+  const row = (q) => questRow(q, level, deferred.get(q.quest_id));
+  const list = todo.length ? [h('ul', { class: 'dgqs' }, shown.map(row)),
     more.length ? h('details', { class: 'dgmore' }, h('summary', { text: `${more.length} more` }),
-      h('ul', { class: 'dgqs' }, more.map((q) => questRow(q, level)))) : null] : null;
+      h('ul', { class: 'dgqs' }, more.map(row))) : null] : null;
   // A dungeon that hasn't opened yet: its quests folded, for when it does.
   if (b.state === 'soon') {
     return h('div', { class: 'dgsec' }, h('details', { class: 'dgmore' },
@@ -2818,8 +2869,17 @@ function dungeonTrip(b) {
     // The chance a clear drops one of his upgrades: the points behind
     // expected_gain_per_clear are no scale the item lines use (owner,
     // 2026-11-21: "+19.8" next to "17% → 30% on your wrist").
-    facts.push(fact('Gear a clear', b.missing_now ? `${b.chance_one_per_clear_pct}%` : 'none',
-      b.missing_now ? dropsOne(b.missing_now) : 'nothing missing at your level'));
+    // Older saved pages have the source rows but no count of unknown rates.
+    let odds = b.gain || {};
+    if (odds.unknown_drop_rates == null) {
+      const handins = new Set((odds.quests || []).map((q) => q.quest_id));
+      const given = new Set((b.quest_rewards || []).filter((r) => handins.has(r.quest.quest_id)).map((r) => r.item_id));
+      const drops = b.drops.filter((d) => d.now && d.state === 'missing' && d.drops.length && !given.has(d.item_id));
+      odds = { ...odds, ...dropRates(drops.map((d) => itemDropRate(d.drops))) };
+    }
+    facts.push(fact('Gear a clear', odds.drop_upgrades ? dropChanceText(odds) : 'none',
+      odds.drop_upgrades ? plural(odds.drop_upgrades, 'drop upgrade') : 'no missing drops you can wear now'));
+    if (odds.upgrades) facts.push(fact('Quest rewards this trip', plural(odds.upgrades, 'upgrade')));
   }
   const kx = killXpFact(b.gain && b.gain.kill_xp);
   if (kx) facts.push(kx);
@@ -2879,6 +2939,7 @@ function dungeonBlock(b, d) {
     h('p', { class: 'dgverdict' }, h('strong', { text: cap(b.verdict) }), b.why ? `: ${b.why}` : ''),
     b.vs_guide && b.vs_guide.text ? h('p', { class: 'dgvs' }, vsGuide(b.vs_guide, false)) : null,
     b.gain && b.gain.summary ? h('p', { class: 'dggain' }, gainText(b.gain)) : null,
+    b.gain?.forecast_note ? h('p', { class: 'sub', text: b.gain.forecast_note }) : null,
     dungeonNext(b),
     dungeonWayIn(b),
     dungeonQuests(b, d.level),
@@ -2906,7 +2967,8 @@ function dungeonNext(b) {
     const m = n.meanwhile ? b.quests.find((x) => x.quest_id === n.meanwhile) : null;
     body = [`Reach level ${n.level} (${plural(n.to_go, 'level')} to go)`,
       m ? ['; meanwhile pick up ', whLink(m.url, m.name), from(m)] : ''];
-  } else if (n.do === 'go') body = goIn('Go in at ');
+  } else if (n.do === 'join') body = goIn('If a group is already going, join them at ');
+  else if (n.do === 'go') body = goIn('Go in at ');
   else if (n.do === 'none') body = ['Nothing to do here: skip it'];
   if (!body) return null;
   return h('p', { class: 'dgnext' }, h('span', { class: 'lbl', text: 'Next' }), h('span', {}, body, '.'));
@@ -3552,7 +3614,7 @@ function paceChart(rows, W) {
 // holds it. The kinds are wowstats/insights.py's; /zogzog/ gets only those
 // of redact.ZOGZOG_MOVE_KINDS.
 const MOVE_KIND = {
-  upgrade: ['Upgrade', 'See the upgrade'], dungeon: ['Dungeon', 'See the drops'], profession: ['Profession', 'See professions'],
+  upgrade: ['Upgrade', 'See the upgrade'], dungeon: ['Dungeon', 'See the dungeon'], profession: ['Profession', 'See professions'],
   riding: ['Riding', 'See the gear'],
   deaths_zone: ['Deaths', 'See deaths'], deaths_creature: ['Deaths', 'See deaths'], deaths_level_gap: ['Deaths', 'See deaths'],
   slow_steps: ['Guide', 'See guide steps'], talents: ['Talents', 'See talents'], enchant: ['Enchants', 'See the gear'],
@@ -3608,8 +3670,10 @@ function moveEl(mv, nowZone) {
   } else if (mv.kind === 'dungeon' && mv.zone) {
     const its = mv.items || [];
     what = h('span', {}, whRef(mv.zone), levelRange(mv.zone.levels) ? h('span', { class: 'pill', text: `levels ${levelRange(mv.zone.levels)}` }) : null);
-    why = [vsGuide(mv.vs_guide, true), gainLine(mv.gain), gainQuests(mv.gain), moveRewards(mv.quest_rewards),
-      h('span', { text: `Drops ${its.length} upgrade${its.length === 1 ? '' : 's'} you could wear now` + (mv.blocker ? ` (${mv.blocker}):` : ':') }),
+    why = [mv.detail ? h('span', { text: mv.detail }) : null, vsGuide(mv.vs_guide, true), gainLine(mv.gain),
+      mv.gain?.forecast_note ? h('span', { class: 'sub', text: mv.gain.forecast_note }) : null,
+      gainQuests(mv.gain), moveRewards(mv.quest_rewards),
+      its.length ? h('span', { text: `Drops ${its.length} upgrade${its.length === 1 ? '' : 's'} you could wear now` + (mv.blocker ? ` (${mv.blocker}):` : ':') }) : null,
       h('ul', { class: 'ditems' }, its.slice(0, 3).map((it) => h('li', {}, itemWithLink(it),
         h('span', { class: 'sub', text: upText(it) + withText(it) })))),
       its.length > 3 ? h('span', { class: 'sub', text: `and ${its.length - 3} more in the gear advice` }) : null,
@@ -3698,7 +3762,8 @@ function gainText(g) {
   return g.lead && t.startsWith(cap(g.lead)) ? [h('b', { text: cap(g.lead) }), t.slice(g.lead.length)] : t;
 }
 function gainLine(g) {
-  if (!g || !g.summary) return null;
+  if (!g) return null;
+  if (!g.summary) return null;
   return h('span', { class: 'mgain' }, gainText(g));
 }
 // The dungeon's quests to take along: who gives each and where, the XP it

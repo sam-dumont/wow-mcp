@@ -66,8 +66,7 @@ services:
   ui:
     <<: *wow-stats
     command: ["ui"]
-    # The analysis holds a character's whole history in memory: 472 MiB peak
-    # on 55 weeks of the demo (100,705 events), so twice that by default.
+    # The page and MCP share this limit, including DuckDB's query processes.
     # UI_MEM_LIMIT in .env (docs/install.md, "Memory").
     mem_limit: ${UI_MEM_LIMIT:-1g}
     depends_on: [victorialogs]

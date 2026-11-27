@@ -82,13 +82,11 @@ def test_victorialogs_runs_with_the_limits_security_md_asks_for():
     assert "-search.maxQueryDuration" in security and "-search.maxConcurrentRequests" in security
 
 
-def test_the_ui_memory_limit_has_room_over_the_measured_peak():
-    # 472 MiB peak on 55 weeks of the demo (100,705 events), 2026-11-19:
-    # the default keeps about twice that, and UI_MEM_LIMIT raises it.
+def test_the_documented_ui_memory_limit_can_be_raised():
     assert int(config()["ui"]["mem_limit"]) == 1 << 30
     assert int(config(UI_MEM_LIMIT="2g")["ui"]["mem_limit"]) == 2 << 30
     docs = (ROOT / "docs" / "install.md").read_text()
-    assert "472 MiB" in docs and "1 GiB" in docs and "UI_MEM_LIMIT" in docs
+    assert "1 GiB" in docs and "UI_MEM_LIMIT" in docs
 
 
 def test_the_demo_service_loads_the_demo_through_the_uis_ingest():

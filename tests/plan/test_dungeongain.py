@@ -256,7 +256,8 @@ def test_the_line_says_the_trip_and_its_parts():
     assert G.summary(g) == "~1h55 trip for ~58k XP + 1 quest upgrade, 2.1× your questing (1h15 inside · 15 min hand-ins)"
     # Drops only, chance unknown.
     g = {**g, "upgrades": 0, "drop_upgrades": 1}
-    assert G.summary(g) == "~1h55 trip for ~58k XP + 1 drop upgrade, 2.1× your questing (1h15 inside · 15 min hand-ins)"
+    assert G.summary(g) == ("~1h55 trip for ~58k XP + 1 drop upgrade (drop chance unknown), "
+                            "2.1× your questing (1h15 inside · 15 min hand-ins)")
     # Without a kill estimate the time and quests lead and no verdict follows:
     # the unknown kill XP could flip it.
     nk = dict(xp=None, xp_quests=10000, run_s=2100, level_pct=29, time="clear")
@@ -512,3 +513,25 @@ def test_the_route_costs_only_what_his_quest_state_leaves(monkeypatch):
     assert g["trip"]["pickup_s"] == {"value": None, "label": None}
     # 1,922 inside + 300 there (seen) + 800 back + 112 hand-ins (the route's).
     assert g["run_s"] == 1922 + 300 + 800 + 112
+
+@pytest.mark.parametrize(("rates", "total", "known", "unknown"), [
+    ([], None, None, 0), ([None], None, None, 1), ([0], 0, 0, 0), ([0, None], None, 0, 1),
+    ([0.03], 0.03, 0.03, 0), ([20, 50], 60, 60, 0), ([20, 50, None], None, 60, 1),
+    ([None, 100], 100, 100, 1),
+])
+def test_random_drop_odds_preserve_unknown_and_measured_zero(rates, total, known, unknown):
+    items = [{"item_id": i, "now": True, "slot": "Chest", "gain": 10, "chance": rate}
+             for i, rate in enumerate(rates)]
+    rollup = G._drop_upgrades(items, [])
+    assert rollup["drop_upgrades"] == len(rates)
+    assert rollup["drop_chance_pct"] == total
+    assert rollup["known_drop_chance_pct"] == known
+    assert rollup["unknown_drop_rates"] == unknown
+    assert (rollup["expected_gain_per_clear"] is None) == bool(unknown)
+
+
+def test_only_the_reward_chosen_is_removed_from_random_drops():
+    items = [{"item_id": i, "now": i != 3, "slot": "Chest", "gain": 10, "chance": 20} for i in (1, 2, 3)]
+    q = {"quest_id": 1, "rewards": [{"item_id": 2, "state": "missing"}]}
+    rollup = G._drop_upgrades(items, [q])
+    assert rollup["drop_upgrades"] == 1 and rollup["drop_chance_pct"] == 20

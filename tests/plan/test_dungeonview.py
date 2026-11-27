@@ -118,7 +118,7 @@ def test_verdicts_weigh_more_than_xp(priest):
         assert b["value"] in ("high", "some", "none") and b["verdict"] and b["why"]
         assert "questing" not in b["verdict"]
     bfd = v["Blackfathom Deeps"]
-    assert bfd["verdict"] == "worth a loop for gear" and "missing upgrade" in bfd["why"]
+    assert bfd["verdict"] == "worth a loop for gear" and "missing drop upgrade" in bfd["why"]
     # Nothing left: the plain "done".
     g = copy.deepcopy(priest)
     g["dungeon_loot"] = {}

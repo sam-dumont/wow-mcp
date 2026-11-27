@@ -28,8 +28,7 @@ to your server with your own upload password. It keeps a copy of everything it s
 when, where and how you met them, nothing more. It never reads your WoW or Battle.net password, and
 nothing outside the WoW folder. [What it sends](../players/privacy.md#what-leaves-your-computer).
 
-**The server.** One `docker compose up` on a small box: 2 vCPU and 2 GiB of RAM run it for
-one player, and a year of one player's events takes a few MiB. It keeps the events
+**The server.** One `docker compose up` starts the server. It keeps the events
 and works out everything else from them each time new ones arrive: pace, upgrades,
 dungeons, plans. Someone you know can run it for you, and then you skip this part.
 

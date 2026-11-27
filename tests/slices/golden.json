@@ -52,15 +52,16 @@
    "raids-open-2026-12|1"
   ],
   "moves": [
+   "dungeon|Dire Maul: North",
+   "dungeon|Scholomance",
    "riding|Riding at level # if not trained yet",
    "upgrade|13209",
-   "upgrade|17738",
    "upgrade|22659"
   ],
   "next_moves": [
+   "#dungeons",
    "#gear",
    "#up-14",
-   "#up-17",
    "#up-2"
   ],
   "prep": [
@@ -94,21 +95,21 @@
   "effects": [],
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
-   "dungeon|Maraudon: Purple",
-   "dungeon|Scarlet Monastery: Cathedral",
+   "dungeon|Razorfen Downs",
+   "dungeon|Zul'Farrak",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
+   "upgrade|10028",
    "upgrade|10771",
-   "upgrade|273806",
-   "upgrade|7685"
+   "upgrade|279883"
   ],
   "next_moves": [
-   "#advice",
+   "#dungeons",
    "#gear",
    "#levels",
-   "#up-12",
-   "#up-17",
-   "#up-6"
+   "#up-3",
+   "#up-6",
+   "#up-9"
   ],
   "prep": []
  },
@@ -136,14 +137,14 @@
   ],
   "effects": [],
   "moves": [
-   "dungeon|Razorfen Downs",
+   "dungeon|Scarlet Monastery: Cathedral",
    "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
    "upgrade|10025",
-   "upgrade|17745"
+   "upgrade|10762"
   ],
   "next_moves": [
-   "#advice",
+   "#dungeons",
    "#gear",
    "#levels",
    "#up-1",
@@ -177,21 +178,21 @@
   "effects": [],
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
-   "dungeon|Scarlet Monastery: Cathedral",
-   "dungeon|Uldaman",
+   "dungeon|Razorfen Downs",
+   "dungeon|Zul'Farrak",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
-   "upgrade|273806",
-   "upgrade|2816",
-   "upgrade|7685"
+   "upgrade|10025",
+   "upgrade|10028",
+   "upgrade|279883"
   ],
   "next_moves": [
-   "#advice",
+   "#dungeons",
    "#gear",
    "#levels",
-   "#up-12",
-   "#up-16",
-   "#up-17"
+   "#up-1",
+   "#up-3",
+   "#up-9"
   ],
   "prep": []
  },

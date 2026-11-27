@@ -40,12 +40,13 @@ questing (vs_questing None) and no verdict.
 
 from __future__ import annotations
 
+import math
 import re
 
 from wowstats.classguide import MAX_LEVEL
 from wowstats.rates import per_hour
 
-from .estimate import fdur, seen_mean
+from .estimate import expected_best, fdur, seen_mean
 
 SHOWN = 3  # quests the move lists before "N more" (the page's rule)
 
@@ -197,7 +198,7 @@ def _ids(q: dict) -> set[int]:
 
 def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], others: list[dict],
              quests: list[dict], questing_xph: float | None, rule: dict | None = None,
-             clear: float | None = None, route: dict | None = None, drops: dict | None = None,
+             clear: float | None = None, route: dict | None = None, drops: list[dict] | None = None,
              pace: dict | None = None, current_xp: int = 0) -> dict:
     """One more run at `level`. `runs`: his trips of this dungeon
     (facts.trips); `others`: every trip he made (their means stand in for
@@ -207,7 +208,7 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     make from where he stands (dungeonview.route_trip: tripcost.trip plus
     the XP of its quests), None when the reference has none; `drops`: his
     missing upgrades that drop there, each with its best chance
-    (dungeonview.drop_odds); `pace`: his pace on a trip's legs
+    (dungeonview.drop_items); `pace`: his pace on a trip's legs
     (dungeonview.pace), which the route's pickups, travel and hand-ins are
     scaled by, labelled "your pace" (none: the straight run, "route")."""
     if route:
@@ -310,6 +311,7 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
 
     trip = {k: part(*parts[k]) if k in parts else part(None, None)
             for k in ("pickup_s", "inside_s", "handin_s", "travel_s")}
+    trip.update({leg: part(*(v or (None, None))) for leg, v in (("travel_to_s", to), ("travel_back_s", back))})
     trip.update({"total_s": part(run_s, t_label if run_s else None),
                  "xp_quests": part(xp_q, "route" if route else "estimate"),
                  "xp_kills": part(xp_k, k_label),
@@ -364,27 +366,53 @@ def verdict(vs: float | None) -> str | None:
 
 
 def _drop_upgrades(drops: list[dict], todo: list[dict]) -> dict:
-    """His missing upgrades that drop there (dungeonview.drop_odds), less
-    those a quest of the trip gives for certain, and the chance at least one
-    of them drops in a run (each by its best chance; None when no chance is
-    known)."""
-    given = set().union(*(_ids(q) for q in todo)) if todo else set()
-    left = [d for d in drops if not set(d.get("quests") or []) & given]
-    miss = 1.0
-    for d in left:
-        miss *= 1 - min(100.0, d.get("chance_pct") or 0) / 100.0
-    known = any(d.get("chance_pct") for d in left)
-    return {"drop_upgrades": len(left), "drop_chance_pct": round((1 - miss) * 100) if left and known else None}
+    """Only count a dual-source item once when this trip pays it at hand-in."""
+    given = {r["item_id"] for q in todo for r in q.get("rewards") or [] if r["state"] == "missing"}
+    return drop_value([d for d in drops if d["now"] and d["item_id"] not in given])
+
+
+def drop_value(items: list[dict]) -> dict:
+    """Estimate from one (best known) rate per item. A missing rate leaves the
+    total unknown, but the subset with published rates is still informative."""
+    known = [d for d in items if d["chance"] is not None]
+    unknown = sum(d["chance"] is None or bool(d.get("unknown_rate")) for d in items)
+    pct = None
+    if known:
+        rates = [min(100, max(0, d["chance"])) for d in known]
+        if 100 in rates:
+            pct = 100
+        else:
+            pct = -100 * math.expm1(sum(math.log1p(-r / 100) for r in rates))
+            # Never round an almost-certain drop into a guarantee.
+            pct = min(math.nextafter(100.0, 0), float(f"{pct:.12g}")) or 0
+    points = round(expected_best(known), 1)
+    return {"drop_upgrades": len(items), "unknown_drop_rates": unknown,
+            "drop_chance_pct": pct if not unknown or pct == 100 else None, "known_drop_chance_pct": pct,
+            "expected_gain_per_clear": None if unknown else points,
+            "known_gain_per_clear": points if known or not items else None}
+
+
+def odds_words(g: dict, unit: str) -> str:
+    """A clear's odds, qualified when they cover only drops with a rate."""
+    pct = g.get("known_drop_chance_pct", g.get("drop_chance_pct"))
+    if pct is None:
+        return "drop chance unknown"
+    if 99 < pct < 100:
+        label = ">99%"
+    elif 0 < pct < 1:
+        label = f"{pct:.2g}%"
+    else:
+        label = f"{pct:.0f}%"
+    if g.get("drop_chance_pct") is None:
+        return f"{label} {unit} from known rates"
+    return f"{label} {unit}"
 
 
 def _upgrades(g: dict) -> str:
-    """" + 4 quest upgrades, 9 drop upgrades (88% a run)": the quests' reward
-    upgrades (certain) first, then his missing upgrades that drop there with
-    the chance one drops in a run (owner, 2026-11-23); a part with none left out."""
+    """Quest rewards and random drops available on this trip."""
     q, d = g.get("upgrades") or 0, g.get("drop_upgrades") or 0
     parts = [f"{q} quest upgrade{'s' if q != 1 else ''}" if q else None,
-             (f"{d} drop upgrade{'s' if d != 1 else ''}"
-              + (f" ({g['drop_chance_pct']}% a run)" if g.get("drop_chance_pct") is not None else "")) if d else None]
+             f"{d} drop upgrade{'s' if d != 1 else ''} ({odds_words(g, 'a run')})" if d else None]
     parts = [p for p in parts if p]
     return " + " + ", ".join(parts) if parts else ""
 

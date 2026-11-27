@@ -95,6 +95,10 @@ def parse_constraints(text: str) -> dict:
         out["no_dungeons"] = True
     if re.search(r"\b(group|friends?|party|with (my )?(mates|guild))\b", low) and not out.get("no_dungeons"):
         out["group"] = True
+    goal = re.search(r"\b(?:for|prioriti[sz]e|focus on) (xp|gear)\b|\b(xp|gear) only\b", low)
+    if goal:
+        out["dungeon_goal"] = goal.group(1) or goal.group(2)
+        low = low[:goal.start()] + " " + low[goal.end():]
     m = re.search(r"\b(level|skill|train|work on|do|push)\s+(?:up\s+)?(?:my\s+)?(tailoring|enchanting|cooking|"
                   r"first aid|fishing|alchemy|blacksmithing|leatherworking|engineering|herbalism|mining|"
                   r"skinning)\b", low)
@@ -364,14 +368,15 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
     from his own trips, with the gear it holds for him and, for those he has
     done, the value of one more run and of looping it."""
     from . import vsguide, wings
+    from .dungeongain import drop_value
     from .dungeonview import build as panel
-    from .dungeonview import gain_named, known_areas, other_sides
+    from .dungeonview import drop_items, gain_named, known_areas, other_sides
     from .dungeonview import key as pkey
 
     level = inp["level"]
     # Polestar's list against each (wowstats.plan.vsguide), as the Dungeons
     # panel has it: one answer for the panel, the Overview and the MCP.
-    vs = {pkey(b["name"]): b.get("vs_guide") for b in panel(inp)["dungeons"]}
+    blocks = {pkey(b["name"]): b for b in panel(inp)["dungeons"]}
     by_inst = dungeon_items(inp)
     ts = trip_stats(inp.get("trips") or [])
     quest_xph = rate(p, "questing") if level < classguide.MAX_LEVEL else 0
@@ -390,36 +395,49 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
         k = dkey(inst)
         if k not in names and d.get("levels"):
             names[k] = {"name": inst, "min": d["levels"][0], "max": d["levels"][1]}
+    for k, b in blocks.items():  # older inputs can predate a dungeon in the current panel
+        names.setdefault(k, {"name": b["name"], "min": b["min"], "max": b["max"]})
     known = known_areas()
     theirs = {pkey(a["name"]) for aid, a in known.items() if other_sides(inp, known, aid)}
+    order = {k: i for i, k in enumerate(blocks)}
     out = []
     for k, d in names.items():
         lo, hi = d["min"], d["max"]
         if hi < level - 2 or lo > level + 5 or pkey(d["name"]) in theirs:
             continue
-        gear = [g for inst, v in by_inst.items() if dkey(inst) == k for g in v["drops"]]
-        qrew = [g for inst, v in by_inst.items() if dkey(inst) == k for g in v["quests"]]
+        b = blocks.get(k)
+        rewards = b["quest_rewards"] if b else []
+        given = {r["item_id"] for r in rewards}
+        gear = ([g for g in drop_items(b["drops"]) if g["item_id"] not in given] if b else
+                [g for inst, v in by_inst.items() if dkey(inst) == k for g in v["drops"]])
         now_items = [g for g in gear if g["now"]]
         later = [g for g in gear if not g["now"]]
-        exp_now = expected_best(now_items)
+        # Keep the planner's item/quest field names for its callers.
+        qrew = [{**r, "item": r["name"], "quest_id": r["quest"]["quest_id"], "quest": r["quest"]["name"]}
+                for r in rewards]
+        odds = b["gain"] if b else drop_value(now_items)
         run = kb_runs.get(k) or {}
         quests_open = [open_ids[qq] for qq in (run.get("objectives") or []) + (run.get("pickups") or [])
                        if qq in open_ids]
         quest_xp = sum((o.get("xp_full") or 0) * (share(inp, level, o.get("level")) or 0) for o in quests_open)
         mine = [t for t in inp.get("trips") or [] if dkey(wings.trip_name(t)) == k]
-        v = vsguide.named(vs.get(pkey(d["name"])), d["name"])
+        v = vsguide.named((b or {}).get("vs_guide"), d["name"])
         # His quests of it in the log count whether or not Polestar has a
         # run of it (the panel's quests: forever-db's zone, Polestar's run).
         quest_xp = max(quest_xp, (v or {}).get("numbers", {}).get("quest_xp_in_log") or 0)
         # Fits now: on Polestar's list for his level, or a reason measured
         # on him to go anyway (vsguide); a dungeon under Polestar's floor
         # waits for it otherwise, whatever its gear.
-        fits = lo <= level <= hi and (v is None or v["agrees"] or bool(v.get("reason")))
+        fits = b["fits_now"] if b else lo <= level <= hi
         entry = {"name": d["name"], "min": lo, "max": hi, "fits_now": fits, "vs_guide": v,
                  "opens_at": lo if lo > level else None, "needs_group": True,
+                 "verdict": b["verdict"] if b else None, "why": b["why"] if b else None,
+                 "priority": b["value"] if b else None, "goals": b["goals"] if b else [],
                  "top_items": sorted(now_items + later, key=lambda g: -(g["gain"] * (g["chance"] or 0)))[:4],
-                 "expected_gain_per_clear": round(exp_now, 1), "items_now": len(now_items),
+                 "expected_gain_per_clear": odds["expected_gain_per_clear"],
+                 "known_gain_per_clear": odds["known_gain_per_clear"], "items_now": len(now_items),
                  "items_later": len(later), "quest_rewards": qrew[:3],
+                 "deferred_quest_rewards": b["deferred_quest_rewards"] if b else [],
                  "quests_open": [{"quest_id": o["quest_id"], "name": o["name"]} for o in quests_open],
                  "quest_xp_open": round(quest_xp)}
         # One more run, the same estimate the Overview's move and the
@@ -427,36 +445,34 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
         # else the kill estimate's time inside and Polestar's pick-up and
         # hand-in rules on his quests (wowstats.plan.tripcost); the kill
         # estimate counts in the XP and the ranking, labelled.
-        g = gain_named(inp, d["name"], quest_xph)
+        g = b["gain"] if b else gain_named(inp, d["name"], quest_xph)
         entry["gain"] = g
         if g and g["run_s"]:
             xp_trip = g["xp"] if g["xp"] is not None else g["xp_quests"]
-            entry["trip"] = {"time_s": g["run_s"], "xp": xp_trip, "xp_per_hour": per_hour(xp_trip, g["run_s"]),
-                             "kills_unknown": g["kills_unknown"],
-                             "from": _trip_from(g, ts),
-                             "n": g["own_runs"] or ts["n"],
-                             "phases_s": {kk: round(ts[kk]) if ts[kk] is not None else None
-                                          for kk in ("pickup_s", "travel_to_s", "inside_s", "travel_back_s",
-                                                     "handin_s")}
-                             if ts["n"] else {}}
+            legs = ("pickup_s", "travel_to_s", "inside_s", "travel_back_s", "handin_s")
+            entry["trip"] = {"time_s": g["run_s"], "xp": xp_trip, "xp_per_hour": g["trip"]["xp_per_hour"]["value"],
+                             "kills_unknown": g["kills_unknown"], "from": _trip_from(g, ts), "n": g["own_runs"],
+                             "phases_s": {leg: g["trip"][leg]["value"] for leg in legs}}
         else:
             entry["trip"] = None
         if mine:
-            entry["redo"] = redo(inp, mine, entry, quest_xph, mount, quests_open, g)
-        g_per_h = entry["expected_gain_per_clear"] / (entry["trip"]["time_s"] / 3600) if entry.get("trip") else 0
+            entry["redo"] = redo(inp, mine, entry, mount, quests_open, g)
+        g_per_h = (round(entry["expected_gain_per_clear"] * 3600 / entry["trip"]["time_s"], 1)
+                   if entry.get("trip") and entry["expected_gain_per_clear"] is not None else None)
         entry["value"] = {"xp_per_hour": g["xp_per_hour"] if g and not g["kills_unknown"] else None,
-                          "gear_per_hour": round(g_per_h, 1), "vs_questing_xp_per_hour": round(quest_xph)}
+                          "gear_per_hour": g_per_h, "vs_questing_xp_per_hour": round(quest_xph)}
         out.append(entry)
-    # Rank what fits now: XP/h of the trip against questing, plus the gear an
-    # hour brings (points), equal weight per 10% of questing XP and 5 points.
-    def score(e):
-        xp = (e["value"]["xp_per_hour"] or 0) + e["quest_xp_open"]
-        return (e["fits_now"], (xp / quest_xph * 10 if quest_xph else 0) + e["value"]["gear_per_hour"] / 5)
-
-    out.sort(key=score, reverse=True)
+    # The same order as the panel. Its whole-trip XP/h already counts quest hand-ins.
+    out.sort(key=lambda e: order.get(dkey(e["name"]), len(order)))
     for i, e in enumerate(out, 1):
         e["rank"] = i
     return out
+
+
+def gear_estimate(points, known) -> str:
+    if points is not None:
+        return f"+{points} points"
+    return f"+{known} points from known rates" if known is not None else "drop rates unknown"
 
 
 def _trip_from(g: dict, ts: dict) -> str:
@@ -493,7 +509,7 @@ def share(inp: dict, level: int, qlevel) -> float | None:
     return xp_share(level, qlevel, (inp.get("rules") or {}).get("quest_xp_share"))
 
 
-def redo(inp: dict, mine: list[dict], entry: dict, quest_xph: float, mount: dict, quests_open: list,
+def redo(inp: dict, mine: list[dict], entry: dict, mount: dict, quests_open: list,
          gain: dict | None = None) -> dict:
     """One more run of a dungeon he has done, from his runs of it: the time
     (travel there, inside, travel back; pickup and hand-in only while quests
@@ -547,7 +563,8 @@ def redo(inp: dict, mine: list[dict], entry: dict, quest_xph: float, mount: dict
                                                             if cap and loop_s > inside else ""),
                        "xp_per_hour": per_hour(xp_in, loop_s) if xp_in is not None else None,
                        "gold_copper_per_hour": round(gold_run / hours_loop),
-                       "gear_per_hour": round(entry["expected_gain_per_clear"] / hours_loop, 1)}
+                       "gear_per_hour": (round(entry["expected_gain_per_clear"] / hours_loop, 1)
+                                         if entry["expected_gain_per_clear"] is not None else None)}
         goal = mount.get("current") or {}
         left = goal.get("left_copper")
         if left and gold_run > 0:
@@ -557,18 +574,10 @@ def redo(inp: dict, mine: list[dict], entry: dict, quest_xph: float, mount: dict
     if best and best.get("chance"):
         out["best_item"] = {**best, "expected_runs": round(100 / best["chance"], 1),
                             "expected_time_s": round(100 / best["chance"] * run_s) if run_s else None}
-    xph = out["xp_per_hour_run"] or 0
-    loop_gold = (out.get("loop") or {}).get("gold_copper_per_hour") or 0
-    gold_rate = ((mount.get("gold_rate") or {}).get("copper_per_hour")) or 0
-    if xph and quest_xph and xph >= 0.9 * quest_xph:
-        v, why = "worth one more run", "its XP per hour matches your questing"
-    elif best and best["gain"] >= 10 and (best["chance"] or 0) >= 20 and best.get("now"):
-        v, why = f"only for {best['item']}", "the XP is under your questing; that item is the reason to go"
-    elif mount.get("behind") and loop_gold > max(gold_rate, 0) * 2:
-        v, why = "worth looping for gold toward the mount", "looping it earns more gold per hour than your play"
-    else:
-        v, why = "done, move on", "under your questing XP per hour, and no upgrade worth the trip"
-    out["verdict"], out["why"] = v, why
+    # This verdict is for the next whole trip. The repeatable loop from the door
+    # has its own XP and gold rates above, without the one-time quest hand-ins.
+    out["verdict"] = entry["verdict"] or "trip value unknown"
+    out["why"] = entry["why"] or "no whole-trip verdict for this dungeon"
     return out
 
 
@@ -874,7 +883,7 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
     lv, x = level, xp
     group_mode = cons.get("group") and not cons.get("no_dungeons")
     prof = cons.get("profession")
-    fitting_trips = [d for d in dl if d["fits_now"] and d.get("trip") and d["trip"]["time_s"] <= play]
+    fitting_trips = session_trips(dl, play, cons.get("dungeon_goal"), group_mode)
     best_d = next(iter(fitting_trips), None)
 
     def add_block(kind, title, dur, xp_gain, why, extra=None):
@@ -912,8 +921,9 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
     if group_mode and best_d:
         tr = best_d["trip"]
         add_block("dungeon", f"{best_d['name']} with your group", tr["time_s"], tr["xp"],
-                  [{"text": f"whole trip as your trips go: {fdur(tr['time_s'])}", "from": tr["from"]},
-                   {"text": f"expected gear per clear: +{best_d['expected_gain_per_clear']} points",
+                  [{"text": f"{best_d['verdict']}. Whole trip about {fdur(tr['time_s'])}", "from": tr["from"]},
+                   {"text": ("expected gear per clear: " + gear_estimate(best_d["expected_gain_per_clear"],
+                                                                        best_d.get("known_gain_per_clear"))),
                     "from": "your gear advice, drop chances"}], {"dungeon": best_d["name"]})
 
     if prof and not cons.get("no_professions"):
@@ -1128,12 +1138,30 @@ def abandons(inp: dict, p: dict) -> list[dict]:
     return out[:6]
 
 
+def session_trips(dl: list[dict], seconds: float, goal: str | None, group: bool) -> list[dict]:
+    """Whole trips that fit this session. A tag-along needs an existing group."""
+    trips = [d for d in dl if d["fits_now"] and d.get("trip") and d["trip"]["time_s"] <= seconds
+             and (d["priority"] == "high" or (group and "group_only" in d["goals"]))
+             and (not goal or goal in d["goals"])]
+    if goal == "gear":
+        # Unknown rates still have a known portion. A quest-only upgrade can
+        # qualify a trip even when no drop there would improve the character.
+        def gear_rate(d):
+            guaranteed = max((r["gain"] for r in d["quest_rewards"] if r["now"]), default=0)
+            return max(guaranteed, d["known_gain_per_clear"] or 0) / d["trip"]["time_s"]
+
+        trips.sort(key=gear_rate, reverse=True)
+    return trips
+
+
 def branch(dl: list[dict]) -> dict | None:
-    d = next((d for d in dl if d["fits_now"] and d.get("trip")), None)
+    d = next((d for d in dl if d["fits_now"] and d.get("trip") and d["priority"] == "high"), None)
     if not d:
         return None
     return {"dungeon": d["name"], "time_s": d["trip"]["time_s"], "xp": d["trip"]["xp"],
-            "xp_per_hour": d["trip"]["xp_per_hour"], "expected_gain": d["expected_gain_per_clear"],
+            "xp_per_hour": d["trip"]["xp_per_hour"], "kills_unknown": d["trip"]["kills_unknown"],
+            "expected_gain": d["expected_gain_per_clear"],
+            "known_gain": d.get("known_gain_per_clear"), "verdict": d["verdict"], "goals": d["goals"],
             "top_items": d["top_items"][:2], "from": d["trip"]["from"], "phases_s": d["trip"]["phases_s"],
             "vs_guide": d.get("vs_guide")}
 
@@ -1336,19 +1364,23 @@ def facts(e: dict) -> dict[str, str]:
         f["branch.dungeon"] = br["dungeon"]
         f["branch.time"] = fdur(br["time_s"])
         f["branch.xp"] = fint(br["xp"])
-        f["branch.xph"] = fint(br["xp_per_hour"])
-        f["branch.gear"] = f"+{br['expected_gain']}"
+        f["branch.xph"] = fint(br["xp_per_hour"]) if br["xp_per_hour"] is not None else "unknown"
+        f["branch.gear"] = gear_estimate(br["expected_gain"], br.get("known_gain"))
         f["branch.from"] = br["from"]
+        f["branch.verdict"] = br["verdict"]
         if (br.get("vs_guide") or {}).get("text"):
             f["branch.vs_guide"] = br["vs_guide"]["text"]
     for j, d in enumerate(e["dungeons"], 1):
         k = f"d{j}"
         f[f"{k}.name"] = d["name"]
+        if d.get("verdict"):
+            f[f"{k}.verdict"] = d["verdict"]
         f[f"{k}.range"] = f"{d['min']}-{d['max']}"
-        f[f"{k}.gear"] = f"+{d['expected_gain_per_clear']}"
+        f[f"{k}.gear"] = gear_estimate(d["expected_gain_per_clear"], d.get("known_gain_per_clear"))
         if d.get("trip"):
             f[f"{k}.time"] = fdur(d["trip"]["time_s"])
-            f[f"{k}.xph"] = fint(d["trip"]["xp_per_hour"])
+            xph = d["trip"]["xp_per_hour"]
+            f[f"{k}.xph"] = fint(xph) if xph is not None else "unknown"
         if d.get("opens_at"):
             f[f"{k}.opens"] = str(d["opens_at"])
         v = d.get("vs_guide")
@@ -1362,7 +1394,7 @@ def facts(e: dict) -> dict[str, str]:
                 f[f"{k}.vs_guide"] = v["text"]
         for m, it in enumerate(d["top_items"][:3], 1):
             f[f"{k}.item{m}"] = (f"{it['item']} ({it['line']}, {it['boss']}"
-                                 + (f", {it['chance']:.0f}%" if it.get("chance") else "") + ")")
+                                 + (f", {it['chance']:g}%" if it.get("chance") is not None else "") + ")")
         r = d.get("redo")
         if r:
             f[f"{k}.redo"] = f"{r['verdict']}: {r['why']}"
