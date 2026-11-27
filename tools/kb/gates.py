@@ -432,12 +432,14 @@ def suite_env() -> dict[str, str]:
 
 def test_gate() -> list[str]:
     """ruff, the suite and the fixtures check, as CI's test job runs them
-    (.github/workflows/ci.yml: every core, no browser suites); the failing
+    (.github/workflows/ci.yml: MCP scenarios run alone); the failing
     tests' names when red."""
     out = []
     steps = [("ruff", ["uv", "run", "--frozen", "ruff", "check", "."]),
+             ("MCP scenarios", ["uv", "run", "--frozen", "pytest", "-q", "-rfEs", "-p", "no:cacheprovider",
+                                "--timeout", "300", "tests/test_eval_mcp.py"]),
              ("pytest", ["uv", "run", "--frozen", "pytest", "-q", "-rfEs", "-p", "no:cacheprovider", "-n", "auto",
-                         "-m", "not browser", "--timeout", "300"]),
+                         "-m", "not browser", "--ignore=tests/test_eval_mcp.py", "--timeout", "300"]),
              ("fixtures", ["uv", "run", "--frozen", "python", "tools/fixtures/generate.py", "--check"])]
     env = suite_env()
     for name, cmd in steps:
