@@ -62,12 +62,14 @@ def test_header_for_a_character_only_syndicator_knows():
     assert (hd["race"], hd["class"], hd["sex"], hd["guild"], hd["money_copper"]) == (
         "Night Elf", "Hunter", None, None, 31337)
     assert hd["polestar"] is False and hd["sources"] == ["syndicator"] and hd["level"] is None
+    assert hd["at_level_cap"] is None
     folder = views.build_header("Testhunter-Fixture", [], {"snap": [{"_time": "2026-11-08T16:46:59Z",
                                                                 "source": "folder"}], "xp": []}, None)
     assert folder["polestar"] is False and folder["race"] is None and folder["seen"]
     polestar = views.build_header("Hero-Test", [], {"snap": [{"_time": "2026-11-12T21:00:00Z", "level": "12"}],
                                                     "xp": []}, None)
     assert polestar["polestar"] is True and polestar["sex"] is None
+    assert polestar["at_level_cap"] is False
 
 
 def _lv(level, seconds, at, partial=False):

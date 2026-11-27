@@ -711,6 +711,7 @@
    "total_s": 5270
   },
   "header": {
+   "at_level_cap": false,
    "avg_level_s": 7111,
    "avg_levels": 5,
    "char": "Nibbet-Gearholt",
@@ -5677,6 +5678,7 @@
    "total": 478
   },
   "header": {
+   "at_level_cap": false,
    "avg_level_s": 7111,
    "avg_levels": 5,
    "char": "Nibbet-Gearholt",
@@ -9425,6 +9427,7 @@
    }
   ],
   "header": {
+   "at_level_cap": false,
    "char": "Nibbet-Gearholt",
    "class": "Priest",
    "faction": "Alliance",

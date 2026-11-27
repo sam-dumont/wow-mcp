@@ -1088,7 +1088,7 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
         cur_xp, xp_max = opt_num(top.get("xp")), opt_num(top.get("xp_max"))
     if xp_max is None:
         xp_max = opt_num(snap.get("xp_max")) if opt_num(snap.get("level")) == level else None
-    capped = level is not None and level >= classguide.MAX_LEVEL
+    capped = level >= classguide.MAX_LEVEL if level is not None else None
     if capped:
         # A saved XP-bar denominator at the cap is not an attainable next level.
         xp_max = rested = None
@@ -1125,7 +1125,7 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
         "rested_xp": rested,
         "resting": truthy(snap.get("resting")) if top is snap and snap.get("resting") is not None else None,
         "level": level,
-        **({"at_level_cap": True} if capped else {}),
+        "at_level_cap": capped,
         "xp": cur_xp,
         "xp_max": xp_max,
         # Gold comes from the account snapshot (PolestarDB.alts.chars, saved at
