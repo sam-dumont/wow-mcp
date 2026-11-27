@@ -57,7 +57,11 @@
 
 	// Every clip the shipper may request. No other character sequences
 	// need to leave the player's install.
-	const ids = new Set([0, 15]);
+	// On a ground mount the rider uses Mount (91). The creature plays
+	// its own Stand, Walk or Run and carries the rider with its saddle.
+	M3D.RIDER_ANIMATION = 91;
+	M3D.GAITS = Object.freeze({ idle: 0, walk: 4, run: 5 });
+	const ids = new Set([15, M3D.RIDER_ANIMATION, ...Object.values(M3D.GAITS)]);
 	for (const moves of [
 		...Object.keys(READY).map((attack) => M3D.moves(Number(attack), 0, 0)),
 		...Object.keys(CLASS).map((id) => M3D.moves(16, Number(id), 0, 60)),

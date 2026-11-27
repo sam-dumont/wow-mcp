@@ -5,7 +5,7 @@
 
 The shipper reads .build.info and Data/. The gear and customization belong
 to the invented demo roster. Keep both model styles, the viewer's animation
-files, and the two companions. Reassemble every outfit from the trimmed
+files, the two companions and the known mounts. Reassemble every outfit from the trimmed
 tables before packing any files.
 
 build-roster writes store/ and roster-3d.tar.gz with its SHA-256. The store
@@ -35,7 +35,7 @@ import generate  # noqa: E402
 import golden3d  # noqa: E402
 import roster  # noqa: E402
 
-from wowstats import assets, character3d, db2  # noqa: E402
+from wowstats import assets, character3d, db2, mounts  # noqa: E402
 
 DEFAULT_WOW = {"darwin": "/Applications/World of Warcraft",
                "win32": r"C:\Program Files (x86)\World of Warcraft"}.get(sys.platform, "")
@@ -54,6 +54,7 @@ class Profile:
     sex: int  # ChrRaceXChrModel, 0 male / 1 female
     cls: str
     companion: tuple[int, int] | None = None
+    mount_spell: int | None = None
 
 
 NIBBET = Profile(generate.DEMO, "Gnome", 0, "PRIEST")
@@ -61,7 +62,8 @@ NIBBET = Profile(generate.DEMO, "Gnome", 0, "PRIEST")
 
 def profiles() -> list[Profile]:
     companions = {"HUNTER": (1, roster.BEAR_DISPLAY), "WARLOCK": (2, 1132)}
-    return [NIBBET, *(Profile(c.name, c.race, c.sex - 2, c.cls, companions.get(c.cls)) for c in roster.CHARACTERS)]
+    return [NIBBET, *(Profile(c.name, c.race, c.sex - 2, c.cls, companions.get(c.cls), c.mount_spell)
+                      for c in roster.CHARACTERS)]
 
 
 # Zero-based positions among this race and sex's choices. Options absent
@@ -172,6 +174,7 @@ MAPS = {
     "model_textures": ("ItemDisplayInfoModelMatRes", lambda r: r.get("ItemDisplayInfoID", 0)),
     "helmet_hides": ("HelmetGeosetData", lambda r: (r.get("HelmetGeosetVisDataID", 0), r.get("RaceID", 0))),
     "effects": ("ItemVisualsXEffect", lambda r: r.get("ItemVisualsID", 0)),
+    "mounts": ("Mount", lambda r: r.get("SourceSpellID", 0)),
 }
 
 
@@ -190,6 +193,9 @@ def answers(tables, looks: dict[str, list[dict]], sheets: dict[Profile, list[lis
         pet = character3d.companion(tables, p.companion)
         if p.companion and not pet:
             raise ValueError(f"{p.name}: no companion for display {p.companion[1]}")
+        riding = character3d.mounts(tables, mounts.resolve(ix.mounts, [p.mount_spell])) if p.mount_spell else []
+        if p.mount_spell and not riding:
+            raise ValueError(f"{p.name}: no mount model for spell {p.mount_spell}")
         for items in outfits:
             worn = [{"slot": i["slot"], "item_id": i["item_id"], "name": i.get("name"), "enchant": i.get("enchant_id")}
                     for i in items]
@@ -200,6 +206,9 @@ def answers(tables, looks: dict[str, list[dict]], sheets: dict[Profile, list[lis
                     raise ValueError(f"{p.name}: {result['why']}")
                 if pet:
                     recipe["companion"] = pet
+                if riding:
+                    recipe["mounts"] = riding
+                if pet or riding:
                     result["needs"] = sorted(character3d.needs(recipe))
                 out.append(result)
             out.append({"gaps": character3d.classic_gaps(tables, rid, p.sex, look),
@@ -246,6 +255,7 @@ def trim(rows: dict[str, dict[int, dict]], looks: dict[str, list[dict]], sheets:
             continue
         keep[name] |= {i for i, r in rows[name].items() if (i if key is None else key(r)) in m.asked}
     # Rows the Index folds in from the kept ones.
+    keep["MountXDisplay"].update(i for i, r in rows["MountXDisplay"].items() if r.get("MountID") in keep["Mount"])
     for i in keep["ItemModifiedAppearance"]:
         keep["ItemAppearance"].add(rows["ItemModifiedAppearance"][i].get("ItemAppearanceID", 0))
     for i in keep["ChrCustomizationElement"]:
@@ -314,7 +324,7 @@ def read_looks(root: Path) -> dict[str, list[dict]]:
         ):
             raise ValueError(f"demo3d: {p.name} needs choices for its own model")
     # A local store may be from an older roster or may have lost a file.
-    # Follow both model styles, gear history, companion textures and animations.
+    # Follow both model styles, gear history, companions, mounts and animations.
     assembled = answers(tables, looks, sheets)
     require_equipment(assembled)
     need = {f for answer in assembled for f in answer.get("needs", ())}
@@ -368,7 +378,7 @@ def build(wow_root: Path, out: Path, *, roster_models: bool = False) -> int:
 
         needs = {f for a in full for f in a.get("needs", ())}
         # The shipper limits each ordinary upload to 512 MiB. This offline
-        # export can contain nine HD models, all their outfits and both pets.
+        # export contains nine HD models, their outfits, companions and mounts.
         files, _t, absent = ship.casc_files(casc, sorted(needs), (), follow=True, max_bytes=2 * 1024**3)
         anims = set().union(*(assets.anim_refs(d) for d in files.values() if assets.kind_of(d) in ("m2", "skel")))
         have, gone = assets.closure(needs, files.get)

@@ -77,6 +77,8 @@
     actions.hidden = true;
     status.hidden = false;
     companionControl.hidden = true;
+    mountControl.hidden = true;
+    mountNote.textContent = '';
     status.className = 'status err';
     status.textContent = text;
     document.documentElement.dataset.state = 'error';
@@ -112,20 +114,37 @@
   const companionControl = document.getElementById('companion-control');
   const companionToggle = document.getElementById('companion');
   companionToggle.addEventListener('change', () => handle?.showCompanion(companionToggle.checked));
+  const mountControl = document.getElementById('mount-control');
+  const mountPick = document.getElementById('mount');
+  const mountNote = document.getElementById('mount-note');
   let drawing = 0;
-  actions.addEventListener('click', (event) => {
-    const name = event.target.dataset.action;
-    if (name && handle) handle.play(name);
+  mountPick.addEventListener('change', async () => {
+    const generation = ++drawing;
+    const index = Number(mountPick.value);
+    const name = mountPick.selectedOptions[0].textContent;
+    mountNote.textContent = index < 0 ? '' : 'Loading mount…';
+    const changed = await handle.ride(index);
+    if (generation !== drawing) return;
+    mountPick.value = String(handle.mounted);
+    mountNote.textContent = changed ? '' : `Couldn’t ride ${name} with the available game files.`;
+    showActions(generation);
+  });
+  actions.addEventListener('click', async (event) => {
+    const button = event.target, name = button.dataset.action;
+    if (name && handle && await handle.play(name) && button.hasAttribute('aria-pressed')) {
+      for (const item of actions.children) item.setAttribute('aria-pressed', String(item === button));
+    }
   });
 
   async function showActions(generation) {
     const moves = await handle.actions();
     if (generation !== drawing) return;
-    actions.replaceChildren(...moves.map(({ name, label }) => {
+    actions.replaceChildren(...moves.map(({ name, label, pressed }) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.dataset.action = name;
       button.textContent = label;
+      if (pressed !== undefined) button.setAttribute('aria-pressed', String(pressed));
       return button;
     }));
     actions.hidden = !moves.length;
@@ -135,6 +154,8 @@
     const generation = ++drawing;
     actions.hidden = true;
     companionControl.hidden = true;
+    mountControl.hidden = true;
+    mountNote.textContent = '';
     const recipe = d && recipeOf(d);
     if (!recipe) return fail(`No model: ${(d && d.why) || 'nothing to draw'}.`);
     await sized();
@@ -152,6 +173,10 @@
     companionControl.hidden = RENDER || !handle.hasCompanion;
     if (!companionControl.hidden) {
       companionControl.querySelector('span').textContent = recipe.companion.kind === 2 ? 'Show demon' : 'Show pet';
+    }
+    if (!RENDER && recipe.mounts?.length) {
+      mountPick.replaceChildren(new Option('On foot', '-1'), ...recipe.mounts.map((m, i) => new Option(m.name, String(i))));
+      mountControl.hidden = false;
     }
     status.hidden = true;
     document.documentElement.dataset.state = 'drawn';

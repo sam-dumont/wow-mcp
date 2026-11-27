@@ -387,7 +387,7 @@ ALLOWED = {
                *keys("data_versions.kb_digest_week.", ("news", "community"))},
     "chars": {"chars", *keys("chars[].", ("char", "level", "demo"))},
     "char": {"char", "generated_at", "stale", "route_source", "header", "levels", "dungeons", "gear",
-             *keys("header.", ("char", "name", "race", "class", "faction", "level", "xp", "xp_max", "polestar",
+             *keys("header.", ("char", "name", "race", "class", "faction", "level", "at_level_cap", "xp", "xp_max", "polestar",
                                "played_s", "played_total_s", "first_level", "first_partial", "time_in_level_s", "title")),
              *keys("levels[].", ("level", "seconds", "partial", "route_s")),
              *keys("dungeons[].", ("name", "level", "t")),
@@ -408,8 +408,7 @@ ALLOWED = {
                  "gear_reconstructed", *keys("gear.items[].", (*ITEM, "certainty", "source")),
                  "gear.items[].source.kind", "picture", "picture.ext", "picture.pending"},
     "items": {"items", *keys("items[].", CARD)},
-    # The recipe is file ids and numbers only (redact.M3D_RECIPE); its
-    # inside is checked by shape, not listed key by key here.
+    # The recipe's nested render data is checked below.
     "model3d": {"race", "sex", "sex_known", "class", "level", "why", "appearance", "items", "missing",
                 "appearance.source", "appearance.refreshed", "recipe", "recipe_sd", "no_classic", "models",
                 *keys("items[].", M3D_ITEM), *keys("missing[].", M3D_ITEM)},
@@ -477,9 +476,13 @@ def assert_public_allowlist(pub: dict) -> set:
         d = json.loads(body)
         extra = set(key_paths(d)) - ALLOWED[what]
         if what == "model3d":
-            # A recipe holds numbers and true/false only: no name can hide in it.
+            # The mount's game name labels the picker. The rest of this
+            # fixture's recipe holds only ids, numbers and booleans.
             for r in (d.get("recipe"), d.get("recipe_sd")):
-                assert not any(isinstance(x, str) for x in leaves(r)), f"{path}: text in a recipe"
+                if r:
+                    numeric = {**r, "mounts": [{k: v for k, v in m.items() if k != "name"}
+                                                for m in r.get("mounts", [])]}
+                    assert not any(isinstance(x, str) for x in leaves(numeric)), f"{path}: text in a recipe"
             extra = {k for k in extra if not k.startswith(("recipe.", "recipe_sd."))}
         assert not extra, f"{path}: {sorted(extra)} not on the public allow-list"
         seen.add(what)

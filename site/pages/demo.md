@@ -9,9 +9,23 @@ Nibbet is a Gnome priest on WoW Forever who doesn't exist. A script plays the ch
 
 ## The nine characters
 
-The character selector also opens eight shorter sessions, one for each other Forever class. All nine characters have different races. Flintwick, the Dwarf Beast Mastery hunter, carries a Glass Shooter and travels with a bear. Duskwick, the Undead Affliction warlock, carries a Firebelcher wand and summons a Voidwalker. Each character has their own equipment and spent talent points. The demo draws its own 2D icons. [Blizzard’s Forever race and class table](https://worldofwarcraft.blizzard.com/en-us/news/24304075/)
+Pick a character in the selector. Each wears gear they can use and has one talent point per level from 10 on. The eight characters besides Nibbet each have one short play session. [Blizzard’s Forever race and class table](https://worldofwarcraft.blizzard.com/en-us/news/24304075/)
 
-All nine character models, the equipped gear, Flintwick's bear and Duskwick's Voidwalker come from the Forever client. In the 3D view, use the companion control to hide the bear or the demon. Characters with a ranged weapon can draw it and shoot.
+| Level | Character | Race and spec |
+| ---: | --- | --- |
+| 10 | Sleetpin | Troll Frost mage |
+| 16 | Valeleaf | Skyborne Combat rogue |
+| 23 | Duskwick | Undead Affliction warlock, with a Voidwalker |
+| 29 | Flintstep | Tauren Enhancement shaman |
+| 34 | Flintwick | Dwarf Beast Mastery hunter, with a bear |
+| 39 | Mossbranch | Night Elf Feral druid |
+| 46 | Nibbet | Gnome Shadow priest |
+| 53 | Hesta | Human Retribution paladin, with a Warhorse |
+| 60 | Brakka | Orc Arms warrior, with a Swift Timber Wolf |
+
+Open **Character** and choose **View in 3D**. Pick Hesta’s Warhorse or Brakka’s epic wolf under **Mount**. Try **Walk** and **Run**, then choose **On foot** to use the character’s own attacks again. Brakka carries an Arcanite Reaper and wears four epic Glory pieces. Flintwick and Duskwick have a separate control for their companions.
+
+The models, gear, companions and mounts come from the installed Forever client. The demo draws its own 2D icons. [Artwork and credits](../../THIRD_PARTY.md)
 
 ## The two pages
 

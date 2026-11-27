@@ -61,7 +61,7 @@ def weapon_parts(kind):
 
 def item_looks():
     by_slot = {1: "helm", 2: "jewelry", 3: "shoulders", 5: "chest", 6: "belt", 7: "trousers", 8: "boots",
-               9: "wrists", 10: "gloves", 11: "jewelry", 15: "cloak"}
+               9: "wrists", 10: "gloves", 11: "jewelry", 12: "jewelry", 13: "jewelry", 14: "jewelry", 15: "cloak"}
     by_weapon = {1: "axe", 2: "bow", 3: "gun", 5: "mace", 7: "blade", 8: "blade", 10: "staff",
                  15: "dagger", 19: "wand"}
     out = {}
@@ -110,7 +110,7 @@ def add_body(golden, c, index):
     t["TextureFileData"][texture] = {"FileDataID": texture, "UsageType": 0, "MaterialResourcesID": mat}
 
 
-def add_pets(golden):
+def add_creatures(golden):
     box = g._b
     bear = [box((-.32, -.17, .21), (.25, .17, .51)), box((.16, -.14, .35), (.42, .14, .58)),
             box((.35, -.10, .36), (.49, .10, .47))]
@@ -123,11 +123,24 @@ def add_pets(golden):
             box((-.11, -.13, .66), (.11, .13, .88))]
     for y in (-.27, .27):
         void.extend([box((-.12, y-.075, .40), (.12, y+.075, .65)), box((-.09, y-.065, .22), (.11, y+.065, .43))])
-    for index, (display, parts, color) in enumerate(((roster.BEAR_DISPLAY, bear, (135, 89, 56)),
-                                                     (1132, void, (64, 72, 162)))):
+    mounts = [(41, 36, 8469, 13819, "Summon Warhorse"), (105, 176, 14575, 23251, "Swift Timber Wolf")]
+    creatures = [(roster.BEAR_DISPLAY, bear, (135, 89, 56), []), (1132, void, (64, 72, 162), [])]
+    for mount, link, display, spell, name in mounts:
+        golden["tables"]["Mount"][mount] = {"Name_lang": name, "SourceSpellID": spell}
+        golden["tables"]["MountXDisplay"][link] = {"MountID": mount, "CreatureDisplayInfoID": display,
+                                                  "PlayerConditionID": 0}
+        horse = mount == 41
+        height = 1.30 if horse else 1.02
+        parts = [box((-.74, -.22, .58), (.55, .22, height)), box((.35, -.15, height-.12), (.66, .15, height+.26)),
+                 box((.44, -.13, height+.14), (.86, .13, height+.36))]
+        for x in (-.60, .38):
+            for y in (-.14, .14):
+                parts.append(box((x-.06, y-.06, 0), (x+.06, y+.06, .66)))
+        creatures.append((display, parts, (174, 151, 110) if horse else (103, 105, 107), [(0, 0, (0, 0, height))]))
+    for index, (display, parts, color, attachments) in enumerate(creatures):
         n, model = 13_000 + index * 10, 64_100 + index
         texture = g.fid(n+2)
-        golden["files"].update(g.item_model(n, parts, textures=[(11, 0)]))
+        golden["files"].update(g.item_model(n, parts, textures=[(11, 0)], attachments=attachments))
         golden["files"][texture] = g.solid_texture(color, g._shade(color, .75))
         golden["tables"]["CreatureModelData"][model] = {"FileDataID": g.fid(n)}
         golden["tables"]["CreatureDisplayInfo"][display] = {"ModelID": model,
@@ -141,6 +154,6 @@ def write_store(root: Path):
     golden["files"].update(g.character(gestures=gestures("PRIEST")))
     for index, c in enumerate(roster.CHARACTERS, 1):
         add_body(golden, c, index)
-    add_pets(golden)
+    add_creatures(golden)
     g.write_store(root, golden)
     return golden

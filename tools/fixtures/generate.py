@@ -90,11 +90,11 @@ BFD_XP = 18211
 # took the priest to 33 where the script says 32. Each mark sits mid-level:
 # the guides' quest XP lands on top of it, and the level must hold.
 KILL_S = 75.0  # seconds per kill, pulls and walks between them: the pace's estimate of the kills left
-# Classic's XP to the next level.
-XP_MAX = {1: 400, 21: 26000, 22: 27300, 23: 29400, 24: 31700, 25: 34000, 26: 36400, 27: 38900, 28: 41400,
-          29: 44300, 30: 47400, 31: 50800, 32: 54500, 33: 58600, 34: 62800, 35: 67100, 36: 71600, 37: 76100,
-          38: 80800, 39: 85700, 40: 90700, 41: 95800, 42: 101000, 43: 106300, 44: 111800, 45: 117500, 46: 123200,
-          47: 129100}
+# XP to the next level for the fixture characters (Polestar tools/lib/game/xp.js).
+XP_MAX = {1: 400, 10: 7600, 16: 16000, 21: 26000, 22: 27300, 23: 29400, 24: 31700, 25: 34000, 26: 36400, 27: 38900,
+          28: 41400, 29: 44300, 30: 47400, 31: 50800, 32: 54500, 33: 58600, 34: 62800, 35: 67100, 36: 71600,
+          37: 76100, 38: 80800, 39: 85700, 40: 90700, 41: 95800, 42: 101000, 43: 106300, 44: 111800, 45: 117500,
+          46: 123200, 47: 129100, 53: 167100, 60: 0}
 SESSION_FIELDS = {"build": "70888", "interface": "16001", "locale": "enUS", "polestar_version": "0.4.1",
                   "recorder_version": "0.4.1", "region": "3"}
 MAPS = {"Darkshore": 1439, "Ashenvale": 1440, "Stonetalon Mountains": 1442, "Wetlands": 1437, "Ironforge": 1455,
@@ -107,7 +107,8 @@ MAPS = {"Darkshore": 1439, "Ashenvale": 1440, "Stonetalon Mountains": 1442, "Wet
         # The demo's way to 46 (sessions_demo_46).
         "Tirisfal Glades": 1420, "Scarlet Monastery": 302, "Loch Modan": 1432, "Badlands": 1418,
         "Stranglethorn Vale": 1434, "Swamp of Sorrows": 1435, "Razorfen Downs": 300, "Uldaman": 230,
-        "Feralas": 1444, "Thousand Needles": 1441, "Tanaris": 1446, "Zul'Farrak": 219, "The Hinterlands": 1425}
+        "Feralas": 1444, "Thousand Needles": 1441, "Tanaris": 1446, "Zul'Farrak": 219, "The Hinterlands": 1425,
+        "Durotar": 1411, "Un'Goro Crater": 1449, "Eastern Plaguelands": 1423}
 # A map's frame in world yards (the Recorder's `map` record): what makes
 # positions into distances.
 FRAMES = {1439: (-16000.0, -19200.0, 7466.6, 1600.0), 1440: (1700.0, -4066.6, 4672.9, 829.1),
@@ -124,7 +125,8 @@ AREAS = {"Darkshore": 148, "Ashenvale": 331, "Stonetalon Mountains": 406, "Wetla
          "Stormwind City": 1519, "Ironforge": 1537, "Darnassus": 1657, "Teldrassil": 141,
          "Alterac Mountains": 36, "Arathi Highlands": 45, "Badlands": 3, "Stranglethorn Vale": 33,
          "Dustwallow Marsh": 15, "Swamp of Sorrows": 8, "Loch Modan": 38, "Feralas": 357, "Tanaris": 440,
-         "Thousand Needles": 400, "The Hinterlands": 47}
+         "Thousand Needles": 400, "The Hinterlands": 47, "Durotar": 14, "Un'Goro Crater": 490,
+         "Eastern Plaguelands": 139}
 TAXI = {"Auberdine": 26, "Astranaar": 28, "Stormwind City": 2, "Ironforge": 6, "Menethil Harbor": 7,
         "Darkshire": 12, "Lakeshire": 5, "Sentinel Hill": 4, "Rut'theran Village": 27, "Southshore": 14}
 # The demo's flight points past 34 (sessions_demo_46): known once he lands there.
@@ -384,17 +386,20 @@ class Player:
     # -------------------------------------------------------- xp
 
     def gain(self, xp: int, kill: bool = False) -> int:
+        if self.level >= 60:
+            return 0
         bonus = 0
         if kill and self.rested > 0:
             bonus = min(xp, self.rested)
             self.rested -= bonus
         got = xp + bonus
+        before = self.gained
         self.xp += got
         self.gained += got
-        while self.xp >= XP_MAX[self.level]:
+        while self.level < 60 and self.xp >= XP_MAX[self.level]:
             self.xp -= XP_MAX[self.level]
             self.ding()
-        return got
+        return self.gained - before
 
     def ding(self) -> None:
         secs = round(self.played - self.level_t0)
@@ -402,6 +407,10 @@ class Player:
                    quests=self.level_quests, seconds=secs,
                    xp=XP_MAX[self.level] if not self.first_level else XP_MAX[self.level] - 15555)
         self.level += 1
+        if self.level == 60:
+            # The final ding empties the XP bar.
+            self.gained -= self.xp
+            self.xp = 0
         self.first_level = False
         self.level_t0 = self.played
         self.level_kills = self.level_quests = 0
@@ -442,7 +451,8 @@ class Player:
                 xp = max(0, round(per))
         uid = f"{self.rnd.getrandbits(40):010X}"
         self.rec("spawn", npc_id=npc, spawn_uid=uid, **self.here())
-        got = self.gain(xp, kill=not forced) if xp else 0
+        # A kill at the cap produces no XP chat line for the Recorder to match.
+        got = self.gain(xp, kill=not forced) if self.level < 60 else None
         self.rec("kill", classification=cl, level=lv, npc_id=npc, quests=quest, tapped=False, xp_reward=got,
                  **self.here())
         self.level_kills += 1

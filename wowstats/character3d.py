@@ -47,6 +47,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from wowstats import db2
+from wowstats.mounts import catalog as mount_catalog
 
 log = logging.getLogger(__name__)
 
@@ -96,8 +97,8 @@ TABLES: dict[str, tuple[str, ...]] = {
     "ChrRaceXChrModel": ("ChrRacesID", "ChrModelID", "Sex"),
     "ComponentModelFileData": ("GenderIndex", "ClassID", "RaceID", "PositionIndex"),
     "ComponentTextureFileData": ("GenderIndex", "ClassID", "RaceID"),
-    "CreatureDisplayInfo": ("ModelID", "TextureVariationFileDataID"),
-    "CreatureModelData": ("FileDataID",),
+    "CreatureDisplayInfo": ("ModelID", "TextureVariationFileDataID", "CreatureModelScale"),
+    "CreatureModelData": ("FileDataID", "ModelScale"),
     "HelmetGeosetData": ("RaceID", "HideGeosetGroup", "HelmetGeosetVisDataID"),
     "Item": ("ClassID", "SubclassID", "InventoryType"),
     "ItemAppearance": ("ItemDisplayInfoID",),
@@ -109,6 +110,8 @@ TABLES: dict[str, tuple[str, ...]] = {
     "ItemVisuals": ("ModelFileID",),
     "ItemVisualsXEffect": ("AttachmentID", "DisplayWeaponSubclassID", "AttachmentModelFileID", "ItemVisualsID"),
     "ModelFileData": ("FileDataID", "ModelResourcesID"),
+    "Mount": ("Name_lang", "SourceSpellID"),
+    "MountXDisplay": ("MountID", "CreatureDisplayInfoID", "PlayerConditionID"),
     "SpellItemEnchantment": ("ItemVisual",),
     "TextureFileData": ("FileDataID", "UsageType", "MaterialResourcesID"),
 }
@@ -209,6 +212,7 @@ class Index:
         def t(name: str) -> Mapping[int, dict]:
             return tables.get(name) or {}
 
+        self.mounts = mount_catalog(tables)
         self.race_models: dict[tuple[int, int], int] = {}
         for r in t("ChrRaceXChrModel").values():
             self.race_models.setdefault((r.get("ChrRacesID", 0), r.get("Sex", 0)), r.get("ChrModelID", 0))
@@ -496,6 +500,7 @@ def standing_recipe(recipe: dict) -> dict:
     still.pop("class_id", None)
     still.pop("level", None)
     still.pop("companion", None)
+    still.pop("mounts", None)
     if isinstance(ranged, dict) and ranged.get("at_rest") is False:
         still["attachments"] = [a for a in still.get("attachments", []) if a["slot"] != RANGED_SLOT]
     return still
@@ -914,19 +919,33 @@ class _Assembly:
         return out
 
 
-def companion(tables, observed: tuple[int, int] | None) -> dict | None:
-    """Resolve an observed creature display through this client's model and skins."""
-    if not observed:
-        return None
-    kind, display = observed
+def _creature(tables, display: int) -> dict | None:
     ix = index(tables)
     row = ix.t("CreatureDisplayInfo").get(display) or {}
-    model = ix.creature_model_file(row.get("ModelID", 0))
-    if not model:
+    model = ix.t("CreatureModelData").get(row.get("ModelID", 0)) or {}
+    if not model.get("FileDataID"):
         return None
     skins = row.get("TextureVariationFileDataID") or []
-    return {"kind": kind, "model": model, "textures": {
-        str(11 + i): f for i, f in enumerate(skins[:3]) if isinstance(f, int) and f > 0}}
+    scale = (row.get("CreatureModelScale") or 1) * (model.get("ModelScale") or 1)
+    return {"model": model["FileDataID"], "scale": scale,
+            "textures": {str(11 + i): f for i, f in enumerate(skins[:3]) if isinstance(f, int) and f > 0}}
+
+
+def companion(tables, observed: tuple[int, int] | None) -> dict | None:
+    """Resolve an observed creature display through this client's model and skins."""
+    if observed and (creature := _creature(tables, observed[1])):
+        return {"kind": observed[0], "model": creature["model"], "textures": creature["textures"]}
+    return None
+
+
+def mounts(tables, observed: list[dict] | None) -> list[dict]:
+    """Resolve the character's owned displays against the same client as the rider."""
+    return [{"name": m["name"], **creature} for m in observed or []
+            if (creature := _creature(tables, m["display_id"]))]
+
+
+def creature_files(creature: dict) -> set[int]:
+    return {creature["model"], *creature["textures"].values()}
 
 
 def needs(recipe: dict | None) -> set[int]:
@@ -937,8 +956,9 @@ def needs(recipe: dict | None) -> set[int]:
 def _needs(recipe: dict) -> set[int]:
     out = {recipe["model"]}
     if pet := recipe.get("companion"):
-        out.add(pet["model"])
-        out.update(pet["textures"].values())
+        out.update(creature_files(pet))
+    for mount in recipe.get("mounts", []):
+        out.update(creature_files(mount))
     for m in recipe["materials"]:
         out.update(ly["file"] for ly in m["layers"])
     out.update(recipe["textures"].values())

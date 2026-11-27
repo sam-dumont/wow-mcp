@@ -35,6 +35,7 @@ INLINE = 0x20
 
 
 COMBAT_MODEL = 100085
+MOUNT_MODEL = 100086
 
 
 def files(combat=False) -> dict[int, bytes]:
@@ -47,13 +48,19 @@ def files(combat=False) -> dict[int, bytes]:
                   sequences=[FX.sequence(0, 1000, INLINE), FX.sequence(51, 400, INLINE),
                              FX.sequence(53, 600, INLINE), FX.sequence(60, 2000, 0),
                              FX.sequence(27, 500, 0), FX.sequence(18, 700, 0)]
-                            + ([FX.sequence(i, 400, INLINE) for i in (17, 26, 29, 46, 48, 49, 52, 54, 55, 95, 124)]
+                            + ([FX.sequence(i, 400, INLINE) for i in (17, 26, 29, 46, 48, 49, 52, 54, 55, 91, 95, 124)]
                                if combat else []),
                   afid=[(60, 0, TALK_ANIM), (27, 0, ABSENT_ANIM), (18, 0, ABSENT_ANIM)])
     return {MODEL: model, SKIN: skin_file, TEX: FX.blp_bgra(4, 4, [(200, 200, 200, 255)] * 16), TALK_ANIM: data}
 
 
 FILES = {**files(), COMBAT_MODEL: files(combat=True)[MODEL]}
+mount_verts, _ = FX.box((-.3, -.3, 0), (.3, .3, 2))
+saddle_track = ("in", [0, 500, 1000], [(0, 0, 0), (0, 0, .4), (0, 0, 0)])
+FILES[MOUNT_MODEL] = FX.m2(verts=mount_verts, textures=[(0, TEX)], bounds=((-1, -.5, 0), (1, .5, 2)),
+                           skin_id=SKIN, bones=[lambda d: FX.bone(d, FX.PIVOT_ROOT, -1, 0),
+                                                lambda d: FX.bone(d, (0, 0, 1), 0, 1, trans=[None, saddle_track])],
+                           attachments=[(0, 1, (-.1, 0, 1))], sequences=[FX.sequence(i, 1000, INLINE) for i in (0, 5)])
 RECIPE = {**FX.emitter_recipe(MODEL), "attack": 18}
 COMBAT = {**RECIPE, "model": COMBAT_MODEL, "attack": 17, "class_id": 3, "level": 30, "ranged": {"kind": 2, "at_rest": False},
           "attachments": [{"slot": slot, "attach": hand, "model": MODEL} for slot, hand in [(16, 1), (17, 2), (18, 2)]]}
@@ -249,3 +256,44 @@ def test_class_buttons_require_their_own_animation_and_follow_redraw(view):
         assert page.evaluate("__h.debug.idle().move") == ability
     page.evaluate("r => __h.redraw(r).then(() => true)", {**COMBAT, "model": MODEL, "class_id": 4})
     assert not page.evaluate("__h.play('kick')")
+
+
+def test_rider_follows_the_animated_seat_and_dismounts_to_its_own_gear(view):
+    mount = {"name": "Test mount", "model": MOUNT_MODEL, "scale": 1.2, "textures": {}}
+    page = view(recipe={**COMBAT, "mounts": [mount, {**mount, "model": MODEL}]}, reduced=True)
+    assert page.evaluate("() => __h.mounted") == -1
+    assert MOUNT_MODEL not in page.evaluate("__asked")
+    assert page.evaluate("__h.ride(0)")
+    assert page.evaluate("__h.debug.equippedSlots()") == []
+    assert [row["name"] for row in page.evaluate("__h.actions()")] == ["idle", "run"]
+    assert not page.evaluate("__h.play('attack')")
+    assert not page.evaluate("__h.ride(1)")  # this model has no saddle
+    assert page.evaluate("() => __h.mounted") == 0
+    assert page.evaluate("__h.play('run')")
+    walk(page, 100)
+    low = page.evaluate("__h.debug.project([0,0,0])")
+    walk(page, 500)
+    high = page.evaluate("__h.debug.project([0,0,0])")
+    assert high[1] < low[1] - 5  # animated saddle bone lifted the rider
+    assert page.evaluate("__h.ride(-1)")
+    assert page.evaluate("__h.debug.equippedSlots()") == [16, 17]
+    assert page.evaluate("__h.play('attack')")
+    page.evaluate("r => __h.redraw(r).then(() => true)", {**RECIPE, "mounts": [mount]})
+    assert not page.evaluate("__h.ride(0)")  # this rider lacks Mount (91)
+
+
+def test_late_mount_files_do_not_remount_a_character_who_dismounted(view):
+    page = view(recipe={**COMBAT, "mounts": [{"name": "Test mount", "model": MOUNT_MODEL}]})
+    assert page.evaluate("""async () => {
+      const proto = M3D.M2RendererGL.prototype, prepare = proto.prepareAnimation;
+      let release;
+      const wait = new Promise(resolve => { release = resolve; });
+      proto.prepareAnimation = async function(index, fetch) {
+        if (this._sequence(index)?.requested === 91) await wait;
+        return prepare.call(this, index, fetch);
+      };
+      const pending = __h.ride(0);
+      await __h.ride(-1);
+      release();
+      return !await pending && __h.mounted === -1 && await __h.play('attack');
+    }""")

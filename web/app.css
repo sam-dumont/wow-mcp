@@ -1143,7 +1143,16 @@ a.whsmall { font: 500 12.5px/1 var(--sans); color: var(--muted); }
 @media (max-width: 640px) {
   .doll { grid-template-columns: 56px minmax(0, 1fr) 56px; gap: 0 6px; }
   .doll > .stage { grid-area: 1 / 1 / 2 / 4; min-height: 0; z-index: 0; }
-  .doll > .stage.in3d { grid-area: 1 / 2 / 2 / 3; }
+  .doll:has(> .stage.in3d) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "stage stage" "left right" "weapons weapons";
+    row-gap: 8px;
+  }
+  .doll > .stage.in3d { grid-area: stage; height: clamp(340px, 55svh, 460px); }
+  .doll:has(> .stage.in3d) > .slots:not(.weapons) {
+    grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+    justify-items: center;
+  }
   .doll > .slots.left, .doll > .slots.right { position: relative; z-index: 1; gap: 6px; }
   .doll .slot { min-height: 0; }
   .doll .ilabel, .doll .slot .iup, .doll .slot .ibisline { display: none; }

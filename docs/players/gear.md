@@ -32,6 +32,10 @@ Untick **Show pet** or **Show demon** to hide it. The shipper reads your combat 
 creature appearance saved by your WoW client. If the skin is uncertain, you’ll see just
 your character. Past-level views show the gear recorded for that level.
 
+If your spellbook or a recorded spell learn shows you own a mount, pick it under **Mount**
+in the current 3D view. **Idle**, **Walk** and **Run** keep your character in the saddle.
+Pick **On foot** to dismount and use your class actions again.
+
 ## The upgrades list
 
 ![The Upgrades list grouped by where you get them: Tailoring crafts, each with its badge, its slot's share before and after ("42% → 100% on your waist"), its source and how hard it is to get, then two Auction House buys with their prices, then vendors in Ashenvale and Arathi Highlands](../images/upgrades.webp)

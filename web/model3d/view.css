@@ -25,6 +25,10 @@ body {
 html.render body { background: none; }
 html.render .status:not(.err) { visibility: hidden; }
 
-#companion-control { position: absolute; top: .5rem; left: .5rem; padding: .25rem .5rem;
+#model-options { position: absolute; top: .5rem; left: .5rem; right: .5rem;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; pointer-events: none; }
+#model-options label, #mount-note:not(:empty) { padding: .25rem .5rem; pointer-events: auto;
   background: #211910; color: #f3dcaa; border-radius: .25rem; cursor: pointer; }
 #companion-control input { accent-color: #c49b57; vertical-align: middle; }
+#mount { max-width: 11rem; font: inherit; color: inherit; background: #241a12; border: 1px solid #806545; }
+#actions button[aria-pressed="true"] { color: #211910; background: #e0bf7d; }

@@ -215,11 +215,12 @@ the publisher: fix that, don't allow it in the test.
 Astro's preview server doesn't map `model3d/view` to `model3d/view.html` the way GitHub Pages
 does, so View in 3D stays blank there.
 
-For the nine-character demo, run `site/scripts/build-demo.sh`. It reads the real outfits
-and companions from the pinned roster archive. To use your installed Forever client,
+For the nine-character demo, run `site/scripts/build-demo.sh`. The pinned archive includes
+each character's equipped gear, Flintwick's bear, Duskwick's Voidwalker,
+Hesta's Warhorse and Brakka's Swift Timber Wolf. To use your installed Forever client,
 run `uv run python tools/fixtures/demo3d.py build-roster .demo3d --wow-root "/Applications/World of Warcraft"`,
 then set `DEMO_3D_STORE` to the absolute path of `.demo3d/store`. The hosted build stops
-if it cannot verify the archive. [Nine-character artwork archive](https://github.com/sam-dumont/wow-mcp/releases/tag/demo-3d-3).
+if it cannot verify the archive. [Nine-character artwork archive](https://github.com/sam-dumont/wow-mcp/releases/tag/demo-3d-4).
 
 The manual's screenshots come from that demo, never from a real player:
 `uv run --extra render python site/scripts/screenshots.py <address of the built site>` writes

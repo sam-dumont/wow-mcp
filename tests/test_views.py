@@ -4,6 +4,14 @@ from wowstats import views
 from wowstats.views import build_climb, build_levels
 
 
+def test_cap_has_no_next_level_even_if_the_client_saved_an_xp_threshold():
+    snap = {"_time": "2026-11-25T15:00:00Z", "level": "60", "xp": "0", "xp_max": "1000"}
+    header = views.build_header("A-B", [], {"snap": [snap], "xp": []}, layer={"xp_per_hour": 1000, "in_level_s": 7200})
+    assert header["at_level_cap"] and header["eta_s"] is None
+    assert header["xp_max"] is None and header["rested_xp"] is None
+    assert not views.insights.on_track(lambda **kw: [], header)["claims"]
+
+
 def test_partial_split_is_a_finished_level():
     """Polestar's `partial` marks the split where tracking began mid-level.
     The level still ended on a real ding (Testpriest's 22 -> 23 on 2026-11-12)."""

@@ -116,10 +116,9 @@ your own server, the one in `[ship]`, with the same upload password as
 - it asks `GET <server>/install/assets/need` what the server still wants:
   about 30 client tables (how races are built, how items dress them, some
   11 MB once per game patch), then the models and textures your characters
-  wear (weapon and enchant glows included), then what those name (skin,
-  skeleton, and the animations the 3D view plays: standing, closed hands,
-  the attack, cast, channel and roar, and six emotes, about 6 MB for a
-  gnome);
+  wear, the last recorded hunter pet or warlock demon, and mounts learned by
+  that character. The models name their skins, skeletons and animations,
+  including the rider's seated pose and the mount's walk and run.
 - it sends them one by one, at most 96 MB a run, within the same daily
   budget as your events. A file the server already has is never sent again.
   One file can be 48 MB at most (the server's limit, given in its answer to

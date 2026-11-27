@@ -4105,10 +4105,11 @@ CASC_MAX_FILE = 64 * 1024 * 1024  # no model, texture or table of one character 
 CASC_MAX_SYSTEM = 1024 * 1024 * 1024
 # The AnimationData ids the 3D view plays: Stand (0), HandsClosed (15, on a
 # hand that holds a weapon) and the moves it plays now and then (attack,
-# cast, channel, roar, emotes). The server's list (wowstats.assets.ANIMATIONS,
+# cast, channel, roar, emotes), plus the seated rider (91) and its mount's
+# walk (4) and run (5). The server's list (wowstats.assets.ANIMATIONS,
 # from web/model3d/m3d/draw.js); a test keeps them equal.
-CASC_ANIMATIONS = frozenset({0, 15, 16, 17, 18, 19, 25, 26, 27, 28, 29, 46, 48, 49, 51, 52, 53, 54, 55, 60, 64, 65,
-                             66, 68, 70, 95, 107, 108, 124, 125})
+CASC_ANIMATIONS = frozenset({0, 4, 5, 15, 16, 17, 18, 19, 25, 26, 27, 28, 29, 46, 48, 49, 51, 52, 53, 54, 55, 60,
+                             64, 65, 66, 68, 70, 91, 95, 107, 108, 124, 125})
 # What a file is, by its first four bytes.
 CASC_KINDS = {b"MD21": "m2", b"SKIN": "skin", b"SKL1": "skel", b"AFM2": "anim", b"AFSA": "anim",
               b"AFSB": "anim", b"BLP2": "blp", b"WDC3": "db2", b"WDC4": "db2", b"WDC5": "db2"}

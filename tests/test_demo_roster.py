@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from wowstats import assets, character3d, classguide, gear, ingest, talents, wowsims
+from wowstats import assets, character3d, classguide, gear, ingest, mounts, riding, talents, wowsims
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "fixtures"))
 
@@ -25,6 +25,7 @@ def test_eight_short_histories_complement_the_priest():
     assert len(set(r["source_id"] for r in rows)) == len(rows)
     assert len({c.race for c in roster.CHARACTERS} | {"Gnome"}) == 9
     assert {c.cls for c in roster.CHARACTERS} | {"PRIEST"} == set(talents.CLASS_BITS.values())
+    assert sorted([46, *(c.level for c in roster.CHARACTERS)]) == [10, 16, 23, 29, 34, 39, 46, 53, 60]
     assert {c.faction for c in roster.CHARACTERS} == {"Alliance", "Horde"}
     generate.in_forever(rows)
     ref = gear.reference()
@@ -34,11 +35,20 @@ def test_eight_short_histories_complement_the_priest():
     for c in roster.CHARACTERS:
         mine = [r for r in rows if r["char"] == c.name]
         sheet = next(r for r in mine if r["feed"] == "wow-gear")
-        assert next(r for r in mine if r["feed"] == "wow-character")["level"] == str(c.level)
+        character = next(r for r in mine if r["feed"] == "wow-character")
+        assert character["level"] == str(c.level) and character["zone"] == c.zone
         assert sheet["spec"] == c.spec and any(r.get("kind") == "kill" for r in mine)
         who = gear.Who(c.cls, c.level, 1 if c.faction == "Alliance" else 2, c.race_id, {}, set(), c.zone)
         worn = {it["slot"]: it for it in json.loads(sheet["items"])}
-        assert len(worn) >= 12
+        if c.level == 60:
+            assert set(worn) == set(range(1, 19)) - {4, 17}
+            assert sum(it["quality"] == 4 for it in worn.values()) >= 4
+            assert all("xp_reward" not in r for r in mine if r.get("kind") == "kill")
+            assert all(int(r["xp"]) == 0 for r in mine if "xp" in r)
+            assert not any(r["feed"] == "wow-level" for r in mine)
+        else:
+            assert 0 < int(character["xp"]) < int(character["xp_max"])
+            assert (1 in worn) == (c.level >= 20) and (3 in worn) == (c.level >= 20)
         for slot, item in worn.items():
             info = ref.item(item["item_id"])
             usable, why, minimum = gear.usability(ref, info, c.cls, c.level, who)
@@ -47,6 +57,25 @@ def test_eight_short_histories_complement_the_priest():
         if 17 in worn:
             assert gear.can_dual_wield(ref.gear["PROFICIENCY"][c.cls], c.level)
             assert ref.item(worn[16]["item_id"])["inv"] != 17
+        book_event = next(r for r in mine if r["feed"] == "wow-altoholic" and r["kind"] == "spells")
+        book = dict(json.loads(book_event["spells"]))
+        # The rank this character trained. Recorder cast events only cover item
+        # and quest spells (Polestar_Recorder/World.lua), not class combat spells.
+        trained = {"WARRIOR": 21553, "PALADIN": 10321, "HUNTER": 14283, "ROGUE": 1758,
+                   "SHAMAN": 943, "MAGE": 205, "WARLOCK": 699, "DRUID": 5201}
+        assert book[trained[c.cls]] == 0
+        assert not any(r.get("kind") == "cast" and int(r["spell_id"]) in book for r in mine)
+        talent_buttons = {"WARRIOR": (1310222, 12292, 12294), "PALADIN": (20375, 20066),
+                          "HUNTER": (1293241, 19577), "SHAMAN": (17364,), "DRUID": (1238122, 1328617)}
+        assert all(book.get(spell) == 0 for spell in talent_buttons.get(c.cls, ()))
+        if c.cls == "HUNTER":
+            assert book[883] == 0  # Call Pet
+        if c.cls == "WARLOCK":
+            assert book[697] == 0  # Summon Voidwalker
+        assert all(lv == 0 or lv > c.level for lv in book.values())
+        mount_spells = {spell for spell in (13819, 23251) if book.get(spell) == 0}
+        assert mount_spells == ({"PALADIN": {13819}, "WARRIOR": {23251}}.get(c.cls, set()))
+        assert riding.book_rank(book_event["spells"]) == {"PALADIN": 75, "WARRIOR": 150}.get(c.cls, 0)
         pts = {name: rank for name, _, rank, _ in roster.learned(c)}
         path = classguide.path(c.cls)
         assert pts == Counter(p["talent"] for p in path["picks"] if p["level"] <= c.level)
@@ -88,7 +117,18 @@ def test_all_demo_models_resolve_offline(tmp_path):
         assert pet["kind"] == kind and pet["model"] not in models
         assert not assets.closure({pet["model"], *pet["textures"].values()}, store.read)[1]
         models.add(pet["model"])
-    assert len(models) == 10
+    for c in roster.CHARACTERS:
+        book = roster.spellbook(c)
+        observations = mounts.resolve(character3d.index(tables).mounts, [spell for spell, level in book if level == 0])
+        if c.mount_spell is None:
+            assert observations == []
+            continue
+        name = {"PALADIN": "Summon Warhorse", "WARRIOR": "Swift Timber Wolf"}[c.cls]
+        (mount,) = character3d.mounts(tables, observations)
+        assert mount["name"] == name and mount["model"] not in models
+        assert not assets.closure(character3d.creature_files(mount), store.read)[1]
+        models.add(mount["model"])
+    assert len(models) == 12
 
 
 def test_generated_geometry_cannot_supply_the_client_roster(tmp_path):

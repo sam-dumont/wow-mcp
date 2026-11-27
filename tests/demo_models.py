@@ -14,17 +14,20 @@ from wowstats import character3d
 ROSTER = {DEMO: ("PRIEST", "Gnome", "male"),
           **{c.name: (c.cls, c.race, "female" if c.sex == 3 else "male") for c in CHARACTERS}}
 PET = {"HUNTER": (1, "Show pet"), "WARLOCK": (2, "Show demon")}
+LEVEL = {DEMO: 46, **{c.name: c.level for c in CHARACTERS}}
+# Mount and MountXDisplay in the same build. Each rider starts on foot.
+MOUNT = {"PALADIN": ("Summon Warhorse", 126407, (126406,)),
+         "WARRIOR": ("Swift Timber Wolf", 123410, (123435, 123390, 123436))}
 # FileDataIDs from the installed Forever 1.60.1.71139 client's race/sex
 # mappings and CreatureDisplayInfo (bear 822, voidwalker 1132).
 BODY = {"Gnome": 900914, "Orc": 949470, "Human": 1000764, "Dwarf": 878772, "Skyborne": 7478494,
         "Tauren": 968705, "Troll": 1018060, "Undead": 959310, "Night Elf": 974343}
 COMPANION = {"HUNTER": (123040, 123045), "WARLOCK": (126369, 126370)}
-# The upper torso layer of the equipped chest piece. The three wands use
-# the same model, so check each ranged weapon's subclass, model and skin.
-CHEST = {"PRIEST": 164764, "WARRIOR": 164095, "PALADIN": 163701, "HUNTER": 163257, "ROGUE": 163387,
-         "SHAMAN": 163408, "MAGE": 164689, "WARLOCK": 164772, "DRUID": 163218}
-RANGED = {"PRIEST": (19, 148652, 147512), "WARRIOR": (2, 145109, 145107), "HUNTER": (3, 145323, 145327),
-          "ROGUE": (2, 145095, 145100), "MAGE": (19, 148652, 147642), "WARLOCK": (19, 148652, 148655)}
+# Upper torso texture of the equipped chest piece, and each ranged weapon's subclass, model and skin.
+CHEST = {"PRIEST": 164764, "WARRIOR": 164188, "PALADIN": 164120, "HUNTER": 163257, "ROGUE": 163198,
+         "SHAMAN": 163408, "MAGE": 164574, "WARLOCK": 162901, "DRUID": 163261}
+RANGED = {"PRIEST": (19, 148652, 147512), "WARRIOR": (2, 145015, 145016), "HUNTER": (3, 145323, 145327),
+          "ROGUE": (2, 145105, 145104), "MAGE": (19, 148699, 148701), "WARLOCK": (19, 148652, 148655)}
 # SHA-256 of each source M2. A well-formed fixture M2 at the same ID must
 # fail both the Compose and published demo checks.
 CLIENT_M2 = {
@@ -39,6 +42,8 @@ CLIENT_M2 = {
     974343: "f57fd4ae36af73e22801904393186ac89d08ded9b0b733c4100c80696cc6716b",
     123040: "fb2f6d821d2e8a1861816fa8134a8c5022e948f423e14df0cda16e9b79706940",
     126369: "e8f0a71147963e3856dab00625f2e43832c4762787a89116a9cd2371f8cd1bb9",
+    123410: "08729bd55e214720ee7011931d58d96988a716952b5ea76731535a8b7416820e",
+    126407: "0c843692a72f43f4ed2f03fec09e526050eedab318cbff76fc4962ba620c40c9",
 }
 
 
@@ -52,6 +57,10 @@ def check_answer(name, answer):
     assert (answer["class"], answer["race"], answer["sex"]) == (cls, race, sex), (name, answer.get("why"))
     recipe = answer["recipe"]
     assert recipe and recipe["model"] == BODY[race], (name, recipe and recipe["model"], BODY[race])
+    assert recipe["level"] == LEVEL[name], name
+    mounts = [(m["name"], m["model"], tuple(m["textures"][k] for k in sorted(m["textures"]) if m["textures"][k]))
+              for m in recipe.get("mounts", [])]
+    assert mounts == ([MOUNT[cls]] if cls in MOUNT else []), (name, mounts)
     assert not answer["missing"], (name, answer["missing"])
     assert {5, 7, 8, 16} <= {item["slot"] for item in answer["items"]}, name
     # The gear atlas uses slot layer * 100 + body section. Check the body
@@ -81,7 +90,7 @@ def check_live(base):
             try:
                 with urlopen(f"{base}/api/model3d?name={name}", timeout=30) as response:  # noqa: S310
                     recipe = check_answer(name, json.load(response))
-                for part in (recipe, recipe.get("companion")):
+                for part in (recipe, recipe.get("companion"), *recipe.get("mounts", [])):
                     if part:
                         with urlopen(f"{base}/model3d/file/{part['model']}", timeout=30) as response:  # noqa: S310
                             check_m2(part["model"], response)

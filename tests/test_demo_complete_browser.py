@@ -46,7 +46,7 @@ import pytest
 
 sync_api = pytest.importorskip("playwright.sync_api")
 
-from tests.demo_models import PET, RANGED, ROSTER, check_answer, check_m2  # noqa: E402
+from tests.demo_models import LEVEL, MOUNT, PET, RANGED, ROSTER, check_answer, check_m2  # noqa: E402
 from tests.test_browser import settled  # noqa: E402
 from tests.test_model3d_browser import COVERED  # noqa: E402
 
@@ -217,6 +217,40 @@ def play_clips(frame, label, clips):
     frame.wait_for_function("clips => clips.every(id => window.demoClips.includes(id))", arg=clips, timeout=30000)
 
 
+def check_mounted_rider(frame, recipe):
+    """Sample both real draws in the same frame. The rider's origin should stay at
+    attachment 0 through the mount's gait, including when that bone moves."""
+    mount, = recipe["mounts"]
+    frame.evaluate("""mountName => {
+      const proto = M3D.M2RendererGL.prototype, render = proto.render;
+      let saddle, gait;
+      window.saddles = new Set();
+      proto.render = function(...args) {
+        if (this.m2.name === mountName) {
+          saddle = this.getAttachmentTransform(0);
+          gait = this._current_anim()?.id;
+        } else if (saddle && this._current_anim()?.id === 91) {
+          const origin = this.model_matrix.slice(12, 15);
+          if (origin.every((x, i) => Math.abs(x - saddle[12+i]) < 0.001))
+            window.saddles.add(gait + '/' + Array.from(origin, x => x.toFixed(4)).join(','));
+        }
+        return render.apply(this, args);
+      };
+    }""", {123410: "PvPRidingDireWolf", 126407: "WarHorse"}[mount["model"]])
+    select = frame.get_by_role("combobox", name="Mount")
+    assert select.input_value() == "-1"
+    select.select_option(label=mount["name"])
+    for label, clip in (("Idle", 0), ("Walk", 4), ("Run", 5)):
+        frame.get_by_role("button", name=label, exact=True).click()
+        frame.wait_for_function("""([clip, samples]) =>
+          [...window.saddles].filter(pose => pose.startsWith(clip + '/')).length >= samples""",
+                                arg=[clip, 1 if clip == 0 else 2], timeout=15000)
+    hit, colours = frame.evaluate(COVERED)
+    assert hit > 20 and colours >= 3
+    select.select_option(label="On foot")
+    frame.get_by_role("button", name="Run", exact=True).wait_for(state="hidden")
+
+
 def test_switching_a_published_character_reads_its_file_once(browser, base):
     with browser.new_context(viewport={"width": 390, "height": 844}) as ctx:
         page = ctx.new_page()
@@ -235,7 +269,8 @@ def test_switching_a_published_character_reads_its_file_once(browser, base):
 
 
 @pytest.mark.parametrize("which", ["public", "friends"])
-@pytest.mark.parametrize(("name", "width"), [(name, 1280) for name in ROSTER] + [("Flintwick-Bearhide", 390)])
+@pytest.mark.parametrize(("name", "width"), [(name, 1280) for name in ROSTER]
+                         + [(name, 390) for name, (cls, _, _) in ROSTER.items() if cls in {*MOUNT, "HUNTER"}])
 def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):
     with browser.new_context(viewport={"width": width, "height": 900}, reduced_motion="reduce") as ctx:
         page = ctx.new_page()
@@ -250,10 +285,14 @@ def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):
         page.get_by_role("tab", name="Character", exact=True).click()
         select.select_option(name)
         page.locator("#hero").get_by_role("heading", name=name.split("-")[0], exact=True).wait_for()
+        page.locator("#hero").get_by_label(f"Level {LEVEL[name]}", exact=True).wait_for()
+        if LEVEL[name] == 60:
+            page.locator("#hero").get_by_text("Level cap reached", exact=True).wait_for()
+            assert not page.locator("#hero").get_by_role("progressbar").count()
         answer = page.evaluate("name => window.wowGetJSON(window.wowApi('model3d', {name}))", name)
         recipe = check_answer(name, answer)
         files = (demo_dir / "zogzog" if which == "friends" else demo_dir) / "model3d" / "file"
-        for part in (recipe, recipe.get("companion")):
+        for part in (recipe, recipe.get("companion"), *recipe.get("mounts", [])):
             if part:
                 with (files / str(part["model"])).open("rb") as stream:
                     check_m2(part["model"], stream)
@@ -261,6 +300,12 @@ def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):
         iframe = page.wait_for_selector(f"#gear iframe.m3dframe[data-name='{name}']", timeout=30000)
         frame = iframe.content_frame()
         assert viewer_state(frame) == "drawn", frame.locator("#status").inner_text()
+        if width == 390:
+            size = iframe.bounding_box()
+            card = page.locator("#gear .doll").bounding_box()
+            slots = page.locator("#gear .doll > .slots.left").bounding_box()
+            assert size["width"] >= card["width"] - 2
+            assert slots["y"] >= size["y"] + size["height"]
         hit, colours = frame.evaluate(COVERED)
         assert hit > 20 and colours >= 3, (name, hit, colours)
         outfit = {layer["file"] for mat in recipe["materials"] for layer in mat["layers"]}
@@ -279,12 +324,20 @@ def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):
         else:
             assert not frame.locator("#companion-control").is_visible()
 
+        if cls in MOUNT:
+            check_mounted_rider(frame, recipe)
+            mount = recipe["mounts"][0]
+            assert {mount["model"], *(f for f in mount["textures"].values() if f)} <= served
+        else:
+            assert not frame.get_by_role("combobox", name="Mount").count()
+
         frame.evaluate("""() => {
           window.demoClips = [];
-          const proto = M3D.M2RendererGL.prototype, play = proto.playAnimation;
-          proto.playAnimation = async function(index) {
-            await play.call(this, index);
-            window.demoClips.push(this._current_anim().id);
+          const proto = M3D.M2RendererGL.prototype, render = proto.render;
+          proto.render = function(...args) {
+            const id = this._current_anim()?.id;
+            if (id !== undefined && !window.demoClips.includes(id)) window.demoClips.push(id);
+            return render.apply(this, args);
           };
         }""")
         play_clips(frame, CLASS_ACTION[cls], CLASS_CLIPS[cls])

@@ -19,7 +19,7 @@ from tests.test_public_view import (
     make,
 )
 from tests.test_tenancy import FRIEND, as_user
-from wowstats import assets, character3d, model3d, ui
+from wowstats import assets, character3d, model3d, redact, ui
 
 # A full view loads the MCP module when it is installed: a stand-in here.
 pytestmark = pytest.mark.usefixtures("fake_extras")
@@ -113,6 +113,36 @@ def test_current_and_snapshot_actions_use_the_level_being_drawn(m3d, monkeypatch
         for recipe in (answer["recipe"], answer["recipe_sd"]):
             assert recipe["level"] == expected
             assert "level" not in character3d.standing_recipe(recipe)
+
+
+def test_owned_mount_requests_its_skin_and_stays_out_of_old_portraits(m3d, monkeypatch):
+    tables = w.world()
+    tables["CreatureDisplayInfo"][70002] = {"ModelID": 23, "CreatureModelScale": 1.2, "TextureVariationFileDataID": [801]}
+    tables["CreatureModelData"][23] = {"FileDataID": w.FX.BELT_M2, "ModelScale": 1}
+    monkeypatch.setattr(m3d, "tables", lambda: tables)
+    monkeypatch.setattr(model3d.mounts, "owned", lambda *_: [{"name": "Swift Wolf", "display_id": 70002},
+                                                           {"name": "Unknown", "display_id": 70003}])
+    app = SimpleNamespace(char=lambda name: {"gear": SHEET},
+                          views=SimpleNamespace(snapshot=lambda name, level: {"gear": SHEET}))
+    gear, header, _ = m3d.gear_at(app, "Example", None)
+    assert {w.FX.BELT_M2, 801} <= m3d.needs(gear, header, None)
+    assert "mounts" not in m3d.for_char(app, "Example")["recipe"]
+    m3d.store.put_file(801, next(data for data in w.files().values() if data.startswith(b"BLP2")))
+    mount = {"name": "Swift Wolf", "model": w.FX.BELT_M2, "scale": 1.2, "textures": {"11": 801}}
+    answer = m3d.for_char(app, "Example")
+    for recipe in (answer["recipe"], answer["recipe_sd"]):
+        assert recipe["mounts"] == [mount]
+        assert 801 in character3d.needs(recipe)
+        assert 801 not in character3d.needs(character3d.standing_recipe(recipe))
+    assert "mounts" not in m3d.for_char(app, "Example", level=12)["recipe"]
+
+    # Neither public nor friends needs to know how or where a mount was learned.
+    answer["recipe"]["mounts"] = [{**mount, "character": "PRIVATE", "learned_at": "PRIVATE",
+                                   "textures": {"11": 801, "source": "PRIVATE"}}]
+    for share in (redact.public, redact.zogzog):
+        safe = share("model3d", answer)
+        assert "PRIVATE" not in json.dumps(safe)
+        assert safe["recipe"]["mounts"] == [{**mount, "textures": {"11": 801, "12": None, "13": None}}]
 
 
 def test_the_enchant_reaches_the_weapon(m3d):

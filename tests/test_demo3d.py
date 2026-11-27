@@ -44,6 +44,27 @@ def test_trim_keeps_the_recipes(tmp_path):
     assert _dump(again) == _dump(full)
 
 
+def test_trim_keeps_only_the_riders_mount_and_its_skin():
+    golden = golden3d.build()
+    rows = {n: golden["tables"].get(n, {}) for n in character3d.TABLES}
+    rider = demo3d.Profile("Test rider", "Gnome", 0, "PRIEST", mount_spell=13819)
+    for mount_id, spell, display in [(41, 13819, 8469), (105, 23251, 14575)]:
+        rows["Mount"][mount_id] = {"SourceSpellID": spell, "Name_lang": f"Mount {mount_id}"}
+        rows["MountXDisplay"][display] = {"MountID": mount_id, "CreatureDisplayInfoID": display}
+        rows["CreatureDisplayInfo"][display] = {"ModelID": 1201, "TextureVariationFileDataID": [1302, 0, 0, 0]}
+    rows["CreatureModelData"][1201] = {"FileDataID": 1301}
+    looks, sheets = {rider.name: golden["look"]}, {rider: [[]]}
+    kept = demo3d.trim(rows, looks, sheets)
+    assert set(kept["Mount"]) == {41}
+    assert set(kept["MountXDisplay"]) == {8469}
+    assert 14575 not in kept["CreatureDisplayInfo"]
+    for result in demo3d.answers(character3d.Tables(kept), looks, sheets):
+        if "recipe" in result:
+            assert result["recipe"]["mounts"] == [
+                {"name": "Mount 41", "model": 1301, "scale": 1, "textures": {"11": 1302}}]
+            assert {1301, 1302} <= set(result["needs"])
+
+
 def test_trim_keeps_second_character_and_companion(tmp_path, monkeypatch):
     g = golden3d.build()
     rows = {n: g["tables"].get(n, {}) for n in character3d.TABLES}

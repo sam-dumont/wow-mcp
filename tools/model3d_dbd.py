@@ -32,7 +32,8 @@ TABLES = (
     "ChrModel", "ChrModelMaterial", "ChrModelTextureLayer", "ChrRaces", "ChrRaceXChrModel", "ComponentModelFileData",
     "ComponentTextureFileData", "CreatureDisplayInfo", "CreatureModelData", "HelmetGeosetData", "Item",
     "ItemAppearance", "ItemDisplayInfo", "ItemDisplayInfoMaterialRes", "ItemDisplayInfoModelMatRes",
-    "ItemModifiedAppearance", "ItemVisuals", "ItemVisualsXEffect", "ModelFileData", "SpellItemEnchantment",
+    "ItemModifiedAppearance", "ItemVisuals", "ItemVisualsXEffect", "ModelFileData", "Mount", "MountXDisplay",
+    "SpellItemEnchantment",
     "TextureFileData",
     # The item facts' stat budget per item level (wowstats/itemfacts.py).
     "RandPropPoints",

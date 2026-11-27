@@ -41,7 +41,7 @@ the computer you play on:
 - **Polestar Client's `sent.jsonl`**, read only: the Recorder chunks it uploaded in the last 8
   days.
 - **The game's own files** for the 3D view, read only from the install's `Data/` storage: a
-  few client tables and the models and textures your characters wear. Game data, nothing
+  few client tables and the models and textures for your characters, gear, companions and learned mounts. Game data, nothing
   about you; they go to your own server only and stay in your folder there
   ([The 3D view's files](../shipper.md#the-3d-views-files)). Your character's picture is drawn
   from the same files by the server's own renderer, never downloaded from Blizzard.

@@ -36,7 +36,7 @@ docker compose --env-file .env.demo run --rm demo
 
 The seed sends Nibbet's evenings to the local page. His last session ends yesterday.
 The v0.13.0 kit ships Nibbet alone. Kits with `compose.demo.yaml` add eight shorter
-histories and simulated armory samples. The first seed downloads the roster’s 188 MB client
+histories covering levels 10 to 60 and simulated armory samples. The first seed downloads the roster’s 188 MB client
 artwork archive, checks its SHA-256 and keeps it in the demo volume for later runs.
 
 ## 3. Look around
@@ -49,10 +49,10 @@ quest list and two days of auction house scans, under a DEMO DATA banner.
 
 [Your page at a glance](../players/your-page.md) walks through each tab.
 
-In the nine-character demo, use the character selector to see the Dwarf hunter with his
-bear or the Undead warlock with his Voidwalker. All nine wear their gear on their WoW Forever
-character models. The
-[hosted demo](../../site/pages/demo.md) also has still pictures at each level.
+In the nine-character demo, choose **Hesta** (53) or **Brakka** (60) and open **View in 3D**.
+Pick the Warhorse or Swift Timber Wolf under **Mount**, then try **Walk** or **Run**.
+Choose **On foot** to dismount. Flintwick has a bear, and Duskwick has a Voidwalker.
+The hosted demo lists all nine characters and shows Nibbet’s gear at each recorded level. [Demo roster](../../site/pages/demo.md)
 
 If port 8080 is taken, add `UI_PUBLISH=127.0.0.1:18080` to `.env.demo`, rerun the
 `up` command and open <http://127.0.0.1:18080/>.
