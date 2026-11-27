@@ -22,7 +22,6 @@ import os
 import socket
 import sys
 import tempfile
-import time
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
@@ -116,12 +115,16 @@ def main(argv: list[str]) -> int:
             ref = Path(tmp) / "store"
             ref.symlink_to(store if source else store.relative_to(root), target_is_directory=True)
             ref.replace(root / "client-assets")
-        # If the service already has a newer catalog, keep it. At the first
-        # daily refresh it can fetch the full grid and icons as usual.
+        # Replace the old demo grid on a second seed. A full catalog the UI
+        # downloaded already has tooltips and ranks for every class.
         path = root / "talent-catalog.json"
-        if not path.exists():
+        try:
+            saved = json.loads(path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, ValueError):
+            saved = None
+        if not isinstance(saved, dict) or not saved.get("catalog") or saved.get("build") == "demo-bundled":
             catalog = {"format": talents.FORMAT, "build": "demo-bundled", "catalog": roster.bundled_talent_catalog(),
-                       "checked": time.time()}
+                       "checked": 0}
             with tempfile.NamedTemporaryFile(mode="w", dir=root, delete=False) as f:
                 json.dump(catalog, f)
             Path(f.name).replace(path)

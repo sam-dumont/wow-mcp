@@ -1,4 +1,4 @@
-"""The eight shorter sessions in the demo. Nibbet's history lives in generate.py.
+"""The eight other characters in the demo. Nibbet's history lives in generate.py.
 
 Race/class combinations: Blizzard's Forever character creation matrix
 (https://worldofwarcraft.blizzard.com/en-us/news/24304075/). Equipment comes
@@ -10,9 +10,7 @@ Their builds follow the level picks in data/kb/research/classes.json.
 
 from __future__ import annotations
 
-import hashlib
 import json
-import random
 from collections import Counter
 from dataclasses import dataclass
 
@@ -53,25 +51,41 @@ CHARACTERS = (
                                             20375, 26022, 1311087, 20111, 20066, 20049, 1311084, 1310735),
               mount_spell=13819),  # Summon Warhorse
     Character("Flintwick-Bearhide", "HUNTER", "Dwarf", 3, "Alliance", 2, 34, "Beast Mastery", "Stranglethorn Vale",
-              "Booty Bay", (252513, 7731, 4721, 4057, 6911, 9624, 10582, 4059, 7756, 5001, 6340, 7710, 9456),
+              "Booty Bay", (252513, 5002, 4721, 4057, 6911, 9624, 10582, 4059, 4254, 4535, 6340, 7710, 9456),
               "51202214041012", (19552, 19583, 1223755, 24443, 19559, 19596, 19616, 19598, 1293241, 19577, 19590)),
     Character("Valeleaf-Quickwing", "ROGUE", "Skyborne", 95, "Alliance", 3, 16, "Combat", "Loch Modan",
-              "Thelsamar", (252490, 252429, 7282, 10402, 7281, 10413, 6466, 1951, 6448, 11304),
+              "Thelsamar", (252490, 252429, 7282, 10402, 7281, 2312, 6466, 1951, 3848, 11304),
               "02-32", (14144, 14162, 13732)),
     Character("Flintstep-Thunderhoof", "SHAMAN", "Tauren", 6, "Horde", 2, 29, "Enhancement", "Thousand Needles",
-              "Freewind Post", (252515, 274068, 282717, 273026, 273041, 273647, 6601, 6902, 4253, 6321, 6314, 6687),
+              "Freewind Post", (15129, 282717, 4255, 4456, 4830, 6601, 6902, 4253, 6321, 6314, 6687),
               "-0530303100212", (16255, 17485, 415140, 16266, 1223030, 16256, 17364, 16262)),
     Character("Sleetpin-Rimefang", "MAGE", "Troll", 8, "Horde", 3, 10, "Frost", "Durotar",
               "Razor Hill", (6242, 253885, 4309, 2569, 4308, 4307, 2308, 286754, 11287),
               "--01", (11070,)),
     Character("Duskwick-Cinderbell", "WARLOCK", "Undead", 5, "Horde", 2, 23, "Affliction", "Hillsbrad Foothills",
-              "Tarren Mill", (253955, 273088, 3748, 1486, 6392, 6903, 271214, 14375, 5970, 273806, 6340, 15109, 5243),
+              "Tarren Mill", (253955, 3748, 1486, 6392, 4317, 4321, 14375, 4318, 5001, 6340, 15109, 5210),
               "14502002", (18182, 18174, 17810, 437032, 17783)),
     Character("Mossbranch-Fernshade", "DRUID", "Night Elf", 4, "Alliance", 2, 39, "Feral Combat", "Dustwallow Marsh",
               "Theramore Isle", (8176, 7731, 8192, 8175, 252460, 4108, 9398, 4059, 252525, 271910, 4114, 9408),
               "-54230002123112121", (16934, 17056, 17002, 16947, 16998, 1238122, 16942, 16972, 1328617, 1328613,
                                       16958, 17007, 1223242, 1223246)),
 )
+# What the alts had when their Recorder history starts. Ordinary crafted pieces
+# can be bought. The Troll Mage's four visible starter items are exactly
+# Forever CharacterLoadout 2494, read from build 1.60.1.71139.
+TROLL_MAGE_LOADOUT = (6140, 1395, 55, 35)  # robe, pants, boots, Bent Staff
+STARTER_ITEMS = {
+    "WARRIOR": (12410, 12428, 12405, 12424, 7926, 7936, 12425, 250589, 13860, 7960),
+    "PALADIN": (7937, 12428, 250540, 12424, 7926, 7936, 7919, 9413),
+    "HUNTER": (4251, 6603, 4250, 5961, 3057, 3202, 4254, 7958, 3024),
+    "ROGUE": (5957, 4237, 2303, 2302, 2494),  # handstitched leathers, Stiletto from Zephras Isle
+    "SHAMAN": (4251, 2317, 4250, 5961, 3057, 3202, 4253, 6505),
+    "MAGE": TROLL_MAGE_LOADOUT,
+    "WARLOCK": (2585, 4309, 2583, 4308, 4307, 2584, 2030, 11287),
+    "DRUID": (4251, 4057, 4257, 7373, 9828, 4259, 4254, 3185),
+}
+
+
 # Quest and stance abilities the class trainer's price list doesn't include.
 CLASS_ABILITIES = {"WARRIOR": (2457,), "HUNTER": (883, 982, 1515), "WARLOCK": (688, 697), "DRUID": (5487, 768)}
 # The roster's talent picks that grant a button in the spellbook. The class
@@ -89,12 +103,20 @@ def learned(c: Character) -> list[tuple[str, int, int, str]]:
 
 
 def worn(c: Character) -> list[dict]:
+    return equipment_rows(c.equipment)
+
+
+def starter_gear(c: Character) -> list[dict]:
+    return equipment_rows(STARTER_ITEMS[c.cls])
+
+
+def equipment_rows(item_ids: tuple[int, ...]) -> list[dict]:
     from generate import BNET_SLOTS
 
     ref = gear.reference()
     items = []
     slots = set()
-    for iid in c.equipment:
+    for iid in item_ids:
         info = ref.item(iid)
         slot = next(s for s in gear.SLOTS_OF[info["inv"]] if s not in slots)
         slots.add(slot)
@@ -124,82 +146,76 @@ def spellbook(c: Character) -> list[list[int]]:
     return [[spell, level] for spell, level in sorted(book.items())]
 
 
-def sessions(last: float) -> list[dict]:
-    from generate import DEMO_REALM, SEED, XP_MAX, Game, Player, shipper_shapes
+def sessions(last: float, priest: list[dict] | None = None) -> list[dict]:
+    from roster_history import histories
 
-    game = Game()
-    rows = []
-    for i, c in enumerate(CHARACTERS, 1):
-        rnd = random.Random(SEED + i)
-        p = Player(game, rnd, c.name, cls=c.cls, race=c.race, faction=c.faction, sex=c.sex, level=c.level,
-                   xp=rnd.randint(XP_MAX[c.level] // 5, XP_MAX[c.level] // 2),
-                   money=c.level ** 3 * rnd.randint(8, 18), bind=c.inn)
-        p.login(last - (i + 2) * 3600, c.zone)
-        if c.cls in ("HUNTER", "WARLOCK"):
-            kind = c.cls.lower()
-            p.other("wow-companion", kind=kind, display_id=BEAR_DISPLAY if kind == "hunter" else 1132,
-                    source_id=f"companion:{c.name}:{int(p.t)}", _msg=f"{c.name}: {kind} companion")
-        book = spellbook(c)
-        body = {"class": c.cls, "spells": book}
-        digest = hashlib.sha1(json.dumps(body, sort_keys=True).encode()).hexdigest()[:12]
-        known = sum(level == 0 for _, level in book)
-        p.other("wow-altoholic", kind="spells", source="altoholic", **body, known=known, future=len(book) - known,
-                source_id=f"altoholic:spells:{c.name}:{digest}",
-                _msg=f"{c.name}: {known} spells known, {len(book) - known} to learn (Altoholic)")
-        for npc in rnd.choices(game.zone_mobs(c.zone, c.level), k=3 + i % 4):
-            p.kill(npc)
-            p.wait(rnd.randint(20, 80))
-        p.wait(30, moving=False)
-        p.xp_rec()
-        p.snapshot(realm=DEMO_REALM)
-        items = worn(c)
-        p.other("wow-gear", **p.who, spec=c.spec, items=items, professions=[],
-                item_level=round(sum(it["item_level"] for it in items) / len(items), 1))
-        p.other("wow-talents", source="wowsims", talents=c.talents, level=c.level, **{"class": c.cls}, spec=c.spec,
-                addon_version="1.2.3", source_id=f"talents:{c.name}:{c.talents}:{int(p.t)}")
-        for row in shipper_shapes(p.out):
-            if row["feed"] == "wow-recorder":
-                row["source_id"] = row["source_id"].replace("rec:1:", f"rec:{i + 1}:")
-            rows.append(row)
-    return rows
+    return histories(last, priest or [])
 
 
 def series(rows: list[dict], now: float, looks: dict[str, list[dict]] | None = None) -> list[dict]:
-    """Two daily armory reads per alt. The public profile and talent history
-    query the same metrics the Battle.net exporter writes for a real account."""
-    from generate import BNET_SLOTS
+    """The daily armory read uses only the last addon save available at that time."""
+    from bisect import bisect_right
+
+    from generate import BNET_SLOTS, _epoch
 
     out = []
     for c in CHARACTERS:
-        sheet = next(r for r in rows if r.get("char") == c.name and r["feed"] == "wow-gear")
-        items = json.loads(sheet["items"])
-        # The short outing records an already-equipped character: the earlier
-        # daily read carries the same outfit and talent allocation.
-        stamps = [int(now - 86400) * 1000, int(now) * 1000]
+        mine = [r for r in rows if r.get("char") == c.name]
+        sheets = sorted((_epoch(r["_time"]), r) for r in mine if r["feed"] == "wow-gear")
+        levels = sorted((_epoch(r["_time"]), int(r["level"])) for r in mine
+                        if r["feed"] == "wow-character" and r.get("kind") != "played")
+        samples = {}
+        sheet_times = [t for t, _ in sheets]
+        for day in range(20, -1, -1):
+            at = int(now - day * 86400)
+            level_index = bisect_right(levels, (at, 61)) - 1
+            if level_index < 0:
+                continue
+            level = levels[level_index][1]
 
-        def sample(metric: str, value: int, **labels) -> None:
-            out.append({"metric": {"__name__": f"wow_character_{metric}", "character": c.name, "account_id": "0",
-                                   **labels}, "values": [value, value], "timestamps": stamps})
+            def sample(metric, value, **labels):
+                key = (metric, tuple(labels.items()))
+                s = samples.setdefault(key, {"metric": {"__name__": f"wow_character_{metric}", "character": c.name,
+                                                        "account_id": "0", **labels}, "values": [], "timestamps": []})
+                s["values"].append(value)
+                s["timestamps"].append(at * 1000)
 
-        sample("profile", c.level, race_id=str(c.race_id), gender="male" if c.sex == 2 else "female", in_guild="false")
-        for option in (looks or {}).get(c.name, ()):
-            sample("customization", option["choiceId"], option_id=str(option["optionId"]))
-        sample("profile_found", 1)
-        sample("profile_refreshed_timestamp_seconds", int(now))
-        out[-1]["values"] = [t // 1000 for t in stamps]
-        sample("achievements_read", 0)
-        for it in items:
-            sample("equipped", it["item_id"], slot=BNET_SLOTS[it["slot"]])
-        for kind in ("equipped", "average"):
-            sample("item_level", sum(it["item_level"] for it in items) // 16, kind=kind)
-        total = Counter()
-        for name, spell, rank, tree in learned(c):
-            total[tree] += rank
-            sample("talent_rank", rank, spell_id=str(spell), talent=name)
-        trees = sorted({t["tree"] for t in classguide.reference()["classes"][c.cls]["talents"].values()})
-        for order, tree in enumerate(trees):
-            sample("talent_points", total[tree], tree=tree, order=str(order))
+            sample("profile", level, race_id=str(c.race_id), gender="male" if c.sex == 2 else "female",
+                   in_guild="false")
+            sample("profile_found", 1)
+            sample("profile_refreshed_timestamp_seconds", at)
+            sample("achievements_read", 0)
+            for option in (looks or {}).get(c.name, ()):
+                sample("customization", option["choiceId"], option_id=str(option["optionId"]))
+            idx = bisect_right(sheet_times, at) - 1
+            if idx >= 0:
+                items = json.loads(sheets[idx][1]["items"])
+                for it in items:
+                    sample("equipped", it["item_id"], slot=BNET_SLOTS[it["slot"]])
+                for kind in ("equipped", "average"):
+                    sample("item_level", sum(it["item_level"] for it in items) // 16, kind=kind)
+            ranks = talent_ranks(c, level)
+            total = Counter()
+            for name, spell, _, tree in learned(c):
+                if rank := ranks[name]:
+                    sample("talent_rank", rank, spell_id=str(spell), talent=name)
+                    total[tree] += rank
+            trees = sorted({t["tree"] for t in classguide.reference()["classes"][c.cls]["talents"].values()})
+            for order, tree in enumerate(trees):
+                sample("talent_points", total[tree], tree=tree, order=str(order))
+        out.extend(samples.values())
     return out
+
+
+def talent_ranks(c: Character, level: int) -> Counter:
+    return Counter(p["talent"] for p in classguide.path(c.cls)["picks"] if p["level"] <= level)
+
+
+def talent_string(c: Character, level: int) -> str:
+    ranks = talent_ranks(c, level)
+    names = iter(name for name, _, _, _ in learned(c))
+    return "-".join("".join(str(ranks[next(names)]) if digit != "0" else "0" for digit in tree).rstrip("0")
+                    for tree in c.talents.split("-")).rstrip("-")
 
 
 def bundled_talent_catalog() -> dict:
@@ -208,7 +224,7 @@ def bundled_talent_catalog() -> dict:
     tooltips and Legacy challenges that Nibbet's full history uses."""
     from pathlib import Path
 
-    from wowstats import talents, wowsims
+    from wowstats import talents
 
     fixture = next((Path(__file__).resolve().parents[2] / "tests" / "data").glob("wowf-talents-*.json"))
     tables = json.loads(fixture.read_text())
@@ -218,21 +234,14 @@ def bundled_talent_catalog() -> dict:
         if c.cls in have:
             continue
         nodes = classguide.reference()["classes"][c.cls]["talents"]
-        # Match the definitions the simulated addon actually saved. Other
-        # nodes on the grid are still shown from their real spell and position.
-        definitions = wowsims.table()[c.cls]
-        digits = [definitions[t][i] for t, tree in enumerate(c.talents.split("-"))
-                  for i, digit in enumerate(tree) if digit != "0"]
-        learned_defs = dict(zip(c.spells, digits, strict=True))
         sections = {}
         for name, node in nodes.items():
             tree = node["tree"]
             section = sections.setdefault(tree, {"name": tree, "nodes": [], "edges": []})
             spell = node["spell"]
-            catalog["spells"][str(spell)] = {"name": name}
+            catalog["spells"][str(spell)] = {"name": name, "icon": node["icon"]}
             section["nodes"].append({"id": spell, "row": node["row"], "col": node["col"], "max": node["max"],
-                                     "spells": [str(spell)], "defs": [learned_defs[spell]] if spell in learned_defs
-                                     else [], "ranks": []})
+                                     "spells": [str(spell)], "defs": node["defs"], "ranks": []})
             if need := nodes.get(node["needs"]):
                 section["edges"].append({"fc": need["col"], "fr": need["row"], "tc": node["col"], "tr": node["row"]})
         trees = [{**sections[name], "order": i} for i, name in enumerate(sorted(sections))]

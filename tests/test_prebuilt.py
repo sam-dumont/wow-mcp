@@ -353,7 +353,9 @@ def test_the_demo_seed_wakes_the_page(run_app, monkeypatch, tmp_path):
                            text=True, timeout=120, env={**os.environ, "INGEST_PASSWORD": pw})
         assert r.returncode == 0, r.stderr
         assert prebuilt.WAKE.wait(10), "the seed didn't wake the builder"
-        assert app.prebuilt.check() == "new data"
+        # A player opening the page before the background rebuild finishes
+        # must already see the roster. The completed rebuild has its own tests.
+        assert app.prebuilt.get("api:chars") is None
         chars = [c["char"] for c in body_of(srv, "/api/chars")["chars"]]
         assert chars[0] == "Nibbet-Gearholt" and len(set(chars)) == 9, chars
     finally:

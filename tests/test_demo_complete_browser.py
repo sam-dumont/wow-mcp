@@ -269,6 +269,85 @@ def test_switching_a_published_character_reads_its_file_once(browser, base):
 
 
 @pytest.mark.parametrize("which", ["public", "friends"])
+def test_roster_climbs_and_historical_gear_on_the_phone(browser, base, which):
+    with browser.new_context(viewport={"width": 390, "height": 844}) as ctx:
+        page = ctx.new_page()
+        page.goto(base + ("friends/" if which == "friends" else ""))
+        select = page.get_by_role("combobox", name="Character", exact=True)
+        select.locator("option").nth(8).wait_for(state="attached")
+        page.get_by_role("tab", name="Character", exact=True).click()
+        for name, level in LEVEL.items():
+            select.select_option(name)
+            page.locator("#hero").get_by_role("heading", name=name.split("-")[0], exact=True).wait_for()
+            climb = page.locator("#levels .lede")
+            climb.filter(has_text=re.compile(r"played since tracking began at level \d+")).wait_for()
+            d = page.evaluate("name => window.wowGetJSON(window.wowApi('char', {name}))", name)
+            hd = d["header"]
+            text = climb.inner_text()
+            assert f"played since tracking began at level {hd['first_level']}" in text, name
+            if name == "Brakka-Ironvale":
+                assert "31h 30m played since tracking began at level 55, including 10h 22m at level 60" in text
+                assert "Polestar’s route plans 19h 28m for 5 finished levels. You played 21h 09m on those levels" in text
+                ticks = page.locator("#levels .climb svg text.axis").all_text_contents()
+                assert max(int(t) for t in ticks if t.isdecimal()) == 60
+            assert hd["level"] == level and hd["played_s"] > 3600
+            splits = d["levels"]
+            assert len(splits) >= 5 and all(s["seconds"] > 0 for s in splits)
+            assert any(s.get("route_s") for s in splits), name
+            if name != "Nibbet-Gearholt":
+                assert hd["played_total_s"] >= hd["played_s"] - 1, name
+            for lv in [s["level"] for s in splits] + [level]:
+                snap = page.evaluate("([name, level]) => window.wowGetJSON(window.wowApi('snapshot', {name, level}))",
+                                     [name, lv])
+                items = (snap.get("gear") or {}).get("items", [])
+                assert all((it.get("req_level") or 0) <= lv for it in items), (name, lv)
+
+
+@pytest.mark.parametrize("which", ["public", "friends"])
+def test_all_equipped_items_and_talent_nodes_show_their_own_jpeg(browser, base, which):
+    with browser.new_context(viewport={"width": 390, "height": 844}) as ctx:
+        page = ctx.new_page()
+        page.goto(base + ("friends/" if which == "friends" else ""))
+        select = page.get_by_role("combobox", name="Character", exact=True)
+        select.locator("option").nth(8).wait_for(state="attached")
+        page.get_by_role("tab", name="Character", exact=True).click()
+        for name in ROSTER:
+            select.select_option(name)
+            page.locator("#hero").get_by_role("heading", name=name.split("-")[0], exact=True).wait_for()
+            # The heading is ready before the friends' page finishes decrypting its icons.
+            page.wait_for_function("""() => {
+                const faces = [...document.querySelectorAll('#talents .tface, #gear .slot:not(.empty) .ifr')];
+                return faces.length && faces.every(f => f.querySelector('img'));
+            }""")
+            errors = page.evaluate("""async name => {
+                const sheet = await window.wowGetJSON(window.wowApi('char', {name}));
+                const picks = [];
+                for (const item of sheet.gear.items.filter(i => i.item_id)) {
+                    const card = await window.wowCard(item.item_id);
+                    picks.push([item.name, document.querySelector('#gear .slot[data-slot="' + item.slot + '"] .ifr'),
+                                card?.i, 'large']);
+                }
+                const faces = [...document.querySelectorAll('#talents .tface')];
+                const nodes = sheet.talents.sections.flatMap(s => s.nodes);
+                if (!nodes.length || faces.length !== nodes.length) return ['talent grid missing'];
+                nodes.forEach((n, i) => picks.push([n.name, faces[i], n.icon, 'medium']));
+                const sealed = document.documentElement.dataset.sealed === '1';
+                return (await Promise.all(picks.map(async ([label, frame, icon, size]) => {
+                    if (!icon || icon === 'inv_misc_questionmark') return label + ': no catalog icon';
+                    const src = await window.wowIcon(icon, size);
+                    if (!(sealed ? src?.startsWith('data:image/jpeg;base64,/9j/')
+                                 : src === 'data/icon/' + size + '/' + icon + '.jpg')) return label + ': ' + src?.slice(0, 45);
+                    const img = frame?.querySelector('img');
+                    if (img?.getAttribute('src') !== src) return label + ': wrong image';
+                    img.loading = 'eager';
+                    try { await img.decode(); } catch { return label + ': broken image'; }
+                    return img.naturalWidth ? null : label + ': empty image';
+                }))).filter(Boolean);
+            }""", name)
+            assert not errors, (name, errors)
+
+
+@pytest.mark.parametrize("which", ["public", "friends"])
 @pytest.mark.parametrize(("name", "width"), [(name, 1280) for name in ROSTER]
                          + [(name, 390) for name, (cls, _, _) in ROSTER.items() if cls in {*MOUNT, "HUNTER"}])
 def test_each_demo_character_draws(browser, base, demo_dir, name, width, which):

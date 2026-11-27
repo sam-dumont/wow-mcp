@@ -9,7 +9,7 @@ Nibbet is a made-up Gnome priest. The journal records 34 sessions from level 22 
 
 ## The nine characters
 
-Pick a character in the selector. Each wears gear they can use and has one talent point per level from 10 on. The eight characters besides Nibbet each have one short play session. [Blizzard’s Forever race and class table](https://worldofwarcraft.blizzard.com/en-us/news/24304075/)
+Pick a character in the selector. Each wears gear they can use and has one talent point per level from 10 on. Sleetpin’s journal starts at level 1 in Durotar. Brakka’s starts at 55 in the Western Plaguelands and carries on at 60, including runs in Scholomance and Blackrock Depths. The climb shows time played over the recorded levels. When Altoholic has a lifetime `/played`, you see that alongside it. [Blizzard’s Forever race and class table](https://worldofwarcraft.blizzard.com/en-us/news/24304075/)
 
 | Level | Character | Race and spec |
 | ---: | --- | --- |
@@ -25,7 +25,7 @@ Pick a character in the selector. Each wears gear they can use and has one talen
 
 Open **Character** and choose **View in 3D**. Pick Hesta’s Warhorse or Brakka’s epic wolf under **Mount**. Try **Walk** and **Run**, then choose **On foot** to use the character’s own attacks again. Brakka carries an Arcanite Reaper and wears four epic Glory pieces. Flintwick and Duskwick have a separate control for their companions.
 
-The models, gear, companions and mounts come from the installed Forever client. The demo draws its own 2D icons. [Artwork and credits](../../THIRD_PARTY.md)
+The models, gear, companions and mounts come from the installed Forever client. The item and talent icons come from the same Wowhead cache as Nibbet’s. Both pages serve their own copies. [Artwork and credits](../../THIRD_PARTY.md)
 
 ## The two pages
 

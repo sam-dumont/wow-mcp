@@ -18,7 +18,7 @@ PIN = Path(__file__).resolve().parents[2] / "site" / "demo3d-roster.sha256"
 
 def fetch(cache: Path, pin_file: Path = PIN) -> Path:
     repo = os.environ.get("GITHUB_REPOSITORY") or "sam-dumont/wow-mcp"
-    url = os.environ.get("DEMO_3D_URL") or f"https://github.com/{repo}/releases/download/demo-3d-5/{ARCHIVE}"
+    url = os.environ.get("DEMO_3D_URL") or f"https://github.com/{repo}/releases/download/demo-3d-6/{ARCHIVE}"
     hint = "Alternatively, set DEMO_3D_STORE to the store from demo3d.py build-roster."
     try:
         match = re.fullmatch(r"([0-9a-f]{64})\s+" + re.escape(ARCHIVE), pin_file.read_text().strip())

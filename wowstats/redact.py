@@ -172,7 +172,7 @@ PUBLIC: dict[str, dict] = {
         "recipe": M3D_RECIPE, "recipe_sd": M3D_RECIPE,
         # The options with no original version (the page's note under Classic).
         "no_classic": [None],
-        "appearance": {"source": None, "refreshed": None},
+        "appearance": {"source": None, "refreshed": None, "scope": None},
         "items": [M3D_ITEM], "missing": [M3D_ITEM],
     },
 }

@@ -20,7 +20,10 @@ labelled `your pace` and `gain.trip.pace` added; the demo's trips are quicker th
 the rules, so the minutes stay), and once for the legs seen or not (2026-11-25, an outside
 review: Razorfen Downs' run, logged at the door, read its pickups as 0 s measured, "~35 min
 trip"; they now come from the route at his pace, "~1h00 trip (20 min pickups · 35 min inside)",
-and `gain.trip.unknown_legs` is added). This test builds them again and compares, number for number.
+and `gain.trip.unknown_legs` is added). The level snapshots now use the climb's split
+counts and count Recorder events in a half-open interval so an event at a ding counts
+once. Nibbet's gear history also waits for Whitemane's Chapeau's required level.
+This test builds the answers again and compares them number for number.
 
 The snapshot leaves out what isn't the layer's (NOT_LAYER): the gear advice
 (each level snapshot's `bis` and `gear`, the character's `gear`) and the
@@ -45,7 +48,7 @@ from pathlib import Path
 import pytest
 
 from tools.fixtures.generate import build_demo
-from wowstats import eventcache, logsql, stores, ui
+from wowstats import eventcache, insights, logsql, stores, ui
 from wowstats.stores import parse_t
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -150,7 +153,43 @@ def test_the_pages_say_the_same_numbers_from_the_layer(seed_vl, monkeypatch):
     # The answers hold real numbers, not an empty page that matches an empty page.
     char = got[f"full:char:{CHAR}"]
     assert char["levels"] and char["header"]["xp_per_hour"] and char["deaths"]["total"] == 25
+    for lv in char["levels"]:
+        counts = got[f"full:snapshot:{CHAR}:{lv['level']}"]["counts"]
+        assert counts.get("kill", 0) == lv["kills"] and counts.get("turnin", 0) == lv["quests"]
     assert char["dungeons"] and got[f"public:char:{CHAR}"]["levels"]
+
+
+def test_snapshot_attributes_ding_events_and_keeps_elapsed_zone_time():
+    def row(when, kind, ident, **fields):
+        return {"_time": f"2026-11-18T09:00:{when}Z", "feed": "wow-recorder",
+                "source_id": f"rec:1:10:{ident}", "kind": kind, **fields}
+
+    rows = [row("00.000", "zone", 1, zone="Durotar"), row("02.000", "kill", 2),
+            row("16.500", "kill", 3), row("16.500", "level", 4, level="24"),
+            row("16.500", "zone", 5, zone="The Barrens"), row("16.500", "turnin", 6),
+            row("16.500", "loot", 7), row("16.900", "loot", 8), row("30.000", "level", 9, level="25")]
+    def at(i):
+        return parse_t(rows[i]["_time"])
+
+    def query(q):
+        return logsql.parse(q).run(rows)
+
+    # The killing blow was counted by Polestar before the ding. The quest
+    # turn-in on the same clock tick is on the new level. Both split fields
+    # survive; the later level without a quest count uses its Recorder interval.
+    data = {"levels": [{"level": 23, "partial": False, "seconds": 16, "kills": 2, "quests": 0},
+                       {"level": 24, "partial": False, "seconds": 14, "kills": 0}]}
+    first = insights.snapshot(23, data, (at(0), at(3)), [], query, "", None, {}, [])
+    second = insights.snapshot(24, data, (at(3), at(8)), [], query, "", None, {}, [])
+    assert first["counts"] == {"kill": 2, "turnin": 0}
+    assert first["zones"] == [{"zone": "Durotar", "secs": 16}]
+    # A flight landing on the ding closes flight time, not another stretch
+    # of time played in Durotar. Its arrival zone is still the new level's.
+    rows.extend([row("10.500", "taxi", 10), row("16.500", "land", 11, seconds="6")])
+    flight = insights.snapshot(23, data, (at(0), at(3)), [], query, "", None, {}, [])
+    assert flight["zones"] == [{"zone": "Durotar", "secs": 10}]
+    assert second["counts"] == {"kill": 0, "turnin": 1, "loot": 2}
+    assert second["zones"] == [{"zone": "The Barrens", "secs": 13}]
 
 
 def test_the_pages_take_the_layers_numbers(seed_vl, monkeypatch):

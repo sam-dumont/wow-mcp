@@ -2343,7 +2343,7 @@ function renderClimb(container, d) {
   // and the tooltips read total played since level 1.
   const off = played ? playedBefore(hd) : 0;
   const y0 = Math.floor(Math.min(...pts.map((p) => p.level)));
-  const y1 = Math.ceil(Math.max(...pts.map((p) => p.level)) + 0.01);
+  const y1 = Math.ceil(Math.max(...pts.map((p) => p.level)));
   const x = (v) => m.l + ((v - x0) / Math.max(1, x1 - x0)) * (W - m.l - m.r);
   const y = (v) => H - m.b - ((v - y0) / Math.max(1, y1 - y0)) * (H - m.t - m.b);
 
@@ -2452,7 +2452,8 @@ function renderLevels(d) {
     return;
   }
   const done = lv.filter((l) => !l.partial);
-  const parts = [`${dur(hd.played_s)} played from level ${hd.first_level} to ${hd.level}`];
+  const parts = [`${dur(hd.played_s)} played since tracking began at level ${hd.first_level}`];
+  if (hd.time_in_level_s > 0) parts.push(`including ${dur(hd.time_in_level_s)} at level ${hd.level}`);
   const rt = routeTotals(d);
   if (hd.played_total_s) parts.push(`${dur(hd.played_total_s)} since level 1 (Altoholic’s /played)`);
   // The counts say their population (wowstats.analysis.pages.climb): the
@@ -2469,7 +2470,7 @@ function renderLevels(d) {
   if (fastest && slowest && fastest !== slowest) lede += ` Fastest was ${fastest.level} (${dur(fastest.seconds)}), slowest ${slowest.level} (${dur(slowest.seconds)}).`;
   const cur = cn.current_level;
   if (cur && cur.kills !== null && cur.kills !== undefined) lede += ` Level ${cur.level} so far: ${fmtNum(cur.kills)} kills and ${fmtNum(cur.quests || 0)} quests, not in those totals.`;
-  if (rt.n) lede += ` Polestar’s route plans ${dur(rt.route)} for the ${rt.n} finished level${rt.n === 1 ? '' : 's'} it times: ${(rt.played / rt.route).toFixed(1)}× here.`;
+  if (rt.n) lede += ` Polestar’s route plans ${dur(rt.route)} for ${rt.n} finished level${rt.n === 1 ? '' : 's'}. You played ${dur(rt.played)} on ${rt.n === 1 ? 'that level' : 'those levels'} (${(rt.played / rt.route).toFixed(1)}× the plan).`;
 
   const chart = h('div', { class: 'climb' });
   const max = Math.max(...lv.map((l) => l.seconds), 1);

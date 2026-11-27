@@ -785,12 +785,12 @@ class Views:
         snap = insights.snapshot(level, data, wins[level], gh, self.q, cf, self.route_ref(), self.who(data), ds)
         g = snap.pop("gear")
         snap.update(char=char, available=True, levels=sorted(wins))
+        end = insights.snapshot_as_of(wins[level][1])
         if g:
             snap["gear"] = {k: g.get(k) for k in ("items", "item_level", "professions")}
             # The caps as they were at the end of that level: the Recorder's
             # records up to then, else the trainer tier (the same rule as
             # the page's current caps).
-            end = wins[level][1] or datetime.now(UTC)
             snap["gear"]["professions"] = profcaps.fill(snap["gear"]["professions"] or [],
                                                         profcaps.newest_skills(skills, until=end.timestamp()))
             snap["gear"]["items"] = [{**i, "certainty": "exact"} for i in snap["gear"]["items"] or []]
@@ -801,11 +801,10 @@ class Views:
             # has nothing for stay out (unknown), and so does any level that
             # ended before the first record.
             recon = self.reconstruction(char, data, gh)
-            t1 = wins[level][1] or datetime.now(UTC)
-            if recon is not None and t1 >= recon[0].start:
+            if recon is not None and end >= recon[0].start:
                 from wowstats import history
 
-                items = history.items_at(gearmod.reference(), recon[0], t1, recon[2])
+                items = history.items_at(gearmod.reference(), recon[0], end, recon[2])
                 if items:
                     snap["gear"] = {"items": items, "item_level": None}
                     snap["gear_reconstructed"] = True
@@ -841,11 +840,8 @@ class Views:
         last = gh[-1] if gh else {}
         sheet = {"class": (hd.get("class") or last.get("class") or "").upper(),
                  "race": hd.get("race") or last.get("race"), "faction": hd.get("faction"), "spec": last.get("spec")}
-        first = gh[0] if gh else None
         try:
-            out = history.build(gearmod.reference(), sheet, turnins, loots, crafts, dings,
-                                {"_time": first.get("_time") or first.get("at"), "items": first.get("items") or []}
-                                if first else None)
+            out = history.build(gearmod.reference(), sheet, turnins, loots, crafts, dings, gh)
         except (gearmod.GearError, ValueError, TypeError, KeyError):
             out = None
         if out is not None:

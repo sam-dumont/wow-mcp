@@ -25,9 +25,9 @@ BODY = {"Gnome": 900914, "Orc": 949470, "Human": 1000764, "Dwarf": 878772, "Skyb
 COMPANION = {"HUNTER": (123040, 123045), "WARLOCK": (126369, 126370)}
 # Upper torso texture of the equipped chest piece, and each ranged weapon's subclass, model and skin.
 CHEST = {"PRIEST": 164764, "WARRIOR": 164188, "PALADIN": 164194, "HUNTER": 163257, "ROGUE": 163198,
-         "SHAMAN": 163408, "MAGE": 164574, "WARLOCK": 162901, "DRUID": 163261}
+         "SHAMAN": 163226, "MAGE": 164574, "WARLOCK": 162901, "DRUID": 163261}
 RANGED = {"PRIEST": (19, 148652, 147512), "WARRIOR": (2, 145015, 145016), "HUNTER": (3, 145323, 145327),
-          "ROGUE": (2, 145105, 145104), "MAGE": (19, 148699, 148701), "WARLOCK": (19, 148652, 148655)}
+          "ROGUE": (2, 145105, 145104), "MAGE": (19, 148699, 148701), "WARLOCK": (19, 148652, 147644)}
 # SHA-256 of each source M2. A well-formed fixture M2 at the same ID must
 # fail both the Compose and published demo checks.
 CLIENT_M2 = {
@@ -85,29 +85,35 @@ def check_answer(name, answer):
     return recipe
 
 
+def open_before(url, deadline, timeout):
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("character check took over 120s")
+    return urlopen(url, timeout=min(timeout, remaining))  # noqa: S310 - CI's local UI
+
+
 def check_live(base):
-    # The seed imports profiles after the events. Give the live UI time to
-    # see those samples and replace any answers it built during ingestion.
-    pending, models = dict.fromkeys(ROSTER), set()
-    deadline = time.monotonic() + 120
-    while pending:
-        for name in list(pending):
+    models = set()
+    for name in ROSTER:
+        # A cold character page can take over 30s on the CI runner. The seed
+        # also imports its profiles last. Give each character its own retry window.
+        deadline = time.monotonic() + 120
+        while True:
             try:
-                with urlopen(f"{base}/api/model3d?name={name}", timeout=30) as response:  # noqa: S310
+                with open_before(f"{base}/api/model3d?name={name}", deadline, 60) as response:
                     recipe = check_answer(name, json.load(response))
                 for part in (recipe, recipe.get("companion"), *recipe.get("mounts", [])):
                     if part:
-                        with urlopen(f"{base}/model3d/file/{part['model']}", timeout=30) as response:  # noqa: S310
+                        with open_before(f"{base}/model3d/file/{part['model']}", deadline, 30) as response:
                             check_m2(part["model"], response)
             except (AssertionError, KeyError, OSError, TypeError) as exc:
-                pending[name] = str(exc)
+                if time.monotonic() + 2 >= deadline:
+                    raise AssertionError(f"{name}: {exc}") from exc
+                time.sleep(2)
                 continue
             models.add(recipe["model"])
             print(f"{name}: model {recipe['model']}", flush=True)
-            del pending[name]
-        if pending:
-            assert time.monotonic() < deadline, pending
-            time.sleep(2)
+            break
     assert len(models) == len(ROSTER) == 9, models
 
 

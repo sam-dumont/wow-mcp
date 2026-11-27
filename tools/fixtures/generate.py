@@ -91,10 +91,13 @@ BFD_XP = 18211
 # the guides' quest XP lands on top of it, and the level must hold.
 KILL_S = 75.0  # seconds per kill, pulls and walks between them: the pace's estimate of the kills left
 # XP to the next level for the fixture characters (Polestar tools/lib/game/xp.js).
-XP_MAX = {1: 400, 10: 7600, 16: 16000, 21: 26000, 22: 27300, 23: 29400, 24: 31700, 25: 34000, 26: 36400, 27: 38900,
-          28: 41400, 29: 44300, 30: 47400, 31: 50800, 32: 54500, 33: 58600, 34: 62800, 35: 67100, 36: 71600,
-          37: 76100, 38: 80800, 39: 85700, 40: 90700, 41: 95800, 42: 101000, 43: 106300, 44: 111800, 45: 117500,
-          46: 123200, 47: 129100, 53: 167100, 60: 0}
+XP_MAX = dict(enumerate((
+    0, 400, 900, 1400, 2100, 2800, 3600, 4500, 5400, 6500, 7600, 8800, 10100, 11400, 12900, 14400, 16000,
+    17700, 19400, 21300, 23200, 25200, 27300, 29400, 31700, 34000, 36400, 38900, 41400, 44300, 47400,
+    50800, 54500, 58600, 62800, 67100, 71600, 76100, 80800, 85700, 90700, 95800, 101000, 106300, 111800,
+    117500, 123200, 129100, 135100, 141200, 147500, 153900, 160400, 167100, 173900, 180800, 187900, 195000,
+    202300, 209800, 0,
+)))
 SESSION_FIELDS = {"build": "70888", "interface": "16001", "locale": "enUS", "polestar_version": "0.4.1",
                   "recorder_version": "0.4.1", "region": "3"}
 MAPS = {"Darkshore": 1439, "Ashenvale": 1440, "Stonetalon Mountains": 1442, "Wetlands": 1437, "Ironforge": 1455,
@@ -108,7 +111,13 @@ MAPS = {"Darkshore": 1439, "Ashenvale": 1440, "Stonetalon Mountains": 1442, "Wet
         "Tirisfal Glades": 1420, "Scarlet Monastery": 302, "Loch Modan": 1432, "Badlands": 1418,
         "Stranglethorn Vale": 1434, "Swamp of Sorrows": 1435, "Razorfen Downs": 300, "Uldaman": 230,
         "Feralas": 1444, "Thousand Needles": 1441, "Tanaris": 1446, "Zul'Farrak": 219, "The Hinterlands": 1425,
-        "Durotar": 1411, "Un'Goro Crater": 1449, "Eastern Plaguelands": 1423}
+        "Durotar": 1411, "Un'Goro Crater": 1449, "Eastern Plaguelands": 1423, "Western Plaguelands": 1422,
+        "Silverpine Forest": 1421, "Searing Gorge": 1427,
+        "Desolace": 1443,
+        # The Forever UiMap table has the entrance zones. The Recorder can
+        # identify a dungeon by its instance ID without an indoor UI map.
+        **dict.fromkeys(("Shadowfang Keep", "Gnomeregan", "Blackrock Depths", "Scholomance", "The Deadmines",
+                         "Stratholme", "Blackrock Spire", "Maraudon", "Sunken Temple"))}
 # A map's frame in world yards (the Recorder's `map` record): what makes
 # positions into distances.
 FRAMES = {1439: (-16000.0, -19200.0, 7466.6, 1600.0), 1440: (1700.0, -4066.6, 4672.9, 829.1),
@@ -126,7 +135,8 @@ AREAS = {"Darkshore": 148, "Ashenvale": 331, "Stonetalon Mountains": 406, "Wetla
          "Alterac Mountains": 36, "Arathi Highlands": 45, "Badlands": 3, "Stranglethorn Vale": 33,
          "Dustwallow Marsh": 15, "Swamp of Sorrows": 8, "Loch Modan": 38, "Feralas": 357, "Tanaris": 440,
          "Thousand Needles": 400, "The Hinterlands": 47, "Durotar": 14, "Un'Goro Crater": 490,
-         "Eastern Plaguelands": 139}
+         "Eastern Plaguelands": 139, "Western Plaguelands": 28, "The Barrens": 17, "Silverpine Forest": 130,
+         "Dun Morogh": 1}
 TAXI = {"Auberdine": 26, "Astranaar": 28, "Stormwind City": 2, "Ironforge": 6, "Menethil Harbor": 7,
         "Darkshire": 12, "Lakeshire": 5, "Sentinel Hill": 4, "Rut'theran Village": 27, "Southshore": 14}
 # The demo's flight points past 34 (sessions_demo_46): known once he lands there.
@@ -219,9 +229,9 @@ class Game:
             q["items"] = [tuple(x) for x in q["items"]]
             self.quests[q["id"]] = q
 
-    def zone_quests(self, zone: str, level: int, used: set[int]) -> list[dict]:
+    def zone_quests(self, zone: str, level: int, used: set[int], faction: str = "Alliance") -> list[dict]:
         area = AREAS.get(zone)
-        return sorted((q for q in self.quests.values() if q["area"] == area and q["side"] in ("Alliance", "both")
+        return sorted((q for q in self.quests.values() if q["area"] == area and q["side"] in (faction, "both")
                        and level - 4 <= q["level"] <= level + 3 and q["min"] <= level and q["id"] not in used
                        and q["xp"] > 0), key=lambda q: q["id"])
 
@@ -267,6 +277,7 @@ class Player:
         self.level_t0 = 0.0  # online seconds at the start of this level
         self.played = 0.0
         self.level_kills = self.level_quests = 0
+        self.initial_xp = xp
         self.first_level = True
         self.skills = {TAILORING: [100, 150], ENCHANTING: [120, 150], COOKING: [90, 150]}
         self.instance = None
@@ -405,7 +416,7 @@ class Player:
         secs = round(self.played - self.level_t0)
         self.other("wow-level", kills=self.level_kills, level=self.level, partial=self.first_level,
                    quests=self.level_quests, seconds=secs,
-                   xp=XP_MAX[self.level] if not self.first_level else XP_MAX[self.level] - 15555)
+                   xp=XP_MAX[self.level] if not self.first_level else XP_MAX[self.level] - self.initial_xp)
         self.level += 1
         if self.level == 60:
             # The final ding empties the XP bar.
@@ -458,10 +469,13 @@ class Player:
         self.level_kills += 1
         self.rec("combat", on=False, **self.here())
         if self.rnd.random() < 0.65:
-            item = self.rnd.choice([4306, 4306, 2589, 4338, 1205, 3770, 858, 4592, 2592])
+            item = self.trash_drop()
             self.rec("loot", items=f"{item}:{self.rnd.randint(1, 3)}", npc_id=npc, npc_kind="c",
                      wanted=self.wanted(), **self.here())
             self.money += self.rnd.randint(20, 160)
+
+    def trash_drop(self) -> int:
+        return self.rnd.choice([4306, 4306, 2589, 4338, 1205, 3770, 858, 4592, 2592])
 
     def wanted(self) -> str | None:
         """The Recorder's `wanted`: quest:objective of every unfinished item
@@ -1401,7 +1415,7 @@ TROLL_TEMPER = 3042  # Zul'Farrak's, given and taken in Gadgetzan (data/dungeons
 
 def dungeon(p: Player, name: str, instance_id: int, zone: str, mobs: list[int], bosses: list[int], *,
             trash: int, loot: dict | None = None, deaths: tuple = (), quest_kill: dict | None = None,
-            grouped: bool = False, stay: bool = False) -> None:
+            grouped: bool = False, stay: bool = False, party_size: int = 5, quest_loot: tuple = ()) -> None:
     """One run with a group of five: the trash, each boss (its encounter),
     what dropped for him (loot: boss -> {slot: item}, worn at once; slot 0
     for the bags), a death on the listed bosses, and the run's summary
@@ -1410,7 +1424,7 @@ def dungeon(p: Player, name: str, instance_id: int, zone: str, mobs: list[int], 
     wing (no size 0 after), which passes `grouped` (no new group record)."""
     rnd = p.rnd
     if not grouped:
-        p.rec("group", raid=False, size=4, zone=p.zone)
+        p.rec("group", raid=party_size > 5, size=party_size - 1, zone=p.zone)
     p.wait(rnd.uniform(120, 300))
     p.rec("enter", difficulty=0, instance_id=instance_id, instance_kind="party", **p.here())
     t0, g0, lvl = p.t, p.gained, p.level
@@ -1423,7 +1437,7 @@ def dungeon(p: Player, name: str, instance_id: int, zone: str, mobs: list[int], 
             p.kill(rnd.choice(mobs), elite=True)
         p.wait(rnd.uniform(80, 150))
         p.kill(b, elite=True, quest=(quest_kill or {}).get(b))
-        p.rec("encounter", difficulty=1, encounter_id=instance_id * 10 + k, size=5, success=True, zone=p.zone)
+        p.rec("encounter", difficulty=1, encounter_id=instance_id * 10 + k, size=party_size, success=True, zone=p.zone)
         got = (loot or {}).get(b) or {}
         if got:
             p.rec("loot", items=";".join(f"{i}:1" for i in got.values()), npc_id=b, npc_kind="c", **p.here())
@@ -1432,6 +1446,10 @@ def dungeon(p: Player, name: str, instance_id: int, zone: str, mobs: list[int], 
                     p.worn[slot] = item
         if b in deaths:
             p.die(b, how="s")
+    for quest, npc, item, count in quest_loot:
+        for _ in range(count):
+            p.kill(npc, elite=True, quest=quest)
+            p.rec("loot", items=f"{item}:1", npc_id=npc, npc_kind="c", **p.here())
     inside = round(p.t - t0) + 60
     p.wait(t0 + inside - p.t)
     p.instance = None
@@ -1560,7 +1578,7 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
     dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Armory"], trash=14, stay=True)
     p.go("Tirisfal Glades", "Scarlet Monastery")
     dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Cathedral"], trash=15,
-            loot={3977: {1: 7720}}, deaths=(3976,), grouped=True)  # Whitemane's Chapeau
+            loot={3977: {0: 7720}}, deaths=(3976,), grouped=True)  # Whitemane's Chapeau, level 39
     p.go("Tirisfal Glades", "Scarlet Monastery")
     p.logout()
 
@@ -1576,6 +1594,7 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
                    5: ("Dustwallow Marsh", "North Point Tower"), 10: ("Dustwallow Marsh", "Theramore Isle"),
                    15: ("Dustwallow Marsh", "Foothold Citadel")},
                   reach=(40, 20000), deaths=(6,), hours=2.7)
+    p.worn[1] = 7720  # now high enough for the Chapeau he brought home from Cathedral
     quest_reward(p, 1203, 9622, 11)  # Jarl Needs a Blade: Reedknot Ring
     p.go("Dustwallow Marsh", "Theramore Isle")
     p.boat("Wetlands", "Menethil Harbor")
@@ -2028,9 +2047,12 @@ def in_forever(rows: list[dict]) -> None:
     """Every item the demo character ever wears comes from something live in
     Forever today, by our data: a ForeverDB source labelled LIVE_LABELS, or,
     for an item ForeverDB doesn't list, Polestar's own Forever drop tables
-    (gear-reference's `sources` or a trusted recorded dungeon drop). The Gurubashi Arena's Arena Master (its
-    chest event isn't open in Forever, ForeverDB has Classic's data only)
+    (gear-reference's `sources` or a trusted recorded dungeon drop). The
+    Troll Mage starts in the items supplied by its Forever client loadout.
+    The Gurubashi Arena's Arena Master (its chest event isn't open in
+    Forever, ForeverDB has Classic's data only)
     once sat in his trinket slot (owner, 2026-11-24)."""
+    from tools.fixtures.roster import TROLL_MAGE_LOADOUT
     from wowstats import forever, gear
 
     fdb = (gear.sources_data() or {}).get("items") or {}
@@ -2045,6 +2067,8 @@ def in_forever(rows: list[dict]) -> None:
             iid = str(it["item_id"])
             if it.get("slot") in LOOK_SLOTS or iid in bad:
                 continue
+            if (r.get("race"), r.get("class")) == ("Troll", "MAGE") and int(iid) in TROLL_MAGE_LOADOUT:
+                continue  # Forever CharacterLoadout 2494 supplies these at creation.
             srcs = (fdb.get(iid) or {}).get("sources")
             live = any(x.get("label") in LIVE_LABELS for x in srcs) if srcs else bool(polestar.get(iid))
             if not live:
@@ -2068,7 +2092,8 @@ def build_demo(end_day: str | None = None) -> list[dict]:
     # frost caster's, made for another class), a shirt, the guild's
     # tabard, a second trinket (Shadowfang Keep's, level 21). Everything he
     # wears at 22 asks 22 or less and has a look in Forever's item tables.
-    p.worn.update({1: 253951, 4: 2576, 14: 273643, 19: 5976})
+    # A priest can wear this cloth sash and already has the Tailoring 50 it takes.
+    p.worn.update({1: 253951, 4: 2576, 6: 253885, 14: 273643, 19: 5976})
     p.fresh_steps = True  # draws nothing from the seed: the same evenings as the fixtures'
     marks = sessions_priest(p)
     sessions_demo(p, marks)
@@ -2113,7 +2138,7 @@ def demo_roster(end_day: str | None = None) -> list[dict]:
 
     rows = build_demo(end_day)
     last = max(_epoch(r["_time"]) for r in rows if r["feed"] == "wow-character")
-    alts = roster.sessions(last)
+    alts = roster.sessions(last, priest=rows)
     in_forever(alts)
     for r in rows:
         if r["feed"] == "wow-setup":

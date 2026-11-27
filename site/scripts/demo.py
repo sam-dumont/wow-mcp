@@ -15,8 +15,8 @@ them as VM_URL, RENDER_URL and RENDER_TOKEN_FILE. Steps:
    VictoriaMetrics, as vm-wow holds them;
 4. the nine characters' models, gear and companions from the same read-only
    client store as the local demo (DEMO_3D_STORE);
-5. wowstats.publish, as `wow-stats publish --force`: item cards from the catalog, original
-   2D symbols, 3D files from the store and portraits from the renderer;
+5. wowstats.publish, as `wow-stats publish --force`: item cards and their cached
+   JPEGs, 3D files from the store and portraits from the renderer;
 6. <out>/ the public bundle, <out>/zogzog/ the sealed one, <out>/friends/
    a page that opens it with the demo's key.
 
@@ -130,16 +130,18 @@ def main(argv: list[str]) -> int:
             print("demo: no VM_URL, so no armory profiles, talents or looks")
         key_file = Path(tmp) / "zogzog.key"
         key_file.write_text(DEMO_KEY + "\n")
+        # Catalogs and icons are shared process-wide. Local builds can reuse a warm cache.
+        os.environ.setdefault("MODEL3D_CACHE_DIR", f"{tmp}/model3d")
         env = {**os.environ, "VL_URL": vl, "VL_ARCHIVE_URL": "", "VM_URL": vm, "PUBLISH_DIR": f"{tmp}/site",
                "ZOGZOG_KEY_FILE": str(key_file), "PLAUSIBLE_DOMAIN": "", "ANALYSIS_SHARE_URL": "",
                "HELP_KEY_FILE": "", "PUBLISH_PUSH_URL": "", "USERS_URL": "", "DEFAULT_CHAR": generate.DEMO,
-               "MODEL3D": "on", "MODEL3D_CACHE_DIR": f"{tmp}/model3d", "MODEL3D_ASSETS_DIR": str(store),
+               "MODEL3D": "on", "MODEL3D_ASSETS_DIR": str(store),
                # Every level's picture in this one build: the publisher's
                # budget is for a server that builds again in ten minutes.
                "RENDER_URL": os.environ.get("RENDER_URL", ""), "RENDER_BUDGET_S": "900"}
         if not env["RENDER_URL"]:
             print("demo: no RENDER_URL, so no picture: the paperdoll and each level show the 3D toggle")
-        res = publish.publish(env, force=True, game_icons=False)
+        res = publish.publish(env, force=True)
         if not res.get("built"):
             raise SystemExit(f"demo: the publisher built nothing: {res}")
         cur = Path(tmp) / "site" / "current"

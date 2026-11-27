@@ -709,7 +709,8 @@ def behind_pct(best: float, alt: float) -> int:
     return max(1, math.floor((best - alt) / best * 100 + 0.5))
 
 
-def usability(ref: Reference, info: dict, cls: str, level: int, who: Who | None = None) -> tuple[bool, str | None, int]:
+def usability(ref: Reference, info: dict, cls: str, level: int, who: Who | None = None, *,
+              owned: bool = False) -> tuple[bool, str | None, int]:
     """Gear.lua usability -> usable, reason, the level it counts from
     (available_level: ForeverDB's rule). Without the client's weapon skills,
     every weapon the class can train counts (knowsWeaponSkill's own
@@ -719,7 +720,9 @@ def usability(ref: Reference, info: dict, cls: str, level: int, who: Who | None 
     g = ref.gear
     prof = (g.get("PROFICIENCY") or {}).get(cls)
     meta = (g.get("CLASSES") or {}).get(cls)
-    min_level = available_level(info)
+    # A recorded acquisition settles when the item was available. Only its
+    # actual equip and proficiency requirements still apply.
+    min_level = max(1, int(info.get("req") or 0)) if owned else available_level(info)
     if info.get("quest_supply"):
         return False, "quest supply", min_level
     if who is not None:

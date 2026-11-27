@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import demo3d
 import golden3d as g
 import roster
 
@@ -62,16 +63,23 @@ def weapon_parts(kind):
 def item_looks():
     by_slot = {1: "helm", 2: "jewelry", 3: "shoulders", 5: "chest", 6: "belt", 7: "trousers", 8: "boots",
                9: "wrists", 10: "gloves", 11: "jewelry", 12: "jewelry", 13: "jewelry", 14: "jewelry", 15: "cloak"}
-    by_weapon = {1: "axe", 2: "bow", 3: "gun", 5: "mace", 7: "blade", 8: "blade", 10: "staff",
+    by_weapon = {1: "axe", 2: "bow", 3: "gun", 4: "mace", 5: "mace", 7: "blade", 8: "blade", 10: "staff",
                  15: "dagger", 19: "wand"}
     out = {}
-    for c, colors in zip(roster.CHARACTERS, DYES, strict=True):
-        for it in roster.worn(c):
+    colors_by_class = {c.cls: colors for c, colors in zip(roster.CHARACTERS, DYES, strict=True)}
+    colors_by_class["PRIEST"] = ((96, 112, 150), (214, 214, 230))
+    for profile, sheets in demo3d.roster_outfits().items():
+        colors = colors_by_class[profile.cls]
+        for it in (item for sheet in sheets for item in sheet):
             iid = it["item_id"]
+            if iid in g.ITEMS or iid in out:
+                continue
             info = gear.reference().item(iid)
-            kind = by_weapon[info["subclass"]] if info["class"] == 2 else (
-                "robe" if info["inv"] == 20 else by_slot[it["slot"]])
-            out.setdefault(iid, (kind, colors))
+            if info["class"] == 2:
+                kind = by_weapon[info["subclass"]]
+            else:
+                kind = {14: "shield", 20: "robe", 23: "rod"}.get(info["inv"]) or by_slot[it["slot"]]
+            out[iid] = (kind, colors)
     return out
 
 

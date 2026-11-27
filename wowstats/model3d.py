@@ -297,8 +297,10 @@ class Model3D:
             snap = app.views.snapshot(name, level)
             if not snap.get("gear"):
                 return gear, d.get("header"), f"no gear known at level {level}"
-            gear = {**gear, **snap["gear"]}
-            gear.pop("mounts", None)
+            # The snapshot supplies the outfit. Today's pet and mount spellbook
+            # describe the current model only.
+            identity = {k: gear.get(k) for k in ("race", "class", "sex")}
+            gear = {**identity, "items": snap["gear"].get("items") or []}
         else:
             cls = str(gear.get("class") or (d.get("header") or {}).get("class") or "").upper()
             if pet := companion_display(app, name, cls):
@@ -394,6 +396,9 @@ class Model3D:
         options = {o for o, _r in ix.options.get(ix.race_models.get((rid, sex)), [])}
         if look and any(isinstance(o, dict) and o.get("optionId") in options for o in look.get("options") or []):
             out["appearance"] = {"source": look.get("source"), "refreshed": look.get("refreshed")}
+            if level is not None:
+                # Historical equipment is dated. The face comes from the latest profile.
+                out["appearance"]["scope"] = "latest_profile"
         by_slot = {it["slot"]: it for it in x["items"]}
 
         def row(slot, item_id, why=None) -> dict:

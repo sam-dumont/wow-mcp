@@ -28,6 +28,7 @@ from .stores import (
     SESSION_BUCKETS,
     ZONE_RECORDS,
     iso,
+    iso_us,
     lq,
     num,
     opt_num,
@@ -1299,6 +1300,11 @@ def windows(data: dict) -> dict[int, tuple[datetime | None, datetime | None]]:
 ITEM_RE = re.compile(r"(\d+):(\d+)")
 
 
+def snapshot_as_of(end: datetime | None) -> datetime:
+    """Last representable moment in a finished level, or now for the level in play."""
+    return end - timedelta.resolution if end else datetime.now(UTC)
+
+
 def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, cf: str, ref, who: dict,
              ds: list[dict]) -> dict:
     """The character at `level`: its gear then (the wow-gear event in force
@@ -1311,8 +1317,8 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
     hd = data.get("header") or {}
     if lv is None and t1 is None and hd.get("level") == level and hd.get("time_in_level_s"):
         out.update(seconds=hd["time_in_level_s"], so_far=True)  # the level in play, from the Recorder
-    end = t1 or datetime.max.replace(tzinfo=t0.tzinfo if t0 else None)
-    # The gear in force at the level's end: the latest read at or before it.
+    end = snapshot_as_of(t1)
+    # The next ding and anything captured with it belong to the next level.
     worn = gear_rows[:tb.at_or_before([parse_t(g.get("_time")) for g in gear_rows], end) + 1]
     if worn and t0 and parse_t(worn[-1].get("_time")) >= t0 - timedelta(days=2):
         g = worn[-1]
@@ -1320,12 +1326,16 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
     else:
         out.update(gear=None, gear_partial=True)
     if t0:
-        rng = f"_time:[{iso(t0)}, {iso(t1) if t1 else iso(datetime.now(t0.tzinfo))}]"
+        rng = f"_time:[{iso_us(t0)}, {iso_us(t1)})" if t1 else f"_time:[{iso_us(t0)}, {iso_us(end)}]"
         stats = q(f"{rec(cf)} kind:in(turnin, kill, loot) {rng} | stats by (kind) count_uniq(source_id) as n")
         out["counts"] = {r.get("kind"): int(num(r.get("n"))) for r in stats}
-        # Time per zone inside the level (stores.zone_time: the records' own times).
-        visits = zone_time(q(f"{rec(cf)} {rng} {ZONE_RECORDS}"),
-                           split_sessions(q(f"{rec(cf)} {rng} {SESSION_BUCKETS}")))
+        # A landing at the ending ding closes a flight. Keep the closing
+        # records for duration, then leave the new level's visits to that level.
+        duration_rng = f"_time:[{iso_us(t0)}, {iso_us(t1)}]" if t1 else rng
+        visits = zone_time(q(f"{rec(cf)} {duration_rng} {ZONE_RECORDS}"),
+                           split_sessions(q(f"{rec(cf)} {duration_rng} {SESSION_BUCKETS}")))
+        if t1:
+            visits = [v for v in visits if parse_t(v["_time"]) < t1]
         out["zones"] = [{"zone": z["zone"], "secs": z["secs"]} for z in zone_totals(visits)][:6]
         if out["gear_partial"]:
             loot = q(f"{rec(cf)} kind:in(loot, turnin) {rng} | fields _time, items, item")
@@ -1341,12 +1351,17 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
         # second is the new level's, as level_at and the page's by_level say.
         died = [d for d in ds if tb.within(parse_t(d["t"]), t0, t1)]
         out["deaths"] = died if died or stats or out["zones"] else None
-    early = bool(t0 and out.get("counts") and not q(f"{rec(cf)} _time:[2000-01-01T00:00:00Z, {iso(t0)}] | limit 1")
-                 and lv and not lv["partial"])
-    if (not out.get("counts") or early) and lv and (lv.get("quests") is not None or lv.get("kills") is not None):
-        # No Recorder, or switched on during this level (it saw only part of
-        # it): Polestar's own count of the level's quests and kills.
-        out["counts"] = {k: int(lv[f]) for k, f in (("turnin", "quests"), ("kill", "kills")) if lv.get(f) is not None}
+    if lv:
+        # Polestar's completed split can distinguish the kill that earned the
+        # ding from another record at the same timestamp. Use the same count
+        # as the climb; without a split field, keep the Recorder's count.
+        split = {k: int(lv[f]) for k, f in (("turnin", "quests"), ("kill", "kills")) if lv.get(f) is not None}
+        if split:
+            counts = out.setdefault("counts", {})
+            if t0 and counts.get("loot") and not lv["partial"] and not q(
+                    f"{rec(cf)} _time:[2000-01-01T00:00:00Z, {iso_us(t0)}] | limit 1"):
+                counts.pop("loot")  # the Recorder only saw part of the level
+            counts.update(split)
     if ref and ref.available:
         r = ref.level(level, who.get("faction"), who.get("class"))
         out["route_s"] = r.get("expected_s") if r else None

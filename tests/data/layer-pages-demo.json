@@ -6386,8 +6386,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 49,
-   "loot": 37,
+   "kill": 48,
+   "loot": 36,
    "turnin": 1
   },
   "deaths": [
@@ -6479,8 +6479,8 @@
   "char": "Nibbet-Gearholt",
   "counts": {
    "kill": 116,
-   "loot": 80,
-   "turnin": 7
+   "loot": 79,
+   "turnin": 6
   },
   "deaths": [
    {
@@ -6596,9 +6596,9 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 23,
+   "kill": 22,
    "loot": 17,
-   "turnin": 6
+   "turnin": 5
   },
   "deaths": [
    {
@@ -6674,8 +6674,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 54,
-   "loot": 37,
+   "kill": 53,
+   "loot": 36,
    "turnin": 8
   },
   "deaths": [],
@@ -6745,8 +6745,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 83,
-   "loot": 55,
+   "kill": 82,
+   "loot": 54,
    "turnin": 7
   },
   "deaths": [],
@@ -6800,8 +6800,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 113,
-   "loot": 74,
+   "kill": 112,
+   "loot": 73,
    "turnin": 12
   },
   "deaths": [
@@ -6876,7 +6876,7 @@
   "counts": {
    "kill": 89,
    "loot": 61,
-   "turnin": 8
+   "turnin": 7
   },
   "deaths": [
    {
@@ -6952,8 +6952,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 79,
-   "loot": 47,
+   "kill": 78,
+   "loot": 46,
    "turnin": 16
   },
   "deaths": [
@@ -7030,7 +7030,7 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 100,
+   "kill": 99,
    "loot": 62,
    "turnin": 14
   },
@@ -7099,7 +7099,7 @@
   "counts": {
    "kill": 107,
    "loot": 82,
-   "turnin": 9
+   "turnin": 8
   },
   "deaths": [],
   "from": "2026-10-25T17:35:23Z",
@@ -7164,7 +7164,7 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 314,
+   "kill": 313,
    "loot": 207,
    "turnin": 14
   },
@@ -7264,8 +7264,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 70,
-   "loot": 44,
+   "kill": 69,
+   "loot": 43,
    "turnin": 5
   },
   "deaths": [
@@ -7354,8 +7354,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 171,
-   "loot": 111,
+   "kill": 170,
+   "loot": 110,
    "turnin": 8
   },
   "deaths": [
@@ -7424,8 +7424,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 107,
-   "loot": 79,
+   "kill": 106,
+   "loot": 78,
    "turnin": 5
   },
   "deaths": [
@@ -7510,7 +7510,7 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 60,
+   "kill": 59,
    "loot": 38,
    "turnin": 7
   },
@@ -7582,7 +7582,7 @@
   "counts": {
    "kill": 83,
    "loot": 60,
-   "turnin": 5
+   "turnin": 4
   },
   "deaths": [],
   "from": "2026-11-07T19:52:34Z",
@@ -7639,7 +7639,7 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 112,
+   "kill": 111,
    "loot": 71,
    "turnin": 4
   },
@@ -7682,7 +7682,7 @@
    }
   ],
   "from": "2026-11-08T19:57:32Z",
-  "gear_at": "2026-11-09T19:06:10.800Z",
+  "gear_at": "2026-11-07T20:30:40.100Z",
   "gear_partial": false,
   "level": 38,
   "levels": [
@@ -7747,8 +7747,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 65,
-   "loot": 41,
+   "kill": 64,
+   "loot": 40,
    "turnin": 3
   },
   "deaths": [
@@ -7772,8 +7772,29 @@
    }
   ],
   "from": "2026-11-10T18:48:24Z",
-  "gear_at": "2026-11-09T19:06:10.800Z",
-  "gear_partial": false,
+  "gear_check": {
+   "agree": 0,
+   "differs": 0,
+   "no_record": 12,
+   "slots": {
+    "Back": "no_record",
+    "Chest": "no_record",
+    "Finger 1": "no_record",
+    "Finger 2": "no_record",
+    "Head": "no_record",
+    "Main hand": "no_record",
+    "Neck": "no_record",
+    "Shoulder": "no_record",
+    "Trinket 1": "no_record",
+    "Trinket 2": "no_record",
+    "Waist": "no_record",
+    "Wrist": "no_record"
+   },
+   "total": 12
+  },
+  "gear_partial": true,
+  "gear_reconstructed": true,
+  "gear_records_from": "2026-10-17T16:41:32Z",
   "level": 39,
   "levels": [
    22,
@@ -7802,6 +7823,7 @@
    45,
    46
   ],
+  "looted_gear": [],
   "partial_time": false,
   "route_s": 6962,
   "seconds": 5719,
@@ -7817,7 +7839,7 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 61,
+   "kill": 60,
    "loot": 41,
    "turnin": 7
   },
@@ -7925,7 +7947,7 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 53,
+   "kill": 52,
    "loot": 31,
    "turnin": 1
   },
@@ -7995,8 +8017,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 52,
-   "loot": 38,
+   "kill": 51,
+   "loot": 37,
    "turnin": 5
   },
   "deaths": [
@@ -8065,7 +8087,7 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 75,
+   "kill": 74,
    "loot": 48,
    "turnin": 4
   },
@@ -8173,8 +8195,8 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 57,
-   "loot": 40,
+   "kill": 56,
+   "loot": 39,
    "turnin": 1
   },
   "deaths": [],
@@ -8224,7 +8246,7 @@
   "available": true,
   "char": "Nibbet-Gearholt",
   "counts": {
-   "kill": 142,
+   "kill": 141,
    "loot": 92,
    "turnin": 3
   },
@@ -8599,7 +8621,7 @@
    {
     "link": "#advice",
     "t": "2026-11-10T20:55:21.800Z",
-    "text": "Put on Reedknot Ring",
+    "text": "Put on Whitemane's Chapeau, Reedknot Ring",
     "type": "gear"
    },
    {
@@ -8632,12 +8654,6 @@
     "t": "2026-11-10T18:00:00Z",
     "text": "Session, 2h 55m",
     "type": "session"
-   },
-   {
-    "link": "#advice",
-    "t": "2026-11-09T19:06:10.800Z",
-    "text": "Put on Whitemane's Chapeau",
-    "type": "gear"
    },
    {
     "link": "#deaths",
@@ -9761,7 +9777,7 @@
  "public:snapshot:Nibbet-Gearholt:39": {
   "available": true,
   "char": "Nibbet-Gearholt",
-  "gear_reconstructed": null,
+  "gear_reconstructed": true,
   "level": 39,
   "picture": null,
   "why": null

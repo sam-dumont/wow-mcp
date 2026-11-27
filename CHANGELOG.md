@@ -3,7 +3,8 @@
 ## Unreleased
 
 - View in 3D plays class abilities and switches to your ranged weapon when you fire it. Hunters and warlocks can show or hide their last locally recorded companion.
-- The nine demo characters span levels 10 to 60. Hesta rides a Warhorse at 53. Brakka rides a Swift Timber Wolf at 60 and carries an Arcanite Reaper.
+- The nine demo characters span levels 10 to 60. Each has a played-time history, dated outfits and talent picks. The gear and talent grids show the game icons again. Hesta rides a Warhorse at 53. Brakka rides a Swift Timber Wolf at 60 and carries an Arcanite Reaper.
+- Back in time respects the level an item becomes wearable when reconstructing gear before the first saved outfit.
 - Pick a learned mount in **View in 3D** to see your character sit, walk and run in the saddle. Choose **On foot** to dismount.
 - Overview, dungeon details and MCP now use the same trip verdict and XP rate. The Armory keeps cross-wing quest rewards out of its drop chance. An unknown drop rate stays unknown.
 - The class build comparison shows where your points differ and what a reset costs. The full dashboard includes the scope, confidence and source of each reference in the detailed class advice.

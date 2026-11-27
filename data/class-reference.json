@@ -18,6 +18,8 @@
     "SpellName",
     "SkillLineAbility",
     "SpellLevels",
+    "SpellMisc",
+    "ManifestInterfaceData",
     "TraitTree",
     "TraitNode",
     "TraitNodeXTraitNodeEntry",
@@ -1106,6 +1108,10 @@
      "row": 2,
      "col": 1,
      "spell": 12296,
+     "defs": [
+      135482
+     ],
+     "icon": "spell_holy_blessingofstamina",
      "needs": "Improved Tactical Mastery"
     },
     "Anticipation": {
@@ -1114,6 +1120,10 @@
      "row": 1,
      "col": 0,
      "spell": 12297,
+     "defs": [
+      135506
+     ],
+     "icon": "spell_nature_mirrorimage",
      "needs": null
     },
     "Bastion": {
@@ -1122,6 +1132,10 @@
      "row": 5,
      "col": 2,
      "spell": 16538,
+     "defs": [
+      135493
+     ],
+     "icon": "inv_shield_04",
      "needs": null
     },
     "Blood Craze": {
@@ -1130,6 +1144,10 @@
      "row": 2,
      "col": 2,
      "spell": 16487,
+     "defs": [
+      135465
+     ],
+     "icon": "spell_shadow_summonimp",
      "needs": null
     },
     "Bloodthirst": {
@@ -1138,6 +1156,10 @@
      "row": 6,
      "col": 1,
      "spell": 23881,
+     "defs": [
+      135461
+     ],
+     "icon": "spell_nature_bloodlust",
      "needs": "Death Wish"
     },
     "Bloodthrill": {
@@ -1146,6 +1168,10 @@
      "row": 4,
      "col": 0,
      "spell": 1289682,
+     "defs": [
+      141974
+     ],
+     "icon": "inv_sword_01",
      "needs": null
     },
     "Booming Voice": {
@@ -1154,6 +1180,10 @@
      "row": 0,
      "col": 1,
      "spell": 12321,
+     "defs": [
+      135469
+     ],
+     "icon": "spell_nature_purge",
      "needs": null
     },
     "Concussion Blow": {
@@ -1162,6 +1192,10 @@
      "row": 4,
      "col": 1,
      "spell": 12809,
+     "defs": [
+      135496
+     ],
+     "icon": "ability_thunderbolt",
      "needs": null
     },
     "Cruelty": {
@@ -1170,6 +1204,10 @@
      "row": 0,
      "col": 2,
      "spell": 12320,
+     "defs": [
+      135470
+     ],
+     "icon": "ability_rogue_eviscerate",
      "needs": null
     },
     "Death Wish": {
@@ -1178,6 +1216,10 @@
      "row": 4,
      "col": 1,
      "spell": 12328,
+     "defs": [
+      135458
+     ],
+     "icon": "spell_shadow_deathpact",
      "needs": null
     },
     "Deep Wounds": {
@@ -1186,6 +1228,10 @@
      "row": 2,
      "col": 2,
      "spell": 12834,
+     "defs": [
+      135481
+     ],
+     "icon": "ability_backstab",
      "needs": "Improved Rend"
     },
     "Defiance": {
@@ -1194,6 +1240,10 @@
      "row": 2,
      "col": 3,
      "spell": 12792,
+     "defs": [
+      142602
+     ],
+     "icon": "ability_warrior_innerrage",
      "needs": null
     },
     "Deflection": {
@@ -1202,6 +1252,10 @@
      "row": 0,
      "col": 1,
      "spell": 16462,
+     "defs": [
+      135488
+     ],
+     "icon": "ability_parry",
      "needs": null
     },
     "Dual Wield Specialization": {
@@ -1210,6 +1264,10 @@
      "row": 3,
      "col": 0,
      "spell": 23584,
+     "defs": [
+      135464
+     ],
+     "icon": "ability_dualwield",
      "needs": null
     },
     "Enrage": {
@@ -1218,6 +1276,10 @@
      "row": 2,
      "col": 3,
      "spell": 12317,
+     "defs": [
+      135462
+     ],
+     "icon": "spell_shadow_unholyfrenzy",
      "needs": null
     },
     "Flurry": {
@@ -1226,6 +1288,10 @@
      "row": 5,
      "col": 2,
      "spell": 12319,
+     "defs": [
+      135459
+     ],
+     "icon": "ability_ghoulfrenzy",
      "needs": null
     },
     "Focused Rage": {
@@ -1234,6 +1300,10 @@
      "row": 4,
      "col": 2,
      "spell": 29787,
+     "defs": [
+      135492
+     ],
+     "icon": "ability_warrior_focusedrage",
      "needs": null
     },
     "Furious Precision": {
@@ -1242,6 +1312,10 @@
      "row": 2,
      "col": 0,
      "spell": 1323963,
+     "defs": [
+      135484
+     ],
+     "icon": "ability_warrior_incite",
      "needs": null
     },
     "Gore Drinker": {
@@ -1250,6 +1324,10 @@
      "row": 4,
      "col": 2,
      "spell": 1323967,
+     "defs": [
+      145863
+     ],
+     "icon": "racial_troll_berserk",
      "needs": "Blood Craze"
     },
     "Impale": {
@@ -1258,6 +1336,10 @@
      "row": 3,
      "col": 2,
      "spell": 16493,
+     "defs": [
+      135478
+     ],
+     "icon": "ability_searingarrow",
      "needs": "Deep Wounds"
     },
     "Improved Berserker Rage": {
@@ -1266,6 +1348,10 @@
      "row": 4,
      "col": 0,
      "spell": 20500,
+     "defs": [
+      135509
+     ],
+     "icon": "spell_nature_ancestralguardian",
      "needs": null
     },
     "Improved Bloodrage": {
@@ -1274,6 +1360,10 @@
      "row": 0,
      "col": 0,
      "spell": 12301,
+     "defs": [
+      135505
+     ],
+     "icon": "ability_racial_bloodrage",
      "needs": null
     },
     "Improved Charge": {
@@ -1282,6 +1372,10 @@
      "row": 1,
      "col": 0,
      "spell": 12285,
+     "defs": [
+      135486
+     ],
+     "icon": "ability_warrior_charge",
      "needs": null
     },
     "Improved Disarm": {
@@ -1290,6 +1384,10 @@
      "row": 2,
      "col": 2,
      "spell": 12313,
+     "defs": [
+      135498
+     ],
+     "icon": "ability_warrior_disarm",
      "needs": null
     },
     "Improved Execute": {
@@ -1298,6 +1396,10 @@
      "row": 3,
      "col": 3,
      "spell": 20502,
+     "defs": [
+      135463
+     ],
+     "icon": "inv_sword_48",
      "needs": null
     },
     "Improved Hamstring": {
@@ -1306,6 +1408,10 @@
      "row": 5,
      "col": 2,
      "spell": 12289,
+     "defs": [
+      135473
+     ],
+     "icon": "ability_shockwave",
      "needs": null
     },
     "Improved Heroic Strike": {
@@ -1314,6 +1420,10 @@
      "row": 0,
      "col": 0,
      "spell": 12282,
+     "defs": [
+      135489
+     ],
+     "icon": "ability_rogue_ambush",
      "needs": null
     },
     "Improved Intercept": {
@@ -1322,6 +1432,10 @@
      "row": 4,
      "col": 3,
      "spell": 20504,
+     "defs": [
+      135457
+     ],
+     "icon": "ability_rogue_sprint",
      "needs": null
     },
     "Improved Overpower": {
@@ -1330,6 +1444,10 @@
      "row": 1,
      "col": 3,
      "spell": 12290,
+     "defs": [
+      135483
+     ],
+     "icon": "inv_sword_05",
      "needs": null
     },
     "Improved Rend": {
@@ -1338,6 +1456,10 @@
      "row": 0,
      "col": 2,
      "spell": 12286,
+     "defs": [
+      135487
+     ],
+     "icon": "ability_gouge",
      "needs": null
     },
     "Improved Revenge": {
@@ -1346,6 +1468,10 @@
      "row": 1,
      "col": 2,
      "spell": 12797,
+     "defs": [
+      135500
+     ],
+     "icon": "ability_warrior_revenge",
      "needs": null
     },
     "Improved Shield Bash": {
@@ -1354,6 +1480,10 @@
      "row": 3,
      "col": 2,
      "spell": 12311,
+     "defs": [
+      135494
+     ],
+     "icon": "ability_warrior_shieldbash",
      "needs": null
     },
     "Improved Shield Wall": {
@@ -1362,6 +1492,10 @@
      "row": 4,
      "col": 0,
      "spell": 12312,
+     "defs": [
+      135495
+     ],
+     "icon": "ability_warrior_shieldwall",
      "needs": null
     },
     "Improved Slam": {
@@ -1370,6 +1504,10 @@
      "row": 5,
      "col": 0,
      "spell": 12862,
+     "defs": [
+      142604
+     ],
+     "icon": "ability_warrior_decisivestrike",
      "needs": null
     },
     "Improved Sunder Armor": {
@@ -1378,6 +1516,10 @@
      "row": 3,
      "col": 0,
      "spell": 12308,
+     "defs": [
+      135499
+     ],
+     "icon": "ability_warrior_sunder",
      "needs": null
     },
     "Improved Tactical Mastery": {
@@ -1386,6 +1528,10 @@
      "row": 1,
      "col": 1,
      "spell": 12295,
+     "defs": [
+      135485
+     ],
+     "icon": "spell_nature_enchantarmor",
      "needs": null
     },
     "Improved Thunder Clap": {
@@ -1394,6 +1540,10 @@
      "row": 1,
      "col": 3,
      "spell": 12287,
+     "defs": [
+      135503
+     ],
+     "icon": "ability_thunderclap",
      "needs": null
     },
     "Improved Whirlwind": {
@@ -1402,6 +1552,10 @@
      "row": 5,
      "col": 0,
      "spell": 1310315,
+     "defs": [
+      135508
+     ],
+     "icon": "ability_whirlwind",
      "needs": null
     },
     "Iron Will": {
@@ -1410,6 +1564,10 @@
      "row": 0,
      "col": 2,
      "spell": 12962,
+     "defs": [
+      145864
+     ],
+     "icon": "spell_magic_magearmor",
      "needs": null
     },
     "Last Stand": {
@@ -1418,6 +1576,10 @@
      "row": 2,
      "col": 0,
      "spell": 12975,
+     "defs": [
+      135501
+     ],
+     "icon": "spell_holy_ashestoashes",
      "needs": null
     },
     "Lingering Rage": {
@@ -1426,6 +1588,10 @@
      "row": 1,
      "col": 1,
      "spell": 1323964,
+     "defs": [
+      142603
+     ],
+     "icon": "ability_warrior_secondwind",
      "needs": null
     },
     "Master of Defense": {
@@ -1434,6 +1600,10 @@
      "row": 2,
      "col": 1,
      "spell": 1310316,
+     "defs": [
+      135502
+     ],
+     "icon": "ability_warrior_shieldguard",
      "needs": "Shield Specialization"
     },
     "Mortal Strike": {
@@ -1442,6 +1612,10 @@
      "row": 6,
      "col": 1,
      "spell": 12294,
+     "defs": [
+      135472
+     ],
+     "icon": "ability_warrior_savageblow",
      "needs": "Sweeping Strikes"
     },
     "Piercing Howl": {
@@ -1450,6 +1624,10 @@
      "row": 2,
      "col": 1,
      "spell": 12323,
+     "defs": [
+      135466
+     ],
+     "icon": "spell_shadow_deathscream",
      "needs": null
     },
     "Reckless Swings": {
@@ -1458,6 +1636,10 @@
      "row": 3,
      "col": 1,
      "spell": 1329555,
+     "defs": [
+      145966
+     ],
+     "icon": "ability_warrior_bloodfrenzy",
      "needs": null
     },
     "Shield Slam": {
@@ -1466,6 +1648,10 @@
      "row": 6,
      "col": 1,
      "spell": 23922,
+     "defs": [
+      135490
+     ],
+     "icon": "inv_shield_05",
      "needs": "Concussion Blow"
     },
     "Shield Specialization": {
@@ -1474,6 +1660,10 @@
      "row": 0,
      "col": 1,
      "spell": 12298,
+     "defs": [
+      135507
+     ],
+     "icon": "inv_shield_06",
      "needs": null
     },
     "Spearing Strike": {
@@ -1482,6 +1672,10 @@
      "row": 3,
      "col": 0,
      "spell": 1310222,
+     "defs": [
+      135480
+     ],
+     "icon": "inv_spear_01",
      "needs": null
     },
     "Sweeping Strikes": {
@@ -1490,6 +1684,10 @@
      "row": 4,
      "col": 1,
      "spell": 12292,
+     "defs": [
+      135476
+     ],
+     "icon": "ability_rogue_slicedice",
      "needs": null
     },
     "Two-Handed Weapon Specialization": {
@@ -1498,6 +1696,10 @@
      "row": 3,
      "col": 1,
      "spell": 12163,
+     "defs": [
+      135479
+     ],
+     "icon": "inv_axe_09",
      "needs": null
     },
     "Unbridled Wrath": {
@@ -1506,6 +1708,10 @@
      "row": 1,
      "col": 2,
      "spell": 12322,
+     "defs": [
+      135468
+     ],
+     "icon": "spell_nature_stoneclawtotem",
      "needs": null
     },
     "Vanguard": {
@@ -1514,6 +1720,10 @@
      "row": 3,
      "col": 1,
      "spell": 1310317,
+     "defs": [
+      135497
+     ],
+     "icon": "ability_warrior_shieldcharge",
      "needs": null
     },
     "Weaponmaster": {
@@ -1522,6 +1732,10 @@
      "row": 4,
      "col": 2,
      "spell": 1290261,
+     "defs": [
+      135475
+     ],
+     "icon": "garrison_weaponupgrade",
      "needs": null
     }
    }
@@ -2833,6 +3047,10 @@
      "row": 3,
      "col": 2,
      "spell": 20096,
+     "defs": [
+      135161
+     ],
+     "icon": "spell_magic_lesserinvisibilty",
      "needs": null
     },
     "Benediction": {
@@ -2841,6 +3059,10 @@
      "row": 0,
      "col": 2,
      "spell": 20101,
+     "defs": [
+      135236
+     ],
+     "icon": "spell_frost_windwalkon",
      "needs": null
     },
     "Boundless Light": {
@@ -2849,6 +3071,10 @@
      "row": 4,
      "col": 2,
      "spell": 1328550,
+     "defs": [
+      145962
+     ],
+     "icon": "ability_paladin_sacredcleansing",
      "needs": "Holy Shock"
     },
     "Champion of the Light": {
@@ -2857,6 +3083,10 @@
      "row": 5,
      "col": 2,
      "spell": 1311084,
+     "defs": [
+      142634
+     ],
+     "icon": "ability_paladin_enlightenedjudgements",
      "needs": null
     },
     "Consecrated Ground": {
@@ -2865,6 +3095,10 @@
      "row": 4,
      "col": 0,
      "spell": 1310905,
+     "defs": [
+      142624
+     ],
+     "icon": "spell_holy_innerfire",
      "needs": null
     },
     "Conviction": {
@@ -2873,6 +3107,10 @@
      "row": 1,
      "col": 1,
      "spell": 20117,
+     "defs": [
+      135233
+     ],
+     "icon": "spell_holy_retributionaura",
      "needs": null
     },
     "Deflection": {
@@ -2881,6 +3119,10 @@
      "row": 0,
      "col": 1,
      "spell": 20060,
+     "defs": [
+      135237
+     ],
+     "icon": "ability_parry",
      "needs": null
     },
     "Divine Favor": {
@@ -2889,6 +3131,10 @@
      "row": 2,
      "col": 0,
      "spell": 20216,
+     "defs": [
+      134820
+     ],
+     "icon": "spell_holy_heal",
      "needs": null
     },
     "Divine Intellect": {
@@ -2897,6 +3143,10 @@
      "row": 0,
      "col": 1,
      "spell": 20257,
+     "defs": [
+      134827
+     ],
+     "icon": "spell_nature_sleep",
      "needs": null
     },
     "Divine Precision": {
@@ -2905,6 +3155,10 @@
      "row": 3,
      "col": 0,
      "spell": 1310904,
+     "defs": [
+      134819
+     ],
+     "icon": "spell_holy_mindsooth",
      "needs": null
     },
     "Divine Strength": {
@@ -2913,6 +3167,10 @@
      "row": 0,
      "col": 2,
      "spell": 20262,
+     "defs": [
+      145961
+     ],
+     "icon": "ability_golemthunderclap",
      "needs": null
     },
     "Eye for an Eye": {
@@ -2921,6 +3179,10 @@
      "row": 3,
      "col": 0,
      "spell": 9799,
+     "defs": [
+      135228
+     ],
+     "icon": "spell_holy_eyeforaneye",
      "needs": null
     },
     "Guardian's Favor": {
@@ -2929,6 +3191,10 @@
      "row": 1,
      "col": 1,
      "spell": 20174,
+     "defs": [
+      135162
+     ],
+     "icon": "spell_holy_sealofprotection",
      "needs": null
     },
     "Healing Light": {
@@ -2937,6 +3203,10 @@
      "row": 1,
      "col": 0,
      "spell": 20237,
+     "defs": [
+      134828
+     ],
+     "icon": "spell_holy_holybolt",
      "needs": null
     },
     "Holy Conduit": {
@@ -2945,6 +3215,10 @@
      "row": 2,
      "col": 2,
      "spell": 1237268,
+     "defs": [
+      135234
+     ],
+     "icon": "spell_holy_devineaegis",
      "needs": null
     },
     "Holy Power": {
@@ -2953,6 +3227,10 @@
      "row": 5,
      "col": 2,
      "spell": 5923,
+     "defs": [
+      134816
+     ],
+     "icon": "spell_holy_power",
      "needs": null
     },
     "Holy Shield": {
@@ -2961,6 +3239,10 @@
      "row": 4,
      "col": 1,
      "spell": 20925,
+     "defs": [
+      135153
+     ],
+     "icon": "spell_holy_blessingofprotection",
      "needs": null
     },
     "Holy Shock": {
@@ -2969,6 +3251,10 @@
      "row": 4,
      "col": 1,
      "spell": 1311606,
+     "defs": [
+      134818
+     ],
+     "icon": "spell_holy_searinglight",
      "needs": null
     },
     "Illumination": {
@@ -2977,6 +3263,10 @@
      "row": 2,
      "col": 1,
      "spell": 20210,
+     "defs": [
+      134824
+     ],
+     "icon": "spell_holy_greaterheal",
      "needs": "Reverence"
     },
     "Improved Hammer of Justice": {
@@ -2985,6 +3275,10 @@
      "row": 2,
      "col": 1,
      "spell": 20487,
+     "defs": [
+      135158
+     ],
+     "icon": "spell_holy_sealofmight",
      "needs": null
     },
     "Improved Judgement": {
@@ -2993,6 +3287,10 @@
      "row": 1,
      "col": 0,
      "spell": 25956,
+     "defs": [
+      135235
+     ],
+     "icon": "spell_holy_righteousfury",
      "needs": null
     },
     "Improved Righteous Fury": {
@@ -3001,6 +3299,10 @@
      "row": 3,
      "col": 1,
      "spell": 20468,
+     "defs": [
+      135159
+     ],
+     "icon": "spell_holy_sealoffury",
      "needs": null
     },
     "Improved Seals": {
@@ -3009,6 +3311,10 @@
      "row": 1,
      "col": 2,
      "spell": 20224,
+     "defs": [
+      134829
+     ],
+     "icon": "ability_thunderbolt",
      "needs": null
     },
     "Infusion of Light": {
@@ -3017,6 +3323,10 @@
      "row": 3,
      "col": 1,
      "spell": 426065,
+     "defs": [
+      142625
+     ],
+     "icon": "ability_paladin_infusionoflight",
      "needs": null
     },
     "Iron Creed": {
@@ -3025,6 +3335,10 @@
      "row": 5,
      "col": 2,
      "spell": 1311034,
+     "defs": [
+      142631
+     ],
+     "icon": "spell_holy_improvedresistanceauras",
      "needs": null
     },
     "Light's Vigil": {
@@ -3033,6 +3347,10 @@
      "row": 6,
      "col": 1,
      "spell": 1310911,
+     "defs": [
+      134815
+     ],
+     "icon": "ability_paladin_judgementofthepure",
      "needs": "Holy Shock"
     },
     "Oath of Light": {
@@ -3041,6 +3359,10 @@
      "row": 3,
      "col": 2,
      "spell": 1328548,
+     "defs": [
+      134825
+     ],
+     "icon": "spell_holy_greaterblessingoflight",
      "needs": null
     },
     "Precision": {
@@ -3049,6 +3371,10 @@
      "row": 1,
      "col": 0,
      "spell": 20189,
+     "defs": [
+      135163
+     ],
+     "icon": "ability_rogue_ambush",
      "needs": null
     },
     "Purifying Power": {
@@ -3057,6 +3383,10 @@
      "row": 1,
      "col": 3,
      "spell": 429144,
+     "defs": [
+      134822
+     ],
+     "icon": "spell_holy_purifyingpower",
      "needs": null
     },
     "Pursuit of Justice": {
@@ -3065,6 +3395,10 @@
      "row": 2,
      "col": 3,
      "spell": 26022,
+     "defs": [
+      135229
+     ],
+     "icon": "spell_holy_persuitofjustice",
      "needs": null
     },
     "Reckoning": {
@@ -3073,6 +3407,10 @@
      "row": 4,
      "col": 2,
      "spell": 20177,
+     "defs": [
+      135152
+     ],
+     "icon": "spell_holy_blessingofstrength",
      "needs": null
     },
     "Redoubt": {
@@ -3081,6 +3419,10 @@
      "row": 0,
      "col": 2,
      "spell": 20127,
+     "defs": [
+      135151
+     ],
+     "icon": "ability_defend",
      "needs": null
     },
     "Repentance": {
@@ -3089,6 +3431,10 @@
      "row": 4,
      "col": 1,
      "spell": 20066,
+     "defs": [
+      135224
+     ],
+     "icon": "spell_holy_prayerofhealing",
      "needs": null
     },
     "Reverence": {
@@ -3097,6 +3443,10 @@
      "row": 1,
      "col": 1,
      "spell": 1310899,
+     "defs": [
+      142623
+     ],
+     "icon": "spell_holy_divineillumination",
      "needs": null
     },
     "Sacred Arbiter": {
@@ -3105,6 +3455,10 @@
      "row": 3,
      "col": 1,
      "spell": 1311087,
+     "defs": [
+      135230
+     ],
+     "icon": "inv_sword_08",
      "needs": null
     },
     "Sacred Duty": {
@@ -3113,6 +3467,10 @@
      "row": 1,
      "col": 3,
      "spell": 1224697,
+     "defs": [
+      135157
+     ],
+     "icon": "spell_holy_divineintervention",
      "needs": null
     },
     "Sanctified Judgement": {
@@ -3121,6 +3479,10 @@
      "row": 1,
      "col": 2,
      "spell": 1311074,
+     "defs": [
+      135231
+     ],
+     "icon": "ability_paladin_judgementblue",
      "needs": null
     },
     "Seal of Command": {
@@ -3129,6 +3491,10 @@
      "row": 2,
      "col": 2,
      "spell": 20375,
+     "defs": [
+      135226
+     ],
+     "icon": "ability_warrior_innerrage",
      "needs": null
     },
     "Shield Specialization": {
@@ -3137,6 +3503,10 @@
      "row": 2,
      "col": 2,
      "spell": 20150,
+     "defs": [
+      142626
+     ],
+     "icon": "inv_shield_06",
      "needs": "Redoubt"
     },
     "Shieldsworn": {
@@ -3145,6 +3515,10 @@
      "row": 6,
      "col": 1,
      "spell": 1328544,
+     "defs": [
+      142627
+     ],
+     "icon": "spell_holy_greaterblessingofsanctuary",
      "needs": "Holy Shield"
     },
     "Spiritual Focus": {
@@ -3153,6 +3527,10 @@
      "row": 0,
      "col": 1,
      "spell": 20205,
+     "defs": [
+      134830
+     ],
+     "icon": "spell_arcane_blink",
      "needs": null
     },
     "Stoicism": {
@@ -3161,6 +3539,10 @@
      "row": 4,
      "col": 0,
      "spell": 1328546,
+     "defs": [
+      135164
+     ],
+     "icon": "spell_holy_stoicism",
      "needs": null
     },
     "Swift Judgement": {
@@ -3169,6 +3551,10 @@
      "row": 3,
      "col": 0,
      "spell": 1310994,
+     "defs": [
+      142630
+     ],
+     "icon": "ability_paladin_judgementred",
      "needs": "Templar's Bulwark"
     },
     "Templar's Bulwark": {
@@ -3177,6 +3563,10 @@
      "row": 2,
      "col": 0,
      "spell": 1311015,
+     "defs": [
+      135150
+     ],
+     "icon": "ability_paladin_shieldofthetemplar",
      "needs": null
     },
     "Toughness": {
@@ -3185,6 +3575,10 @@
      "row": 2,
      "col": 3,
      "spell": 20143,
+     "defs": [
+      135155
+     ],
+     "icon": "spell_holy_devotion",
      "needs": null
     },
     "Turn Evil": {
@@ -3193,6 +3587,10 @@
      "row": 4,
      "col": 0,
      "spell": 1328370,
+     "defs": [
+      145960
+     ],
+     "icon": "spell_holy_turnundead",
      "needs": null
     },
     "Two-Handed Weapon Specialization": {
@@ -3201,6 +3599,10 @@
      "row": 3,
      "col": 3,
      "spell": 20111,
+     "defs": [
+      135227
+     ],
+     "icon": "inv_hammer_04",
      "needs": null
     },
     "Unsealed Wrath": {
@@ -3209,6 +3611,10 @@
      "row": 6,
      "col": 1,
      "spell": 1310735,
+     "defs": [
+      135222
+     ],
+     "icon": "spell_holy_blessedresillience",
      "needs": "Repentance"
     },
     "Unyielding Faith": {
@@ -3217,6 +3623,10 @@
      "row": 2,
      "col": 1,
      "spell": 9453,
+     "defs": [
+      134826
+     ],
+     "icon": "spell_holy_unyieldingfaith",
      "needs": null
     },
     "Vengeance": {
@@ -3225,6 +3635,10 @@
      "row": 4,
      "col": 2,
      "spell": 20049,
+     "defs": [
+      135223
+     ],
+     "icon": "ability_racial_avatar",
      "needs": "Seal of Command"
     },
     "Vindication": {
@@ -3233,6 +3647,10 @@
      "row": 2,
      "col": 0,
      "spell": 9452,
+     "defs": [
+      135232
+     ],
+     "icon": "spell_holy_vindication",
      "needs": null
     }
    }
@@ -4463,6 +4881,10 @@
      "row": 4,
      "col": 2,
      "spell": 19461,
+     "defs": [
+      134466
+     ],
+     "icon": "ability_upgrademoonglaive",
      "needs": null
     },
     "Bestial Discipline": {
@@ -4471,6 +4893,10 @@
      "row": 4,
      "col": 3,
      "spell": 19590,
+     "defs": [
+      134425
+     ],
+     "icon": "spell_nature_abolishmagic",
      "needs": null
     },
     "Bestial Swiftness": {
@@ -4479,6 +4905,10 @@
      "row": 2,
      "col": 1,
      "spell": 19596,
+     "defs": [
+      134432
+     ],
+     "icon": "ability_druid_dash",
      "needs": null
     },
     "Bestial Wrath": {
@@ -4487,6 +4917,10 @@
      "row": 6,
      "col": 1,
      "spell": 19574,
+     "defs": [
+      134423
+     ],
+     "icon": "ability_druid_ferociousbite",
      "needs": "Intimidation"
     },
     "Careful Aim": {
@@ -4495,6 +4929,10 @@
      "row": 1,
      "col": 2,
      "spell": 1223984,
+     "defs": [
+      134473
+     ],
+     "icon": "ability_hunter_zenarchery",
      "needs": null
     },
     "Clever Traps": {
@@ -4503,6 +4941,10 @@
      "row": 2,
      "col": 0,
      "spell": 19239,
+     "defs": [
+      134456
+     ],
+     "icon": "spell_nature_timestop",
      "needs": null
     },
     "Counterattack": {
@@ -4511,6 +4953,10 @@
      "row": 3,
      "col": 2,
      "spell": 19306,
+     "defs": [
+      134454
+     ],
+     "icon": "ability_warrior_challange",
      "needs": "Deterrence"
     },
     "Deadly Aspects": {
@@ -4519,6 +4965,10 @@
      "row": 0,
      "col": 1,
      "spell": 19552,
+     "defs": [
+      134422
+     ],
+     "icon": "spell_nature_ravenform",
      "needs": null
     },
     "Deflection": {
@@ -4527,6 +4977,10 @@
      "row": 0,
      "col": 2,
      "spell": 19295,
+     "defs": [
+      134460
+     ],
+     "icon": "ability_parry",
      "needs": null
     },
     "Deterrence": {
@@ -4535,6 +4989,10 @@
      "row": 2,
      "col": 2,
      "spell": 19263,
+     "defs": [
+      134451
+     ],
+     "icon": "ability_whirlwind",
      "needs": null
     },
     "Efficiency": {
@@ -4543,6 +5001,10 @@
      "row": 1,
      "col": 1,
      "spell": 19416,
+     "defs": [
+      134474
+     ],
+     "icon": "spell_frost_wizardmark",
      "needs": null
     },
     "Endurance Training": {
@@ -4551,6 +5013,10 @@
      "row": 0,
      "col": 2,
      "spell": 19583,
+     "defs": [
+      134438
+     ],
+     "icon": "spell_nature_reincarnation",
      "needs": null
     },
     "Entrapment": {
@@ -4559,6 +5025,10 @@
      "row": 1,
      "col": 0,
      "spell": 19184,
+     "defs": [
+      134459
+     ],
+     "icon": "spell_nature_stranglevines",
      "needs": null
     },
     "Expose Prey": {
@@ -4567,6 +5037,10 @@
      "row": 4,
      "col": 1,
      "spell": 1310532,
+     "defs": [
+      134450
+     ],
+     "icon": "ability_hunter_swiftstrike",
      "needs": null
     },
     "Ferocity": {
@@ -4575,6 +5049,10 @@
      "row": 3,
      "col": 2,
      "spell": 19598,
+     "defs": [
+      134429
+     ],
+     "icon": "inv_misc_monsterclaw_04",
      "needs": null
     },
     "Focused Fire": {
@@ -4583,6 +5061,10 @@
      "row": 1,
      "col": 0,
      "spell": 1223755,
+     "defs": [
+      134437
+     ],
+     "icon": "inv_weapon_crossbow_10",
      "needs": null
     },
     "Frenzy": {
@@ -4591,6 +5073,10 @@
      "row": 5,
      "col": 2,
      "spell": 19621,
+     "defs": [
+      134424
+     ],
+     "icon": "inv_misc_monsterclaw_03",
      "needs": "Ferocity"
     },
     "Hawk Eye": {
@@ -4599,6 +5085,10 @@
      "row": 0,
      "col": 0,
      "spell": 19498,
+     "defs": [
+      134478
+     ],
+     "icon": "ability_townwatch",
      "needs": null
     },
     "Improved Arcane Shot": {
@@ -4607,6 +5097,10 @@
      "row": 2,
      "col": 1,
      "spell": 19454,
+     "defs": [
+      134471
+     ],
+     "icon": "ability_impalingbolt",
      "needs": null
     },
     "Improved Aspect of the Monkey": {
@@ -4615,6 +5109,10 @@
      "row": 1,
      "col": 1,
      "spell": 19549,
+     "defs": [
+      134436
+     ],
+     "icon": "ability_hunter_aspectofthemonkey",
      "needs": null
     },
     "Improved Concussive Shot": {
@@ -4623,6 +5121,10 @@
      "row": 0,
      "col": 1,
      "spell": 19407,
+     "defs": [
+      134477
+     ],
+     "icon": "spell_frost_stun",
      "needs": null
     },
     "Improved Mend Pet": {
@@ -4631,6 +5133,10 @@
      "row": 3,
      "col": 0,
      "spell": 19572,
+     "defs": [
+      134430
+     ],
+     "icon": "ability_hunter_mendpet",
      "needs": null
     },
     "Improved Revive Pet": {
@@ -4639,6 +5145,10 @@
      "row": 1,
      "col": 2,
      "spell": 24443,
+     "defs": [
+      134434
+     ],
+     "icon": "ability_hunter_beastsoothe",
      "needs": null
     },
     "Improved Serpent Sting": {
@@ -4647,6 +5157,10 @@
      "row": 7,
      "col": 3,
      "spell": 19464,
+     "defs": [
+      134468
+     ],
+     "icon": "ability_hunter_quickshot",
      "needs": null
     },
     "Improved Stings": {
@@ -4655,6 +5169,10 @@
      "row": 1,
      "col": 0,
      "spell": 1310661,
+     "defs": [
+      142622
+     ],
+     "icon": "ability_hunter_quickshot",
      "needs": null
     },
     "Improved Tracking": {
@@ -4663,6 +5181,10 @@
      "row": 0,
      "col": 1,
      "spell": 24293,
+     "defs": [
+      134461
+     ],
+     "icon": "inv_misc_head_dragon_black",
      "needs": null
     },
     "Improved Wing Clip": {
@@ -4671,6 +5193,10 @@
      "row": 1,
      "col": 3,
      "spell": 19228,
+     "defs": [
+      134455
+     ],
+     "icon": "ability_rogue_trip",
      "needs": null
     },
     "Intimidation": {
@@ -4679,6 +5205,10 @@
      "row": 4,
      "col": 1,
      "spell": 19577,
+     "defs": [
+      134426
+     ],
+     "icon": "ability_devour",
      "needs": "Bestial Swiftness"
     },
     "Lacerating Strikes": {
@@ -4687,6 +5217,10 @@
      "row": 6,
      "col": 1,
      "spell": 1310533,
+     "defs": [
+      134449
+     ],
+     "icon": "ability_gouge",
      "needs": "Expose Prey"
     },
     "Lethal Attacks": {
@@ -4695,6 +5229,10 @@
      "row": 0,
      "col": 2,
      "spell": 19426,
+     "defs": [
+      134476
+     ],
+     "icon": "ability_searingarrow",
      "needs": null
     },
     "Lightning Reflexes": {
@@ -4703,6 +5241,10 @@
      "row": 5,
      "col": 2,
      "spell": 19168,
+     "defs": [
+      142605
+     ],
+     "icon": "spell_nature_invisibilty",
      "needs": null
     },
     "Lone Wolf": {
@@ -4711,6 +5253,10 @@
      "row": 2,
      "col": 3,
      "spell": 415370,
+     "defs": [
+      134472
+     ],
+     "icon": "ability_mount_whitedirewolf",
      "needs": null
     },
     "Mortal Shots": {
@@ -4719,6 +5265,10 @@
      "row": 3,
      "col": 2,
      "spell": 19485,
+     "defs": [
+      134467
+     ],
+     "icon": "ability_piercedamage",
      "needs": "Careful Aim"
     },
     "Pathfinding": {
@@ -4727,6 +5277,10 @@
      "row": 2,
      "col": 0,
      "spell": 19559,
+     "defs": [
+      134435
+     ],
+     "icon": "ability_mount_jungletiger",
      "needs": null
     },
     "Predator's Edge": {
@@ -4735,6 +5289,10 @@
      "row": 3,
      "col": 1,
      "spell": 1310627,
+     "defs": [
+      142607
+     ],
+     "icon": "ability_dualwield",
      "needs": null
     },
     "Ranged Weapon Specialization": {
@@ -4743,6 +5301,10 @@
      "row": 5,
      "col": 2,
      "spell": 19507,
+     "defs": [
+      134463
+     ],
+     "icon": "inv_weapon_rifle_06",
      "needs": null
     },
     "Rapid Killing": {
@@ -4751,6 +5313,10 @@
      "row": 2,
      "col": 0,
      "spell": 415405,
+     "defs": [
+      134470
+     ],
+     "icon": "ability_hunter_rapidkilling",
      "needs": null
     },
     "Rapid Recuperation": {
@@ -4759,6 +5325,10 @@
      "row": 4,
      "col": 0,
      "spell": 1223987,
+     "defs": [
+      134464
+     ],
+     "icon": "ability_hunter_rapidregeneration",
      "needs": "Rapid Killing"
     },
     "Resourcefulness": {
@@ -4767,6 +5337,10 @@
      "row": 4,
      "col": 0,
      "spell": 440529,
+     "defs": [
+      134448
+     ],
+     "icon": "ability_hunter_resourcefulness",
      "needs": null
     },
     "Savage Strikes": {
@@ -4775,6 +5349,10 @@
      "row": 1,
      "col": 1,
      "spell": 19159,
+     "defs": [
+      134458
+     ],
+     "icon": "ability_racial_bloodrage",
      "needs": null
     },
     "Scatter Shot": {
@@ -4783,6 +5361,10 @@
      "row": 4,
      "col": 3,
      "spell": 19503,
+     "defs": [
+      134465
+     ],
+     "icon": "ability_golemstormbolt",
      "needs": null
     },
     "Sniper Shot": {
@@ -4791,6 +5373,10 @@
      "row": 6,
      "col": 1,
      "spell": 1310687,
+     "defs": [
+      134462
+     ],
+     "icon": "hunter_pvp_snipershot",
      "needs": "Trueshot Aura"
     },
     "Spirit Bond": {
@@ -4799,6 +5385,10 @@
      "row": 4,
      "col": 0,
      "spell": 19578,
+     "defs": [
+      134427
+     ],
+     "icon": "ability_druid_demoralizingroar",
      "needs": null
     },
     "Strider Kick": {
@@ -4807,6 +5397,10 @@
      "row": 4,
      "col": 3,
      "spell": 1317257,
+     "defs": [
+      134446
+     ],
+     "icon": "ability_hunter_pet_tallstrider",
      "needs": null
     },
     "Summon Hawk": {
@@ -4815,6 +5409,10 @@
      "row": 3,
      "col": 3,
      "spell": 1293241,
+     "defs": [
+      134428
+     ],
+     "icon": "ability_hunter_animalhandler",
      "needs": null
     },
     "Surefooted": {
@@ -4823,6 +5421,10 @@
      "row": 2,
      "col": 1,
      "spell": 19290,
+     "defs": [
+      134452
+     ],
+     "icon": "ability_kick",
      "needs": null
     },
     "Survival Tactics": {
@@ -4831,6 +5433,10 @@
      "row": 3,
      "col": 0,
      "spell": 19376,
+     "defs": [
+      134453
+     ],
+     "icon": "ability_ensnare",
      "needs": null
     },
     "Survivalist": {
@@ -4839,6 +5445,10 @@
      "row": 1,
      "col": 2,
      "spell": 19255,
+     "defs": [
+      134457
+     ],
+     "icon": "spell_shadow_twilight",
      "needs": null
     },
     "Survivalist's Discipline": {
@@ -4847,6 +5457,10 @@
      "row": 4,
      "col": 2,
      "spell": 1310496,
+     "defs": [
+      142606
+     ],
+     "icon": "ability_hunter_mastertactitian",
      "needs": null
     },
     "Trueshot Aura": {
@@ -4855,6 +5469,10 @@
      "row": 3,
      "col": 1,
      "spell": 1299346,
+     "defs": [
+      134469
+     ],
+     "icon": "ability_trueshot",
      "needs": null
     },
     "Unleashed Fury": {
@@ -4863,6 +5481,10 @@
      "row": 2,
      "col": 2,
      "spell": 19616,
+     "defs": [
+      134431
+     ],
+     "icon": "ability_bullrush",
      "needs": null
     }
    }
@@ -5975,6 +6597,10 @@
      "row": 6,
      "col": 1,
      "spell": 13750,
+     "defs": [
+      135254
+     ],
+     "icon": "spell_shadow_shadowworddominate",
      "needs": "Blade Flurry"
     },
     "Aggression": {
@@ -5983,6 +6609,10 @@
      "row": 3,
      "col": 3,
      "spell": 18427,
+     "defs": [
+      135260
+     ],
+     "icon": "ability_racial_avatar",
      "needs": null
     },
     "Blade Flurry": {
@@ -5991,6 +6621,10 @@
      "row": 4,
      "col": 1,
      "spell": 13877,
+     "defs": [
+      135258
+     ],
+     "icon": "ability_warrior_punishingblow",
      "needs": null
     },
     "Blood Splatter": {
@@ -5999,6 +6633,10 @@
      "row": 2,
      "col": 1,
      "spell": 1329256,
+     "defs": [
+      135248
+     ],
+     "icon": "ability_rogue_rupture",
      "needs": null
     },
     "Boot Knife": {
@@ -6007,6 +6645,10 @@
      "row": 5,
      "col": 2,
      "spell": 1329286,
+     "defs": [
+      135280
+     ],
+     "icon": "inv_sword_32",
      "needs": null
     },
     "Camouflage": {
@@ -6015,6 +6657,10 @@
      "row": 1,
      "col": 1,
      "spell": 13975,
+     "defs": [
+      135286
+     ],
+     "icon": "ability_stealth",
      "needs": null
     },
     "Cold Blood": {
@@ -6023,6 +6669,10 @@
      "row": 3,
      "col": 1,
      "spell": 14177,
+     "defs": [
+      135245
+     ],
+     "icon": "spell_ice_lament",
      "needs": null
     },
     "Composure": {
@@ -6031,6 +6681,10 @@
      "row": 2,
      "col": 3,
      "spell": 1329265,
+     "defs": [
+      135289
+     ],
+     "icon": "ability_rogue_fleetfooted",
      "needs": null
     },
     "Coup de Grace": {
@@ -6039,6 +6693,10 @@
      "row": 0,
      "col": 0,
      "spell": 14162,
+     "defs": [
+      135238
+     ],
+     "icon": "ability_rogue_eviscerate",
      "needs": null
     },
     "Death Mark": {
@@ -6047,6 +6705,10 @@
      "row": 6,
      "col": 1,
      "spell": 1316709,
+     "defs": [
+      142618
+     ],
+     "icon": "ability_creature_cursed_02",
      "needs": "Preparation"
     },
     "Deflection": {
@@ -6055,6 +6717,10 @@
      "row": 1,
      "col": 1,
      "spell": 13713,
+     "defs": [
+      135268
+     ],
+     "icon": "ability_parry",
      "needs": null
     },
     "Dirty Deeds": {
@@ -6063,6 +6729,10 @@
      "row": 1,
      "col": 0,
      "spell": 14082,
+     "defs": [
+      135275
+     ],
+     "icon": "spell_shadow_summonsuccubus",
      "needs": null
     },
     "Dirty Tricks": {
@@ -6071,6 +6741,10 @@
      "row": 1,
      "col": 3,
      "spell": 1224782,
+     "defs": [
+      135287
+     ],
+     "icon": "ability_sap",
      "needs": null
     },
     "Dual Wield Specialization": {
@@ -6079,6 +6753,10 @@
      "row": 4,
      "col": 0,
      "spell": 13715,
+     "defs": [
+      145965
+     ],
+     "icon": "ability_dualwield",
      "needs": null
     },
     "Efficient Strikes": {
@@ -6087,6 +6765,10 @@
      "row": 0,
      "col": 1,
      "spell": 13732,
+     "defs": [
+      135271
+     ],
+     "icon": "spell_shadow_ritualofsacrifice",
      "needs": null
     },
     "Elusiveness": {
@@ -6095,6 +6777,10 @@
      "row": 3,
      "col": 0,
      "spell": 13981,
+     "defs": [
+      135283
+     ],
+     "icon": "spell_magic_lesserinvisibilty",
      "needs": null
     },
     "Endurance": {
@@ -6103,6 +6789,10 @@
      "row": 2,
      "col": 0,
      "spell": 13742,
+     "defs": [
+      135266
+     ],
+     "icon": "spell_shadow_shadowward",
      "needs": null
     },
     "Flash of Steel": {
@@ -6111,6 +6801,10 @@
      "row": 5,
      "col": 2,
      "spell": 1329284,
+     "defs": [
+      135270
+     ],
+     "icon": "ability_rogue_restlessblades",
      "needs": null
     },
     "Flawless Execution": {
@@ -6119,6 +6813,10 @@
      "row": 3,
      "col": 1,
      "spell": 1310711,
+     "defs": [
+      138268
+     ],
+     "icon": "inv_sword_35",
      "needs": null
     },
     "Ghostly Strike": {
@@ -6127,6 +6825,10 @@
      "row": 3,
      "col": 1,
      "spell": 14278,
+     "defs": [
+      135284
+     ],
+     "icon": "spell_shadow_curse",
      "needs": null
     },
     "Hack and Slash": {
@@ -6135,6 +6837,10 @@
      "row": 4,
      "col": 2,
      "spell": 13960,
+     "defs": [
+      135257
+     ],
+     "icon": "inv_sword_27",
      "needs": null
     },
     "Heightened Senses": {
@@ -6143,6 +6849,10 @@
      "row": 4,
      "col": 0,
      "spell": 30894,
+     "defs": [
+      135277
+     ],
+     "icon": "ability_ambush",
      "needs": null
     },
     "Hemorrhage": {
@@ -6151,6 +6861,10 @@
      "row": 4,
      "col": 2,
      "spell": 16511,
+     "defs": [
+      135278
+     ],
+     "icon": "spell_shadow_lifedrain",
      "needs": "Serrated Blades"
     },
     "Improved Ambush": {
@@ -6159,6 +6873,10 @@
      "row": 1,
      "col": 2,
      "spell": 14079,
+     "defs": [
+      135279
+     ],
+     "icon": "ability_rogue_ambush",
      "needs": null
     },
     "Improved Expose Armor": {
@@ -6167,6 +6885,10 @@
      "row": 1,
      "col": 1,
      "spell": 14168,
+     "defs": [
+      135247
+     ],
+     "icon": "ability_warrior_riposte",
      "needs": null
     },
     "Improved Gouge": {
@@ -6175,6 +6897,10 @@
      "row": 0,
      "col": 0,
      "spell": 13741,
+     "defs": [
+      135272
+     ],
+     "icon": "ability_gouge",
      "needs": null
     },
     "Improved Kick": {
@@ -6183,6 +6909,10 @@
      "row": 3,
      "col": 0,
      "spell": 13754,
+     "defs": [
+      135263
+     ],
+     "icon": "ability_kick",
      "needs": null
     },
     "Improved Kidney Shot": {
@@ -6191,6 +6921,10 @@
      "row": 4,
      "col": 2,
      "spell": 14174,
+     "defs": [
+      135241
+     ],
+     "icon": "ability_rogue_kidneyshot",
      "needs": null
     },
     "Improved Poisons": {
@@ -6199,6 +6933,10 @@
      "row": 3,
      "col": 2,
      "spell": 14113,
+     "defs": [
+      135243
+     ],
+     "icon": "ability_poisons",
      "needs": null
     },
     "Improved Slice and Dice": {
@@ -6207,6 +6945,10 @@
      "row": 1,
      "col": 3,
      "spell": 14165,
+     "defs": [
+      135269
+     ],
+     "icon": "ability_rogue_slicedice",
      "needs": null
     },
     "Improved Sprint": {
@@ -6215,6 +6957,10 @@
      "row": 1,
      "col": 3,
      "spell": 13743,
+     "defs": [
+      135262
+     ],
+     "icon": "ability_rogue_sprint",
      "needs": null
     },
     "Initiative": {
@@ -6223,6 +6969,10 @@
      "row": 2,
      "col": 0,
      "spell": 13976,
+     "defs": [
+      135285
+     ],
+     "icon": "spell_shadow_fumble",
      "needs": null
     },
     "Lethality": {
@@ -6231,6 +6981,10 @@
      "row": 2,
      "col": 2,
      "spell": 14128,
+     "defs": [
+      135246
+     ],
+     "icon": "ability_criticalstrike",
      "needs": "Malice"
     },
     "Lightning Reflexes": {
@@ -6239,6 +6993,10 @@
      "row": 0,
      "col": 2,
      "spell": 13712,
+     "defs": [
+      145370
+     ],
+     "icon": "spell_nature_invisibilty",
      "needs": null
     },
     "Malice": {
@@ -6247,6 +7005,10 @@
      "row": 0,
      "col": 2,
      "spell": 14138,
+     "defs": [
+      135252
+     ],
+     "icon": "ability_racial_bloodrage",
      "needs": null
     },
     "Master of Deception": {
@@ -6255,6 +7017,10 @@
      "row": 0,
      "col": 1,
      "spell": 13958,
+     "defs": [
+      135291
+     ],
+     "icon": "spell_shadow_charm",
      "needs": null
     },
     "Mutilate": {
@@ -6263,6 +7029,10 @@
      "row": 6,
      "col": 1,
      "spell": 399956,
+     "defs": [
+      135239
+     ],
+     "icon": "ability_rogue_deadlybrew",
      "needs": "Venom"
     },
     "Opportunity": {
@@ -6271,6 +7041,10 @@
      "row": 0,
      "col": 2,
      "spell": 14057,
+     "defs": [
+      135290
+     ],
+     "icon": "ability_warrior_warcry",
      "needs": null
     },
     "Precision": {
@@ -6279,6 +7053,10 @@
      "row": 1,
      "col": 2,
      "spell": 13705,
+     "defs": [
+      135267
+     ],
+     "icon": "ability_marksmanship",
      "needs": null
     },
     "Premeditation": {
@@ -6287,6 +7065,10 @@
      "row": 2,
      "col": 1,
      "spell": 14183,
+     "defs": [
+      135273
+     ],
+     "icon": "spell_shadow_possession",
      "needs": null
     },
     "Preparation": {
@@ -6295,6 +7077,10 @@
      "row": 4,
      "col": 1,
      "spell": 14185,
+     "defs": [
+      135276
+     ],
+     "icon": "spell_shadow_antishadow",
      "needs": null
     },
     "Puncturing Wounds": {
@@ -6303,6 +7089,10 @@
      "row": 1,
      "col": 0,
      "spell": 1224716,
+     "defs": [
+      135249
+     ],
+     "icon": "ability_backstab",
      "needs": null
     },
     "Quick Getaway": {
@@ -6311,6 +7101,10 @@
      "row": 3,
      "col": 3,
      "spell": 1310728,
+     "defs": [
+      142619
+     ],
+     "icon": "ability_rogue_blackjack",
      "needs": "Dirty Tricks"
     },
     "Relentless Strikes": {
@@ -6319,6 +7113,10 @@
      "row": 4,
      "col": 0,
      "spell": 14179,
+     "defs": [
+      145964
+     ],
+     "icon": "ability_warrior_decisivestrike",
      "needs": null
     },
     "Remorseless Attacks": {
@@ -6327,6 +7125,10 @@
      "row": 0,
      "col": 1,
      "spell": 14144,
+     "defs": [
+      135253
+     ],
+     "icon": "ability_fiegndead",
      "needs": null
     },
     "Riposte": {
@@ -6335,6 +7137,10 @@
      "row": 2,
      "col": 1,
      "spell": 14251,
+     "defs": [
+      135265
+     ],
+     "icon": "ability_warrior_challange",
      "needs": "Deflection"
     },
     "Ruthlessness": {
@@ -6343,6 +7149,10 @@
      "row": 1,
      "col": 0,
      "spell": 14156,
+     "defs": [
+      135251
+     ],
+     "icon": "ability_druid_disembowel",
      "needs": null
     },
     "Seal Fate": {
@@ -6351,6 +7161,10 @@
      "row": 5,
      "col": 2,
      "spell": 14186,
+     "defs": [
+      135240
+     ],
+     "icon": "spell_shadow_chilltouch",
      "needs": null
     },
     "Serrated Blades": {
@@ -6359,6 +7173,10 @@
      "row": 2,
      "col": 2,
      "spell": 14171,
+     "defs": [
+      135282
+     ],
+     "icon": "inv_sword_17",
      "needs": null
     },
     "Setup": {
@@ -6367,6 +7185,10 @@
      "row": 0,
      "col": 0,
      "spell": 13983,
+     "defs": [
+      135281
+     ],
+     "icon": "spell_nature_mirrorimage",
      "needs": null
     },
     "Venom": {
@@ -6375,6 +7197,10 @@
      "row": 4,
      "col": 1,
      "spell": 1329328,
+     "defs": [
+      135242
+     ],
+     "icon": "inv_sword_31",
      "needs": null
     },
     "Vigor": {
@@ -6383,6 +7209,10 @@
      "row": 2,
      "col": 0,
      "spell": 14983,
+     "defs": [
+      135250
+     ],
+     "icon": "spell_nature_earthbindtotem",
      "needs": null
     },
     "Vile Poisons": {
@@ -6391,6 +7221,10 @@
      "row": 3,
      "col": 0,
      "spell": 16513,
+     "defs": [
+      135244
+     ],
+     "icon": "ability_rogue_feigndeath",
      "needs": null
     },
     "Weapon Expertise": {
@@ -6399,6 +7233,10 @@
      "row": 3,
      "col": 2,
      "spell": 30919,
+     "defs": [
+      135256
+     ],
+     "icon": "spell_holy_blessingofstrength",
      "needs": "Precision"
     }
    }
@@ -7980,6 +8818,10 @@
      "row": 0,
      "col": 1,
      "spell": 15326,
+     "defs": [
+      135362
+     ],
+     "icon": "spell_shadow_gathershadows",
      "needs": null
     },
     "Blessed Recovery": {
@@ -7988,6 +8830,10 @@
      "row": 2,
      "col": 1,
      "spell": 27811,
+     "defs": [
+      135391
+     ],
+     "icon": "spell_holy_blessedrecovery",
      "needs": null
     },
     "Dark Inspiration": {
@@ -7996,6 +8842,10 @@
      "row": 3,
      "col": 0,
      "spell": 1326159,
+     "defs": [
+      135353
+     ],
+     "icon": "spell_warlock_demonsoul",
      "needs": null
     },
     "Darkness": {
@@ -8004,6 +8854,10 @@
      "row": 5,
      "col": 2,
      "spell": 15259,
+     "defs": [
+      135348
+     ],
+     "icon": "spell_shadow_twilight",
      "needs": null
     },
     "Devouring Contagion": {
@@ -8012,6 +8866,10 @@
      "row": 4,
      "col": 2,
      "spell": 1309950,
+     "defs": [
+      135349
+     ],
+     "icon": "spell_shadow_devouringplague",
      "needs": null
     },
     "Divine Aegis": {
@@ -8020,6 +8878,10 @@
      "row": 5,
      "col": 2,
      "spell": 431622,
+     "defs": [
+      135370
+     ],
+     "icon": "spell_holy_devineaegis",
      "needs": null
     },
     "Divine Fury": {
@@ -8028,6 +8890,10 @@
      "row": 1,
      "col": 2,
      "spell": 18530,
+     "defs": [
+      135393
+     ],
+     "icon": "spell_holy_sealofwrath",
      "needs": null
     },
     "Early Demise": {
@@ -8036,6 +8902,10 @@
      "row": 5,
      "col": 0,
      "spell": 1310076,
+     "defs": [
+      142600
+     ],
+     "icon": "spell_shadow_demonicfortitude",
      "needs": null
     },
     "Holy Binding": {
@@ -8044,6 +8914,10 @@
      "row": 3,
      "col": 3,
      "spell": 1328569,
+     "defs": [
+      135386
+     ],
+     "icon": "spell_holy_blindingheal",
      "needs": null
     },
     "Holy Nova": {
@@ -8052,6 +8926,10 @@
      "row": 2,
      "col": 0,
      "spell": 15237,
+     "defs": [
+      135392
+     ],
+     "icon": "spell_holy_holynova",
      "needs": null
     },
     "Holy Precision": {
@@ -8060,6 +8938,10 @@
      "row": 1,
      "col": 1,
      "spell": 1309957,
+     "defs": [
+      142598
+     ],
+     "icon": "spell_holy_divineillumination",
      "needs": null
     },
     "Holy Reach": {
@@ -8068,6 +8950,10 @@
      "row": 3,
      "col": 0,
      "spell": 27789,
+     "defs": [
+      135389
+     ],
+     "icon": "spell_holy_purify",
      "needs": null
     },
     "Holy Specialization": {
@@ -8076,6 +8962,10 @@
      "row": 0,
      "col": 2,
      "spell": 14889,
+     "defs": [
+      142601
+     ],
+     "icon": "spell_holy_sealofsalvation",
      "needs": null
     },
     "Improved Healing": {
@@ -8084,6 +8974,10 @@
      "row": 3,
      "col": 1,
      "spell": 14912,
+     "defs": [
+      135388
+     ],
+     "icon": "spell_holy_heal02",
      "needs": null
     },
     "Improved Inner Fire": {
@@ -8092,6 +8986,10 @@
      "row": 3,
      "col": 0,
      "spell": 14747,
+     "defs": [
+      135371
+     ],
+     "icon": "spell_holy_innerfire",
      "needs": null
     },
     "Improved Mana Burn": {
@@ -8100,6 +8998,10 @@
      "row": 3,
      "col": 1,
      "spell": 14750,
+     "defs": [
+      135368
+     ],
+     "icon": "spell_shadow_manaburn",
      "needs": null
     },
     "Improved Mind Blast": {
@@ -8108,6 +9010,10 @@
      "row": 1,
      "col": 0,
      "spell": 15273,
+     "defs": [
+      135361
+     ],
+     "icon": "spell_shadow_unholyfrenzy",
      "needs": null
     },
     "Improved Mind Flay": {
@@ -8116,6 +9022,10 @@
      "row": 2,
      "col": 3,
      "spell": 1225139,
+     "defs": [
+      135355
+     ],
+     "icon": "spell_shadow_soulleech_2",
      "needs": "Mind Flay"
     },
     "Improved Power Word: Shield": {
@@ -8124,6 +9034,10 @@
      "row": 2,
      "col": 2,
      "spell": 14748,
+     "defs": [
+      135376
+     ],
+     "icon": "spell_holy_powerwordshield",
      "needs": null
     },
     "Improved Psychic Scream": {
@@ -8132,6 +9046,10 @@
      "row": 2,
      "col": 1,
      "spell": 15392,
+     "defs": [
+      135358
+     ],
+     "icon": "spell_shadow_psychicscream",
      "needs": "Blackout"
     },
     "Improved Renew": {
@@ -8140,6 +9058,10 @@
      "row": 0,
      "col": 1,
      "spell": 14908,
+     "defs": [
+      135396
+     ],
+     "icon": "spell_holy_renew",
      "needs": null
     },
     "Improved Shadow Word: Pain": {
@@ -8148,6 +9070,10 @@
      "row": 1,
      "col": 2,
      "spell": 15275,
+     "defs": [
+      135360
+     ],
+     "icon": "spell_shadow_shadowwordpain",
      "needs": null
     },
     "Inner Focus": {
@@ -8156,6 +9082,10 @@
      "row": 2,
      "col": 1,
      "spell": 14751,
+     "defs": [
+      135374
+     ],
+     "icon": "spell_frost_windwalkon",
      "needs": null
     },
     "Inspiration": {
@@ -8164,6 +9094,10 @@
      "row": 2,
      "col": 3,
      "spell": 14892,
+     "defs": [
+      135390
+     ],
+     "icon": "spell_holy_layonhands",
      "needs": null
     },
     "Litany of Light": {
@@ -8172,6 +9106,10 @@
      "row": 4,
      "col": 0,
      "spell": 1317006,
+     "defs": [
+      135385
+     ],
+     "icon": "inv_scroll_07",
      "needs": null
     },
     "Martyrdom": {
@@ -8180,6 +9118,10 @@
      "row": 1,
      "col": 3,
      "spell": 14531,
+     "defs": [
+      135375
+     ],
+     "icon": "spell_nature_tranquility",
      "needs": null
     },
     "Meditation": {
@@ -8188,6 +9130,10 @@
      "row": 2,
      "col": 3,
      "spell": 14521,
+     "defs": [
+      135373
+     ],
+     "icon": "spell_nature_sleep",
      "needs": null
     },
     "Mental Agility": {
@@ -8196,6 +9142,10 @@
      "row": 2,
      "col": 0,
      "spell": 14520,
+     "defs": [
+      135372
+     ],
+     "icon": "ability_hibernation",
      "needs": null
     },
     "Mental Strength": {
@@ -8204,6 +9154,10 @@
      "row": 1,
      "col": 2,
      "spell": 18551,
+     "defs": [
+      135367
+     ],
+     "icon": "spell_nature_enchantarmor",
      "needs": null
     },
     "Mind Flay": {
@@ -8212,6 +9166,10 @@
      "row": 2,
      "col": 2,
      "spell": 15407,
+     "defs": [
+      135356
+     ],
+     "icon": "spell_shadow_siphonmana",
      "needs": null
     },
     "Penance": {
@@ -8220,6 +9178,10 @@
      "row": 4,
      "col": 1,
      "spell": 402174,
+     "defs": [
+      135364
+     ],
+     "icon": "spell_holy_penance",
      "needs": null
     },
     "Power Infusion": {
@@ -8228,6 +9190,10 @@
      "row": 6,
      "col": 1,
      "spell": 10060,
+     "defs": [
+      135366
+     ],
+     "icon": "spell_holy_powerinfusion",
      "needs": "Penance"
     },
     "Power in Light": {
@@ -8236,6 +9202,10 @@
      "row": 0,
      "col": 0,
      "spell": 1309969,
+     "defs": [
+      142599
+     ],
+     "icon": "spell_holy_searinglight",
      "needs": null
     },
     "Prayer of Mending": {
@@ -8244,6 +9214,10 @@
      "row": 6,
      "col": 1,
      "spell": 401859,
+     "defs": [
+      135381
+     ],
+     "icon": "spell_holy_prayerofmendingtga",
      "needs": "Spirit of Redemption"
     },
     "Renewed Hope": {
@@ -8252,6 +9226,10 @@
      "row": 4,
      "col": 2,
      "spell": 425280,
+     "defs": [
+      135365
+     ],
+     "icon": "spell_holy_holyprotection",
      "needs": "Soul Warding"
     },
     "Searing Light": {
@@ -8260,6 +9238,10 @@
      "row": 3,
      "col": 2,
      "spell": 14909,
+     "defs": [
+      135387
+     ],
+     "icon": "spell_holy_searinglightpriest",
      "needs": "Divine Fury"
     },
     "Shadow Focus": {
@@ -8268,6 +9250,10 @@
      "row": 0,
      "col": 0,
      "spell": 15260,
+     "defs": [
+      142597
+     ],
+     "icon": "spell_shadow_burningspirit",
      "needs": null
     },
     "Shadow Reach": {
@@ -8276,6 +9262,10 @@
      "row": 1,
      "col": 3,
      "spell": 17322,
+     "defs": [
+      135359
+     ],
+     "icon": "spell_shadow_chilltouch",
      "needs": null
     },
     "Shadow Weaving": {
@@ -8284,6 +9274,10 @@
      "row": 3,
      "col": 2,
      "spell": 15257,
+     "defs": [
+      135351
+     ],
+     "icon": "spell_shadow_blackplague",
      "needs": null
     },
     "Shadowform": {
@@ -8292,6 +9286,10 @@
      "row": 6,
      "col": 1,
      "spell": 15473,
+     "defs": [
+      135347
+     ],
+     "icon": "spell_shadow_shadowform",
      "needs": "Vampiric Embrace"
     },
     "Silence": {
@@ -8300,6 +9298,10 @@
      "row": 4,
      "col": 0,
      "spell": 15487,
+     "defs": [
+      135354
+     ],
+     "icon": "spell_shadow_impphaseshift",
      "needs": null
     },
     "Silent Resolve": {
@@ -8308,6 +9310,10 @@
      "row": 1,
      "col": 0,
      "spell": 14523,
+     "defs": [
+      135378
+     ],
+     "icon": "spell_nature_manaregentotem",
      "needs": null
     },
     "Soul Warding": {
@@ -8316,6 +9322,10 @@
      "row": 3,
      "col": 2,
      "spell": 402000,
+     "defs": [
+      135369
+     ],
+     "icon": "spell_holy_pureofheart",
      "needs": "Improved Power Word: Shield"
     },
     "Spell Warding": {
@@ -8324,6 +9334,10 @@
      "row": 1,
      "col": 1,
      "spell": 27900,
+     "defs": [
+      135394
+     ],
+     "icon": "spell_holy_spellwarding",
      "needs": null
     },
     "Spirit Tap": {
@@ -8332,6 +9346,10 @@
      "row": 0,
      "col": 2,
      "spell": 15270,
+     "defs": [
+      135363
+     ],
+     "icon": "spell_shadow_requiem",
      "needs": null
     },
     "Spirit of Redemption": {
@@ -8340,6 +9358,10 @@
      "row": 4,
      "col": 1,
      "spell": 20711,
+     "defs": [
+      135384
+     ],
+     "icon": "inv_enchant_essenceeternallarge",
      "needs": null
     },
     "Spiritual Guidance": {
@@ -8348,6 +9370,10 @@
      "row": 4,
      "col": 2,
      "spell": 14901,
+     "defs": [
+      135383
+     ],
+     "icon": "spell_holy_spiritualguidence",
      "needs": null
     },
     "Spiritual Healing": {
@@ -8356,6 +9382,10 @@
      "row": 5,
      "col": 2,
      "spell": 14898,
+     "defs": [
+      135382
+     ],
+     "icon": "spell_nature_moonglow",
      "needs": null
     },
     "Twilight Focus": {
@@ -8364,6 +9394,10 @@
      "row": 0,
      "col": 0,
      "spell": 14913,
+     "defs": [
+      135397
+     ],
+     "icon": "spell_holy_healingfocus",
      "needs": null
     },
     "Twin Disciplines": {
@@ -8372,6 +9406,10 @@
      "row": 0,
      "col": 2,
      "spell": 1225132,
+     "defs": [
+      135379
+     ],
+     "icon": "spell_holy_sealofvengeance",
      "needs": null
     },
     "Vampiric Embrace": {
@@ -8380,6 +9418,10 @@
      "row": 3,
      "col": 1,
      "spell": 15286,
+     "defs": [
+      135350
+     ],
+     "icon": "spell_shadow_unsummonbuilding",
      "needs": null
     },
     "Wand Specialization": {
@@ -8388,6 +9430,10 @@
      "row": 0,
      "col": 1,
      "spell": 14524,
+     "defs": [
+      135380
+     ],
+     "icon": "inv_wand_01",
      "needs": null
     }
    }
@@ -9909,6 +10955,10 @@
      "row": 2,
      "col": 0,
      "spell": 16176,
+     "defs": [
+      134192
+     ],
+     "icon": "spell_nature_undyingstrength",
      "needs": null
     },
     "Ancestral Knowledge": {
@@ -9917,6 +10967,10 @@
      "row": 0,
      "col": 2,
      "spell": 17485,
+     "defs": [
+      134217
+     ],
+     "icon": "spell_shadow_grimward",
      "needs": null
     },
     "Anticipation": {
@@ -9925,6 +10979,10 @@
      "row": 2,
      "col": 3,
      "spell": 16254,
+     "defs": [
+      134209
+     ],
+     "icon": "spell_nature_mirrorimage",
      "needs": null
     },
     "Call of Flame": {
@@ -9933,6 +10991,10 @@
      "row": 1,
      "col": 3,
      "spell": 16038,
+     "defs": [
+      134231
+     ],
+     "icon": "spell_fire_immolation",
      "needs": null
     },
     "Call of Thunder": {
@@ -9941,6 +11003,10 @@
      "row": 4,
      "col": 1,
      "spell": 16120,
+     "defs": [
+      134221
+     ],
+     "icon": "spell_nature_callstorm",
      "needs": null
     },
     "Concussion": {
@@ -9949,6 +11015,10 @@
      "row": 0,
      "col": 2,
      "spell": 16035,
+     "defs": [
+      134233
+     ],
+     "icon": "spell_nature_earthshock",
      "needs": null
     },
     "Convection": {
@@ -9957,6 +11027,10 @@
      "row": 0,
      "col": 1,
      "spell": 16039,
+     "defs": [
+      134234
+     ],
+     "icon": "spell_nature_wispsplode",
      "needs": null
     },
     "Earth's Grasp": {
@@ -9965,6 +11039,10 @@
      "row": 0,
      "col": 0,
      "spell": 16043,
+     "defs": [
+      134218
+     ],
+     "icon": "spell_nature_stoneclawtotem",
      "needs": null
     },
     "Earthbound": {
@@ -9973,6 +11051,10 @@
      "row": 3,
      "col": 3,
      "spell": 1222988,
+     "defs": [
+      134223
+     ],
+     "icon": "spell_nature_stranglevines",
      "needs": null
     },
     "Elemental Alacrity": {
@@ -9981,6 +11063,10 @@
      "row": 1,
      "col": 2,
      "spell": 16578,
+     "defs": [
+      134232
+     ],
+     "icon": "spell_lightning_lightningbolt01",
      "needs": null
     },
     "Elemental Devastation": {
@@ -9989,6 +11075,10 @@
      "row": 1,
      "col": 0,
      "spell": 30160,
+     "defs": [
+      134230
+     ],
+     "icon": "spell_fire_elementaldevastation",
      "needs": null
     },
     "Elemental Focus": {
@@ -9997,6 +11087,10 @@
      "row": 2,
      "col": 0,
      "spell": 16164,
+     "defs": [
+      134229
+     ],
+     "icon": "spell_shadow_manaburn",
      "needs": null
     },
     "Elemental Fury": {
@@ -10005,6 +11099,10 @@
      "row": 5,
      "col": 2,
      "spell": 16089,
+     "defs": [
+      134227
+     ],
+     "icon": "spell_fire_volcano",
      "needs": "Lightning Overload"
     },
     "Elemental Reach": {
@@ -10013,6 +11111,10 @@
      "row": 4,
      "col": 0,
      "spell": 28999,
+     "defs": [
+      134222
+     ],
+     "icon": "spell_nature_stormreach",
      "needs": null
     },
     "Elemental Warding": {
@@ -10021,6 +11123,10 @@
      "row": 2,
      "col": 1,
      "spell": 28996,
+     "defs": [
+      134226
+     ],
+     "icon": "spell_nature_spiritarmor",
      "needs": null
     },
     "Elemental Weapons": {
@@ -10029,6 +11135,10 @@
      "row": 2,
      "col": 0,
      "spell": 16266,
+     "defs": [
+      134211
+     ],
+     "icon": "spell_fire_flametounge",
      "needs": null
     },
     "Eye of the Storm": {
@@ -10037,6 +11147,10 @@
      "row": 3,
      "col": 1,
      "spell": 29062,
+     "defs": [
+      134224
+     ],
+     "icon": "spell_nature_eyeofthestorm",
      "needs": null
     },
     "Flurry": {
@@ -10045,6 +11159,10 @@
      "row": 3,
      "col": 1,
      "spell": 16256,
+     "defs": [
+      134208
+     ],
+     "icon": "ability_ghoulfrenzy",
      "needs": "Mental Dexterity"
     },
     "Guardian Totems": {
@@ -10053,6 +11171,10 @@
      "row": 1,
      "col": 0,
      "spell": 16258,
+     "defs": [
+      134215
+     ],
+     "icon": "spell_nature_stoneskintotem",
      "needs": null
     },
     "Healing Focus": {
@@ -10061,6 +11183,10 @@
      "row": 2,
      "col": 1,
      "spell": 16181,
+     "defs": [
+      134194
+     ],
+     "icon": "spell_nature_healingwavelesser",
      "needs": null
     },
     "Healing Way": {
@@ -10069,6 +11195,10 @@
      "row": 4,
      "col": 1,
      "spell": 29206,
+     "defs": [
+      134188
+     ],
+     "icon": "spell_nature_healingway",
      "needs": null
     },
     "Improved Ghost Wolf": {
@@ -10077,6 +11207,10 @@
      "row": 3,
      "col": 3,
      "spell": 16262,
+     "defs": [
+      134213
+     ],
+     "icon": "spell_nature_spiritwolf",
      "needs": null
     },
     "Improved Healing Wave": {
@@ -10085,6 +11219,10 @@
      "row": 0,
      "col": 1,
      "spell": 16182,
+     "defs": [
+      134200
+     ],
+     "icon": "spell_nature_magicimmunity",
      "needs": null
     },
     "Improved Lightning Shield": {
@@ -10093,6 +11231,10 @@
      "row": 1,
      "col": 2,
      "spell": 16261,
+     "defs": [
+      134212
+     ],
+     "icon": "spell_nature_lightningshield",
      "needs": null
     },
     "Improved Reincarnation": {
@@ -10101,6 +11243,10 @@
      "row": 1,
      "col": 3,
      "spell": 16184,
+     "defs": [
+      134198
+     ],
+     "icon": "spell_nature_reincarnation",
      "needs": null
     },
     "Improved Stormstrike": {
@@ -10109,6 +11255,10 @@
      "row": 4,
      "col": 2,
      "spell": 1223031,
+     "defs": [
+      134203
+     ],
+     "icon": "spell_shaman_improvedstormstrike",
      "needs": "Stormstrike"
     },
     "Lightning Mastery": {
@@ -10117,6 +11267,10 @@
      "row": 6,
      "col": 1,
      "spell": 16166,
+     "defs": [
+      134219
+     ],
+     "icon": "spell_nature_unrelentingstorm",
      "needs": "Call of Thunder"
     },
     "Lightning Overload": {
@@ -10125,6 +11279,10 @@
      "row": 4,
      "col": 2,
      "spell": 408438,
+     "defs": [
+      134220
+     ],
+     "icon": "spell_nature_lightningoverload",
      "needs": "Elemental Alacrity"
     },
     "Maelstrom Weapon": {
@@ -10133,6 +11291,10 @@
      "row": 5,
      "col": 2,
      "spell": 408498,
+     "defs": [
+      134202
+     ],
+     "icon": "spell_shaman_maelstromweapon",
      "needs": null
     },
     "Mana Tide Totem": {
@@ -10141,6 +11303,10 @@
      "row": 3,
      "col": 2,
      "spell": 16190,
+     "defs": [
+      134189
+     ],
+     "icon": "spell_frost_summonwaterelemental",
      "needs": null
     },
     "Mental Dexterity": {
@@ -10149,6 +11315,10 @@
      "row": 1,
      "col": 1,
      "spell": 415140,
+     "defs": [
+      134216
+     ],
+     "icon": "spell_nature_mentalquickness",
      "needs": null
     },
     "Mental Quickness": {
@@ -10157,6 +11327,10 @@
      "row": 4,
      "col": 1,
      "spell": 30812,
+     "defs": [
+      134205
+     ],
+     "icon": "spell_nature_sleep",
      "needs": null
     },
     "Mindfulness": {
@@ -10165,6 +11339,10 @@
      "row": 1,
      "col": 0,
      "spell": 1223033,
+     "defs": [
+      134195
+     ],
+     "icon": "spell_nature_sleep",
      "needs": null
     },
     "Natural Grace": {
@@ -10173,6 +11351,10 @@
      "row": 1,
      "col": 1,
      "spell": 29187,
+     "defs": [
+      134197
+     ],
+     "icon": "spell_nature_healingtouch",
      "needs": null
     },
     "Nature's Swiftness": {
@@ -10181,6 +11363,10 @@
      "row": 4,
      "col": 2,
      "spell": 16188,
+     "defs": [
+      134187
+     ],
+     "icon": "spell_nature_ravenform",
      "needs": null
     },
     "Purification": {
@@ -10189,6 +11375,10 @@
      "row": 5,
      "col": 2,
      "spell": 16178,
+     "defs": [
+      134186
+     ],
+     "icon": "spell_frost_wizardmark",
      "needs": null
     },
     "Rage of the Farseer": {
@@ -10197,6 +11387,10 @@
      "row": 6,
      "col": 1,
      "spell": 425336,
+     "defs": [
+      134201
+     ],
+     "icon": "spell_nature_bloodlust",
      "needs": "Mental Quickness"
     },
     "Restorative Totems": {
@@ -10205,6 +11399,10 @@
      "row": 3,
      "col": 1,
      "spell": 16187,
+     "defs": [
+      134191
+     ],
+     "icon": "spell_nature_manaregentotem",
      "needs": null
     },
     "Reverberation": {
@@ -10213,6 +11411,10 @@
      "row": 1,
      "col": 1,
      "spell": 16040,
+     "defs": [
+      134228
+     ],
+     "icon": "spell_frost_frostward",
      "needs": null
     },
     "Riptide": {
@@ -10221,6 +11423,10 @@
      "row": 6,
      "col": 1,
      "spell": 408521,
+     "defs": [
+      134185
+     ],
+     "icon": "spell_nature_riptide",
      "needs": "Healing Way"
     },
     "Shamanistic Focus": {
@@ -10229,6 +11435,10 @@
      "row": 2,
      "col": 2,
      "spell": 1223030,
+     "defs": [
+      134210
+     ],
+     "icon": "spell_nature_elementalabsorption",
      "needs": null
     },
     "Spirit Weapons": {
@@ -10237,6 +11447,10 @@
      "row": 4,
      "col": 0,
      "spell": 16268,
+     "defs": [
+      134206
+     ],
+     "icon": "ability_parry",
      "needs": null
     },
     "Stormstrike": {
@@ -10245,6 +11459,10 @@
      "row": 3,
      "col": 2,
      "spell": 17364,
+     "defs": [
+      134204
+     ],
+     "icon": "ability_shaman_stormstrike",
      "needs": null
     },
     "Thundering Strikes": {
@@ -10253,6 +11471,10 @@
      "row": 0,
      "col": 1,
      "spell": 16255,
+     "defs": [
+      134214
+     ],
+     "icon": "ability_thunderbolt",
      "needs": null
     },
     "Tidal Focus": {
@@ -10261,6 +11483,10 @@
      "row": 0,
      "col": 2,
      "spell": 16179,
+     "defs": [
+      134190
+     ],
+     "icon": "spell_frost_manarecharge",
      "needs": null
     },
     "Tidal Mastery": {
@@ -10269,6 +11495,10 @@
      "row": 3,
      "col": 0,
      "spell": 16194,
+     "defs": [
+      134199
+     ],
+     "icon": "spell_nature_tranquility",
      "needs": null
     },
     "Totemic Focus": {
@@ -10277,6 +11507,10 @@
      "row": 1,
      "col": 2,
      "spell": 16173,
+     "defs": [
+      134196
+     ],
+     "icon": "spell_nature_moonglow",
      "needs": null
     },
     "Toughness": {
@@ -10285,6 +11519,10 @@
      "row": 3,
      "col": 0,
      "spell": 16252,
+     "defs": [
+      134207
+     ],
+     "icon": "spell_holy_devotion",
      "needs": null
     },
     "Trial by Fire": {
@@ -10293,6 +11531,10 @@
      "row": 3,
      "col": 0,
      "spell": 16086,
+     "defs": [
+      134225
+     ],
+     "icon": "spell_fire_sealoffire",
      "needs": null
     },
     "Water Shield": {
@@ -10301,6 +11543,10 @@
      "row": 2,
      "col": 2,
      "spell": 408510,
+     "defs": [
+      134193
+     ],
+     "icon": "ability_shaman_watershield",
      "needs": null
     }
    }
@@ -11785,6 +13031,10 @@
      "row": 0,
      "col": 2,
      "spell": 11069,
+     "defs": [
+      135325
+     ],
+     "icon": "spell_fire_flamebolt",
      "needs": null
     },
     "Arcane Blast": {
@@ -11793,6 +13043,10 @@
      "row": 2,
      "col": 3,
      "spell": 400574,
+     "defs": [
+      135336
+     ],
+     "icon": "spell_arcane_blast",
      "needs": null
     },
     "Arcane Concentration": {
@@ -11801,6 +13055,10 @@
      "row": 1,
      "col": 2,
      "spell": 11213,
+     "defs": [
+      135340
+     ],
+     "icon": "spell_shadow_manaburn",
      "needs": null
     },
     "Arcane Geometry": {
@@ -11809,6 +13067,10 @@
      "row": 2,
      "col": 0,
      "spell": 11247,
+     "defs": [
+      135338
+     ],
+     "icon": "inv_ability_mage_radiantspark",
      "needs": null
     },
     "Arcane Impact": {
@@ -11817,6 +13079,10 @@
      "row": 2,
      "col": 1,
      "spell": 11242,
+     "defs": [
+      135337
+     ],
+     "icon": "spell_nature_wispsplode",
      "needs": null
     },
     "Arcane Instability": {
@@ -11825,6 +13091,10 @@
      "row": 5,
      "col": 2,
      "spell": 15058,
+     "defs": [
+      135329
+     ],
+     "icon": "spell_shadow_teleport",
      "needs": null
     },
     "Arcane Meditation": {
@@ -11833,6 +13103,10 @@
      "row": 3,
      "col": 2,
      "spell": 18462,
+     "defs": [
+      135333
+     ],
+     "icon": "spell_shadow_siphonmana",
      "needs": "Arcane Concentration"
     },
     "Arcane Mind": {
@@ -11841,6 +13115,10 @@
      "row": 4,
      "col": 2,
      "spell": 11232,
+     "defs": [
+      135330
+     ],
+     "icon": "spell_shadow_charm",
      "needs": null
     },
     "Arcane Power": {
@@ -11849,6 +13127,10 @@
      "row": 6,
      "col": 1,
      "spell": 12042,
+     "defs": [
+      135328
+     ],
+     "icon": "spell_nature_lightning",
      "needs": "Presence of Mind"
     },
     "Arcane Resilience": {
@@ -11857,6 +13139,10 @@
      "row": 0,
      "col": 2,
      "spell": 28574,
+     "defs": [
+      135332
+     ],
+     "icon": "spell_arcane_arcaneresilience",
      "needs": null
     },
     "Arcane Shielding": {
@@ -11865,6 +13151,10 @@
      "row": 3,
      "col": 0,
      "spell": 11252,
+     "defs": [
+      135335
+     ],
+     "icon": "spell_shadow_detectlesserinvisibility",
      "needs": null
     },
     "Arcane Subtlety": {
@@ -11873,6 +13163,10 @@
      "row": 1,
      "col": 0,
      "spell": 11210,
+     "defs": [
+      135342
+     ],
+     "icon": "spell_holy_dispelmagic",
      "needs": null
     },
     "Arcane Wrath": {
@@ -11881,6 +13175,10 @@
      "row": 3,
      "col": 3,
      "spell": 1326079,
+     "defs": [
+      145958
+     ],
+     "icon": "ability_mage_netherwindpresence",
      "needs": "Arcane Blast"
     },
     "Arctic Reach": {
@@ -11889,6 +13187,10 @@
      "row": 3,
      "col": 0,
      "spell": 16757,
+     "defs": [
+      135300
+     ],
+     "icon": "spell_shadow_darkritual",
      "needs": null
     },
     "Blast Wave": {
@@ -11897,6 +13199,10 @@
      "row": 4,
      "col": 2,
      "spell": 11113,
+     "defs": [
+      135313
+     ],
+     "icon": "spell_holy_excorcism_02",
      "needs": null
     },
     "Burning Soul": {
@@ -11905,6 +13211,10 @@
      "row": 2,
      "col": 0,
      "spell": 11083,
+     "defs": [
+      135319
+     ],
+     "icon": "spell_fire_fire",
      "needs": null
     },
     "Cold Snap": {
@@ -11913,6 +13223,10 @@
      "row": 4,
      "col": 1,
      "spell": 12472,
+     "defs": [
+      135296
+     ],
+     "icon": "spell_frost_wizardmark",
      "needs": null
     },
     "Combustion": {
@@ -11921,6 +13235,10 @@
      "row": 6,
      "col": 1,
      "spell": 11129,
+     "defs": [
+      135311
+     ],
+     "icon": "spell_fire_sealoffire",
      "needs": "Critical Mass"
     },
     "Critical Mass": {
@@ -11929,6 +13247,10 @@
      "row": 4,
      "col": 1,
      "spell": 11115,
+     "defs": [
+      135314
+     ],
+     "icon": "spell_nature_wispheal",
      "needs": null
     },
     "Fingers of Frost": {
@@ -11937,6 +13259,10 @@
      "row": 4,
      "col": 2,
      "spell": 400647,
+     "defs": [
+      135294
+     ],
+     "icon": "ability_mage_wintersgrasp",
      "needs": "Ice Lance"
     },
     "Fire Power": {
@@ -11945,6 +13271,10 @@
      "row": 5,
      "col": 2,
      "spell": 11124,
+     "defs": [
+      135312
+     ],
+     "icon": "spell_fire_immolation",
      "needs": null
     },
     "Flame Throwing": {
@@ -11953,6 +13283,10 @@
      "row": 1,
      "col": 1,
      "spell": 11100,
+     "defs": [
+      135323
+     ],
+     "icon": "spell_fire_flare",
      "needs": null
     },
     "Frost Channeling": {
@@ -11961,6 +13295,10 @@
      "row": 2,
      "col": 0,
      "spell": 11160,
+     "defs": [
+      135302
+     ],
+     "icon": "spell_frost_stun",
      "needs": null
     },
     "Frost Warding": {
@@ -11969,6 +13307,10 @@
      "row": 0,
      "col": 0,
      "spell": 11189,
+     "defs": [
+      135310
+     ],
+     "icon": "spell_frost_frostward",
      "needs": null
     },
     "Frostbite": {
@@ -11977,6 +13319,10 @@
      "row": 1,
      "col": 1,
      "spell": 11071,
+     "defs": [
+      135304
+     ],
+     "icon": "spell_frost_frostarmor",
      "needs": null
     },
     "Heating Up": {
@@ -11985,6 +13331,10 @@
      "row": 3,
      "col": 2,
      "spell": 400624,
+     "defs": [
+      135316
+     ],
+     "icon": "spell_fire_firebolt",
      "needs": "Pyroblast"
     },
     "Ice Barrier": {
@@ -11993,6 +13343,10 @@
      "row": 6,
      "col": 1,
      "spell": 11426,
+     "defs": [
+      135292
+     ],
+     "icon": "spell_ice_lament",
      "needs": "Cold Snap"
     },
     "Ice Block": {
@@ -12001,6 +13355,10 @@
      "row": 3,
      "col": 1,
      "spell": 11958,
+     "defs": [
+      135299
+     ],
+     "icon": "spell_frost_frost",
      "needs": null
     },
     "Ice Lance": {
@@ -12009,6 +13367,10 @@
      "row": 2,
      "col": 2,
      "spell": 1312002,
+     "defs": [
+      135297
+     ],
+     "icon": "spell_frost_frostblast",
      "needs": null
     },
     "Ice Shards": {
@@ -12017,6 +13379,10 @@
      "row": 1,
      "col": 0,
      "spell": 11207,
+     "defs": [
+      135307
+     ],
+     "icon": "spell_frost_iceshard",
      "needs": null
     },
     "Ignite": {
@@ -12025,6 +13391,10 @@
      "row": 1,
      "col": 0,
      "spell": 11119,
+     "defs": [
+      135324
+     ],
+     "icon": "spell_fire_incinerate",
      "needs": null
     },
     "Impact": {
@@ -12033,6 +13403,10 @@
      "row": 1,
      "col": 2,
      "spell": 11103,
+     "defs": [
+      135322
+     ],
+     "icon": "spell_fire_meteorstorm",
      "needs": null
     },
     "Improved Blizzard": {
@@ -12041,6 +13415,10 @@
      "row": 2,
      "col": 1,
      "spell": 11185,
+     "defs": [
+      135301
+     ],
+     "icon": "spell_frost_icestorm",
      "needs": null
     },
     "Improved Channeling": {
@@ -12049,6 +13427,10 @@
      "row": 0,
      "col": 1,
      "spell": 11237,
+     "defs": [
+      135343
+     ],
+     "icon": "spell_nature_starfall",
      "needs": null
     },
     "Improved Cone of Cold": {
@@ -12057,6 +13439,10 @@
      "row": 4,
      "col": 0,
      "spell": 11190,
+     "defs": [
+      135295
+     ],
+     "icon": "spell_frost_glacier",
      "needs": null
     },
     "Improved Counterspell": {
@@ -12065,6 +13451,10 @@
      "row": 3,
      "col": 1,
      "spell": 11255,
+     "defs": [
+      135334
+     ],
+     "icon": "spell_frost_iceshock",
      "needs": null
     },
     "Improved Fire Blast": {
@@ -12073,6 +13463,10 @@
      "row": 2,
      "col": 3,
      "spell": 11078,
+     "defs": [
+      135327
+     ],
+     "icon": "spell_fire_lavaspawn",
      "needs": null
     },
     "Improved Fire Ward": {
@@ -12081,6 +13475,10 @@
      "row": 3,
      "col": 1,
      "spell": 11094,
+     "defs": [
+      135317
+     ],
+     "icon": "spell_fire_firearmor",
      "needs": null
     },
     "Improved Flamestrike": {
@@ -12089,6 +13487,10 @@
      "row": 2,
      "col": 1,
      "spell": 11108,
+     "defs": [
+      135321
+     ],
+     "icon": "spell_fire_selfdestruct",
      "needs": null
     },
     "Improved Frost Nova": {
@@ -12097,6 +13499,10 @@
      "row": 1,
      "col": 2,
      "spell": 11165,
+     "defs": [
+      135305
+     ],
+     "icon": "spell_frost_freezingbreath",
      "needs": null
     },
     "Improved Frostbolt": {
@@ -12105,6 +13511,10 @@
      "row": 0,
      "col": 1,
      "spell": 11070,
+     "defs": [
+      135309
+     ],
+     "icon": "spell_frost_frostbolt02",
      "needs": null
     },
     "Improved Scorch": {
@@ -12113,6 +13523,10 @@
      "row": 3,
      "col": 0,
      "spell": 11095,
+     "defs": [
+      135318
+     ],
+     "icon": "spell_fire_soulburn",
      "needs": null
     },
     "Incineration": {
@@ -12121,6 +13535,10 @@
      "row": 0,
      "col": 1,
      "spell": 18459,
+     "defs": [
+      135326
+     ],
+     "icon": "spell_fire_flameshock",
      "needs": null
     },
     "Magic Absorption": {
@@ -12129,6 +13547,10 @@
      "row": 1,
      "col": 1,
      "spell": 29441,
+     "defs": [
+      135341
+     ],
+     "icon": "spell_nature_astralrecalgroup",
      "needs": null
     },
     "Master of Elements": {
@@ -12137,6 +13559,10 @@
      "row": 3,
      "col": 3,
      "spell": 29074,
+     "defs": [
+      135315
+     ],
+     "icon": "spell_fire_masterofelements",
      "needs": null
     },
     "Missile Barrage": {
@@ -12145,6 +13571,10 @@
      "row": 1,
      "col": 3,
      "spell": 400588,
+     "defs": [
+      135339
+     ],
+     "icon": "ability_mage_missilebarrage",
      "needs": null
     },
     "Permafrost": {
@@ -12153,6 +13583,10 @@
      "row": 1,
      "col": 3,
      "spell": 11175,
+     "defs": [
+      135306
+     ],
+     "icon": "spell_frost_wisp",
      "needs": null
     },
     "Precision": {
@@ -12161,6 +13595,10 @@
      "row": 0,
      "col": 2,
      "spell": 29438,
+     "defs": [
+      135308
+     ],
+     "icon": "spell_ice_magicdamage",
      "needs": null
     },
     "Presence of Mind": {
@@ -12169,6 +13607,10 @@
      "row": 4,
      "col": 1,
      "spell": 12043,
+     "defs": [
+      135331
+     ],
+     "icon": "spell_nature_enchantarmor",
      "needs": null
     },
     "Pyroblast": {
@@ -12177,6 +13619,10 @@
      "row": 2,
      "col": 2,
      "spell": 11366,
+     "defs": [
+      135320
+     ],
+     "icon": "spell_fire_fireball02",
      "needs": null
     },
     "Shatter": {
@@ -12185,6 +13631,10 @@
      "row": 3,
      "col": 3,
      "spell": 11170,
+     "defs": [
+      135298
+     ],
+     "icon": "spell_frost_frostshock",
      "needs": null
     },
     "Wand Specialization": {
@@ -12193,6 +13643,10 @@
      "row": 0,
      "col": 0,
      "spell": 6057,
+     "defs": [
+      135345
+     ],
+     "icon": "inv_wand_01",
      "needs": null
     },
     "Winter's Chill": {
@@ -12201,6 +13655,10 @@
      "row": 5,
      "col": 2,
      "spell": 11180,
+     "defs": [
+      135293
+     ],
+     "icon": "spell_frost_chillingblast",
      "needs": null
     }
    }
@@ -13570,6 +15028,10 @@
      "row": 1,
      "col": 2,
      "spell": 18119,
+     "defs": [
+      135417
+     ],
+     "icon": "spell_fire_fire",
      "needs": null
     },
     "Agonizing Flames": {
@@ -13578,6 +15040,10 @@
      "row": 3,
      "col": 1,
      "spell": 17927,
+     "defs": [
+      135410
+     ],
+     "icon": "spell_fire_soulburn",
      "needs": null
     },
     "Amplify Curse": {
@@ -13586,6 +15052,10 @@
      "row": 2,
      "col": 2,
      "spell": 18288,
+     "defs": [
+      135447
+     ],
+     "icon": "spell_shadow_contagion",
      "needs": null
     },
     "Bane": {
@@ -13594,6 +15064,10 @@
      "row": 0,
      "col": 2,
      "spell": 17788,
+     "defs": [
+      135419
+     ],
+     "icon": "spell_shadow_deathpact",
      "needs": null
     },
     "Bane of Havoc": {
@@ -13602,6 +15076,10 @@
      "row": 4,
      "col": 1,
      "spell": 1225228,
+     "defs": [
+      135407
+     ],
+     "icon": "ability_warlock_baneofhavoc",
      "needs": null
     },
     "Cataclysm": {
@@ -13610,6 +15088,10 @@
      "row": 1,
      "col": 1,
      "spell": 17778,
+     "defs": [
+      135418
+     ],
+     "icon": "spell_fire_windsofwoe",
      "needs": null
     },
     "Conflagrate": {
@@ -13618,6 +15100,10 @@
      "row": 3,
      "col": 2,
      "spell": 1293817,
+     "defs": [
+      135411
+     ],
+     "icon": "spell_fire_fireball",
      "needs": null
     },
     "Curse of Exhaustion": {
@@ -13626,6 +15112,10 @@
      "row": 3,
      "col": 2,
      "spell": 18223,
+     "defs": [
+      135444
+     ],
+     "icon": "spell_shadow_grimward",
      "needs": "Amplify Curse"
     },
     "Decimation": {
@@ -13634,6 +15124,10 @@
      "row": 3,
      "col": 0,
      "spell": 440870,
+     "defs": [
+      135428
+     ],
+     "icon": "spell_fire_fireball02",
      "needs": null
     },
     "Demonic Aegis": {
@@ -13642,6 +15136,10 @@
      "row": 1,
      "col": 0,
      "spell": 1235316,
+     "defs": [
+      135433
+     ],
+     "icon": "spell_shadow_ragingscream",
      "needs": null
     },
     "Demonic Brand": {
@@ -13650,6 +15148,10 @@
      "row": 3,
      "col": 3,
      "spell": 1293695,
+     "defs": [
+      135427
+     ],
+     "icon": "ability_demonhunter_chaoticimprint_fire",
      "needs": null
     },
     "Demonic Embrace": {
@@ -13658,6 +15160,10 @@
      "row": 0,
      "col": 2,
      "spell": 18697,
+     "defs": [
+      135438
+     ],
+     "icon": "spell_shadow_metamorphosis",
      "needs": null
     },
     "Demonic Energies": {
@@ -13666,6 +15172,10 @@
      "row": 1,
      "col": 3,
      "spell": 1225214,
+     "defs": [
+      135430
+     ],
+     "icon": "spell_shadow_felmending",
      "needs": null
     },
     "Demonic Knowledge": {
@@ -13674,6 +15184,10 @@
      "row": 4,
      "col": 2,
      "spell": 412732,
+     "defs": [
+      135424
+     ],
+     "icon": "spell_shadow_improvedvampiricembrace",
      "needs": null
     },
     "Demonic Pact": {
@@ -13682,6 +15196,10 @@
      "row": 6,
      "col": 1,
      "spell": 425464,
+     "defs": [
+      135421
+     ],
+     "icon": "inv_ability_soulharvesterwarlock_demonicsoul",
      "needs": "Soul Link"
     },
     "Demonic Sacrifice": {
@@ -13690,6 +15208,10 @@
      "row": 2,
      "col": 1,
      "spell": 18788,
+     "defs": [
+      135431
+     ],
+     "icon": "spell_shadow_psychicscream",
      "needs": null
     },
     "Destructive Reach": {
@@ -13698,6 +15220,10 @@
      "row": 0,
      "col": 0,
      "spell": 17917,
+     "defs": [
+      135412
+     ],
+     "icon": "spell_shadow_corpseexplode",
      "needs": null
     },
     "Fel Concentration": {
@@ -13706,6 +15232,10 @@
      "row": 2,
      "col": 1,
      "spell": 17783,
+     "defs": [
+      135449
+     ],
+     "icon": "spell_shadow_fingerofdeath",
      "needs": null
     },
     "Fel Domination": {
@@ -13714,6 +15244,10 @@
      "row": 3,
      "col": 2,
      "spell": 18708,
+     "defs": [
+      135426
+     ],
+     "icon": "spell_nature_removecurse",
      "needs": "Master Summoner"
     },
     "Fel Vitality": {
@@ -13722,6 +15256,10 @@
      "row": 1,
      "col": 2,
      "spell": 18731,
+     "defs": [
+      135434
+     ],
+     "icon": "spell_shadow_demonictactics",
      "needs": null
     },
     "Fire and Brimstone": {
@@ -13730,6 +15268,10 @@
      "row": 4,
      "col": 2,
      "spell": 412751,
+     "defs": [
+      135408
+     ],
+     "icon": "spell_fire_meteorstorm",
      "needs": "Conflagrate"
     },
     "Grim Reach": {
@@ -13738,6 +15280,10 @@
      "row": 1,
      "col": 0,
      "spell": 18218,
+     "defs": [
+      135454
+     ],
+     "icon": "spell_shadow_callofbone",
      "needs": null
     },
     "Improved Bane of Agony": {
@@ -13746,6 +15292,10 @@
      "row": 2,
      "col": 0,
      "spell": 18827,
+     "defs": [
+      135450
+     ],
+     "icon": "spell_shadow_curseofsargeras",
      "needs": null
     },
     "Improved Corruption": {
@@ -13754,6 +15304,10 @@
      "row": 0,
      "col": 2,
      "spell": 17810,
+     "defs": [
+      135455
+     ],
+     "icon": "spell_shadow_abominationexplosion",
      "needs": null
     },
     "Improved Drains": {
@@ -13762,6 +15316,10 @@
      "row": 1,
      "col": 2,
      "spell": 403511,
+     "defs": [
+      135451
+     ],
+     "icon": "spell_shadow_haunting",
      "needs": null
     },
     "Improved Felhunter": {
@@ -13770,6 +15328,10 @@
      "row": 4,
      "col": 0,
      "spell": 1225217,
+     "defs": [
+      135425
+     ],
+     "icon": "spell_shadow_summonfelhunter",
      "needs": null
     },
     "Improved Health Funnel": {
@@ -13778,6 +15340,10 @@
      "row": 0,
      "col": 0,
      "spell": 18703,
+     "defs": [
+      135436
+     ],
+     "icon": "spell_shadow_lifedrain",
      "needs": null
     },
     "Improved Imp": {
@@ -13786,6 +15352,10 @@
      "row": 0,
      "col": 1,
      "spell": 18694,
+     "defs": [
+      135439
+     ],
+     "icon": "spell_shadow_summonimp",
      "needs": null
     },
     "Improved Life Tap": {
@@ -13794,6 +15364,10 @@
      "row": 0,
      "col": 0,
      "spell": 18182,
+     "defs": [
+      135452
+     ],
+     "icon": "spell_shadow_burningspirit",
      "needs": null
     },
     "Improved Sayaad": {
@@ -13802,6 +15376,10 @@
      "row": 2,
      "col": 0,
      "spell": 18754,
+     "defs": [
+      135432
+     ],
+     "icon": "ability_warlock_randomizesuccubusincubus",
      "needs": null
     },
     "Improved Shadow Bolt": {
@@ -13810,6 +15388,10 @@
      "row": 0,
      "col": 1,
      "spell": 17793,
+     "defs": [
+      135420
+     ],
+     "icon": "spell_shadow_shadowbolt",
      "needs": null
     },
     "Improved Voidwalker": {
@@ -13818,6 +15400,10 @@
      "row": 1,
      "col": 1,
      "spell": 18705,
+     "defs": [
+      135435
+     ],
+     "icon": "spell_shadow_summonvoidwalker",
      "needs": null
     },
     "Incinerate": {
@@ -13826,6 +15412,10 @@
      "row": 6,
      "col": 1,
      "spell": 412758,
+     "defs": [
+      135405
+     ],
+     "icon": "spell_fire_burnout",
      "needs": "Bane of Havoc"
     },
     "Intensity": {
@@ -13834,6 +15424,10 @@
      "row": 3,
      "col": 0,
      "spell": 18135,
+     "defs": [
+      135413
+     ],
+     "icon": "spell_fire_lavaspawn",
      "needs": null
     },
     "Malevolence": {
@@ -13842,6 +15436,10 @@
      "row": 3,
      "col": 0,
      "spell": 1310949,
+     "defs": [
+      142628
+     ],
+     "icon": "spell_shadow_focusedpower",
      "needs": null
     },
     "Master Demonologist": {
@@ -13850,6 +15448,10 @@
      "row": 5,
      "col": 2,
      "spell": 23785,
+     "defs": [
+      135422
+     ],
+     "icon": "spell_shadow_shadowpact",
      "needs": null
     },
     "Master Summoner": {
@@ -13858,6 +15460,10 @@
      "row": 2,
      "col": 2,
      "spell": 18709,
+     "defs": [
+      135429
+     ],
+     "icon": "spell_shadow_impphaseshift",
      "needs": null
     },
     "Molten Skin": {
@@ -13866,6 +15472,10 @@
      "row": 1,
      "col": 0,
      "spell": 1225220,
+     "defs": [
+      135416
+     ],
+     "icon": "ability_mage_moltenarmor",
      "needs": null
     },
     "Nightfall": {
@@ -13874,6 +15484,10 @@
      "row": 3,
      "col": 1,
      "spell": 18094,
+     "defs": [
+      135445
+     ],
+     "icon": "spell_shadow_twilight",
      "needs": null
     },
     "Pandemic": {
@@ -13882,6 +15496,10 @@
      "row": 2,
      "col": 3,
      "spell": 427712,
+     "defs": [
+      135448
+     ],
+     "icon": "spell_shadow_unstableaffliction_2",
      "needs": null
     },
     "Pyroclasm": {
@@ -13890,6 +15508,10 @@
      "row": 4,
      "col": 0,
      "spell": 18073,
+     "defs": [
+      135409
+     ],
+     "icon": "spell_fire_volcano",
      "needs": "Intensity"
     },
     "Ruin": {
@@ -13898,6 +15520,10 @@
      "row": 2,
      "col": 1,
      "spell": 17959,
+     "defs": [
+      135414
+     ],
+     "icon": "spell_shadow_shadowwordpain",
      "needs": null
     },
     "Shadow Mastery": {
@@ -13906,6 +15532,10 @@
      "row": 5,
      "col": 2,
      "spell": 18271,
+     "defs": [
+      135441
+     ],
+     "icon": "spell_shadow_shadetruesight",
      "needs": null
     },
     "Shadow and Flame": {
@@ -13914,6 +15544,10 @@
      "row": 5,
      "col": 2,
      "spell": 426316,
+     "defs": [
+      135406
+     ],
+     "icon": "spell_fire_playingwithfire",
      "needs": null
     },
     "Shadowburn": {
@@ -13922,6 +15556,10 @@
      "row": 2,
      "col": 2,
      "spell": 17877,
+     "defs": [
+      135415
+     ],
+     "icon": "spell_shadow_scourgebuild",
      "needs": null
     },
     "Siphon Life": {
@@ -13930,6 +15568,10 @@
      "row": 4,
      "col": 1,
      "spell": 18265,
+     "defs": [
+      135443
+     ],
+     "icon": "spell_shadow_requiem",
      "needs": null
     },
     "Soul Harvest": {
@@ -13938,6 +15580,10 @@
      "row": 1,
      "col": 1,
      "spell": 437032,
+     "defs": [
+      135453
+     ],
+     "icon": "inv_elemental_primal_shadow",
      "needs": null
     },
     "Soul Link": {
@@ -13946,6 +15592,10 @@
      "row": 4,
      "col": 1,
      "spell": 19028,
+     "defs": [
+      135423
+     ],
+     "icon": "spell_shadow_gathershadows",
      "needs": "Demonic Sacrifice"
     },
     "Soul Siphon": {
@@ -13954,6 +15604,10 @@
      "row": 4,
      "col": 2,
      "spell": 17804,
+     "defs": [
+      135442
+     ],
+     "icon": "spell_shadow_lifedrain02",
      "needs": null
     },
     "Suppression": {
@@ -13962,6 +15616,10 @@
      "row": 0,
      "col": 1,
      "spell": 18174,
+     "defs": [
+      135456
+     ],
+     "icon": "spell_shadow_unsummonbuilding",
      "needs": null
     },
     "Unholy Power": {
@@ -13970,6 +15628,10 @@
      "row": 0,
      "col": 3,
      "spell": 18769,
+     "defs": [
+      135437
+     ],
+     "icon": "spell_shadow_shadowworddominate",
      "needs": null
     },
     "Wrack": {
@@ -13978,6 +15640,10 @@
      "row": 6,
      "col": 1,
      "spell": 1316697,
+     "defs": [
+      135440
+     ],
+     "icon": "ability_deathknight_hemorrhagicfever",
      "needs": "Siphon Life"
     }
    }
@@ -15640,6 +17306,10 @@
      "row": 3,
      "col": 3,
      "spell": 16958,
+     "defs": [
+      134408
+     ],
+     "icon": "ability_ghoulfrenzy",
      "needs": "Sharpened Claws"
     },
     "Bloom": {
@@ -15648,6 +17318,10 @@
      "row": 2,
      "col": 3,
      "spell": 1328621,
+     "defs": [
+      134379
+     ],
+     "icon": "inv_misc_herb_felblossom",
      "needs": null
     },
     "Brutal Impact": {
@@ -15656,6 +17330,10 @@
      "row": 1,
      "col": 2,
      "spell": 16940,
+     "defs": [
+      134402
+     ],
+     "icon": "ability_druid_bash",
      "needs": null
     },
     "Dreamstate": {
@@ -15664,6 +17342,10 @@
      "row": 5,
      "col": 1,
      "spell": 408258,
+     "defs": [
+      134397
+     ],
+     "icon": "ability_druid_dreamstate",
      "needs": null
     },
     "Eclipse": {
@@ -15672,6 +17354,10 @@
      "row": 4,
      "col": 2,
      "spell": 408248,
+     "defs": [
+      134396
+     ],
+     "icon": "ability_druid_eclipse",
      "needs": null
     },
     "Feral Charge": {
@@ -15680,6 +17366,10 @@
      "row": 2,
      "col": 2,
      "spell": 1238122,
+     "defs": [
+      134405
+     ],
+     "icon": "ability_hunter_pet_bear",
      "needs": null
     },
     "Feral Instinct": {
@@ -15688,6 +17378,10 @@
      "row": 1,
      "col": 1,
      "spell": 16947,
+     "defs": [
+      134401
+     ],
+     "icon": "ability_ambush",
      "needs": null
     },
     "Feral Swiftness": {
@@ -15696,6 +17390,10 @@
      "row": 1,
      "col": 0,
      "spell": 17002,
+     "defs": [
+      134404
+     ],
+     "icon": "spell_nature_spiritwolf",
      "needs": null
     },
     "Ferocity": {
@@ -15704,6 +17402,10 @@
      "row": 0,
      "col": 1,
      "spell": 16934,
+     "defs": [
+      134399
+     ],
+     "icon": "ability_hunter_pet_hyena",
      "needs": null
     },
     "Furor": {
@@ -15712,6 +17414,10 @@
      "row": 0,
      "col": 2,
      "spell": 17056,
+     "defs": [
+      134400
+     ],
+     "icon": "spell_holy_blessingofstamina",
      "needs": null
     },
     "Genesis": {
@@ -15720,6 +17426,10 @@
      "row": 0,
      "col": 2,
      "spell": 1223081,
+     "defs": [
+      134385
+     ],
+     "icon": "spell_arcane_arcane03",
      "needs": null
     },
     "Gift of Nature": {
@@ -15728,6 +17438,10 @@
      "row": 2,
      "col": 2,
      "spell": 17104,
+     "defs": [
+      134377
+     ],
+     "icon": "spell_nature_protectionformnature",
      "needs": null
     },
     "Heart of the Wild": {
@@ -15736,6 +17450,10 @@
      "row": 0,
      "col": 2,
      "spell": 17003,
+     "defs": [
+      134419
+     ],
+     "icon": "spell_holy_blessingofagility",
      "needs": null
     },
     "Improved Entangling Roots": {
@@ -15744,6 +17462,10 @@
      "row": 2,
      "col": 0,
      "spell": 16918,
+     "defs": [
+      134387
+     ],
+     "icon": "spell_nature_stranglevines",
      "needs": null
     },
     "Improved Regrowth": {
@@ -15752,6 +17474,10 @@
      "row": 5,
      "col": 2,
      "spell": 17074,
+     "defs": [
+      134374
+     ],
+     "icon": "spell_nature_resistnature",
      "needs": "Improved Rejuvenation"
     },
     "Improved Rejuvenation": {
@@ -15760,6 +17486,10 @@
      "row": 3,
      "col": 2,
      "spell": 17111,
+     "defs": [
+      134375
+     ],
+     "icon": "spell_nature_rejuvenation",
      "needs": null
     },
     "Improved Starfire": {
@@ -15768,6 +17498,10 @@
      "row": 3,
      "col": 2,
      "spell": 16850,
+     "defs": [
+      134394
+     ],
+     "icon": "spell_arcane_starfire",
      "needs": null
     },
     "Improved Tranquility": {
@@ -15776,6 +17510,10 @@
      "row": 4,
      "col": 3,
      "spell": 17123,
+     "defs": [
+      134370
+     ],
+     "icon": "spell_nature_tranquility",
      "needs": null
     },
     "Insect Swarm": {
@@ -15784,6 +17522,10 @@
      "row": 3,
      "col": 0,
      "spell": 5570,
+     "defs": [
+      134391
+     ],
+     "icon": "spell_nature_insectswarm",
      "needs": null
     },
     "Lacerate": {
@@ -15792,6 +17534,10 @@
      "row": 3,
      "col": 1,
      "spell": 1328617,
+     "defs": [
+      134410
+     ],
+     "icon": "ability_druid_lacerate",
      "needs": "Savage Fury"
     },
     "Leader of the Pack": {
@@ -15800,6 +17546,10 @@
      "row": 4,
      "col": 1,
      "spell": 17007,
+     "defs": [
+      134416
+     ],
+     "icon": "spell_nature_unyeildingstamina",
      "needs": null
     },
     "Living Spirit": {
@@ -15808,6 +17558,10 @@
      "row": 4,
      "col": 1,
      "spell": 1309631,
+     "defs": [
+      134372
+     ],
+     "icon": "spell_nature_giftofthewaterspirit",
      "needs": null
     },
     "Moon and Stars": {
@@ -15816,6 +17570,10 @@
      "row": 1,
      "col": 1,
      "spell": 16821,
+     "defs": [
+      134392
+     ],
+     "icon": "spell_nature_starfall",
      "needs": null
     },
     "Moonglow": {
@@ -15824,6 +17582,10 @@
      "row": 1,
      "col": 0,
      "spell": 16845,
+     "defs": [
+      134386
+     ],
+     "icon": "spell_nature_sentinal",
      "needs": null
     },
     "Moonkin Form": {
@@ -15832,6 +17594,10 @@
      "row": 6,
      "col": 1,
      "spell": 24858,
+     "defs": [
+      134398
+     ],
+     "icon": "spell_nature_forceofnature",
      "needs": null
     },
     "Natural Instinct": {
@@ -15840,6 +17606,10 @@
      "row": 4,
      "col": 3,
      "spell": 1223242,
+     "defs": [
+      134411
+     ],
+     "icon": "ability_druid_predatoryinstincts",
      "needs": null
     },
     "Natural Reaction": {
@@ -15848,6 +17618,10 @@
      "row": 5,
      "col": 3,
      "spell": 417051,
+     "defs": [
+      134415
+     ],
+     "icon": "ability_bullrush",
      "needs": null
     },
     "Natural Shapeshifter": {
@@ -15856,6 +17630,10 @@
      "row": 1,
      "col": 2,
      "spell": 16833,
+     "defs": [
+      134380
+     ],
+     "icon": "spell_nature_wispsplode",
      "needs": null
     },
     "Naturalist": {
@@ -15864,6 +17642,10 @@
      "row": 1,
      "col": 0,
      "spell": 17069,
+     "defs": [
+      134383
+     ],
+     "icon": "spell_nature_healingtouch",
      "needs": null
     },
     "Nature's Focus": {
@@ -15872,6 +17654,10 @@
      "row": 0,
      "col": 1,
      "spell": 17063,
+     "defs": [
+      134418
+     ],
+     "icon": "spell_nature_healingwavegreater",
      "needs": null
     },
     "Nature's Grace": {
@@ -15880,6 +17666,10 @@
      "row": 4,
      "col": 1,
      "spell": 16880,
+     "defs": [
+      134395
+     ],
+     "icon": "spell_nature_naturesblessing",
      "needs": null
     },
     "Nature's Majesty": {
@@ -15888,6 +17678,10 @@
      "row": 1,
      "col": 2,
      "spell": 1223082,
+     "defs": [
+      134388
+     ],
+     "icon": "inv_staff_01",
      "needs": null
     },
     "Nature's Reach": {
@@ -15896,6 +17690,10 @@
      "row": 1,
      "col": 3,
      "spell": 16819,
+     "defs": [
+      134390
+     ],
+     "icon": "spell_nature_naturetouchgrow",
      "needs": null
     },
     "Nature's Splendor": {
@@ -15904,6 +17702,10 @@
      "row": 2,
      "col": 2,
      "spell": 1223083,
+     "defs": [
+      134389
+     ],
+     "icon": "spell_nature_natureresistancetotem",
      "needs": "Nature's Majesty"
     },
     "Nature's Swiftness": {
@@ -15912,6 +17714,10 @@
      "row": 4,
      "col": 0,
      "spell": 17116,
+     "defs": [
+      134382
+     ],
+     "icon": "spell_nature_ravenform",
      "needs": "Naturalist"
     },
     "Overgrowth": {
@@ -15920,6 +17726,10 @@
      "row": 4,
      "col": 0,
      "spell": 17245,
+     "defs": [
+      142590
+     ],
+     "icon": "inv_misc_herb_15",
      "needs": null
     },
     "Predatory Discipline": {
@@ -15928,6 +17738,10 @@
      "row": 3,
      "col": 2,
      "spell": 1328613,
+     "defs": [
+      134412
+     ],
+     "icon": "spell_druid_savagery",
      "needs": null
     },
     "Predatory Strikes": {
@@ -15936,6 +17750,10 @@
      "row": 3,
      "col": 0,
      "spell": 16972,
+     "defs": [
+      134413
+     ],
+     "icon": "ability_hunter_pet_cat",
      "needs": null
     },
     "Primal Bite": {
@@ -15944,6 +17762,10 @@
      "row": 6,
      "col": 1,
      "spell": 407995,
+     "defs": [
+      134417
+     ],
+     "icon": "ability_racial_cannibalize",
      "needs": "Leader of the Pack"
     },
     "Reflection": {
@@ -15952,6 +17774,10 @@
      "row": 1,
      "col": 1,
      "spell": 17106,
+     "defs": [
+      134381
+     ],
+     "icon": "spell_frost_windwalkon",
      "needs": null
     },
     "Rend and Tear": {
@@ -15960,6 +17786,10 @@
      "row": 5,
      "col": 0,
      "spell": 1223246,
+     "defs": [
+      134414
+     ],
+     "icon": "ability_druid_primalagression",
      "needs": "Predatory Strikes"
     },
     "Savage Fury": {
@@ -15968,6 +17798,10 @@
      "row": 2,
      "col": 1,
      "spell": 16998,
+     "defs": [
+      134409
+     ],
+     "icon": "ability_druid_ravage",
      "needs": null
     },
     "Sharpened Claws": {
@@ -15976,6 +17810,10 @@
      "row": 2,
      "col": 3,
      "spell": 16942,
+     "defs": [
+      134407
+     ],
+     "icon": "inv_misc_monsterclaw_04",
      "needs": null
     },
     "Shifting Power": {
@@ -15984,6 +17822,10 @@
      "row": 6,
      "col": 2,
      "spell": 1322605,
+     "defs": [
+      145859
+     ],
+     "icon": "spell_druid_displacement",
      "needs": "Predatory Discipline"
     },
     "Shredding Attacks": {
@@ -15992,6 +17834,10 @@
      "row": 2,
      "col": 0,
      "spell": 16966,
+     "defs": [
+      134406
+     ],
+     "icon": "spell_shadow_vampiricaura",
      "needs": null
     },
     "Starlight Wrath": {
@@ -16000,6 +17846,10 @@
      "row": 0,
      "col": 1,
      "spell": 16814,
+     "defs": [
+      134384
+     ],
+     "icon": "spell_nature_abolishmagic",
      "needs": null
     },
     "Subtlety": {
@@ -16008,6 +17858,10 @@
      "row": 2,
      "col": 1,
      "spell": 17118,
+     "defs": [
+      134378
+     ],
+     "icon": "ability_eyeoftheowl",
      "needs": null
     },
     "Swiftmend": {
@@ -16016,6 +17870,10 @@
      "row": 3,
      "col": 3,
      "spell": 18562,
+     "defs": [
+      134373
+     ],
+     "icon": "inv_relics_idolofrejuvenation",
      "needs": null
     },
     "Thick Hide": {
@@ -16024,6 +17882,10 @@
      "row": 1,
      "col": 3,
      "spell": 16929,
+     "defs": [
+      134403
+     ],
+     "icon": "inv_misc_pelt_bear_03",
      "needs": null
     },
     "Tranquil Spirit": {
@@ -16032,6 +17894,10 @@
      "row": 3,
      "col": 1,
      "spell": 24968,
+     "defs": [
+      134376
+     ],
+     "icon": "spell_holy_elunesgrace",
      "needs": null
     },
     "Vengeance": {
@@ -16040,6 +17906,10 @@
      "row": 3,
      "col": 1,
      "spell": 16909,
+     "defs": [
+      134393
+     ],
+     "icon": "spell_nature_purge",
      "needs": "Moon and Stars"
     },
     "Wild Growth": {
@@ -16048,6 +17918,10 @@
      "row": 6,
      "col": 1,
      "spell": 408120,
+     "defs": [
+      134371
+     ],
+     "icon": "ability_druid_flourish",
      "needs": "Living Spirit"
     }
    }
