@@ -89,13 +89,22 @@ def timed(name, fn):
     log(name, seconds=round(time.monotonic()-t,3))
     return result
 def start_vl(name,path):
-    start(name,vl,["--memory","1g","-v",f"{path}:/data"],
+    start(name,vl,["--user","10001:10001","--memory","1g","-v",f"{path}:/data"],
           ["-storageDataPath=/data","-retentionPeriod=100y","-httpListenAddr=127.0.0.1:9428",
            "-search.maxQueryDuration=30s","-search.maxConcurrentRequests=4","-search.maxQueueDuration=10s"])
-    wait(lambda:req("http://127.0.0.1:9428/health"))
+    wait_service(name, "http://127.0.0.1:9428/health")
+def wait_service(name, url):
+    def healthy():
+        if docker("inspect", "-f", "{{.State.Running}}", name) != "true":
+            res=subprocess.run(["docker", "logs", "--tail", "5", name], capture_output=True, text=True)
+            raise RuntimeError(name+" exited: "+(res.stdout+res.stderr)[-1500:])
+        req(url)
+        return True
+    wait(healthy)
+
 def start_ui(name,path):
     app_job(name,["-m","wowstats","ui"],flags=["--memory","1g"], **({} if full else {"EVENTS_STORE":"sqlite:/bench/"+str(path.relative_to(OUT))}))
-    wait(lambda:req("http://127.0.0.1:8080/healthz"))
+    wait_service(name,"http://127.0.0.1:8080/healthz")
 def counts(path):
     expected=json.loads((OUT/"expected.json").read_text())
     result={}
@@ -171,12 +180,12 @@ wait(lambda:req("http://127.0.0.1:8441/.well-known/openid-configuration"))
 where=OUT/("vl" if full else "events")
 if full:
     start_vl("events",where)
-    start("metrics",vm,["-v",f"{OUT}/vm:/data"],["-storageDataPath=/data","-httpListenAddr=127.0.0.1:8428","-retentionPeriod=23d"])
-    wait(lambda:req("http://127.0.0.1:8428/health"))
+    start("metrics",vm,["--user","10001:10001","-v",f"{OUT}/vm:/data"],["-storageDataPath=/data","-httpListenAddr=127.0.0.1:8428","-retentionPeriod=23d"])
+    wait_service("metrics", "http://127.0.0.1:8428/health")
     req(env["VM_URL"]+"/api/v1/import",(OUT/"metrics.ndjson").read_bytes())
     req(env["VM_URL"]+"/internal/force_flush")
     app_job("renderer",["-m","wowstats","render"],image=render,PORT="8083")
-    wait(lambda:req("http://127.0.0.1:8083/healthz"))
+    wait_service("renderer","http://127.0.0.1:8083/healthz")
 start_ui("ui",where)
 app_job("static",["-m","wowstats","static"],PORT="8084")
 stop=threading.Event()
