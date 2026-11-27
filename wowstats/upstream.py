@@ -205,10 +205,13 @@ def cached_icon(base: str, cache: Path | None, size: str, name: str) -> bytes | 
         return None
     path = None
     if cache is not None:
-        root = (cache / "icons").resolve()
-        path = (root / size / f"{name}.jpg").resolve()
-        if not path.is_relative_to(root):
+        # Resolve symlinks before checking the boundary. The trailing
+        # separator keeps a sibling with the same prefix outside the cache.
+        root = os.path.realpath(cache / "icons")
+        candidate = os.path.realpath(os.path.join(root, size, f"{name}.jpg"))
+        if not candidate.startswith(root + os.sep):
             return None
+        path = Path(candidate)
         with contextlib.suppress(OSError):
             cached = path.read_bytes()
             if _jpeg(cached):
