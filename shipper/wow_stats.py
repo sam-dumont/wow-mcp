@@ -1297,13 +1297,18 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
             sheet = c
             break
     items = []
+    ammo_item_id = None
     det = (sheet or {}).get("details") or {}
     for idx, it in ((sheet or {}).get("equipped") or {}).items():
         try:
             slot = int(idx) - 1
         except (TypeError, ValueError):
             continue
-        if slot not in SLOTS or not isinstance(it, dict) or not isinstance(it.get("itemID"), int):
+        if not isinstance(it, dict) or type(it.get("itemID")) is not int:
+            continue
+        if slot == 0 and it["itemID"] > 0:
+            ammo_item_id = it["itemID"]
+        if slot not in SLOTS:
             continue
         m = _LINK_NAME.search(str(it.get("itemLink") or ""))
         info = item_info(it["itemID"], m.group(1) if m else None)
@@ -1347,7 +1352,7 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
         wanted.append({**info, "slot_name": parts[3], "level": int(parts[4]) if parts[4].isdigit() else None})
     wanted.sort(key=lambda w: (w["level"] or 0, w["slot_name"]))
 
-    if not items and not professions:
+    if not items and not professions and not ammo_item_id:
         return None
     recipes = recipes_of(acct, char)
     # Polestar's last class trainer visit: the level it was at (Engine.lua
@@ -1359,6 +1364,7 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
     # `items` goes out (unknown), not as an empty list that reads "wears
     # nothing" and hides an earlier sheet's items (evidence property (d)).
     return {"items": items if sheet is not None else None, "professions": professions, "wanted": wanted,
+            **({"ammo_item_id": ammo_item_id} if ammo_item_id else {}),
             "item_level": round(sum(rated) / len(rated), 1) if rated else None,
             "spec": spec.title() if isinstance(spec, str) else None,
             "spec_from": spec_from if isinstance(spec, str) else None,

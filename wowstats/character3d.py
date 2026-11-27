@@ -173,7 +173,7 @@ SLOT_ATTACH = {1: (HELMET,), 15: (BACK,)}
 # never drawn (neck, fingers, trinkets), the hand each held type takes, the ranged slot's wands.
 ARMOR = {1, 3, 4, 5, 6, 7, 8, 9, 10, 16, 19, 20}
 HELD = {13, 14, 15, 17, 21, 22, 23, 25, 26}
-UNSEEN_SLOTS = {2, 11, 12, 13, 14}
+UNSEEN_SLOTS = {0, 2, 11, 12, 13, 14}
 RIGHT, LEFT = 21, 22
 # Item.SubclassID for bows, guns, thrown weapons, crossbows and wands.
 RANGED_HAND = {2: LEFT, 3: RIGHT, 16: RIGHT, 18: RIGHT, 19: RIGHT}

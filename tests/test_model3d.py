@@ -115,6 +115,26 @@ def test_current_and_snapshot_actions_use_the_level_being_drawn(m3d, monkeypatch
             assert "level" not in character3d.standing_recipe(recipe)
 
 
+def test_equipped_ammo_reaches_the_model_from_its_own_gear_sheet(m3d):
+    from wowstats import gear as gearmod
+    from wowstats.views import build_gear
+
+    row = {"_time": "2026-10-01T00:00:00Z", "items": "[]", "ammo_item_id": "18042"}
+    skills_only = {"_time": "2026-10-02T00:00:00Z", "professions": "[]"}
+    current = build_gear(gearmod.pick_sheet([row, skills_only]))
+    assert current["items"] == [] and current["ammo_item_id"] == 18042
+    empty = build_gear(gearmod.pick_sheet([row, {**skills_only, "items": "[]"}]))
+    assert "ammo_item_id" not in empty
+    older = {**current, "ammo_item_id": 2512}
+    app = SimpleNamespace(char=lambda _: {"gear": current}, views=SimpleNamespace(snapshot=lambda _, lv: {
+        "gear": older if lv == 20 else empty}))
+    for level, expected in [(None, [18042]), (20, [2512]), (19, [])]:
+        sheet, header, _ = m3d.gear_at(app, "Example", level)
+        items = m3d.inputs(sheet, header, "", None)["items"]
+        assert [it["item_id"] for it in items if it["slot"] == 0] == expected
+    assert model3d._outfit(current) != model3d._outfit(older)
+
+
 def test_owned_mount_requests_its_skin_and_stays_out_of_old_portraits(m3d, monkeypatch):
     tables = w.world()
     tables["CreatureDisplayInfo"][70002] = {"ModelID": 23, "CreatureModelScale": 1.2, "TextureVariationFileDataID": [801]}

@@ -154,10 +154,10 @@ def _outfit(gear: dict) -> tuple:
                          for i in gear.get("items") or [] if isinstance(i, dict)))
     displays = tuple(m["display_id"] for m in gear.get("mounts", []))
     return (gear.get("race"), gear.get("class"), gear.get("sex"), gear.get("level"), gear.get("companion_display"),
-            displays, items)
+            displays, items, gear.get("ammo_item_id"))
 
 
-def history_outfits(app, name: str) -> list[list[dict]]:
+def history_outfits(app, name: str) -> list[dict]:
     """Every outfit a character's history knows: each gear sheet the shipper
     sent (wow-gear), and the reconstructed slots (wowstats.history, the
     Recorder's loots, turn-ins and crafts) at each point the replay put an
@@ -165,10 +165,10 @@ def history_outfits(app, name: str) -> list[list[dict]]:
     views = getattr(app, "views", None)
     if views is None:
         return []
-    out: list[list[dict]] = []
+    out: list[dict] = []
     try:
         data, _wins, _ds, gh, _skills = views.snapshot_inputs(name)
-        out += [g["items"] for g in gh or [] if g.get("items")]
+        out += [{"items": g["items"], "ammo_item_id": g.get("ammo_item_id")} for g in gh or [] if g.get("items")]
         recon = views.reconstruction(name, data, gh)
     except Exception as e:  # noqa: BLE001 - the history's store down: the levels' outfits still count
         print(f"model3d: {name}'s gear history: {e!r}", flush=True)
@@ -181,7 +181,7 @@ def history_outfits(app, name: str) -> list[list[dict]]:
         for t in sorted({sp.t for spans in rp.slots.values() for sp in spans}):
             items = history.items_at(ref, rp, t, recon[2])
             if items:
-                out.append(items)
+                out.append({"items": items, "ammo_item_id": None})
     return out
 
 class Model3D:
@@ -214,7 +214,7 @@ class Model3D:
         store = self.store
         if store is None:
             return None
-        stamp = ("tables", store.build()) + tuple(getattr(store, "stamp", lambda: ())()[:3])
+        stamp = ("tables", store.build()) + tuple(getattr(store, "stamp", lambda: ())()[:2])
         with self.lock:
             if self._tables and self._tables[0] == stamp:
                 return self._tables[1]
@@ -302,6 +302,8 @@ class Model3D:
             # describe the current model only.
             identity = {k: gear.get(k) for k in ("race", "class", "sex")}
             gear = {**identity, "level": level, "items": snap["gear"].get("items") or []}
+            if snap["gear"].get("ammo_item_id"):
+                gear["ammo_item_id"] = snap["gear"]["ammo_item_id"]
         else:
             if current_level := (d.get("header") or {}).get("level"):
                 gear = {**gear, "level": current_level}
@@ -344,6 +346,8 @@ class Model3D:
                   # The enchant from the item's link (shipper 0.2.2 on): its glow.
                   "enchant": it.get("enchant_id") or None}
                  for it in gear.get("items") or [] if isinstance(it, dict)]
+        if gear.get("ammo_item_id"):
+            items.append({"slot": 0, "item_id": gear["ammo_item_id"]})
         return {"race": race, "class": cls, "sex": sex, "sex_known": sex_known, "items": items,
                 "choices": (look or {}).get("options") or []}
 
@@ -481,7 +485,7 @@ class Model3D:
                 # Recorder's replay changed a slot.
                 if sheets:
                     base, header = sheets[0]
-                    sheets += [({**base, "items": items}, header) for items in history_outfits(app, name)]
+                    sheets += [({**base, **outfit}, header) for outfit in history_outfits(app, name)]
                 seen: set = set()
                 for gear, header in sheets:
                     key = _outfit(gear)

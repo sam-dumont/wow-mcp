@@ -51,6 +51,48 @@ def one(run_app, tmp_path):
     return srv
 
 
+def test_share_stamp_and_table_cache_track_same_build_changes(tmp_path, monkeypatch):
+    store = assets.Store(tmp_path / "local")
+    requested = []
+
+    def remote_get(self, path):
+        class Reply:
+            def reply(self, status, data, mime=None):
+                return data if status == 200 else None
+
+        requested.append(path)
+        return assets.share_route(Reply(), store.root, path)
+
+    monkeypatch.setattr(assets.RemoteStore, "_get", remote_get)
+
+    def client():
+        return assets.RemoteStore("https://share.invalid/assets/owner/", {}, tmp_path / "cache")
+
+    store.put_table("ChrModel", BUILD, table("first"))
+    first = client()
+    assert first.table("ChrModel") == table("first") and first.stamp() == store.stamp()
+    store.put_file(TEX, b"BLP2texture")
+    more = client()
+    assert more.stamp()[:2] == first.stamp()[:2] and more.stamp()[2] != first.stamp()[2]
+    assert more.table("ChrModel") == table("first")
+    assert requested.count("table/ChrModel") == 1  # a new texture doesn't invalidate the table
+    store.put_table("ChrModel", BUILD, table("replacement"))
+    latest = client()
+    assert latest.stamp()[1] != more.stamp()[1] and latest.table("ChrModel") == table("replacement")
+    assert requested.count("table/ChrModel") == 2
+
+
+def test_upgrading_the_server_requests_only_its_new_spell_tables(tmp_path):
+    from wowstats import spellart
+
+    store = assets.Store(tmp_path)
+    for name in assets.TABLES.keys() - spellart.TABLES.keys():
+        store.put_table(name, BUILD, table(name))
+    assert store.tables_needed(BUILD) == {n: assets.TABLES[n] for n in spellart.TABLES}
+    store.put_table("SpellMisc", BUILD, table("SpellMisc"))
+    assert "SpellMisc" not in store.tables_needed(BUILD) and "SpellVisualKit" in store.tables_needed(BUILD)
+
+
 def test_store_tables_follow_the_build(tmp_path):
     s = assets.Store(tmp_path)
     assert s.tables_needed(BUILD) == assets.TABLES

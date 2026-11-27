@@ -254,15 +254,15 @@ class Store:
         return got[0] if got else None
 
     def stamp(self) -> tuple:
-        """What changes when files or tables arrive: the build, and the
-        count and newest change of each folder (no file is read)."""
+        """The client build and the last table and file directory changes.
+        Uploads use atomic rename, which advances the parent directory mtime.
+        Two stats suffice even for a store with thousands of files."""
         out: list = [self.build()]
         for sub in ("tables", "files"):
             try:
-                st = (self.root / sub).stat()
-                out += [st.st_mtime_ns, sum(1 for _ in (self.root / sub).iterdir())]
+                out.append((self.root / sub).stat().st_mtime_ns)
             except OSError:
-                out += [0, 0]
+                out.append(0)
         return tuple(out)
 
     def have(self) -> set[int]:
@@ -330,7 +330,7 @@ class RemoteStore:
         self.env = env
         key = hashlib.sha256(self.url.encode()).hexdigest()[:16]
         self.cache = cache / "assets-remote" / key if cache else None
-        self._build: tuple[float, str] | None = None
+        self._stamp: tuple[float, tuple] | None = None
 
     def _get(self, rel: str) -> bytes | None:
         import urllib.error
@@ -348,23 +348,38 @@ class RemoteStore:
             raise OSError(f"{rel}: larger than {MAX_FILE} bytes")
         return data
 
-    def build(self) -> str:
-        if self._build and self._build[0] > time.time() - 60:
-            return self._build[1]
+    def stamp(self) -> tuple:
+        """Same stamp as Store. An older share port sends only the build.
+        An unreachable share port reports an unknown stamp for this pass."""
+        if self._stamp and self._stamp[0] > time.time() - 60:
+            return self._stamp[1]
+        stamp = ()
         try:
-            b = str(json.loads(self._get("build") or b"{}").get("build") or "")
-        except (OSError, ValueError, AttributeError):
-            b = ""
-        self._build = (time.time(), b)
-        return b
+            meta = json.loads(self._get("build") or b"{}")
+            build = meta["build"]
+            if isinstance(build, str) and (not build or BUILD.fullmatch(build)):
+                stamp = (build,)
+                times = (meta.get("tables_mtime_ns"), meta.get("files_mtime_ns"))
+                if all(type(t) is int and t >= 0 for t in times):
+                    stamp += times
+        except (OSError, ValueError, TypeError, KeyError):
+            pass
+        self._stamp = (time.time(), stamp)
+        return stamp
+
+    def build(self) -> str:
+        stamp = self.stamp()
+        return stamp[0] if stamp else ""
 
     def table(self, name: str) -> bytes | None:
         if name not in TABLES:
             return None
-        build = self.build()
-        if not build:
+        stamp = self.stamp()
+        if not stamp or not stamp[0]:
             return None
-        local = self.cache / build / f"{name}.db2" if self.cache else None
+        # A same-build table replacement also invalidates its disk cache.
+        key = "-".join(map(str, stamp[:2]))
+        local = self.cache / key / f"{name}.db2" if self.cache else None
         if local and local.is_file():
             return local.read_bytes()
         try:
@@ -373,7 +388,7 @@ class RemoteStore:
             return None
         if data is not None and local is not None:
             for old in self.cache.iterdir() if self.cache.is_dir() else ():
-                if old.name != build and old.is_dir():
+                if old.name != key and old.is_dir():
                     for p in old.iterdir():
                         p.unlink(missing_ok=True)
                     old.rmdir()
@@ -393,9 +408,6 @@ class RemoteStore:
         data = self.read(fdid)
         return (data, kind_of(data, anim=True)) if data else None
 
-    def stamp(self) -> tuple:
-        return (self.build(),)
-
     def have(self) -> set[int] | None:
         return None  # unknown here: every file is asked for when it's needed
 
@@ -405,7 +417,9 @@ def share_route(h, root: Path, rest: str) -> None:
     (wowstats.analysis.share_server): build, table/<Name>, file/<id>."""
     store = Store(root)
     if rest == "build":
-        return h.reply(200, json.dumps({"build": store.build()}).encode(), "application/json")
+        build, tables, files = store.stamp()
+        return h.reply(200, json.dumps({"build": build, "tables_mtime_ns": tables,
+                                       "files_mtime_ns": files}).encode(), "application/json")
     m = re.fullmatch(r"table/([A-Za-z]{1,40})", rest)
     if m:
         data = store.table(m.group(1))
