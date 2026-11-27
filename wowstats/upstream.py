@@ -195,8 +195,10 @@ def _jpeg(body: bytes) -> bool:
     return body.startswith(b"\xff\xd8\xff") and body.endswith(b"\xff\xd9")
 
 
-def cached_icon(base: str, cache: Path | None, size: str, name: str) -> bytes | None:
+def cached_icon(base: str | None, cache: Path | None, size: str, name: str) -> bytes | None:
     """Read this size's JPEG or fetch it. A missing icon returns None.
+    Without a `base` nothing is fetched: the cache is the whole source (the
+    hosted demo's icons, extracted from the game client).
     Retry interrupted transfers and temporary server errors twice. A long
     Retry-After waits for the next publish instead of tying up the caller."""
     if not isinstance(size, str) or not ICON_SIZE.fullmatch(size):
@@ -216,6 +218,8 @@ def cached_icon(base: str, cache: Path | None, size: str, name: str) -> bytes | 
             cached = path.read_bytes()
             if _jpeg(cached):
                 return cached
+    if not base:
+        return None
     url = icon_url(base, size, name)
     for attempt in range(3):
         try:
