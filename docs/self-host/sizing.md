@@ -72,6 +72,10 @@ The VictoriaLogs recovery guest kept at least 929 MiB available. The measurement
 Docker and the guest OS. The disk figures include the originals, the extracted copies and
 the shipper input on the same filesystem. [VictoriaLogs recovery](https://github.com/sam-dumont/wow-mcp/actions/runs/45997232907/job/140499569083) · [Exact measurements and per-character restore counts](https://github.com/sam-dumont/wow-mcp/blob/main/docs/self-host/host-budget-2026-11.json) · [Guest setup, fixture, workload and verification scripts](https://github.com/sam-dumont/wow-mcp/tree/9c8b53a07fbd294b6d53d58a922f25e16358fba8/dev/host-budget).
 
+### The same renderer workload with 4 GiB
+
+The publisher finished in 634 s and served nine verified WebP portraits on both the public and encrypted sites. The cold MCP call took 41.86 s and the upload took 16 ms. The guest still had at least 1.03 GiB available. The UI hit its own 1 GiB container limit and exited after the MCP reply, before publication finished. Increasing host RAM alone did not keep that service up. [4 GiB control run](https://github.com/sam-dumont/wow-mcp/actions/runs/45997232907/job/140499569266).
+
 ## Three players on two CPUs
 
 The owner had 89,356 events. Two friends had 79 and 68. Each had a separate account,
