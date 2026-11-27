@@ -1126,8 +1126,7 @@ function renderClassGuide(d) {
 // The class's meta (wowstats/classmeta.py): a short paragraph on the card
 // (/zogzog/ and the full view), and on the live full view the score, the
 // gaps as moves (what, where, what blocks it, next step) and the meta in
-// full behind one toggle. Numbers and actions only: the sources stay in the
-// data and the MCP's class_meta.
+// full behind one toggle. Both views put each statement’s sources behind a disclosure.
 // en-GB like the page's other dates, so every browser shows "20 Nov".
 const metaDayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 function metaDate(d) {
@@ -1160,6 +1159,7 @@ function renderMeta(d) {
   // The full view's answer draws over this one once it is in.
   if (box.dataset.full === state.char) return;
   fill(box, metaHead(m), h('p', { class: 'metatext', text: m.text }),
+    (m.evidence || []).map((row, i) => metaEvidence(row, i ? 'Sources for the recent change' : 'Sources for the summary')),
     m.soon ? h('p', { class: 'metasoon', text: m.soon }) : null);
 }
 const META_PART = { talents: 'Talents', gear: 'Gear', enchants: 'Enchants' };
@@ -1181,7 +1181,7 @@ function metaPart(p) {
       h('p', { text: p.comparison.different.map(x => `${x.name} (${x.points})`).join(', ') }),
       h('p', { text: `If you choose to switch builds, the trainer charges ${p.comparison.respec_cost}.` })) : null);
 }
-function metaEvidence(row) {
+function metaEvidence(row, label = 'Sources') {
   const links = [...new Set([row.source_url, ...(row.sources || [])])].flatMap((raw) => {
     try {
       const url = new URL(raw);
@@ -1192,7 +1192,7 @@ function metaEvidence(row) {
   if (!links.length) return null;
   const details = [row.scope === 'classic_fallback' ? 'Classic fallback' : row.scope,
     row.confidence && `${row.confidence} confidence`, row.last_verified && `checked ${row.last_verified}`].filter(Boolean);
-  return h('details', { class: 'metasources' }, h('summary', { text: 'Sources' }),
+  return h('details', { class: 'metasources' }, h('summary', { text: label }),
     h('small', { text: details.join(' · ') }), h('ul', {}, links.map(link => h('li', {}, link))));
 }
 function metaList(head, rows, render) {
@@ -1483,7 +1483,8 @@ function sourceEl(sr, level, ah) {
         sr.npc_id && sr.chance_pct == null ? ', no drop rate known' : '', kills, basisEl(sr), buy);
     }
     return h('span', { class: 'src' }, sr.boss ? wh('npc', sr.npc_id, sr.boss) : 'trash', ' in ', sr.zone || '?',
-      chanceText(sr), runs ? ` (about ${runs.toLocaleString('en')} run${runs > 1 ? 's' : ''})` : '', basisEl(sr), buy);
+      sr.chance_pct == null ? ', drop rate unknown' : chanceText(sr),
+      runs ? ` (about ${runs.toLocaleString('en')} run${runs > 1 ? 's' : ''})` : '', basisEl(sr), buy);
   }
   if (sr.kind === 'vendor') {
     return h('span', { class: 'src' }, 'Sold by ', wh('npc', sr.npc_id, sr.name || 'a vendor'), sr.zone ? ` in ${sr.zone}` : '',
@@ -2108,7 +2109,10 @@ function byWhere(a, list) {
 // A group shows its best 3 (the display rule holds per list, not only per
 // slot: one profession can offer seven items); the rest folds under it.
 function groupRows(g, a) {
-  const row = ({ u, s }) => candRow(u, a, s ? sourceEl(s, a.level, ahOf(u)) : null);
+  const row = ({ u, s }) => {
+    const sources = g.kind === 'dungeon' ? u.sources.filter((src) => sourceGroup(src).key === g.key) : s ? [s] : [];
+    return candRow(u, a, sources.flatMap((src, i) => [i ? ' · ' : '', sourceEl(src, a.level, ahOf(u))]));
+  };
   // The Auction House: the most gain for the gold first.
   const per = ({ u }) => (ahOf(u) || {}).gain_per_gold || 0;
   const items = g.items.sort((x, y) => (g.kind === 'ah' ? per(y) - per(x) : 0) || bisCmp(x.u, y.u) || rankOf(y.u) - rankOf(x.u));
@@ -2813,7 +2817,9 @@ function questRow(q, level, deferred) {
         q.xp_now ? `${fmtK(q.xp_now)} XP` : null].filter(Boolean).join(', ') })),
     where.length ? h('div', { class: 'sub where' }, where) : null,
     q.state === 'done' ? null : questBlock(q, level),
-    q.wings?.other_wings?.length ? h('div', { class: 'block-why', text: `Also needs ${q.wings.other_wings.join(' and ')}` }) : null,
+    q.wings?.other_wings?.length ? h('div', { class: 'block-why', text: [
+      q.wings.objectives_here?.length ? cap(q.wings.objectives_here.join(' and ')) + ' here.' : null,
+      `Also needs ${q.wings.other_wings.join(' and ')}`].filter(Boolean).join(' ') }) : null,
     deferred ? h('div', { class: 'sub' }, 'Later reward: ', whLink(deferred.url, deferred.name)) : null,
     q.route && q.route !== 'route' ? h('div', { class: 'sub note', text: cap(q.route.replace(`${q.name}: `, '')) }) : null);
 }
@@ -2943,6 +2949,7 @@ function dungeonBlock(b, d) {
     b.gain?.forecast_note ? h('p', { class: 'sub', text: b.gain.forecast_note }) : null,
     dungeonNext(b),
     dungeonWayIn(b),
+    tripHandins(b.gain),
     dungeonQuests(b, d.level),
     dungeonRewards(b),
     dungeonDrops(b, d.level, d.inventory_known),
@@ -2963,6 +2970,8 @@ function dungeonNext(b) {
   const from = (x) => (x.starts.length ? [' from ', npcs(x.starts)] : '');
   let body = null;
   if (n.do === 'handin' && q) body = ['Hand in ', whLink(q.url, q.name), q.ends.length ? [' to ', npcs(q.ends)] : ''];
+  else if (n.do === 'prerequisite') body = ['Finish ', wh('quest', n.quest_id, n.name || `quest ${n.quest_id}`), ' first'];
+  else if (n.do === 'other_wings') body = [`Finish the remaining objectives in ${n.where}`];
   else if (n.do === 'pickup' && q) body = ['Pick up ', whLink(q.url, q.name), from(q), ', then ', goIn('go in at ')];
   else if (n.do === 'level') {
     const m = n.meanwhile ? b.quests.find((x) => x.quest_id === n.meanwhile) : null;
@@ -3673,7 +3682,7 @@ function moveEl(mv, nowZone) {
     what = h('span', {}, whRef(mv.zone), levelRange(mv.zone.levels) ? h('span', { class: 'pill', text: `levels ${levelRange(mv.zone.levels)}` }) : null);
     why = [mv.detail ? h('span', { text: mv.detail }) : null, vsGuide(mv.vs_guide, true), gainLine(mv.gain),
       mv.gain?.forecast_note ? h('span', { class: 'sub', text: mv.gain.forecast_note }) : null,
-      gainQuests(mv.gain), moveRewards(mv.quest_rewards),
+      gainQuests(mv.gain), tripHandins(mv.gain), moveRewards(mv.quest_rewards),
       its.length ? h('span', { text: `Drops ${its.length} upgrade${its.length === 1 ? '' : 's'} you could wear now` + (mv.blocker ? ` (${mv.blocker}):` : ':') }) : null,
       h('ul', { class: 'ditems' }, its.slice(0, 3).map((it) => h('li', {}, itemWithLink(it),
         h('span', { class: 'sub', text: upText(it) + withText(it) })))),
@@ -3782,6 +3791,21 @@ function gainQuests(g) {
   return h('div', { class: 'mquests' }, h('span', { text: 'Pick up first:' }),
     capped(pick.map(row), g.quests_shown || 3, (n) => `${n} more quest${n === 1 ? '' : 's'}`, 'gquests'),
     log ? h('span', { class: 'sub', text: `Plus ${log}.` }) : null);
+}
+
+function tripHandins(g) {
+  if (!g?.handins?.length) return null;
+  const total = (rows) => rows.reduce((n, q) => n + (q.xp || 0), 0);
+  const beforeCap = total(g.handins);
+  const group = (rows, label) => rows.length ? h('div', {},
+    h('b', { text: `${label} (${rows.length}), ${fmtNum(total(rows))} XP` }),
+    h('ul', { class: 'gquests' }, rows.map((q) => h('li', {},
+      whLink(q.url, q.name || `quest ${q.quest_id}`), q.xp == null ? ' (XP unknown)' : ` · ${fmtNum(q.xp)} XP`)))) : null;
+  return h('details', { class: 'dgmore' },
+    h('summary', { text: `${plural(g.handins.length, 'hand-in')} this trip (${fmtNum(g.xp_quests)} XP)` }),
+    group(g.handins.filter((q) => q.prerequisite), 'Prerequisites'),
+    group(g.handins.filter((q) => !q.prerequisite), 'Dungeon quests'),
+    beforeCap > g.xp_quests ? h('p', { class: 'sub', text: `${fmtNum(beforeCap - g.xp_quests)} XP above the level cap.` }) : null);
 }
 
 // Coins as text with their units, for a sentence: 3g 40s, without the empty
@@ -4185,7 +4209,21 @@ async function loadPlan(name) {
     'not far enough in to compare') + (r.end_actual != null ? `; level ${r.end_actual} at its end, ${r.end_planned} planned.` :
     '.') }) : h('p', { class: 'sub', text: 'No plan compared yet: make one, play past its first checkpoint.' });
   fill(out, h('p', { text: `Gold ${s.gold}` + (s.gold_rate ? `, ${s.gold_rate} net over ${s.gold_rate_n} logouts.` : '.') }),
-    ...tiers, rev);
+    ...tiers, rev, ...dungeonForecastLines(s.dungeon_forecasts));
+}
+
+function dungeonForecastLines(report) {
+  if (!report || !report.reviews.length) return [];
+  const rows = [h('h4', { text: 'Dungeon forecasts' })];
+  for (const [basis, title] of [['modeled', 'Modeled'], ['personal_runs', 'Personal runs']]) {
+    const g = report.by_basis[basis];
+    const error = g.n ? `. Mean absolute error ${dur(g.mean_absolute_error_s)} and ${fmtNum(g.mean_absolute_error_xp)} XP.` : '.';
+    rows.push(h('p', { text: `${title}: ${g.n} matched trip${g.n === 1 ? '' : 's'}${error}` }));
+  }
+  const counts = report.counts;
+  rows.push(h('p', { class: 'sub', text: `${counts.pending} pending, ${counts.incomplete} incomplete, ` +
+    `${counts.ambiguous} ambiguous, ${counts.abandoned} abandoned.` }));
+  return rows;
 }
 
 // The plan's Markdown (headings, bullets, one nested level, **bold**) as DOM

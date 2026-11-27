@@ -106,12 +106,14 @@ def plan(env: dict, char: str | None = None, hours: float | None = None, constra
     e = est_mod.estimate(inp, hours, constraints, context)
     if not e.get("supported"):
         return {"markdown": e["message"], "writer": "estimator", "checked": True, "estimate": e}
+    # The cached inputs may predate a run the player has already entered.
+    e["made_t"] = time.time()
     at = eventcache.as_of(seen, inp["who"]["char"])
-    plan_store.save(env, inp["who"]["char"], {**e, "as_of": at} if at else e)
+    plan_store.save(env, inp["who"]["char"], {**e, "as_of": at} if at else e, inp)
     return {"markdown": writer.fallback(e), "writer": "estimator", "checked": True, "estimate": e}
 
 
-def status(env: dict, char: str | None = None, store=None, battlenet=None, gear_inputs=None) -> dict:
+def status(env: dict, char: str | None = None, store=None, battlenet=None, gear_inputs=None, *, archive=False) -> dict:
     """For the full view: the mount goal and how the last plan went."""
     inp = inputs(env, char, store, battlenet, gear_inputs)
     p = est_mod.pace(inp)
@@ -134,4 +136,5 @@ def status(env: dict, char: str | None = None, store=None, battlenet=None, gear_
                 "hours": last["hours"], "ratio": last["ratio"], "end_planned": last["end_planned_level"],
                 "end_actual": last["end_actual_level"], "checkpoints": len(last["checkpoints"]),
                 "missed": last["missed"]},
+            "dungeon_forecasts": plan_store.dungeon_review(env, inp, archive=archive),
             "calibration": inp.get("calibration")}

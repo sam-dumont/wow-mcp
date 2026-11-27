@@ -99,24 +99,33 @@ def test_an_item_with_facts_shows_its_level_and_stats():
 def test_grouped_gear_displays_partial_rates_and_preserves_zero():
     """Use the actual grouped gear view. Its source list may have two bosses for one item."""
     src = (ROOT / "web" / "app.js").read_text()
-    names = ("byWhere", "itemDropRate", "dropRates", "dropChanceText")
+    names = ("byWhere", "groupRows", "sourceEl", "itemDropRate", "dropRates", "dropChanceText")
     functions = "\n".join(re.search(rf"^function {name}\(.*?^}}\n", src, re.S | re.M).group() for name in names)
     script = """
     const primarySource = u => u.sources[0];
     const sourceGroup = s => ({key: s.zone, title: s.zone, kind: "dungeon"});
     const feasible = u => ({now: u.now}), rankOf = u => u.gain, slotKey = u => "Head";
     const h = (tag, attrs, ...kids) => [attrs.text, ...kids].flat(Infinity).filter(Boolean);
-    const groupRows = () => [], levelRange = () => null;
+    const levelRange = () => null, bisCmp = () => 0, ahOf = () => null, HELD = {};
+    const candRow = (u, a, extra) => [u.name, extra], wh = (kind, id, name) => name, basisEl = () => null;
+    const chanceText = s => s.chance_pct == null ? '' : ', ' + s.chance_pct + '%';
     const plural = (n, w) => n + " " + w + (n === 1 ? "" : "s");
     const item = (id, zone, rates, now=true) => ({item_id: id, now, gain: 8,
-       sources: rates.map(chance_pct => ({zone, chance_pct}))});
+       sources: rates.map(chance_pct => ({kind: "drop", instance: "dungeon", zone, chance_pct}))});
+    const mask = item(9470, "Zul'Farrak", [null, 25]);
+    mask.name = "Bad Mojo Mask";
+    mask.sources[0].boss = "Shadowpriest Sezz'ziz";
+    mask.sources[1].boss = "Nekrum Gutchewer";
     """ + functions + """
     process.stdout.write(JSON.stringify(byWhere({level: 40}, [
       item(1, "Mixed", [25, null]), item(1, "Mixed", [25, null]), item(2, "Mixed", [100], false),
-      item(3, "Unknown", [null]), item(4, "Zero", [0]), item(5, "Rare", [0.01])
+      item(3, "Unknown", [null]), item(4, "Zero", [0]), item(5, "Rare", [0.01]), mask
     ])));
     """
     text = json.loads(subprocess.run([NODE, "-e", script], capture_output=True, text=True, check=True).stdout)
     assert "1 drop upgrade · 25% from known rates" in text
     assert "1 drop upgrade · drop chance unknown" in text
     assert "1 drop upgrade · 0%" in text and "1 drop upgrade · 0.01%" in text
+    i = text.index("Bad Mojo Mask")
+    assert "Shadowpriest Sezz'ziz" in text[i:] and ", drop rate unknown" in text[i:]
+    assert "Nekrum Gutchewer" in text[i:] and ", 25%" in text[i:]

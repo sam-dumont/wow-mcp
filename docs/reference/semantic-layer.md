@@ -552,7 +552,7 @@ Polestar's instance runs: one row per run, enter to leave.
 | `run_xp` | simple | xp | XP gained inside the instance. | Kills inside; the quests handed in after are trip XP (trip_xp). | sum; time: interval_start; observed. |
 | `run_xp_per_hour` | ratio | xp/hour | XP per hour inside: run_xp over run_s (the `dungeons` tool's xp_per_hour). | Leaves out the quest XP the run unlocks. | ratio_of_sums; time: interval_start; observed. Rows: A run with a time above 0 and its XP known. |
 
-Group or filter by: `character`, `class`, `dungeon`, `level`, `run`, `time`, `trip`, `week`.
+Group or filter by: `character`, `class`, `dungeon`, `level`, `run`, `run_exit`, `time`, `trip`, `week`.
 
 ### dungeon_trips
 
@@ -1184,6 +1184,7 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `rep_source` | reputation | recorder: a rep record (each change, as it happened). altoholic: Altoholic's snapshot at a logout (every faction, even of a character the Recorder never saw). |
 | `reward_kind` | quest_rewards | choice (one of several to pick) or reward (given with the quest). |
 | `run` | records, dungeon_runs | The dungeon run the record falls in, named by when it started (unix seconds, as dungeon_runs names it), NULL outside a run. |
+| `run_exit` | dungeon_runs | Exit time in unix seconds from Polestar's leave or completed run duration, NULL for an open run. |
 | `scan_day` | auction, ah_upgrades | The scan day, YYYY-MM-DD: group by it for the price day by day. |
 | `scored_for` | worn | The spec the gear advice scores for: the player's WEIGHTS setting, else the talents. |
 | `session_id` | timeline, records, sessions, zone_time, rested, loot, xp, dings, revives, zone_levels, quest_loot, loot_value, reputation | Login span (sessions). |

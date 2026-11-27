@@ -1569,7 +1569,9 @@ def _overview(ctx: Ctx, args: dict) -> tuple[str, dict]:
 
 
 def _cited(cs: list[dict]) -> list[dict]:
-    return [{"point": c["text"], "from": c.get("cite"), "page_section": c.get("link")} for c in cs or []]
+    return [{"point": c["text"], "from": c.get("cite"), "page_section": c.get("link"),
+             **({"handins": c["gain"]["handins"], "xp_quests": c["gain"]["xp_quests"]}
+                if c.get("kind") == "dungeon" and "handins" in (c.get("gain") or {}) else {})} for c in cs or []]
 
 
 def t_next_moves(ctx: Ctx, args: dict) -> dict:

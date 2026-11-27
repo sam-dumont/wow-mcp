@@ -389,3 +389,20 @@ def test_late_panel_answers_cannot_redraw_a_new_selection(dashboards, browser):
         settled(page, 60)
         assert page.locator(selector).all_text_contents() == before
         assert "superseded panel" not in page.locator("body").text_content()
+
+
+def test_private_plan_panel_shows_dungeon_forecast_errors(dashboards, browser):
+    with browser.new_context(viewport={"width": 390, "height": 844}) as ctx:
+        page = ctx.new_page()
+        report = {"reviews": [{}], "by_basis": {"modeled": {"n": 2, "mean_absolute_error_s": 180,
+                                                            "mean_absolute_error_xp": 800},
+                                                "personal_runs": {"n": 1, "mean_absolute_error_s": 60,
+                                                                  "mean_absolute_error_xp": 250}},
+                  "counts": {"pending": 1, "incomplete": 2, "ambiguous": 0, "abandoned": 1}}
+        page.route("**/api/plan?*", lambda r: r.fulfill(json={"available": True, "dungeon_forecasts": report,
+                                                           "gold": "2g", "tiers": []}))
+        open_char(page, dashboards, "owner")
+        text = page.locator("#planstatus").text_content()
+        assert "Modeled: 2 matched trips. Mean absolute error 3m and 800 XP." in text
+        assert "Personal runs: 1 matched trip. Mean absolute error 1m and 250 XP." in text
+        assert "1 pending, 2 incomplete, 0 ambiguous, 1 abandoned." in text

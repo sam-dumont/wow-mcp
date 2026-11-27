@@ -698,9 +698,11 @@ def trips(ask) -> list[dict]:
         rows.get(r["trip"], {}).update(r)
     # The trip's run: the first of its dungeon starting inside it.
     first: dict = {}
-    for r in ask(metrics=["run_count"], group_by=["trip", "run"],
+    exits: dict = {}
+    for r in ask(metrics=["run_count"], group_by=["trip", "run", "run_exit"],
                  where=[{"dimension": "trip", "op": "is not null"}]):
         first[r["trip"]] = min(first.get(r["trip"], r["run"]), r["run"])
+        exits[r["run"]] = r["run_exit"]
     kills: dict = {run: [] for run in first.values()}
     runs = sorted(kills)
     for i in range(0, len(runs), RUNS_PER_ASK):
@@ -716,6 +718,7 @@ def trips(ask) -> list[dict]:
             d["loot_inside"] = json.loads(d["loot_inside"] or "[]")
         run = first.get(r["trip"])
         if run is not None:
+            d.update(entry_t=run, exit_t=exits[run])
             ks = kills[run]
             d["kills_inside"] = sum(int(k["kills"]) for k in ks)
             # Each kill's creature level, elites flagged (classification e,
@@ -730,7 +733,9 @@ def trips(ask) -> list[dict]:
                 if k.get("npc_id") is not None:
                     npcs[str(int(k["npc_id"]))] = npcs.get(str(int(k["npc_id"])), 0) + int(k["kills"])
             d["kill_npcs"] = dict(sorted(npcs.items(), key=lambda kv: int(kv[0])))
-        out.append({k: (round(v, 1) if isinstance(v, float) else v) for k, v in d.items()})
+        # The entry timestamp identifies the trip across uploads. Preserve
+        # the exact boundaries when comparing to a decision made that second.
+        out.append({k: (round(v, 1) if isinstance(v, float) and not k.endswith("_t") else v) for k, v in d.items()})
     return out
 
 

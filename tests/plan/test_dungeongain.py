@@ -129,7 +129,13 @@ def test_without_runs_or_a_kill_estimate_the_kb_clear_time():
     assert g["xp_quests"] == 28200
     # No kill estimate (a dungeon the model has no data for): the quests alone, no verdict.
     g = est(level=30, xp_max=54500, name="Excavation Site: Wetlands", quests=qs, questing_xph=15107, others=[other])
-    assert g["kills_unknown"] and g["xp"] is None and g["vs_questing"] is None and g["level_pct"] == 52
+    assert g["kills_unknown"] and g["xp"] is None and g["vs_questing"] is None
+    from wowstats.plan import forecast
+
+    # A group may still choose the dungeon for gear. The planner can show
+    # the quest XP floor, but it has no whole-trip XP to score afterwards.
+    frozen = forecast.decision({}, {"name": "Excavation Site: Wetlands", "gain": g, "goals": ["gear"]}, "gear", "group")
+    assert frozen["xp"] is None and frozen["quest_xp"] == 28200 and g["level_pct"] == 52
     assert g["time"] == "trip" and g["run_s"] == G.clear_s("Excavation Site: Wetlands") + 600 + 300 + 900 + 600
     assert g["xp_per_hour"] == per_hour(28200, g["run_s"])
     assert g["summary"] == f"~{G.about_s(g['run_s'])} + quests worth ~28k XP (52% of a level)"
@@ -513,6 +519,27 @@ def test_the_route_costs_only_what_his_quest_state_leaves(monkeypatch):
     assert g["trip"]["pickup_s"] == {"value": None, "label": None}
     # 1,922 inside + 300 there (seen) + 800 back + 112 hand-ins (the route's).
     assert g["run_s"] == 1922 + 300 + 800 + 112
+
+
+def test_repeatable_variants_share_one_handin_but_distinct_chain_steps_pay(monkeypatch):
+    # Two item variants of the same reward plus two distinct steps with a
+    # shared title. A route ID can also occur in both lists.
+    t = {"quests": [20, 21, 22, 23], "prereqs": [21, 22]}
+    monkeypatch.setattr(V, "trip_at", lambda *args: t)
+    rows = [{**quest(20, 400), "variants": [20, 21]},
+            {**quest(22, 100), "name": "A chain"}, {**quest(23, 300), "name": "A chain"}]
+    route = V.route_trip({"level": 30}, "Line Keep", rows)
+    assert [(q["quest_id"], q["xp"], q["prerequisite"]) for q in route["handins"]] == [
+        (20, 400, True), (22, 100, True), (23, 300, False)]
+    assert route["xp_quests"] == 800
+    rows[0]["state"] = "done"
+    assert V.route_trip({"level": 30}, "Line Keep", rows)["xp_quests"] == 400
+    # A repeatable the panel filters out still has a variant group in its
+    # dungeon's catalogue. Completing one ID removes its siblings as well.
+    catalogue = {"717": {"quests": [{"quest_id": 20, "variants": [20, 21], "xp": 400}]}}
+    inp = {"level": 30, "dungeon_quests": catalogue, "quests_done": [20]}
+    unlisted = V.route_trip(inp, "The Stockade", rows[1:])
+    assert {q["quest_id"] for q in unlisted["handins"]} == {22, 23}
 
 @pytest.mark.parametrize(("rates", "total", "known", "unknown"), [
     ([], None, None, 0), ([None], None, None, 1), ([0], 0, 0, 0), ([0, None], None, 0, 1),

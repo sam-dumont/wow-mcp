@@ -75,7 +75,7 @@ def test_the_panel_has_one_line_per_wing(priest):
     lq = {q["quest_id"]: q for q in lib["quests"]}
     assert 1050 in lq and 1050 not in {q["quest_id"] for q in gy["quests"]}
     assert lq[1053]["wings"] == {"in": ["Library", "Armory", "Cathedral"], "how": "all",
-                                 "other_wings": ["Armory", "Cathedral"]}
+                                 "other_wings": ["Armory", "Cathedral"], "objectives_here": ["kill Houndmaster Loksey"]}
     assert 1053 in {q["quest_id"] for q in cath["quests"]}
     # Its own drops: the Graveyard's bosses' items stay in the Graveyard.
     gy_bosses = {d["npc_id"] for x in gy["drops"] for d in x["drops"] if d.get("npc_id")}

@@ -157,11 +157,11 @@ def _basic(user: str, pw: str) -> bytes:
 
 
 def plan_status(char: str, store, env: dict | None = None, battlenet: list[int] | None = None,
-                gear_inputs=None) -> dict:
+                gear_inputs=None, *, archive=False) -> dict:
     from wowstats import plan
 
     return plan.status(dict(os.environ if env is None else env), char or None, store, battlenet=battlenet,
-                       gear_inputs=gear_inputs)
+                       gear_inputs=gear_inputs, archive=archive)
 
 
 def with_as_of(name: str, fn) -> dict:
@@ -718,6 +718,7 @@ class App:
         def build() -> dict:
             try:
                 return plan_status(name, self.store, self.env, battlenet=self.bnet_worn(name),
+                                   archive=getattr(self._building, "answers", None) is not None,
                                    gear_inputs=lambda: self.views.gear_inputs(name))
             except LookupError as e:
                 return {"available": False, "why": str(e)}

@@ -109,10 +109,15 @@ def test_old_knowledge_says_so(monkeypatch):
 
 
 def test_the_paragraph_reaches_zogzog_but_not_the_public_page(lane):
-    p = cm.paragraph("Mage", "Frost", 30, TODAY)
+    p = cm.paragraph("Mage", "Frost", 30, TODAY, cite=True)
+    for row in p["evidence"]:
+        row["private"] = "must stay out"
     d = {"char": "X", "header": {"class": "Mage"}, "meta": {**p, "secret": 1}}
-    z = redact.zogzog("char", d)
-    assert z["meta"] == p  # the paragraph as it is, nothing added to it
+    z = redact.zogzog("char", d)["meta"]
+    assert z["text"] == p["text"] and "secret" not in z
+    assert len(z["evidence"]) == 2  # the summary and the newer weekly change
+    assert all(row == {k: SRC[k] for k in ("source_url", "scope", "confidence", "last_verified")}
+               for row in z["evidence"])
     assert "meta" not in redact.public("char", d)
 
 

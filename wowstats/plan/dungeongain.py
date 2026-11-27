@@ -219,6 +219,10 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
         todo = [q for q in quests if q["state"] == "open"
                 or (q["state"] == "new" and not q.get("blocked") and (q.get("min_level") or 0) <= level)]
         xp_q = float(sum(q.get("xp_now") or 0 for q in todo))
+    handins = (route or {}).get("handins")
+    if handins is None:
+        handins = [{**{k: q.get(k) for k in ("quest_id", "name", "url")}, "xp": q.get("xp_now"),
+                    "prerequisite": False} for q in todo]
     left = bool(todo or (route and route["quests"]))
     parts: dict[str, tuple[float, str]] = {}
     kills = None
@@ -290,6 +294,7 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     out = {
         "basis": basis, "own_runs": len(runs), "level": level, "run_s": round(run_s) if run_s else None, "time": time,
         "xp_kills": round(xp_k) if xp_k is not None else None, "xp_quests": round(xp_q),
+        "handins": handins,
         "xp": round(xp) if xp is not None else None,
         "level_pct": round(shown / xp_max * 100) if xp_max and shown else None,
         "xp_per_hour": xph, "kills_unknown": xp_k is None,

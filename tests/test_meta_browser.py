@@ -57,7 +57,7 @@ def site(tmp_path_factory):
     def priest(self, name):
         d = char(self, name)
         hd = {**d["header"], "class": "PRIEST", "race": "Gnome", "faction": "Alliance", "level": LEVEL["v"]}
-        return {**d, "header": hd, "meta": classmeta.paragraph("PRIEST", "Shadow", LEVEL["v"])}
+        return {**d, "header": hd, "meta": classmeta.paragraph("PRIEST", "Shadow", LEVEL["v"], cite=True)}
 
     mp.setattr(views.Views, "char", priest)
     env = {"VL_URL": "http://vl.invalid", "MODEL3D": "off", "PUBLISH_DIR": str(tmp / "site"),
@@ -114,7 +114,11 @@ def test_zogzog_shows_the_paragraph_only(site, pw, engine, width):
         assert "State of the meta: Priest" in box.locator("h2").inner_text()
         assert "as of" in box.locator("h2").inner_text()
         assert len(box.locator(".metatext").inner_text()) > 60
-        assert box.locator(".metascore, .metagaps, details").count() == 0
+        assert box.locator(".metascore, .metagaps, .metamore").count() == 0
+        evidence = box.locator(".metasources").first
+        evidence.get_by_text("Sources for the summary").click()
+        assert evidence.locator("a").first.get_attribute("href").startswith("https://")
+        assert "confidence" in evidence.inner_text() and "checked" in evidence.inner_text()
         assert no_side_scroll(pg) and not errors
     finally:
         b.close()
