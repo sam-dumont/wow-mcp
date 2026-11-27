@@ -111,6 +111,24 @@ def test_renderer_plays_client_animation_aliases_but_rejects_stand_and_broken_al
 
 
 @needs_node
+def test_bone_point_in_model_and_world_space():
+    # The camera fits an item's attachment before turning the character.
+    # A projectile starts from the same bone after the actor was positioned.
+    script = """
+    for (const file of ['core', 'gl', 'm2renderer']) require(process.argv[1] + '/' + file + '.js');
+    const r = Object.create(M3D.M2RendererGL.prototype), att = {bone:0,position:[2,3,4]};
+    r.m2 = {getAttachmentById:() => att};
+    r.model_matrix = M3D.math.IDENTITY_MAT4.slice();
+    r.model_matrix[12] = 10;
+    const xyz = m => Array.from(m.subarray(12,15));
+    console.log(JSON.stringify([xyz(r.getAttachmentTransform(1,true)), xyz(r.getAttachmentTransform(1)),
+                                xyz(r.bonePointTransform(att))]));
+    """
+    out = subprocess.run([NODE, "-e", script, str(M3D)], check=True, capture_output=True, timeout=10)
+    assert json.loads(out.stdout) == [[2, 4, -3], [12, 4, -3], [12, 4, -3]]
+
+
+@needs_node
 def test_first_and_last_ranged_poses_crossfade_over_native_blend_times():
     script = """
     const dir = process.argv[1];

@@ -293,8 +293,8 @@ class Views:
             # Altoholic's /played (optional): the shipper's kind=played events.
             "played": sub(vl, f'{st} feed:="wow-character" {cf} kind:=played | fields _time, played_total_s, '
                               f"played_level_s, level | sort by (_time desc) | limit 50"),
-            "gear": sub(gearmod.sheet_rows, own, cf, "_time, at_basis, source_id, items, ammo_item_id, item_level, professions, "
-                                                   "wanted, spec, spec_from, class, race, faction"),
+            "gear": sub(gearmod.sheet_rows, own, cf, "_time, at_basis, source_id, items, ammo_item_id, item_level, "
+                                                   "professions, wanted, spec, spec_from, class, race, faction"),
             # The Recorder's skill records: each profession's cap (wowstats.profcaps).
             "skills": sub(vl, f"{rec} kind:=skill | fields _time, skill_id, rank, max_rank"),
             # Time per zone from the records' own times (stores.zone_time).
@@ -738,8 +738,8 @@ class Views:
         return ov
 
     def gear_history(self, char: str) -> list[dict]:
-        rows = self.q(f'feed:="wow-gear" {self.char_filter(char)} | fields _time, items, ammo_item_id, item_level, professions, '
-                      f"spec, class, race, faction, source_id")
+        rows = self.q(f'feed:="wow-gear" {self.char_filter(char)} | fields _time, items, ammo_item_id, item_level, '
+                      "professions, spec, class, race, faction, source_id")
         out = []
         for r in sorted(dedupe(rows), key=lambda r: parse_t(r.get("_time"))):
             g = build_gear(r) or {}

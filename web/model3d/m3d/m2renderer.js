@@ -1213,10 +1213,10 @@
 			if (!attachment)
 				return null;
 
-			return this.bonePointTransform(attachment);
+			return this.bonePointTransform(attachment, local);
 		}
 
-		bonePointTransform(attachment) {
+		bonePointTransform(attachment, local = false) {
 			const bone_idx = attachment.bone;
 			let bone_mat = IDENTITY_MAT4;
 			if (this.bone_matrices && this.bones && bone_idx < this.bones.length && bone_idx * 16 + 16 <= this.bone_matrices.length)
