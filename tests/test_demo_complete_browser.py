@@ -213,10 +213,18 @@ OBSERVE_IDLE = """(() => {
     Object.defineProperty(value, 'draw', {get:() => draw, set:original => {
       draw = async (canvas, recipe, get, opts) => {
         const proto = value.M2RendererGL.prototype, render = proto.render;
-        let actor;
+        let actor, drawing;
+        const gl = WebGL2RenderingContext.prototype;
+        for (const [method, count] of [['drawElements',1], ['drawArrays',2]]) {
+          const originalDraw = gl[method];
+          gl[method] = function(...args) {
+            if (drawing && args[count] > 0) probe.seen.add(drawing);
+            return originalDraw.apply(this, args);
+          };
+        }
         proto.render = function(...args) {
           if (!actor && this.fileDataID === recipe.model) actor = this;
-          probe.seen.add(this.fileDataID);
+          drawing = this.fileDataID;
           if (this === actor) {
             const id = this._current_anim()?.id;
             if (probe.clips.at(-1) !== id) probe.clips.push(id);
@@ -224,12 +232,17 @@ OBSERVE_IDLE = """(() => {
             const request = this._sequence(this.current_animation)?.requested;
             if (probe.requested && probe.requested.at(-1) !== request) probe.requested.push(request);
           }
-          return render.apply(this, args);
+          try { return render.apply(this, args); } finally { drawing = null; }
+        };
+        const particles = proto.renderParticles;
+        proto.renderParticles = function(...args) {
+          drawing = this.fileDataID;
+          try { return particles.apply(this, args); } finally { drawing = null; }
         };
         const chainDraw = value.SpellChain.prototype.render;
         value.SpellChain.prototype.render = function(...args) {
-          probe.seen.add(this.def.texture);
-          return chainDraw.apply(this, args);
+          drawing = this.def.texture;
+          try { return chainDraw.apply(this, args); } finally { drawing = null; }
         };
         const random = () => {
           if (probe.handle?.mounted >= 0) return probe.mountRandom;

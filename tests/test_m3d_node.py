@@ -110,6 +110,56 @@ def test_renderer_plays_client_animation_aliases_but_rejects_stand_and_broken_al
     assert json.loads(out.stdout) == [[True, False, False, False], 51, 1]
 
 
+@needs_node
+def test_first_and_last_ranged_poses_crossfade_over_native_blend_times():
+    script = """
+    const dir = process.argv[1];
+    for (const name of ['core','gl','m2renderer']) require(dir+'/'+name+'.js');
+    const r = new M3D.M2RendererGL(null, {gl:{}}, async () => null);
+    const track = {timestamps:[[0],[0]],values:[[[0,0,0]],[[4,0,0]]]};
+    r.bones = [{parentBone:-1, pivot:[0,0,0], translation:track}];
+    r.bone_matrices = new Float32Array(16);
+    r.m2 = {bones:r.bones, globalLoops:[], textureTransforms:[], colors:[], textureWeights:[],
+      animations:[0,46].map(id => ({id, flags:32, duration:1000, blendTimeIn:200, blendTimeOut:200}))};
+    const x = () => r.bone_matrices[12];
+    r.playPreparedAnimation(0);
+    r.playPreparedAnimation(1,true);
+    const out = [x()];
+    r.updateAnimation(.1); out.push(x());
+    r.updateAnimation(.1); out.push(x());
+    r.playPreparedAnimation(0,true); out.push(x());
+    r.updateAnimation(.1); out.push(x());
+    r.updateAnimation(.1); out.push(x());
+    console.log(JSON.stringify(out));
+    """
+    out = subprocess.run([NODE, "-e", script, str(M3D)], check=True, capture_output=True, timeout=10)
+    assert json.loads(out.stdout) == [0, 2, 4, 4, 2, 0]
+
+
+@needs_node
+def test_release_event_sets_missile_launch_and_impact_times():
+    script = """
+    const dir = process.argv[1];
+    for (const name of ['core','spells']) require(dir+'/'+name+'.js');
+    const tf = () => new Float32Array(M3D.math.IDENTITY_MAT4);
+    const char = {m2:{animations:[{id:46,variationIndex:0}],
+      castEvents:[{id:'$BWR',times:{arr:[[400]]}}]},model_matrix:tf(), getAttachmentTransform:tf,
+      playPreparedAnimation(){},find_animation(){return 0}};
+    const actor = {char,attachments:[]};
+    const p = new M3D.SpellPlayback({equipment:'ranged',cast_ms:1000,launch_delay_ms:50,speed:20},actor);
+    const destination = tf(); destination[12] = 10;
+    p.other = {char:{...char,getAttachmentTransform:() => destination}};
+    p.clips.push({phase:'cast', actor, loop:{id:46, index:0, length:.7}});
+    const shot = {phase:'missile',def:{attachment:1,destination_attachment:2},kit:{}};
+    const hit = {phase:'impact',kit:{},def:{},start:{length:.6}};
+    p.nodes.push(shot,hit);
+    p.begin();
+    console.log(JSON.stringify([shot.at,shot.until,hit.at,p.finish]));
+    """
+    out = subprocess.run([NODE, "-e", script, str(M3D)], check=True, capture_output=True, timeout=10)
+    assert json.loads(out.stdout) == pytest.approx([1.45, 1.95, 1.95, 2.55])
+
+
 NODE_READERS = r"""
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const [m3d, dir] = process.argv.slice(2);
