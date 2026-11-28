@@ -1026,21 +1026,76 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]], panel: dic
     return out
 
 
+# A purchase this small (a share of what riding still costs) never delays
+# riding in a way worth a word.
+RIDING_SPARE_SHARE = 0.05
+
+
+def _price(u: dict, s: dict) -> int:
+    """The gold an upgrade costs: the auction price of the item and of the
+    other hand of its setup; 0 for what is held, a quest's or a drop."""
+    w = u.get("with") or {}
+    other = next(iter(w.get("sources") or []), {}) if w.get("kind") == "get" else {}
+    return sum(int(x.get("price_copper") or 0) for x in (s, other) if x.get("kind") == "ah")
+
+
+def _purchase_moves(picks: list[tuple[dict, dict]], advice: dict | None, header: dict, riding: list[dict],
+                    level: int | None, show: int = 3) -> list[dict]:
+    """The upgrade moves, in the order that pays: what costs no gold first
+    (held, then by points), then the purchases by points per gold. While
+    riding's price is still to be put by, a purchase over RIDING_SPARE_SHARE
+    of it that leaves less than riding costs goes after the others, ranks
+    under the riding move, and says what it does to riding."""
+    money = opt_num(header.get("money_copper"))
+    goal = next((m["skill"] for m in riding if (m.get("skill") or {}).get("cost_copper")), None)
+    need = goal["cost_copper"] if goal else 0
+    have = None if money is None else int(money) // 100 * 100  # as the riding move counts it
+
+    def delays(price: int) -> bool:
+        return bool(need and have is not None and price > need * RIDING_SPARE_SHARE and have - price < need)
+
+    def order(us):
+        u, s = us
+        price = _price(u, s)
+        gain = u.get("gain") or 0
+        return (delays(price), price > 0, s.get("kind") not in HELD_WHERE,
+                -(gain / price if price else gain))
+
+    out: list[dict] = []
+    for u, s in sorted(picks, key=order)[:show]:
+        text = _pick_text(u, s) + _bis_text(advice, u)
+        price = _price(u, s)
+        late = delays(price)
+        if late and have < need:
+            share = round(price / have * 100) if have else None
+            uses = f"uses {share}% of your gold" if share and share <= 100 else "costs more than the gold you have"
+            text = f"{text.rstrip('.')}. It {uses}; riding is {_coins(need - have)} away."
+        elif late:
+            text = f"{text.rstrip('.')}. It leaves you {_coins(need - (have - price))} short of riding."
+        c = _upgrade_claim(u, s, text, "gear advice (ForeverDB.net's weights)", level)
+        # Strictly in the order shown; one that delays riding under riding's move.
+        caps = [out[-1]["weight"] - 0.01] if out else []
+        if late and riding:
+            caps.append(riding[0]["weight"] - 0.01)
+        c["weight"] = min([c["weight"], *caps])
+        out.append(c)
+    return out
+
+
 def next_moves(level: int | None, advice: dict | None, header: dict, track: dict, follow: dict,
                gear_profs: list[dict], skills: dict[int, dict], *, done=(), dungeon_panel=None) -> dict:
     """Besides following Polestar: what pays now."""
     reach = in_reach(advice, level, dungeon_panel=dungeon_panel)
+    riding = riding_claims(level, header, skills, done)
     # The best for each slot: two pairs of trousers for the same legs are one
     # move, not two.
     # Held ones first: equipping one is a move that costs nothing.
     best: dict = {}
     for u, s in sorted(reach, key=lambda us: us[1].get("kind") not in HELD_WHERE):
         best.setdefault(u.get("slot"), (u, s))
-    moves = [_upgrade_claim(u, s, _pick_text(u, s) + _bis_text(advice, u), "gear advice (ForeverDB.net's weights)",
-                            level)
-             for u, s in list(best.values())[:3]]
+    moves = _purchase_moves(list(best.values()), advice, header, riding, level)
     moves += profession_claims(level, gear_profs, skills, header)
-    moves += riding_claims(level, header, skills, done)
+    moves += riding
     moves += dungeon_claims(level, reach, dungeon_panel)
     rested = opt_num(header.get("rested_xp"))
     if rested:

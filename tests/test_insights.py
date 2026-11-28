@@ -434,6 +434,47 @@ def test_one_item_one_move():
     assert any(m["kind"] == "upgrade" and m["item_id"] == 5 for m in mv)  # a quest item: no dungeon names it
 
 
+def _riding_cost():
+    from wowstats.analysis import kb
+
+    v = kb.static_rule("riding.apprentice")["value"]
+    return v["level"], v["training_copper"]
+
+
+def _ah(copper):
+    return {"kind": "ah", "price_copper": copper, "seen_day": "2026-11-28", "seen_days_ago": 0}
+
+
+def test_purchases_rank_by_gain_per_gold_and_yield_to_riding():
+    """Gold on hand is 55% of riding's price: a ring that takes 69% of it for
+    the most points comes after the staff and the pants that cost a little,
+    and its text says what it does to riding."""
+    level, cost = _riding_cost()
+    gold = cost * 55 // 100
+    ring, staff, pants = round(cost * 0.38), round(cost * 0.05), round(cost * 0.014)
+    ups = [up(1, 11, 91, _ah(ring)), up(2, 16, 73, _ah(staff)), up(3, 7, 56, _ah(pants))]
+    hd = {"faction": "Alliance", "race": "Gnome", "money_copper": gold}
+    nm = insights.next_moves(level, {"upgrades": ups}, hd, {}, {}, [], {})
+    got = [m["item_id"] for m in nm["moves"] if m["kind"] == "upgrade"]
+    assert got == [3, 2, 1]  # gain per gold: pants, staff; the ring last
+    ring_move = nm["moves"][2]
+    assert "uses 69% of your gold; riding is" in ring_move["text"] and "away" in ring_move["text"]
+    assert "riding" not in nm["moves"][0]["text"] and "riding" not in nm["moves"][1]["text"]
+    riding = next(m for m in nm["moves"] if m["kind"] == "riding")
+    assert ring_move["weight"] < riding["weight"] < 5
+    w = [m["weight"] for m in nm["moves"] if m["kind"] == "upgrade"]
+    assert w == sorted(w, reverse=True) and len(set(w)) == 3
+    # Enough gold for both riding and the ring: nothing to say about riding.
+    rich = {**hd, "money_copper": cost + ring}
+    nm = insights.next_moves(level, {"upgrades": ups}, rich, {}, {}, [], {})
+    assert [m["item_id"] for m in nm["moves"] if m["kind"] == "upgrade"] == [3, 2, 1]
+    assert not any("uses" in m["text"] for m in nm["moves"] if m["kind"] == "upgrade")
+    # Free ones (a quest, the bags) come before any purchase, whatever the points.
+    free = {**up(4, 8, 5, QUEST), "name": "Item 4"}
+    nm = insights.next_moves(level, {"upgrades": [*ups, free]}, hd, {}, {}, [], {})
+    assert [m["item_id"] for m in nm["moves"] if m["kind"] == "upgrade"][0] == 4
+
+
 def test_a_dungeon_is_optional_and_comes_last():
     """Owner, 2026-11-28: a dungeon never leads. Its text says it is optional
     and it follows the upgrades, the professions and riding, even when it
@@ -466,3 +507,11 @@ def test_moves_require_a_reachable_route_for_both_hands():
     from wowstats import redact
     kept = redact.zogzog("overview", {"moves": moves})["moves"][0]
     assert kept["source"]["price_copper"] == 245500 and kept["source"]["seen_day"] == "2026-11-26"
+
+
+def test_a_purchase_beyond_the_purse_says_so_without_dividing_by_nothing():
+    level, cost = _riding_cost()
+    nm = insights.next_moves(level, {"upgrades": [up(1, 11, 91, _ah(cost // 2))]},
+                             {"faction": "Alliance", "race": "Gnome", "money_copper": 0}, {}, {}, [], {})
+    m = next(m for m in nm["moves"] if m["kind"] == "upgrade")
+    assert "costs more than the gold you have; riding is" in m["text"]

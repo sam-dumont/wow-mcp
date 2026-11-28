@@ -99,15 +99,15 @@
    "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
-   "upgrade|10028",
    "upgrade|10771",
+   "upgrade|279835",
    "upgrade|279883"
   ],
   "next_moves": [
    "#dungeons",
    "#gear",
    "#levels",
-   "#up-3",
+   "#up-15",
    "#up-6",
    "#up-9"
   ],
@@ -140,16 +140,16 @@
    "dungeon|Scarlet Monastery: Cathedral",
    "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
-   "upgrade|10025",
-   "upgrade|10762"
+   "upgrade|10762",
+   "upgrade|7709"
   ],
   "next_moves": [
    "#dungeons",
    "#gear",
    "#levels",
-   "#up-1",
    "#up-18",
-   "#up-5"
+   "#up-5",
+   "#up-7"
   ],
   "prep": []
  },
@@ -182,7 +182,6 @@
    "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
-   "upgrade|10025",
    "upgrade|10028",
    "upgrade|279883"
   ],
@@ -190,7 +189,7 @@
    "#dungeons",
    "#gear",
    "#levels",
-   "#up-1",
+   "#up-15",
    "#up-3",
    "#up-9"
   ],
