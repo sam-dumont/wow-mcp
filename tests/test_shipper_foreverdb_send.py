@@ -57,12 +57,14 @@ class Net:
     """The HTTP layer: records every call, answers what the test says."""
 
     def __init__(self, fs, words=("wolves", "bring"), status=200):
-        self.calls, self.words, self.status = [], list(words), status
+        self.calls, self.words, self.status, self.me_status = [], list(words), status, 200
 
     def __call__(self, url, data=None, hdrs=None):
         self.calls.append((url, data, hdrs))
         if url.endswith("/api/gamewords"):
             return (200, {"words": self.words}) if self.words is not None else (503, None)
+        if url.endswith("/api/me/addon-file"):
+            return self.me_status, {"shared": {"counts": {"quests": 2, "loot": 1}}}
         return self.status, {"shared": {"counts": {"quests": 2, "loot": 1}}}
 
     @property
@@ -289,3 +291,135 @@ def test_enabled_but_module_missing_says_so():
     """The hook logs one clear line when the setting is on and the file isn't beside the script."""
     src = (ROOT / "shipper" / "wow_stats.py").read_text()
     assert "foreverdb_send.py is not next to this script" in src
+
+
+# ---- the owner's own session: as the logged-in page --------------------------------------------------------------
+
+SECRET = "sid=THE-SECRET-VALUE; other=thing"
+HELPER = """ForeverDBHelperDB = {
+    ["gen"] = 1,
+    ["share"] = { ["updated"] = 5, ["schema"] = 2,
+        ["runs"] = { { ["id"] = "r1", ["map"] = 33, ["dur"] = 90, ["note"] = "private note",
+            ["kills"] = { { ["npc"] = 7, ["boss"] = "B", ["secret"] = "x",
+                ["loot"] = { { ["item"] = 5, ["n"] = 1, ["who"] = "Someone" } } } },
+            ["wipes"] = { { ["npc"] = 7, ["hp"] = 5 } } } },
+        ["tips"] = { { ["id"] = 1, ["text"] = "a tip", ["owner"] = "Zorbo" } },
+        ["wish"] = { ["123"] = { ["added"] = 1, ["name"] = "Item" }, ["bad"] = { ["added"] = 1 } },
+        ["goals"] = { { ["id"] = 1, ["kind"] = "k", ["title"] = "my private goal" } },
+    },
+}
+"""
+
+
+def session(arch: Path, mode: int = 0o600, text: str = SECRET + "\n") -> Path:
+    arch.mkdir(parents=True, exist_ok=True)
+    p = arch / "foreverdb-session"
+    p.write_text(text)
+    p.chmod(mode)
+    return p
+
+
+def sess_run(fs, env, **kw):
+    wow, arch, _net, lines, _run = env
+    return fs.run(wow, arch, lines.append, session_file=arch / "foreverdb-session", **kw)
+
+
+def test_session_sends_like_the_logged_in_page(fs, env):
+    wow, arch, net, lines, _run = env
+    write_acct(wow, "ACCT1")
+    write_acct(wow, "ACCT1", HELPER, file="ForeverDB_Helper.lua")
+    session(arch)
+    assert sess_run(fs, env, now=1000.0) == 2
+    comp, helper = net.posts
+    assert comp[0] == helper[0] == "https://foreverdb.net/api/me/addon-file"
+    assert comp[2]["Cookie"] == SECRET and comp[2]["X-FDB"] == "1" and "X-FDB-Install" not in comp[2]
+    body = json.loads(gzip.decompress(comp[1]))
+    assert list(body) == ["kind", "v", "addonVersion", "data", "armory"]
+    assert [c["name"] for c in body["armory"]] == ["Zorbo"] and "secret" not in body["armory"][0]
+    assert body["data"]["quests"]["101"]["t"].startswith("$N,")
+    share = json.loads(gzip.decompress(helper[1]))
+    assert list(share) == ["share"]
+    s = share["share"]
+    assert s["runs"] == [{"id": "r1", "map": 33, "dur": 90,
+                          "kills": [{"npc": 7, "boss": "B", "loot": [{"item": 5, "n": 1}]}],
+                          "wipes": [{"npc": 7, "hp": 5}]}]
+    assert s["tips"] == [{"id": 1, "text": "a tip"}] and s["wish"] == {"123": {"added": 1}}
+    assert s["goals"] == [{"id": 1, "kind": "k", "tasks": []}] and s["schema"] == 2
+    assert "private" not in json.dumps(s) and "Someone" not in json.dumps(s)
+    # nothing new: nothing sent; new Helper data: only the Helper goes
+    assert sess_run(fs, env, now=5000.0) == 0 and len(net.posts) == 2
+    write_acct(wow, "ACCT1", HELPER.replace('["dur"] = 90', '["dur"] = 91'), file="ForeverDB_Helper.lua")
+    assert sess_run(fs, env, now=7000.0) == 1 and len(net.posts) == 3
+    assert json.loads(gzip.decompress(net.posts[2][1]))["share"]["runs"][0]["dur"] == 91
+    # logged-in memory is its own: the anonymous send was never made
+    assert all("anon" not in c[0] for c in net.posts)
+
+
+def test_nothing_secret_in_the_log_or_the_state(fs, env):
+    wow, arch, _net, lines, _run = env
+    write_acct(wow, "ACCT1")
+    session(arch)
+    sess_run(fs, env, now=1000.0)
+    assert "THE-SECRET" not in "".join(lines) and "sid=" not in "".join(lines)
+    assert "THE-SECRET" not in (arch / "foreverdb-send.json").read_text()
+
+
+@pytest.mark.parametrize(("mode", "text"), [(0o644, SECRET), (0o600, "a=b\nc=d"), (0o600, "   ")])
+def test_a_loose_or_odd_session_file_is_refused_once_and_anonymous_is_used(fs, env, mode, text):
+    wow, arch, net, lines, _run = env
+    write_acct(wow, "ACCT1")
+    p = session(arch, mode, text)
+    assert sess_run(fs, env, now=1000.0) == 1
+    assert net.posts[0][0].endswith("/api/anon/addon-file") and "Cookie" not in net.posts[0][2]
+    refusals = [ln for ln in lines if "not using" in ln]
+    assert len(refusals) == 1 and str(p) in refusals[0] and "THE-SECRET" not in refusals[0]
+    p.write_text(text + " ")  # touched: still refused, not said again
+    assert sess_run(fs, env, now=1000.0 + 901, force=True) == 1
+    assert len([ln for ln in lines if "not using" in ln]) == 1
+
+
+def test_a_session_file_owned_by_someone_else_is_refused(fs, env, monkeypatch):
+    wow, arch, net, lines, _run = env
+    write_acct(wow, "ACCT1")
+    session(arch)
+    real_uid = os.getuid()
+    monkeypatch.setattr(fs.os, "getuid", lambda: real_uid + 1)
+    sess_run(fs, env, now=1000.0)
+    assert "must be owned by you" in "".join(lines) and "Cookie" not in net.posts[0][2]
+
+
+def test_an_expired_session_says_so_and_falls_back_to_anonymous(fs, env):
+    wow, arch, net, lines, _run = env
+    write_acct(wow, "ACCT1")
+    write_acct(wow, "ACCT1", HELPER, file="ForeverDB_Helper.lua")
+    p = session(arch)
+    net.me_status = 401
+    assert sess_run(fs, env, now=1000.0) == 1
+    urls = [c[0] for c in net.posts]
+    assert urls == ["https://foreverdb.net/api/me/addon-file", "https://foreverdb.net/api/anon/addon-file"]
+    assert f"foreverdb.net session expired: paste a new one into {p}" in lines
+    assert "Cookie" not in net.posts[1][2]  # the anonymous send carries no session, and no Helper
+    assert "THE-SECRET" not in "".join(lines)
+    # the same expired cookie is not tried (or complained about) again; a new one is
+    write_acct(wow, "ACCT1", LUA.replace('["scale"] = 1', '["scale"] = 1, ["fish"] = { [1] = { ["n"] = 1 } }'))
+    sess_run(fs, env, now=3000.0)
+    assert len(net.posts) == 3 and net.posts[2][0].endswith("/anon/addon-file")
+    assert len([ln for ln in lines if "session expired" in ln]) == 1
+    net.me_status = 200
+    p.write_text("sid=NEW\n")
+    sess_run(fs, env, now=9000.0, force=True)
+    assert net.posts[-1][2]["Cookie"] == "sid=NEW"
+
+
+def test_the_session_goes_to_foreverdb_only(fs):
+    with pytest.raises(OSError, match="anywhere but foreverdb.net"):
+        fs.http("https://example.com/api/me/addon-file", b"x", {"Cookie": SECRET})
+    with pytest.raises(OSError, match="anywhere but foreverdb.net"):
+        fs.http("https://foreverdb.net.evil.test/api/me/addon-file", b"x", {"cookie": SECRET})
+    assert fs.ME_URL.startswith(fs.SITE + "/") and fs.SEND_URL.startswith(fs.SITE + "/")
+
+
+def test_session_path_setting(fs, tmp_path):
+    assert fs.session_path({}, tmp_path) == tmp_path / "foreverdb-session"
+    assert fs.session_path({"foreverdb_session_file": ""}, tmp_path) is None
+    assert fs.session_path({"foreverdb_session_file": str(tmp_path / "x")}, tmp_path) == tmp_path / "x"

@@ -32,6 +32,7 @@ import math
 import os
 import re
 import secrets
+import stat
 import sys
 import time
 import unicodedata
@@ -41,6 +42,7 @@ from pathlib import Path
 
 SITE = "https://foreverdb.net"
 SEND_URL = SITE + "/api/anon/addon-file"
+ME_URL = SITE + "/api/me/addon-file"
 WORDS_URL = SITE + "/api/gamewords"
 MAX_FILE = 48 * 1024 * 1024  # the page refuses a bigger saved file
 MIN_INTERVAL_S = 15 * 60  # between two attempts
@@ -435,8 +437,8 @@ def counts_of(w: dict) -> dict[str, int]:
 # Files, state, request
 
 
-def account_files(wow: Path) -> list[tuple[str, Path]]:
-    """(account folder name, ForeverDB.lua) for each account, oldest file first."""
+def account_files(wow: Path, name: str = "foreverdb.lua") -> list[tuple[str, Path]]:
+    """(account folder name, file) for each account, oldest file first. `name`: lowercase file name."""
     acc = wow / "WTF" / "Account"
     found: list[tuple[float, str, Path]] = []
     try:
@@ -448,7 +450,7 @@ def account_files(wow: Path) -> list[tuple[str, Path]]:
         if sv is None:
             continue
         for f in sv.iterdir():
-            if f.is_file() and f.name.lower() == "foreverdb.lua":
+            if f.is_file() and f.name.lower() == name:
                 found.append((f.stat().st_mtime, d.name, f))
     return [(a, f) for _, a, f in sorted(found, key=lambda x: x[0])]
 
@@ -465,15 +467,21 @@ class Retry(Exception):
     """Not now: the next run tries again."""
 
 
-def plan_file(path: Path, words_get) -> dict:
-    """Read one ForeverDB.lua like the page: sections, counts, hash, payload."""
+def read_vars(path: Path) -> dict:
+    """The file's top-level variables, read like the page (48 MiB cap)."""
     if path.stat().st_size > MAX_FILE:
         raise Skip("file too large")
-    db = parse_lua(path.read_text(encoding="utf-8", errors="replace")).get("ForeverDB_DB")
+    return parse_lua(path.read_text(encoding="utf-8", errors="replace"))
+
+
+def plan_file(lua_vars: dict, words_get) -> dict:
+    """One ForeverDB.lua like the page: sections, counts, hash, anonymous payload."""
+    db = lua_vars.get("ForeverDB_DB")
     if not isinstance(db, dict):
         raise Skip("nothing saved yet")
     chars = characters(db)
-    names = [c.get("name") or "?" for c in sorted(chars.values(), key=lambda s: -(s.get("time") or 0))]
+    ordered = sorted(chars.items(), key=lambda kv: -(kv[1].get("time") or 0))
+    names = [c.get("name") or "?" for _, c in ordered]
     words = words_get() if names else None  # the page fetches the list only when it has names
     if names and words is None:
         # The page then sends the quests' text unscrubbed; this waits for the list instead.
@@ -489,7 +497,211 @@ def plan_file(path: Path, words_get) -> dict:
         payload["data"] = sections
     payload["armory"] = []
     raw = stringify(payload).encode()
-    return {"hash": digest, "counts": counts, "payload": payload, "raw": raw, "body": gzip.compress(raw, mtime=0)}
+    return {"hash": digest, "counts": counts, "payload": payload, "raw": raw, "body": gzip.compress(raw, mtime=0),
+            "sections": sections, "snaps": snaps, "guids": [g for g, _ in ordered], "version": version}
+
+
+def logged_in_body(plan: dict, data: bool, guids: list[str]) -> tuple[bytes, bytes]:
+    """The logged-in page's ut(): data only when shared, the ticked characters' snapshots as the armory."""
+    payload = {"kind": "fdb-upload", "v": 1, "addonVersion": plan["version"]}
+    if data:
+        payload["data"] = plan["sections"]
+    payload["armory"] = [plan["snaps"][g] for g in guids if g in plan["snaps"]]
+    raw = stringify(payload).encode()
+    return raw, gzip.compress(raw, mtime=0)
+
+
+# --------------------------------------------------------------------------
+# The Helper's anonymous share section (the page's ye, bt, be, gt)
+
+HC = {
+    "top": ["schema", "addon", "build", "locale"],
+    "run": ["id", "map", "diff", "start", "stop", "dur", "done", "open", "size", "helpers", "lv", "cls"],
+    "kill": ["npc", "enc", "boss", "key", "t", "wipes", "at"],
+    "loot": ["item", "n", "how"],
+    "wipe": ["npc", "enc", "t", "hp", "at"],
+    "wish": ["added", "got"],
+    "goal": ["id", "kind", "done"],
+    "task": ["k", "d"],
+    "tip": ["id", "map", "npc", "enc", "boss", "quest", "text", "at"],
+    "find": ["item", "how", "m", "x", "y", "npc", "obj", "vendor", "p", "quest", "n", "at"],
+}
+
+
+def is_plain(v) -> bool:
+    return isinstance(v, dict)
+
+
+def pick(e, keys):
+    """The page's Z: the listed primitive fields of an object, else None."""
+    if not is_plain(e):
+        return None
+    return {k: e[k] for k in keys if k in e and e[k] is not None and not isinstance(e[k], (dict, list))}
+
+
+def as_list(e) -> list:
+    """The page's Xe: an array, or an object's digit keys in order."""
+    if isinstance(e, list):
+        return e
+    if is_plain(e):
+        return [e[k] for k in sorted((k for k in e if re.fullmatch(r"[0-9]+", k)), key=int)]
+    return []
+
+
+def pick_list(e, keys, extra=None) -> list:
+    out = []
+    for x in as_list(e):
+        r = pick(x, keys)
+        if r is not None and extra:
+            r = extra(x, r)
+        if r is not None:
+            out.append(r)
+    return out
+
+
+def _kill(k, a):
+    return {**a, "loot": pick_list(k.get("loot"), HC["loot"])}
+
+
+def _run(n, r):
+    if not is_plain(n):
+        return r
+    return {**r, "kills": pick_list(n.get("kills"), HC["kill"], _kill), "wipes": pick_list(n.get("wipes"), HC["wipe"])}
+
+
+def _goal(n, r):
+    return {**r, "tasks": pick_list(n.get("tasks"), HC["task"])}
+
+
+def share_filter(e) -> dict:
+    """The page's ye: only the whitelisted primitive fields of the Helper's share section."""
+    t = pick(e, HC["top"]) or {}
+    get = e.get if is_plain(e) else (lambda k: None)
+    t["runs"] = pick_list(get("runs"), HC["run"], _run)
+    if is_plain(get("wish")):
+        wish = {n: pick(v, HC["wish"]) or {} for n, v in e["wish"].items() if re.fullmatch(r"[0-9]{1,9}", n)}
+        t["wish"] = js_order(wish)
+    if is_plain(e) and "goals" in e:
+        t["goals"] = pick_list(e["goals"], HC["goal"], _goal)
+    tips = get("tips")
+    tips = tips if isinstance(tips, list) else list(tips.values()) if is_plain(tips) else []
+    t["tips"] = [r for r in (pick(x, HC["tip"]) for x in tips) if r is not None]
+    t["finds"] = pick_list(get("finds"), HC["find"])
+    return t
+
+
+def merge_shares(shares: list) -> tuple[dict, float]:
+    runs: dict = {}
+    wish: dict = {}
+    goals: list = []
+    tips: list = []
+    finds: list = []
+    top: dict = {}
+    has_wish = has_goals = False
+    updated = 0.0
+    for f in shares:
+        if not is_plain(f) and not isinstance(f, list):
+            continue
+        u = f.get("updated") if is_plain(f) else None
+        updated = max(updated, float(u) if is_num(u) else 0.0)
+        w = share_filter(f)
+        for k in HC["top"]:
+            if k in w:
+                top[k] = w[k]
+        for r in w["runs"]:
+            runs[r.get("id") if not isinstance(r.get("id"), (dict, list)) else None] = r
+        if "wish" in w:
+            has_wish = True
+            wish.update(w["wish"])
+        if "goals" in w:
+            has_goals = True
+            goals += w["goals"]
+        tips += w["tips"]
+        finds += w["finds"]
+    out = {**top, "runs": list(runs.values()), "tips": tips, "finds": finds}
+    if has_wish:
+        out["wish"] = js_order(wish)
+    if has_goals:
+        out["goals"] = goals
+    return out, updated
+
+
+def share_counts(e: dict) -> dict[str, int]:
+    runs = values(e.get("runs"))
+    return {"runs": len(runs),
+            "kills": sum(len(values(r.get("kills"))) for r in runs if is_plain(r)),
+            "wipes": sum(len(values(r.get("wipes"))) for r in runs if is_plain(r)),
+            "finds": len(values(e.get("finds"))), "tips": len(values(e.get("tips"))),
+            "wish": len(e["wish"]) if is_plain(e.get("wish")) else 0, "goals": len(values(e.get("goals")))}
+
+
+def _fin(v) -> float:
+    return float(v) if is_num(v) and math.isfinite(v) else 0.0
+
+
+def helper_rank(g: dict) -> list:
+    db = g["db"]
+    gen = db.get("gen")
+    share = db.get("share")
+    return [float(gen) if is_num(gen) and math.isfinite(gen) else -1.0, _fin(db.get("savedAt")),
+            _fin(share.get("updated")) if is_plain(share) else 0.0, g["mtime"], 1 if g["companion"] else 0]
+
+
+def plan_helper(entries: list[tuple[str, Path, bool, dict]]) -> dict | None:
+    """The merged share section of every account's Helper data (the page's plan.helper):
+    entries are (account, file, is_companion, parsed variables), any order."""
+    best: dict[str, dict] = {}
+    for acct, path, comp, v in sorted(entries, key=lambda x: x[1].stat().st_mtime):
+        db = v.get("ForeverDBHelperDB")
+        if not is_plain(db) or not db:
+            continue
+        g = {"db": db, "companion": comp, "mtime": path.stat().st_mtime * 1000}
+        if acct not in best or helper_rank(g) > helper_rank(best[acct]):
+            best[acct] = g
+    shares = [g["db"]["share"] for g in sorted(best.values(), key=lambda g: g["mtime"])
+              if is_plain(g["db"].get("share"))]
+    if not shares:
+        return None
+    share, saved = merge_shares(shares)
+    counts = share_counts(share)
+    raw = stringify({"share": share}).encode()
+    return {"share": share, "saved": saved, "counts": counts, "empty": not any(counts.values()),
+            "hash": hashlib.sha256(stringify(share).encode()).hexdigest(), "raw": raw,
+            "body": gzip.compress(raw, mtime=0)}
+
+
+# --------------------------------------------------------------------------
+# The owner's own foreverdb.net session (the logged-in page's credential: a cookie)
+
+def load_session(path: Path) -> tuple[str | None, str | None]:
+    """(Cookie header value, why it was refused). A missing file is no session and no complaint."""
+    try:
+        st = os.lstat(path)
+    except FileNotFoundError:
+        return None, None
+    except OSError:
+        return None, "cannot be read"
+    if not stat.S_ISREG(st.st_mode):
+        return None, "is not a plain file"
+    if os.name != "nt":
+        if st.st_mode & 0o777 != 0o600:
+            return None, f"must have mode 600 (it has {st.st_mode & 0o777:o})"
+        if st.st_uid != os.getuid():
+            return None, "must be owned by you"
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        return None, "cannot be read as text"
+    text = re.sub(r"^\s*cookie:\s*", "", text.strip(), flags=re.I)
+    if not text or not text.isascii() or any(c in text for c in "\r\n\x00"):
+        return None, "must hold one line: the Cookie header value"
+    return text, None
+
+
+def session_headers(cookie: str) -> dict[str, str]:
+    """What the logged-in page's fetch carries: the gzip type, X-FDB, the browser's cookie."""
+    return {"Content-Type": "application/gzip", "X-FDB": "1", "Origin": SITE, "Referer": SITE + "/send",
+            "Accept": "*/*", "User-Agent": "wow-stats-shipper (foreverdb_send)", "Cookie": cookie}
 
 
 def headers(install: str) -> dict[str, str]:
@@ -504,7 +716,9 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def http(url: str, data: bytes | None = None, hdrs: dict | None = None) -> tuple[int, dict | None]:
-    """(status, JSON body or None). Network errors raise OSError."""
+    """(status, JSON body or None). Network errors raise OSError. A Cookie goes to foreverdb.net only."""
+    if any(k.lower() == "cookie" for k in (hdrs or {})) and not url.startswith(SITE + "/"):
+        raise OSError("refusing to send a session anywhere but foreverdb.net")
     req = urllib.request.Request(url, data=data, headers=hdrs or {"User-Agent": "wow-stats-shipper (foreverdb_send)"},
                                  method="POST" if data is not None else "GET")
     try:
@@ -566,32 +780,74 @@ def summary(resp) -> str:
     return "no counts in the answer"
 
 
+def _digest(cookie: str) -> str:
+    return hashlib.sha256(cookie.encode()).hexdigest()
+
+
 def run(wow: Path, archive: Path, log, *, dry: bool = False, force: bool = False, now: float | None = None,
-        words_get=None) -> int:
-    """Send what changed. Returns how many files were sent (dry: planned)."""
+        words_get=None, session_file: Path | None = None) -> int:
+    """Send what changed. Returns how many requests were sent (dry: planned).
+    With a session file: as the logged-in page (ForeverDB.lua with the characters, and the Helper's share);
+    without, or when the session has expired: anonymously."""
     now = time.time() if now is None else now
     words_get = words_get or fetch_words
     sp = state_path(archive)
     st = load_state(sp)
     files = account_files(wow)
-    if not files:
+    hfiles = account_files(wow, "foreverdb_helper.lua")
+    if not files and not hfiles:
         return 0
+    sess = st.setdefault("session", {})
+    cookie = None
+    if session_file is not None:
+        cookie, why = load_session(Path(session_file))
+        if why and sess.get("refused") != why:
+            log(f"foreverdb: not using {session_file}: it {why}")
+        if why:
+            sess["refused"] = why
+        else:
+            sess.pop("refused", None)
+        if cookie and sess.get("expired") == _digest(cookie):
+            cookie = None  # the same expired session: said once already
     stamps = {a: [f.stat().st_mtime_ns, f.stat().st_size] for a, f in files}
-    known = st.get("files", {})
+    if cookie:
+        stamps.update({a + "/h": [f.stat().st_mtime_ns, f.stat().st_size] for a, f in hfiles})
+        known_stamps = sess.get("stamps", {})
+    else:
+        known_stamps = {a: v.get("stamp") for a, v in st.get("files", {}).items()}
     if not dry and not force:
-        if all(known.get(a, {}).get("stamp") == s for a, s in stamps.items()):
+        if all(known_stamps.get(a) == s for a, s in stamps.items()):
             return 0
         if now - float(st.get("tried", 0)) < MIN_INTERVAL_S:
             return 0
+    if not dry:
+        st["tried"] = now
+    sent = 0
+    if cookie:
+        result = _session_pass(wow, files, hfiles, stamps, cookie, st, sess, log, dry, force, now, words_get)
+        if result == "expired":
+            log(f"foreverdb.net session expired: paste a new one into {session_file}")
+            sess["expired"] = _digest(cookie)
+            cookie = None
+        else:
+            sent = result
+    if not cookie:
+        stamps = {a: [f.stat().st_mtime_ns, f.stat().st_size] for a, f in files}
+        sent += _anon_pass(files, stamps, st, log, dry, force, now, words_get)
+    if not dry:
+        save_state(sp, st)
+    return sent
+
+
+def _anon_pass(files, stamps, st, log, dry, force, now, words_get) -> int:
+    known = st.get("files", {})
     install = st.get("install") if isinstance(st.get("install"), str) and INSTALL_RE.fullmatch(st["install"]) else None
     sent = 0
     new_files = dict(known)
-    if not dry:
-        st["tried"] = now
     for idx, (acct, path) in enumerate(files, 1):
         label = f"account {idx}"
         try:
-            plan = plan_file(path, words_get)
+            plan = plan_file(read_vars(path), words_get)
         except Skip as e:
             log(f"foreverdb: {label}: {e}")
             new_files[acct] = {"stamp": stamps[acct], "hash": None}
@@ -627,15 +883,107 @@ def run(wow: Path, archive: Path, log, *, dry: bool = False, force: bool = False
         st["files"] = new_files
         if st["install"] is None:
             st.pop("install")
-        save_state(sp, st)
     return sent
+
+
+def _session_pass(wow, files, hfiles, stamps, cookie, st, sess, log, dry, force, now, words_get):
+    """The logged-in page's send. Returns the number of requests sent, or "expired" on a 401/403."""
+    mem = sess.setdefault("files", {})
+    hdrs = session_headers(cookie)
+    parsed: dict[Path, dict] = {}
+    sent = 0
+    clean = True
+    entries = []
+    for idx, (acct, path) in enumerate(files, 1):
+        label = f"account {idx}"
+        try:
+            parsed[path] = read_vars(path)
+            entries.append((acct, path, True, parsed[path]))
+            plan = plan_file(parsed[path], words_get)
+        except Skip as e:
+            log(f"foreverdb: {label}: {e}")
+            continue
+        except (Retry, LuaError, OSError, RecursionError) as e:
+            log(f"foreverdb: {label}: not read ({e if isinstance(e, Retry) else type(e).__name__})")
+            clean = False
+            continue
+        entry = mem.get(acct, {})
+        armory = "all" if plan["guids"] else "none"
+        changed = entry.get("hash") != plan["hash"]
+        share = bool(plan["counts"]) and (force or changed)
+        chars = armory != "none" and (force or changed or entry.get("armory") != armory)
+        if not share and not chars:
+            continue
+        raw, body = logged_in_body(plan, share, plan["guids"] if chars else [])
+        if dry:
+            log(f"foreverdb: {label}: would send (logged in) {len(raw)} bytes JSON, {len(body)} gzipped; "
+                f"data {share}, characters {len(plan['guids']) if chars else 0}")
+            sent += 1
+            continue
+        try:
+            status, resp = http(ME_URL, body, hdrs)
+        except OSError as e:
+            log(f"foreverdb: {label}: send failed ({e})")
+            clean = False
+            continue
+        if status in (401, 403):
+            return "expired"
+        log(f"foreverdb: {label}: sent (logged in) {len(body)} bytes, HTTP {status}"
+            + (f", {summary(resp)}" if 200 <= status < 300 else ""))
+        if 200 <= status < 300:
+            mem[acct] = {"hash": plan["hash"], "armory": armory}
+            st["at"] = now
+            sent += 1
+        else:
+            clean = False
+    for acct, path in hfiles:
+        try:
+            entries.append((acct, path, False, read_vars(path)))
+        except (Skip, LuaError, OSError, RecursionError):
+            clean = False
+    helper = plan_helper(entries)
+    if helper is not None and not helper["empty"] and (force or sess.get("helper", {}).get("hash") != helper["hash"]):
+        counts = ", ".join(f"{k}={v}" for k, v in helper["counts"].items() if v)
+        if dry:
+            log(f"foreverdb: helper: would send (logged in) {len(helper['raw'])} bytes JSON, "
+                f"{len(helper['body'])} gzipped; top-level ['share']; counts {counts}")
+            sent += 1
+        else:
+            try:
+                status, resp = http(ME_URL, helper["body"], hdrs)
+            except OSError as e:
+                log(f"foreverdb: helper: send failed ({e})")
+                status, resp = 0, None
+                clean = False
+            if status in (401, 403):
+                return "expired"
+            if status:
+                log(f"foreverdb: helper: sent (logged in) {len(helper['body'])} bytes, HTTP {status}, {counts}")
+                if 200 <= status < 300 or status == 400:  # the page remembers a refused 400 too
+                    sess["helper"] = {"hash": helper["hash"], "saved": helper["saved"]}
+                if 200 <= status < 300:
+                    st["at"] = now
+                    sent += 1
+                else:
+                    clean = False
+    if not dry and clean:
+        sess["stamps"] = stamps
+    return sent
+
+
+def session_path(config: dict, archive: Path) -> Path | None:
+    """Where the owner's foreverdb.net Cookie header value is kept; `foreverdb_session_file = ""` turns it off."""
+    v = config.get("foreverdb_session_file")
+    if v is None:
+        return archive / "foreverdb-session"
+    return Path(os.path.expandvars(str(v))).expanduser() if v else None
 
 
 def maybe_send(shipper) -> int:
     """The hook in wow_stats.main(): `shipper` is the wow_stats module."""
     if not enabled(shipper.CONFIG):
         return 0
-    return run(shipper.WOW, shipper.ARCHIVE, shipper.log)
+    return run(shipper.WOW, shipper.ARCHIVE, shipper.log, session_file=session_path(shipper.CONFIG, shipper.ARCHIVE))
 
 
 def main() -> int:
@@ -651,7 +999,8 @@ def main() -> int:
     if not a.dry_run and not enabled(wow_stats.CONFIG):
         print("foreverdb_send is off: set foreverdb_send = true in config.toml", file=sys.stderr)
         return 2
-    n = run(wow_stats.WOW, wow_stats.ARCHIVE, wow_stats.log, dry=a.dry_run, force=a.force)
+    n = run(wow_stats.WOW, wow_stats.ARCHIVE, wow_stats.log, dry=a.dry_run, force=a.force,
+            session_file=session_path(wow_stats.CONFIG, wow_stats.ARCHIVE))
     print(f"foreverdb: {n} file(s) {'planned' if a.dry_run else 'sent'}")
     return 0
 
