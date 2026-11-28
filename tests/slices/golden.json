@@ -96,7 +96,7 @@
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
    "dungeon|Razorfen Downs",
-   "dungeon|Zul'Farrak",
+   "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
    "upgrade|10028",
@@ -179,7 +179,7 @@
   "moves": [
    "deaths_level_gap|# deaths to creatures #+ levels above you",
    "dungeon|Razorfen Downs",
-   "dungeon|Zul'Farrak",
+   "dungeon|Uldaman",
    "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
    "upgrade|10025",

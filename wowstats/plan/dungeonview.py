@@ -272,7 +272,7 @@ def build(inp: dict) -> dict:
     who = inp.get("who") or {}
     p = E.pace(inp)
     m = E.mounts(inp, p)
-    quest_xph = E.rate(p, "questing") if level < classguide.MAX_LEVEL else 0
+    quest_xph = E.questing_rate(inp, p)
     known = known_areas()
     by_key = {key(a["name"]): aid for aid, a in known.items()}
     trips_by: dict[str, list[dict]] = {}

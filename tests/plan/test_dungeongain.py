@@ -237,7 +237,7 @@ def test_the_panel_the_move_and_the_mcp_agree(monkeypatch, tmp_path, priest):
 def test_one_estimate_whatever_the_questing_rate_source(priest):
     # The panel and the planner take the questing rate the same way.
     p = E.pace(priest)
-    q = E.rate(p, "questing") or p["xp_per_hour"]["value"]
+    q = E.questing_rate(priest, p) or p["xp_per_hour"]["value"]
     assert V.build(priest)["questing_xp_per_hour"] == round(q)
     for b in V.build(priest)["dungeons"]:
         assert b["gain"]["questing_xp_per_hour"] == round(q)
@@ -619,3 +619,16 @@ def test_finding_a_group_is_in_the_trip_and_the_ratio_and_said_so():
     assert g["xp_per_hour"] == round(6000 / g["run_s"] * 3600)
     assert g["vs_questing"] == pytest.approx(g["xp_per_hour"] / 12000, abs=0.001)
     assert "20 min to find a group (assumed)" in g["summary"]
+
+
+def test_the_ratio_is_against_his_measured_pace_not_the_planners(priest):
+    """The page's "Next level in" tile and "N x your questing" use one rate:
+    the XP an hour over his last finished levels (inp["xp_per_hour"])."""
+    inp = copy.deepcopy(priest)
+    p = E.pace(inp)
+    assert E.questing_rate({**inp, "xp_per_hour": 18015}, p) == 18015
+    assert V.build({**inp, "xp_per_hour": 18015})["questing_xp_per_hour"] == 18015
+    # No finished level of his: the planner's rate, as before.
+    assert E.questing_rate({**inp, "xp_per_hour": None}, p) == E.rate(p, "questing")
+    # At the cap there is nothing to weigh against.
+    assert E.questing_rate({**inp, "level": 60, "xp_per_hour": 18015}, p) == 0

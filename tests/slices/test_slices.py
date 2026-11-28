@@ -75,6 +75,15 @@ def test_the_hero_numbers_are_the_same_on_the_page_and_in_the_mcp(served):
     assert page == mcp, served.name
 
 
+def test_the_dungeons_compare_against_the_pace_the_header_shows(served):
+    panel = served.page("dungeons")
+    if not panel.get("available"):
+        pytest.skip(f"{served.name}: no Dungeons panel ({panel.get('why')})")
+    pace = served.page("char")["header"].get("xp_per_hour")
+    if pace:
+        assert panel["questing_xp_per_hour"] == pace, served.name
+
+
 def test_the_level_rows_are_the_same_on_the_page_and_in_the_mcp(served):
     page = [(lv["level"], lv["seconds"], lv["xp"], bool(lv["partial"])) for lv in served.page("char")["levels"]]
     mcp = [(lv["level"], lv["seconds"], lv["xp"], bool(lv["partial"])) for lv in served.mcp("levels")["levels"]]
