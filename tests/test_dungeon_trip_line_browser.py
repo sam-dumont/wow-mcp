@@ -16,7 +16,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 
-from tests.test_dungeon_lines_browser import open_page, pw, site  # noqa: E402, F401
+from tests.test_dungeon_lines_browser import open_moves, open_page, pw, site  # noqa: E402, F401
 
 # The upgrades (owner, 2026-11-23): the quests' first, then the drops with
 # the chance one drops in a run, a part with none left out.
@@ -33,6 +33,7 @@ LINE = re.compile(r"^~(\d+ min|\d+h\d\d) trip for ~[\d.,]+k? (?P<known>known )?X
 def test_the_trip_line(site, pw, engine, width):  # noqa: F811
     b, pg, errors = open_page(pw, engine, site, width)
     try:
+        open_moves(pg)
         pg.wait_for_selector("#home .move.k-dungeon .mgain", timeout=30000)
         move = pg.locator("#home .move.k-dungeon .mgain").first
         text = move.text_content()

@@ -19,7 +19,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 
-from tests.test_dungeon_lines_browser import open_page, pw, site  # noqa: E402, F401
+from tests.test_dungeon_lines_browser import open_moves, open_page, pw, site  # noqa: E402, F401
 from tests.test_dungeon_trip_line_browser import LINE  # noqa: E402
 
 WING = re.compile(r"^Scarlet Monastery: (Graveyard|Library|Armory|Cathedral)$")
@@ -31,6 +31,7 @@ def test_a_wing_is_its_own_dungeon(site, pw, engine, width):  # noqa: F811
     b, pg, errors = open_page(pw, engine, site, width)
     shot = os.environ.get("WINGS_SHOTS")
     try:
+        open_moves(pg)
         pg.wait_for_selector("#home .move.k-dungeon .mgain", timeout=30000)
         move = pg.locator("#home .move.k-dungeon .mgain").first.text_content()
         if shot:
