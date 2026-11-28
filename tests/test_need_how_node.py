@@ -72,3 +72,14 @@ def test_a_creature_still_drops_it():
 def test_a_creature_inside_a_dungeon_reads_inside():
     npc = {"kind": "npc", "id": 4421, "name": "Charlga Razorflank", "inside": "Razorfen Kraul"}
     assert say(need(drops=[npc])) == ": Henrig Lonebrow's Journal drops from Charlga Razorflank inside Razorfen Kraul"
+
+
+def test_a_prerequisite_with_no_giver_says_where_the_objective_is():
+    # Murdaloc (quest 739): the data names no giver; his own ForeverDB records put its first objective in the Badlands.
+    spot = {"zone": "Badlands", "x": 49.6, "y": 66.2, "objective": 1, "source": "the quest map"}
+    got = say([{"quest_id": 739, "name": "Murdaloc", "state": "new", "objective_at": spot}])
+    assert got == ": the objective is near Badlands 49.6, 66.2 (your ForeverDB records)"
+    # With a giver, it follows the giver.
+    npc = {"kind": "npc", "id": 7, "name": "Someone", "zone": "Loch Modan", "x": 1.0, "y": 2.0}
+    assert say([{"quest_id": 739, "name": "Murdaloc", "state": "new", "starts": [npc], "objective_at": spot}]) == (
+        ": from Someone in Loch Modan 1, 2, the objective is near Badlands 49.6, 66.2 (your ForeverDB records)")

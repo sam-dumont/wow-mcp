@@ -149,6 +149,12 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
                                       pvp=pvp)
             loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char),
                                            (advice or {}).get("bis_by_slot"), mode=mode)
+    # The player's own ForeverDB records: his drop rates beside ForeverDB.net's
+    # and where his quests' objectives are (wowstats.ownobs).
+    from wowstats import ownobs
+
+    own = ownobs.read(store)
+    loot = ownobs.merge_loot(loot, own)
     try:
         scans = prices(store, shared=ahshared.location(env), char=char)
     except Exception:  # noqa: BLE001 - the scans are a bonus, never a reason to fail
@@ -166,6 +172,7 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
                           bags=gear.newest_bags(rows),
                           done=quests.completed(rows, battlenet=battlenet) if battlenet else None, sem=sem)
     inp["who"]["char"] = inp["who"].get("char") or char
+    inp["own"] = {"quest_pos": own["quest_pos"]}
     # Polestar's own record of the last class trainer visit (classTrainVisit,
     # the level it was at), from the shipper's sheet: exact where the
     # Recorder's trainer windows can't tell a class trainer from a weapon master.

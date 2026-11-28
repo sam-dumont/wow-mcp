@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A dungeon drop's rate keeps the kills ForeverDB.net counted it over, so one lucky sighting (the Obsidian Sentinel's wand, 1 kill) is no longer "100% a clear". When ForeverDB.net's rate and yours both exist, the one counted over more kills stands, and the row says whose it is.
+- Your own ForeverDB records count: a dungeon item's drop rate from your kills sits beside ForeverDB.net's, labelled "your kills" (under 5 kills it is no rate), and a prerequisite quest whose place the data lacks says where its objective is from your quest map ("the objective is near Badlands 49.6, 66.2"). The shipper sends the kill, looted-corpse and drop counts and the quest spots (optional addon; no names or other players' data); update it from your start page.
 - KB refresh run: goes red only for a change it refused or never landed. A kind it landed whose upstream moved again during the run gets an issue saying the next daily run lands it, and the run stays green.
 - The shipper can send your ForeverDB addon data to foreverdb.net by itself, as the site's "Send my latest data" page does (anonymous, only what changed, no Mac uploader needed). Off until you set `foreverdb_send = true` in the shipper's config; a file with the value of your foreverdb.net `fdb_s` cookie makes it upload as you (profile credit, Helper data too) until an official Mac uploader exists; `foreverdb_send.py --dry-run` shows what would go. [Details](docs/shipper.md#sending-to-foreverdbnet)
 - **View in 3D** turns the character about its own body: a long weapon no longer pulls the turn axis aside. Zoom with the mouse wheel or a two-finger pinch.

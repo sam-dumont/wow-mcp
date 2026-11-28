@@ -74,6 +74,8 @@ nobody here has called it on Forever yet.
 | The gear advice's spec | the gear page's pick, ForeverLevelingBiS, GearQuestForever; the talents only as a hint. Polestar's Stat weights, Adjust weights and smallest upgrade are no longer read | no (they're your settings) | no API |
 | Gear scores | ForeverDB.net's stat weights per spec, in the mode picked on the gear page (Leveling, PvP, PvE), shipped in the image | no | - |
 | Item stats | Forever's own client tables and hotfixes, shipped in the image | the API's item data is Classic's | - |
+| Your own drop rates | The ForeverDB addon's own records of your kills and drops (optional), beside ForeverDB.net's rate for the same creature and labelled "your kills"; under 5 kills counted, no rate | no | - |
+| Where an objective is | The ForeverDB addon's quest spots, for a prerequisite quest the reference names no place for: "the objective is near Badlands 49.6, 66.2" | no | - |
 | Where an item comes from | ForeverDB.net's addon data first (drop rates, vendors, the reputation or PvP rank a source asks for; refreshed at most weekly), then Polestar's item table and forever-db's quest rewards, shipped in the image | no | - |
 | Reputation standings (for reputation gear) | Polestar Recorder's reputation records and Altoholic's snapshot, newest per faction | yes, not read | - |
 | PvP rank (for rank gear) | Syndicator and Altoholic (`DataStore_Currencies`), from the "Renown - PvP Rank" currency once you hold some; the ForeverDB addon's armory snapshot too, if you run it (optional). The newest save wins; none: "your PvP rank isn't recorded yet" | `/pvp-summary`: not read | - |

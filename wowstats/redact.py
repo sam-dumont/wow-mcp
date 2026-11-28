@@ -380,7 +380,8 @@ LOOT_ITEM = _keys("item_id", "name", "quality", "count", "t", "zone")
 
 # The Dungeons panel (wowstats.plan.dungeonview): game data, his own runs
 # (no party), what he has of each dungeon's items, the gold its loot made.
-QREF = {**_keys("quest_id", "name", "state", "url", "any"), "starts": [WHO], "drops": [WHO], "found": [WHO]}
+QREF = {**_keys("quest_id", "name", "state", "url", "any"), "starts": [WHO], "drops": [WHO], "found": [WHO],
+        "objective_at": _keys("zone", "x", "y", "objective", "source")}
 DUNGEON = {
     **_keys("area_id", "name", "min", "max", "state", "opens_at", "url", "zone_url", "value", "verdict", "why",
             "drops_shown", "missing_now", "obtained", "expected_gain_per_clear", "expected_gain_share_pct",
@@ -388,7 +389,8 @@ DUNGEON = {
     "goals": [None], "fits_now": None,
     "drops": [{**_keys("item_id", "name", "quality", "item_level", "slot_name", "score", "gain", "gain_pct",
                        "fills_empty", "level", "now", "state", "where", "url", "value", *BADGE),
-               "drops": [_keys("boss", "npc_id", "chance_pct", "wing", "url")], "quests": [None], "fit": FIT}],
+               "drops": [_keys("boss", "npc_id", "chance_pct", "kills", "source", "wing", "url")], "quests": [None],
+               "fit": FIT}],
     "kb_drops": [{**_keys("name", "boss", "armour", "item_id", "url", "fit", "confidence", "item_level", "quality",
                           "slot_name"), "roles": [None], "stats": [None]}],
     "kb_fit": None,

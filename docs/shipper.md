@@ -395,7 +395,8 @@ quests, exact), WoWSims Exporter (`WowSimsExporter.lua`, its
 other players),
 GearQuestForever and ForeverLevelingBiS (tracked upgrades, spec) for the
 gear panel, ForeverDB (optional: its armory snapshot's PvP part only, the
-same rank with the honorable kills; the newest of the three saves wins),
+same rank with the honorable kills; the newest of the three saves wins; also its outbox's kill, looted-corpse
+and drop counts and the spots of your quests' objectives: [the contract](contract.md)),
 ForeverDB_Helper (optional: its journal's groupmate entries only, who you
 grouped with, in which zone or dungeon, their level, class, race and role;
 never their realm or guild, nor the rest of the journal), and LibForeverData, Polestar_QuestDB or Polestar_ItemDB only to
