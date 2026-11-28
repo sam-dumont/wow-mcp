@@ -2775,21 +2775,23 @@ function questRefs(list) {
 // quest link above stands.
 function needHow(needs) {
   const n = needs.find((x) => x.state === 'new'
-    && ((x.starts || []).length || (x.drops || []).length || (x.found || []).length));
+    && ((x.starts || []).length || (x.drops || []).length || (x.found || []).length || x.objective_at));
   if (!n) return null;
+  const spot = n.objective_at && h('span', { class: 'at', text:
+    `the objective is near ${n.objective_at.zone} ${n.objective_at.x}, ${n.objective_at.y} (your ForeverDB records)` });
   const item = (n.starts || []).find((w) => w.kind === 'item');
-  if (item && (n.drops || []).length) return h('span', {}, ': ', whLink(item.url, item.name), ' drops from ', npcs(n.drops.slice(0, 2)));
+  if (item && (n.drops || []).length) return h('span', {}, ': ', whLink(item.url, item.name), ' drops from ', npcs(n.drops.slice(0, 2)), spot ? [', ', spot] : null);
   const o = item && (n.found || [])[0];
   if (o) {
     const where = at(o);
     const on = o.name && o.name !== item.name ? [' on ', whLink(o.url, o.name)] : [];
     if (on.length || where) {
       return h('span', {}, ': the item ', whLink(item.url, item.name), ', found', on,
-        where ? (o.inside ? ` ${where}` : ` in ${where}`) : null);
+        where ? (o.inside ? ` ${where}` : ` in ${where}`) : null, spot ? [', ', spot] : null);
     }
   }
-  if ((n.starts || []).length) return h('span', {}, ': from ', npcs(n.starts.slice(0, 2)));
-  return null;
+  if ((n.starts || []).length) return h('span', {}, ': from ', npcs(n.starts.slice(0, 2)), spot ? [', ', spot] : null);
+  return spot ? h('span', {}, ': ', spot) : null;
 }
 
 // What stops a quest now: his level, a quest to hand in first.

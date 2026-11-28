@@ -44,7 +44,7 @@ import math
 import re
 import urllib.parse
 
-from wowstats import classguide, dungeonquests, forever, gear
+from wowstats import classguide, dungeonquests, forever, gear, ownobs
 from wowstats.gear import BADGE, badge_of, gain_words
 from wowstats.links import WOWHEAD_BASE, dungeon_guides, dungeon_url, wowhead_url
 
@@ -457,7 +457,8 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
                     "url": wowhead_url("quest", qid),
                     "starts": [who(w) for w in starts],
                     "ends": [who(w) for w in allowed(q.get("ends"), qid, "end")],
-                    "needs": [{**n, **_how(n["quest_id"], q.get("pre") or {}, who, allowed)} for n in need],
+                    "needs": [{**n, **_how(n["quest_id"], q.get("pre") or {}, who, allowed), **_objective_at(inp, n)}
+                              for n in need],
                     "blocked": bool(required or too_low or no_pickup),
                     **({"pickup_unknown": True} if no_pickup else {}),
                     **({"prerequisite_unavailable": True} if no_prereq else {}),
@@ -515,6 +516,17 @@ def _how(qid: int, pre: dict, who, allowed) -> dict:
     return {k: [who(w) for w in ws] for k, ws in (
         ("starts", allowed(h.get("starts"), qid, "start")), ("drops", h.get("drops")), ("found", h.get("found"))
     ) if ws}
+
+
+def _objective_at(inp: dict, need: dict) -> dict:
+    """`objective_at` for a prerequisite not done yet: where its objective is,
+    from the player's own ForeverDB records (wowstats.ownobs), for the
+    quests whose data names no place. The page says it after who gives the
+    quest, never in place of it."""
+    if need.get("state") == "done":
+        return {}
+    at = ownobs.objective_spot((inp.get("own") or {}).get("quest_pos"), need["quest_id"])
+    return {"objective_at": at} if at else {}
 
 
 def fit_brief(fit: dict | None) -> dict | None:
@@ -729,14 +741,18 @@ def drop_items(drops: list[dict]) -> list[dict]:
             continue
         # A rate counted over a handful of kills is no rate (G.MIN_DROP_KILLS).
         known = [s for s in d["drops"] if s.get("chance_pct") is not None and not G.thin_rate(s)]
-        best = max(known, key=lambda s: s["chance_pct"], default=d["drops"][0])
+        # The rate counted over more kills; a source with no kill count loses
+        # to one with a count (a thin one is out already), then the higher rate.
+        best = max(known, key=lambda s: (s.get("kills") or 0, s["chance_pct"]), default=d["drops"][0])
         if not known:
             best = {**best, "chance_pct": None}
         chance = best.get("chance_pct")
         items.append({"item_id": d["item_id"], "item": d["name"], "slot": d["slot_name"],
                       "gain": d["value"], "req_level": d["level"], "now": d["now"],
                       **badge_of(d), "line": gain_words(d), "boss": best.get("boss") or "trash",
-                      "chance": chance, "unknown_rate": len(known) != len(d["drops"]) and chance != 100})
+                      "chance": chance,
+                      "rate_source": (best.get("source") or "ForeverDB.net") if chance is not None else None,
+                      "unknown_rate": len(known) != len(d["drops"]) and chance != 100})
     return items
 
 

@@ -2204,7 +2204,9 @@ def extract_altoholic(acct: Path, chars: dict[str, dict], state: dict, out: Out)
 # read: never the snapshot's guild roster, gear or anything else, and never
 # `dk` (-64 with no kill in the Forever client: not a count).
 FDB_KEYS = frozenset({"source", "at_basis", "pvp_rank", "rank_from", "renown", "highest_rank", "honorable_kills",
-                      "honor_points"})
+                      "honor_points",
+                      # kind obs and kind quest_pos (extract_foreverdb_own)
+                      "obs_from", "obs_to", "obs_kills", "obs_looted", "obs_drops", "quest_id", "spots"})
 
 
 def _rank_num(v) -> int | None:
@@ -2358,6 +2360,137 @@ def extract_foreverdb(acct: Path, chars: dict[str, dict], state: dict, out: Out)
               "_msg": f"{char}: PvP rank {body['pvp_rank']} ({body['rank_from']}, {PVP_SOURCES[d['source']]})",
               **body}
         out.emit({k: v for k, v in ev.items() if k in EVENT_BASE or k in FDB_KEYS})
+
+
+# ForeverDB's own records of what this player killed, looted and walked
+# (owner, 2026-11-28): ForeverDB_DB.obs, the outbox of Observations.lua
+# (contract v1): {id = <12 random characters, made once per account file>,
+# seq = <last batch's number, only grows>, out = {[seq] = "<rec>^<rec>^..."},
+# cap = 400 (the oldest batch goes past it)}. Records read, each confirmed in
+# the addon's Observations.lua header (0.58+); every batch holds the counts
+# since the last flush ("noted ... and forgotten": O.collect), so batches add up:
+#   K:<creature>:<kills>        kills that gave the whole XP line, solo only
+#   k:<creature>:<corpses>      corpses of it the player looted
+#   d:<creature>:<item>:<n>     what dropped from those corpses (item count)
+# Nothing else of the outbox is read (the quest, item-source, vendor, node,
+# census and chat-adjacent records stay out; Relay.lua's `relay`, what other
+# players' installs passed on, is another table and is never read). A batch
+# goes once: state["foreverdb_obs"][<outbox id>] is the highest seq sent.
+# ForeverDB_DB.quests[<quest>] gives the quest's spots: `gs` {i, m, x, y} where
+# the game's own quest map drew the quest (i: the first unfinished objective,
+# 0 when all were done) and `obs` {i, k, m, x, y, ...} where an objective
+# advanced (QuestCapture.lua, QuestData.lua recordObjective); x and y are
+# percent of the map with one decimal, m the uiMap id. Sent only when the
+# quest's spots changed (state["foreverdb_qpos"][<quest>] = a short digest).
+OBS_CHUNK = 400  # entries in one obs event
+QPOS_PER_RUN = 300  # quest_pos events in one run; the rest waits for the next
+OBS_MAX_ID = 2_000_000_000
+
+
+def _fdb_int(v) -> int | None:
+    return int(v) if isinstance(v, str) and v.isdigit() and len(v) <= 10 and int(v) <= OBS_MAX_ID else None
+
+
+def decode_obs(batch: str) -> tuple[dict, dict, dict]:
+    """(K kills, k looted corpses, d drops) of one outbox batch: {creature: n},
+    {creature: n}, {(creature, item): n}. A record that isn't one of the three,
+    or isn't whole numbers, is skipped."""
+    kills: dict[int, int] = {}
+    looted: dict[int, int] = {}
+    drops: dict[tuple[int, int], int] = {}
+    for rec in batch.split("^"):
+        f = rec.split(":")
+        if f[0] in ("K", "k") and len(f) == 3:
+            npc, n = _fdb_int(f[1]), _fdb_int(f[2])
+            if npc is not None and n:
+                into = kills if f[0] == "K" else looted
+                into[npc] = into.get(npc, 0) + n
+        elif f[0] == "d" and len(f) == 4:
+            npc, item, n = _fdb_int(f[1]), _fdb_int(f[2]), _fdb_int(f[3])
+            if npc is not None and item is not None and n:
+                drops[npc, item] = drops.get((npc, item), 0) + n
+    return kills, looted, drops
+
+
+def _spots(e: dict) -> list[list]:
+    """[source, objective, map, x, y] for each spot of a quest record: source
+    `g` the game's quest map, `o` where an objective advanced."""
+    out = []
+    for src, key in (("g", "gs"), ("o", "obs")):
+        for s in _lua_list(e.get(key)):
+            if not isinstance(s, dict):
+                continue
+            i, m, x, y = s.get("i"), s.get("m"), s.get("x"), s.get("y")
+            if (isinstance(i, int) and not isinstance(i, bool) and 0 <= i <= 10
+                    and isinstance(m, int) and not isinstance(m, bool) and 0 <= m <= 100000
+                    and all(isinstance(v, int | float) and not isinstance(v, bool) and 0 <= v <= 100 for v in (x, y))):
+                out.append([src, i, m, round(float(x), 1), round(float(y), 1)])
+    return out
+
+
+def extract_foreverdb_own(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> None:
+    """wow-foreverdb events from ForeverDB's own records, for the account (no
+    `char`: the outbox and the quest table are the account's):
+    - kind obs: the K, k and d records of the batches not sent yet, summed
+      (obs_kills, obs_looted: [[creature, n]]; obs_drops: [[creature, item, n]];
+      obs_from and obs_to the seqs they cover), in chunks of OBS_CHUNK entries.
+      `source_id` is obs:<hash of the outbox id>:<last seq>:<part>.
+    - kind quest_pos: one event per quest whose spots changed (`quest_id`,
+      `spots`: [[source, objective, map, x, y]]), at most QPOS_PER_RUN a run."""
+    db = next((d.get("ForeverDB_DB") for d in read_sv_versions(acct / "SavedVariables" / "ForeverDB.lua")
+               if isinstance(d.get("ForeverDB_DB"), dict)), None)
+    if not db:
+        return
+    now = time.time()
+    ob = db.get("obs")
+    if isinstance(ob, dict) and isinstance(ob.get("id"), str) and isinstance(ob.get("out"), dict):
+        oid = ob["id"]
+        sent = state.setdefault("foreverdb_obs", {})
+        top = sent.get(oid, 0)
+        seqs = sorted(s for s in ob["out"] if isinstance(s, int) and not isinstance(s, bool) and s > top
+                      and isinstance(ob["out"][s], str))
+        kills: dict[int, int] = {}
+        looted: dict[int, int] = {}
+        drops: dict[tuple[int, int], int] = {}
+        for s in seqs:
+            k, c, d = decode_obs(ob["out"][s])
+            for into, got in ((kills, k), (looted, c), (drops, d)):
+                for key, n in got.items():
+                    into[key] = into.get(key, 0) + n
+        if seqs:
+            sent[oid] = seqs[-1]
+            tag = hashlib.sha1(oid.encode()).hexdigest()[:10]
+            rows = ([("obs_kills", [[a, n] for a, n in sorted(kills.items())])]
+                    + [("obs_looted", [[a, n] for a, n in sorted(looted.items())])]
+                    + [("obs_drops", [[a, b, n] for (a, b), n in sorted(drops.items())])])
+            entries = [(key, e) for key, lst in rows for e in lst]
+            for part, at in enumerate(range(0, len(entries), OBS_CHUNK)):
+                body: dict[str, list] = {}
+                for key, e in entries[at:at + OBS_CHUNK]:
+                    body.setdefault(key, []).append(e)
+                out.emit({"_time": iso(now), "feed": "wow-foreverdb", "kind": "obs",
+                          "source_id": f"obs:{tag}:{seqs[-1]}:{part}", "obs_from": seqs[0], "obs_to": seqs[-1],
+                          "_msg": f"ForeverDB records {seqs[0]}-{seqs[-1]}: {len(kills)} kills, {len(drops)} drops",
+                          **body})
+    quests = db.get("quests")
+    if isinstance(quests, dict):
+        seen = state.setdefault("foreverdb_qpos", {})
+        sent_n = 0
+        for qid in sorted(q for q in quests if isinstance(q, int) and not isinstance(q, bool) and 0 < q <= OBS_MAX_ID):
+            e = quests[qid]
+            spots = _spots(e) if isinstance(e, dict) else []
+            if not spots:
+                continue
+            digest = hashlib.sha1(json.dumps(spots).encode()).hexdigest()[:8]
+            if seen.get(str(qid)) == digest:
+                continue
+            if sent_n >= QPOS_PER_RUN:
+                break
+            seen[str(qid)] = digest
+            sent_n += 1
+            out.emit({"_time": iso(now), "feed": "wow-foreverdb", "kind": "quest_pos", "quest_id": qid,
+                      "spots": spots, "source_id": f"quest_pos:{qid}:{digest}",
+                      "_msg": f"ForeverDB quest {qid}: {len(spots)} spots"})
 
 
 # ForeverDB_Helper (ForeverDB.net's companion addon, 1.7+, optional): its
@@ -3101,6 +3234,7 @@ def extract_tree(wtf: Path, state: dict, out: Out, live: bool = True) -> list[di
         step("quests", extract_quests, acct, chars, state, out)
         step("altoholic", extract_altoholic, acct, chars, state, out)
         step("foreverdb", extract_foreverdb, acct, chars, state, out)
+        step("foreverdb-own", extract_foreverdb_own, acct, chars, state, out)
         step("foreverdb-groups", extract_foreverdb_groups, acct, chars, state, out)
         step("talents", extract_talents, acct, chars, state, out)
         step("auctionator", extract_auctionator, acct,

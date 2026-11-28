@@ -33,6 +33,10 @@ the computer you play on:
   lockouts, and its money, XP, rested XP and hearthstone at each logout. Never its friends list,
   calendar, guild tables (name, rank, bank, members' gear), mail or auction bidders: the shipper
   doesn't read them, and the server drops any of it an older or modified shipper sends.
+- **ForeverDB** (optional) also: how many of each creature you killed and looted and what
+  dropped (creature and item ids and counts), and where the game's quest map and your own
+  objectives put each quest (map, x, y). No names, no GUIDs, nothing from other players' installs
+  (its `relay` table is never read), and not the rest of its outbox (vendors, nodes, census).
 - **ForeverDB_Helper** (optional): the players its journal names when they join your group,
   each once a day: name, level, class, race, role, and the zone or dungeon. Never their realm
   or guild, and nothing else of its journal.

@@ -262,6 +262,29 @@ ForeverDB's battleground history, `dk` (-64 with no kill in the Forever
 client: not a count). The gear advice takes the newest event as the rank
 held (`gear.standings_of`).
 
+**`wow-foreverdb`, kinds `obs` and `quest_pos`** (optional, ForeverDB 0.58+;
+the account's, so no `char`; `extract_foreverdb_own`):
+
+- `kind: obs`: the new batches of `ForeverDB_DB.obs.out` (the addon's outbox,
+  Observations.lua) summed, each batch sent once (state keeps the highest
+  `seq` per outbox id; `source_id` is `obs:<hash of the outbox id>:<last
+  seq>:<part>`, the id itself never leaves). Each batch is what the addon
+  counted since its last flush, so events add up. `obs_from`, `obs_to`: the
+  seqs covered. `obs_kills`: `[[creature, n]]` from `K:<creature>:<n>`, kills
+  that gave the XP line (solo only); `obs_looted`: `[[creature, n]]` from
+  `k:<creature>:<n>`, corpses the player looted; `obs_drops`: `[[creature,
+  item, n]]` from `d:<creature>:<item>:<n>`, what dropped from those corpses.
+  At most 400 entries an event. Every other record kind of the outbox is left
+  out, and `ForeverDB_DB.relay` (other installs' facts) is never read.
+  The server's drop rate of (creature, item) is drops over the larger of
+  kills and looted corpses, and a rate over fewer than 5 is not used
+  (`wowstats.ownobs`, `MIN_DROP_KILLS`).
+- `kind: quest_pos`: one event per quest whose spots changed (at most 300 a
+  run). `quest_id`; `spots`: `[[source, objective, map, x, y]]`, source `g`
+  (where the game's own quest map put the quest: `ForeverDB_DB.quests[id].gs`;
+  objective 0 is the hand-in) or `o` (where an objective advanced: `.obs`);
+  `map` is the uiMap id, x and y percent with one decimal.
+
 **`wow-gear`** (the character sheet): one event each time it changes, for
 every character of the account (its folder, Polestar's alts, Syndicator). `_time` is the character's logout snapshot in
 `PolestarDB.alts.chars` (the moment the game wrote these files), else the
