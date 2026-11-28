@@ -258,12 +258,28 @@ def run_link() -> str:
     return "the refresh job's run"
 
 
+MOVED = ("This run landed the value it sampled; upstream published a newer one after that sample. "
+         "The next daily run will land it.")
+
+
+def red_kinds(did: dict, why: dict | None = None, landed: list[str] | None = None) -> list[str]:
+    """The kinds left with an issue that waits for a person: opened or edited,
+    unless this run landed the kind and nothing refused it (`why` empty), where
+    upstream only moved after the run's sample (2026-11-28: ForeverDB.net
+    published again during the run, #370, a false red). A kind never landed,
+    or refused or failed (a reason in `why`), stays red: Polestar v0.4.2.1
+    sat unread in an issue on 2026-11-22."""
+    why, landed = why or {}, landed or []
+    return [k for k, v in did.items() if v in ("opened", "edited") and (k in why or k not in landed)]
+
+
 def report(state: dict, now: dict, was: dict, why: dict | None = None,
-           kinds: list[str] | None = None) -> dict[str, str | None]:
+           kinds: list[str] | None = None, landed: list[str] | None = None) -> dict[str, str | None]:
     """{kind: issue body, or None when nothing of that kind changed}, for
     `kinds` (default all). `why`: {kind: why the run didn't land it}; a
     changed kind without one means the run stopped before its PR (a failed
-    step)."""
+    step), unless the run landed it (`landed`): then it moved upstream after
+    the run's sample."""
     out: dict[str, str | None] = {}
     why = why or {}
     day = datetime.now(UTC).date().isoformat()
@@ -274,8 +290,9 @@ def report(state: dict, now: dict, was: dict, why: dict | None = None,
             out[kind] = None
             continue
         rows = "\n".join(f"| {k} | `{o}` | `{n}` | {links(state, kind, k)} |" for k, o, n in changed)
-        reason = why.get(kind) or (f"The run stopped before it could land this change ({run_link()}): read its "
-                                   "failed step. The next run tries again.")
+        stopped = (f"The run stopped before it could land this change ({run_link()}): read its "
+                   "failed step. The next run tries again.")
+        reason = why.get(kind) or (MOVED if kind in (landed or []) else stopped)
         body = (f"Checked {day} by `tools/kb/watch.py` (workflow kb-refresh). What the KB was last checked "
                 f"against (`data/kb/watch.json`) changed:\n\n| What | Known | Now | Link |\n|---|---|---|---|\n{rows}\n"
                 + (f"\nCouldn't read: {', '.join(unread)} (not counted as a change).\n" if unread else "")
@@ -348,16 +365,17 @@ def changes(state: dict, now: dict) -> dict:
     return {"kinds": kinds, "changed_official": official, "polestar_tag": tag, "forever_db_tag": data}
 
 
-def run(state: dict, fetch, gh, github: bool, why: dict | None = None, kinds: list[str] | None = None) -> dict:
+def run(state: dict, fetch, gh, github: bool, why: dict | None = None, kinds: list[str] | None = None,
+        landed: list[str] | None = None) -> dict:
     kinds = list(TITLES) if kinds is None else kinds
     now = current(state, fetch, gh, kinds)
-    bodies = report(state, now, known(state), why, kinds)
+    bodies = report(state, now, known(state), why, kinds, landed)
     did = {}
     for kind, body in bodies.items():
         did[kind] = web.keep_issue(gh, kind, LABEL, TITLES[kind], body,
                                    "Landed: `data/kb/watch.json` on main matches again.") if github else (
             "changed" if body else "none")
-    return {"now": now, "did": did, **changes(state, now)}
+    return {"now": now, "did": did, "red": red_kinds(did, why, landed), **changes(state, now)}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -365,6 +383,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--state", default=str(STATE))
     ap.add_argument("--github", action="store_true", help="open, edit or close the issues (GH_TOKEN)")
     ap.add_argument("--why", help="--github: a JSON file {kind: why the run didn't land it}")
+    ap.add_argument("--landed", help="--github: a JSON file [kind] of the kinds this run's PR merged "
+                    "(tools/kb/land.py --landed-out)")
     ap.add_argument("--accept", nargs="*", metavar="KIND", help="record today's values (all kinds if none given)")
     ap.add_argument("--handoff", help="--accept official, addons, client-build, foreverdb: the file of the step that "
                     "processed them, each value as it saw it")
@@ -402,9 +422,11 @@ def main(argv: list[str] | None = None) -> int:
         path.write_text(json.dumps(new, indent=2) + "\n", encoding="utf-8")
         return 0
     why = json.loads(Path(a.why).read_text(encoding="utf-8")) if a.why and Path(a.why).exists() else {}
-    out = run(state, web.Fetcher(), gh, a.github, why, watched)
-    print(json.dumps({"did": out["did"], "kinds": out["kinds"], "changed_official": out["changed_official"],
-                      "polestar_tag": out["polestar_tag"], "forever_db_tag": out["forever_db_tag"]}, indent=1))
+    landed = json.loads(Path(a.landed).read_text(encoding="utf-8")) if a.landed and Path(a.landed).exists() else []
+    out = run(state, web.Fetcher(), gh, a.github, why, watched, landed)
+    print(json.dumps({"did": out["did"], "red": out["red"], "kinds": out["kinds"],
+                      "changed_official": out["changed_official"], "polestar_tag": out["polestar_tag"],
+                      "forever_db_tag": out["forever_db_tag"]}, indent=1))
     if os.environ.get("GITHUB_OUTPUT") and not a.github:
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
             f.write(f"changed_official={json.dumps(out['changed_official'])}\nkinds={' '.join(out['kinds'])}\n"
