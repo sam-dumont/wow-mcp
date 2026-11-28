@@ -246,6 +246,7 @@ Read by the shipper and its installers, not by the server.
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
 | `WOW_STATS_CONFIG` | shipper | path | `~/.config/wow-stats/config.toml` (Mac), `%APPDATA%\wow-stats\config.toml` (Windows) | `~/wow-stats.toml` | Another config file for the shipper and its installers. |
+| `WOW_STATS_FOREVERDB_SEND` | shipper | `1` | empty (off) | `1` | Send the ForeverDB addon's data to foreverdb.net, anonymously, as its /send page does. Same as `foreverdb_send = true` in the config. |
 | `WOW_STATS_NO_LOAD` | shipper, installer | `1` | empty | `1` | Install without starting the background job. For tests and trying the installer. |
 | `WOW_STATS_QUIET` | installer | `1` | empty | `1` | The installers print less. Set by the install command itself. |
 | `WOW_STATS_WOW_DIR` | installer | path | found by itself in the usual places | `D:\Games\World of Warcraft\_forever_` | The `_forever_` folder, when WoW is somewhere unusual. For the install command from the start page. |
