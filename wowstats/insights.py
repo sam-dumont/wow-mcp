@@ -581,9 +581,11 @@ def guide_title(guide: str | None, ref=None) -> str:
 
 
 def overview(data: dict, advice: dict | None, ds: list[dict], ref, who: dict, steps_rows: list[dict],
-             sessions: list[dict], ask: Ask) -> dict:
+             sessions: list[dict], ask: Ask, *, dungeon_panel: dict | None = None) -> dict:
     """The Overview's lines. `ask`: the semantic layer on the character's
-    data (wowstats.analysis.pages.asker), for the pace and the death counts."""
+    data (wowstats.analysis.pages.asker), for the pace and the death counts.
+    `dungeon_panel`: the dungeons worth running now, which the upgrades from
+    a dungeon are limited to, as next_moves limits them (in_reach)."""
     hd = data.get("header") or {}
     track = on_track(ask, hd)
     follow = guide_following(data.get("steps") or {}, ref, steps_rows)
@@ -605,7 +607,7 @@ def overview(data: dict, advice: dict | None, ds: list[dict], ref, who: dict, st
                                 "recorder session and activity records"))
     up_claims = [claim(f"{u['name']}: {gearmod.gain_words(u)}, {_where(s)}.", f"#up-{u.get('slot')}",
                        "gear advice (ForeverDB.net's weights) on your worn gear")
-                 for u, s in in_reach(advice, hd.get("level"))[:3]]
+                 for u, s in in_reach(advice, hd.get("level"), dungeon_panel=dungeon_panel)[:3]]
     death_claims = []
     if ds:
         last = ds[-1]

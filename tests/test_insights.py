@@ -298,6 +298,23 @@ def test_an_empty_character_has_no_claims():
     assert ov["now"] == [] and ov["guide"]["claims"] == [] and ov["deaths"] == [] and ov["upgrades"] == []
 
 
+def test_the_overview_lists_no_drop_from_a_dungeon_the_panel_leaves_out():
+    """A drop from a level 15-22 dungeon is no upgrade to list for a level 39
+    character: the Overview limits dungeon drops to the dungeons worth running
+    now (the panel's), as the next moves do."""
+    old = {"kind": "drop", "boss": "Edwin", "zone": "The Deadmines", "dungeon": True, "instance": "dungeon",
+           "levels": [15, 22], "chance_pct": 25}
+    adv = {"upgrades": [up(1, 16, 35, old), up(2, 7, 10, QUEST)]}
+    data = {"header": {"level": 39}, "levels": [], "steps": {}}
+    args = (data, adv, [], None, {}, [], [], layer())
+    # Without the panel (the MCP's overview of an older page): nothing to limit by.
+    assert [c["text"].split(":")[0] for c in insights.overview(*args)["upgrades"]] == ["Item 1", "Item 2"]
+    panel = {"dungeons": [{"name": "Razorfen Kraul", "fits_now": True, "value": "high"}]}
+    got = insights.overview(*args, dungeon_panel=panel)["upgrades"]
+    assert [c["text"].split(":")[0] for c in got] == ["Item 2"]
+    assert [c["text"].split(":")[0] for c in insights.overview(*args, dungeon_panel={})["upgrades"]] == ["Item 2"]
+
+
 def test_guide_picks_are_not_steps():
     from wowstats.views import build_steps
 

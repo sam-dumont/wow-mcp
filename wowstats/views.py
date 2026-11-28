@@ -718,7 +718,8 @@ class Views:
         hd = data.get("header") or {}
         gear = data.get("gear") or {}
         ask = self.layer_ask(char)
-        ov = insights.overview(data, advice, x["deaths"], ref, who, x["steps_rows"], x["sessions"], ask)
+        ov = insights.overview(data, advice, x["deaths"], ref, who, x["steps_rows"], x["sessions"], ask,
+                               dungeon_panel=dungeon_panel)
         profs = gear.get("professions") or []
         talents = (advice or {}).get("talents") if advice else None
         done = self.quests_history(char) if (hd.get("class") or "").upper() in {"PALADIN", "WARLOCK"} else ()
