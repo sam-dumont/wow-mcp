@@ -107,7 +107,8 @@
 		return points;
 	}
 
-	function fit_turntable(camera, box, css_width, angle = 0) {
+	// zoom scales the fitted distance along the view: below 1 is closer.
+	function fit_turntable(camera, box, css_width, angle = 0, zoom = 1) {
 		const cos = Math.cos(angle), sin = Math.sin(angle);
 		const tilt = 0.08, up = Math.cos(tilt), forward = Math.sin(tilt);
 		const tan_y = Math.tan(camera.fov * Math.PI / 360), tan_x = tan_y * camera.aspect;
@@ -131,7 +132,7 @@
 		// Perspective makes that center differ from the midpoint of a horse.
 		const cx = (rightPlane - leftPlane) * tan_x / (2 * margin);
 		const cy = (topPlane - bottomPlane) * tan_y / (2 * margin);
-		const d = Math.max(0.1, (leftPlane + rightPlane) / 2, (bottomPlane + topPlane) / 2);
+		const d = zoom * Math.max(0.1, (leftPlane + rightPlane) / 2, (bottomPlane + topPlane) / 2);
 		camera.near = Math.max(0.001, d / 100);
 		camera.far = 10 * d + 4 * Math.max(right - left, top - bottom);
 		camera.update_projection();
@@ -141,34 +142,59 @@
 		camera.lookAt(cx, cy * up, -cy * forward);
 	}
 
-	// Drag (mouse or finger) turns the model about its vertical axis.
+	// Drag (mouse or one finger) turns the model about its vertical axis;
+	// the wheel or a two-finger pinch zooms.
 	class TurntableControls {
 		/**
 		 * @param {HTMLElement} dom_element
 		 * @param {function(number)} on_rotate called with the new angle (radians)
 		 * @param {number} rotation the starting angle
+		 * @param {function(number)} [on_zoom] called with a distance factor (below 1: closer)
 		 */
-		constructor(dom_element, on_rotate, rotation = 0) {
+		constructor(dom_element, on_rotate, rotation = 0, on_zoom = null) {
 			this.dom_element = dom_element;
 			this.on_rotate = on_rotate;
+			this.on_zoom = on_zoom;
 			this.rotation = rotation;
 			this.pointer = null;
 			this.prev_x = 0;
+			this.touches = new Map();
+			this.pinch = null;
 
 			this._down = (e) => this.on_down(e);
 			this._move = (e) => this.on_move(e);
 			this._up = (e) => this.on_up(e);
+			this._wheel = (e) => this.on_wheel(e);
 
 			dom_element.addEventListener('pointerdown', this._down);
 			dom_element.addEventListener('pointermove', this._move);
 			dom_element.addEventListener('pointerup', this._up);
 			dom_element.addEventListener('pointercancel', this._up);
+			if (on_zoom) dom_element.addEventListener('wheel', this._wheel, { passive: false });
 			// vertical swipes still scroll the page around the frame
 			if (dom_element.style && !dom_element.style.touchAction)
 				dom_element.style.touchAction = 'pan-y';
 		}
 
+		spread() {
+			const [a, b] = [...this.touches.values()];
+			return Math.hypot(a.x - b.x, a.y - b.y);
+		}
+
+		on_wheel(e) {
+			e.preventDefault();
+			this.on_zoom(Math.exp(Math.max(-100, Math.min(100, e.deltaY)) * 0.002));
+		}
+
 		on_down(e) {
+			if (e.pointerType !== 'mouse') {
+				this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+				if (this.touches.size === 2 && this.on_zoom) {
+					this.pinch = this.spread();
+					try { this.dom_element.setPointerCapture(e.pointerId); } catch (err) { /* already released */ }
+					return;
+				}
+			}
 			if (this.pointer !== null || (e.pointerType === 'mouse' && e.button !== 0))
 				return;
 			this.pointer = e.pointerId;
@@ -179,6 +205,15 @@
 		}
 
 		on_move(e) {
+			if (this.touches.has(e.pointerId)) {
+				this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+				if (this.pinch && this.touches.size >= 2) {
+					const now = this.spread();
+					if (now > 0) this.on_zoom(this.pinch / now);
+					this.pinch = now;
+					return;
+				}
+			}
 			if (e.pointerId !== this.pointer)
 				return;
 			const dx = e.clientX - this.prev_x;
@@ -189,9 +224,18 @@
 		}
 
 		on_up(e) {
-			if (e.pointerId !== this.pointer)
+			this.touches.delete(e.pointerId);
+			if (this.touches.size < 2) this.pinch = null;
+			if (e.pointerId !== this.pointer) {
 				return;
-			this.pointer = null;
+			}
+			// One finger lifted from a pinch: the other keeps turning, from where it is.
+			const [left] = this.touches.entries();
+			this.pointer = left ? left[0] : null;
+			if (left) {
+				this.prev_x = left[1].x;
+				return;
+			}
 			try { this.dom_element.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
 		}
 
@@ -201,6 +245,7 @@
 			el.removeEventListener('pointermove', this._move);
 			el.removeEventListener('pointerup', this._up);
 			el.removeEventListener('pointercancel', this._up);
+			el.removeEventListener('wheel', this._wheel);
 		}
 	}
 
