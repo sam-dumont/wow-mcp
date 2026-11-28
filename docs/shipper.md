@@ -33,7 +33,8 @@ run), then:
    asked for ([The 3D view's files](#the-3d-views-files)).
 5. **item facts**: when the game's hotfix cache changed, sends the facts of
    the items the server lacks ([Item facts](#item-facts)).
-6. **update**: at most every 2 hours, asks the same server for a newer
+6. **foreverdb.net** (off unless you turn it on): [Sending to foreverdb.net](#sending-to-foreverdbnet).
+7. **update**: at most every 2 hours, asks the same server for a newer
    shipper and takes it ([Auto-update](#auto-update)).
 
 ## Auto-update
@@ -158,6 +159,85 @@ password and daily budget as `/ingest`; with several people, your facts
 stay in your own folder there and go with your account.
 `item_facts = false` in the config turns it off.
 
+## Sending to foreverdb.net
+
+Off by default. `foreverdb_send = true` in the config (or the environment
+variable `WOW_STATS_FOREVERDB_SEND=1`) makes each run, after the rest of its
+work, do what <https://foreverdb.net/send> does in a browser when you pick your
+`_forever_` folder and press "Send my latest data", without a login. There is
+no Mac build of ForeverDB's own uploader. The file doing it,
+`foreverdb_send.py`, sits next to `wow_stats.py` (the installer copies it);
+without it, or with the setting off, nothing happens.
+
+- It reads each account's `WTF/Account/<account>/SavedVariables/ForeverDB.lua`
+  (never the `.bak`), keeps the sections the page keeps (quests, drops,
+  vendors, trainers, beasts, gathering spots, fish, skins, talent builds,
+  boss fights, spam counts, auction prices, rares, flights, trails, route
+  reports, anonymous game facts), and turns your characters' names in the
+  quests' text into `$N`, as the page does (it asks
+  `https://foreverdb.net/api/gamewords` for the game's own words first; if
+  that fails nothing is sent).
+- `POST https://foreverdb.net/api/anon/addon-file`, one request per account:
+  the JSON `{"kind":"fdb-upload","v":1,"addonVersion":...,"data":{...},"armory":[]}`
+  gzipped, with the headers `Content-Type: application/gzip`, `X-FDB: 1` and
+  `X-FDB-Install` (a random code made on the first send and kept in the state
+  file, which is how the page tells uploads apart). The anonymous page never
+  sends a character snapshot (`armory` is empty), and the Helper's
+  `ForeverDB_Helper.lua` needs a Battle.net login there, so it is not read.
+  There is no upload key: the page sends none.
+- Only what changed: the page's own rule, a SHA-256 of what would be sent,
+  per account, remembered in `<archive_dir>/foreverdb-send.json` once the
+  site answered 2xx. A file whose size and time did not change isn't even
+  read. At most one attempt every 15 minutes; a failed one tries again after
+  that. Resending is harmless on the site's side.
+- **Your own profile (optional, temporary).** The page credits an upload to
+  your ForeverDB profile, and sends the Helper's data too, when you are logged
+  in. Its credential is your browser's session cookie `fdb_s`, so until
+  ForeverDB ships an official Mac uploader (then this goes away: use that),
+  you can put that one cookie in a file and the shipper sends what the
+  logged-in page sends: `POST https://foreverdb.net/api/me/addon-file` (no
+  `X-FDB-Install`), `ForeverDB.lua` with the data, and `ForeverDB_Helper.lua`'s
+  share section (`{"share": ...}`: runs, kills, finds, wishlist ids, tips;
+  numbers and ids, never a name or a goal's title, filtered as the page
+  does; nothing is sent while it holds no run, kill, find, tip, wish or goal).
+  The steps, in Chrome:
+  1. Log in at <https://foreverdb.net> with Battle.net.
+  2. Press F12 (Developer tools), open Application, Cookies,
+     `https://foreverdb.net`, and click the cookie named `fdb_s`.
+  3. Copy its Value. Never copy `cf_clearance` or the others: they are
+     Cloudflare's and not needed, and the shipper ignores them if pasted.
+  4. Paste the value as one line into `~/WoWArchive/foreverdb-session` (or
+     the file `foreverdb_session_file` names), then
+     `chmod 600 ~/WoWArchive/foreverdb-session`.
+
+  The file is used only if it is a plain file, mode 600 and yours (the log
+  says why once when not). Only `fdb_s` is sent, to `https://foreverdb.net`
+  and nowhere else, no redirect is followed with it, and it is never logged,
+  put on a command line or kept in the state file. The shipper does not
+  imitate a browser: if Cloudflare ever answers with a challenge it logs that
+  and stops, and does nothing about it. Change detection is kept separately
+  for logged-in sends. When the site answers 401 or 403 the session has
+  expired: the log says `foreverdb.net session expired: paste a new one into
+  <file>` once, ForeverDB.lua goes anonymously as before (the Helper's data is
+  not sent) and the same expired value isn't tried again. No file, no
+  logged-in sends. `foreverdb_session_file = ""` turns it off.
+  **Your armory:** the page sends the characters you tick (name, realm, gear,
+  talents, professions, reputations; private until you make them public).
+  Here none go unless you list them: `foreverdb_armory = ["Name", ...]`.
+- The log has one line per send: `foreverdb: account 1: sent 481162 bytes,
+  anon, HTTP 201, quests 241/241, loot 341/341, ...` (`me` instead of `anon`
+  when logged in; counts only, no names, no data). The site's answer is the
+  proof: a send counts as done when it is 2xx and the answer parses and
+  carries the shared counts, and the line shows each section as sent/stored
+  (`quests 241/241`). A section the site stored differently (it dedupes some,
+  e.g. `botCounts MISMATCH 0/5`), or a character it did not store, is a
+  warning on the line only: the file is recorded as sent. No answer, an error
+  or no counts at all: the line says `will retry`, and the file is not
+  recorded.
+- By hand: `python3 foreverdb_send.py --dry-run` prints the size and the
+  top-level shape of each request and sends nothing; `--force` sends every
+  file now.
+
 ## Stats only (no WTF archive)
 
 By default, when git is installed, every run commits your whole `WTF`
@@ -252,7 +332,8 @@ Lines that aren't valid events never leave the PC: they go to
 `WOW_STATS_CONFIG` points it at another config file. `config.example.toml`
 lists every setting: `wow_dir` (the `_forever_` folder, found by itself in the
 usual install places), `archive_dir`, `wtf_archive` (default `true`),
-`log_file`, `polestar_client_dir`, `auto_update` (default `true`), and
+`log_file`, `polestar_client_dir`, `auto_update` (default `true`), `foreverdb_send` (default
+`false`), and
 `[ship]` with `url`, `user`, `password` or `password_file`, and
 `retention_days`.
 

@@ -92,7 +92,7 @@ def shipper_file(name: str) -> bytes:
 # the program, the platforms' installers and agent template, and what the
 # installers copy next to them.
 SHIPPER_FILES = ("wow_stats.py", "install-mac.sh", "wow-stats.plist", "install-windows.ps1",
-                 "config.example.toml", "LICENSE")
+                 "config.example.toml", "LICENSE", "foreverdb_send.py")
 SIGNATURE_FILE = "update-signature.json"  # tools/release/shipper_sign.py; served inside the manifest only
 _SHIPPER_VERSION = re.compile(rb'(?m)^VERSION = "(\d+\.\d+\.\d+(?:-rc\.\d+)?)"$')  # X.Y.Z or X.Y.Z-rc.N
 
@@ -875,7 +875,7 @@ def mac_installer(t: T.Tenancy, u: T.User, token: str | None) -> bytes:
     if token is None:
         return _mac_update(t, u)
     files = {n: shipper_file(n).decode() for n in ("wow_stats.py", "install-mac.sh", "wow-stats.plist",
-                                                   "config.example.toml", "LICENSE")}
+                                                   "config.example.toml", "foreverdb_send.py", "LICENSE")}
     for n, body in files.items():
         if "\nWOWSTATS_EOF\n" in "\n" + body + "\n":
             raise RuntimeError(f"{n} holds the heredoc marker")
@@ -1056,7 +1056,7 @@ def _shipper_heredocs(names) -> str:
 def _mac_update(t: T.Tenancy, u: T.User) -> bytes:
     """The update payload (Mac): the new program and agent, the config untouched."""
     heredocs = _shipper_heredocs(("wow_stats.py", "install-mac.sh", "wow-stats.plist", "config.example.toml",
-                                  "LICENSE"))
+                                  "foreverdb_send.py", "LICENSE"))
     return f"""#!/bin/bash
 # wow-stats update for {u.slug} ({datetime.now(UTC):%Y-%m-%d}): the program and the agent; the config stays.
 {license_note()}

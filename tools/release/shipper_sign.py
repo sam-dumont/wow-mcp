@@ -45,7 +45,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SHIPPER = ROOT / "shipper"
 SIGNATURE = SHIPPER / "update-signature.json"
 # As wowstats.account.SHIPPER_FILES (tests/test_shipper_signing.py keeps them equal).
-FILES = ("wow_stats.py", "install-mac.sh", "wow-stats.plist", "install-windows.ps1", "config.example.toml", "LICENSE")
+FILES = ("wow_stats.py", "install-mac.sh", "wow-stats.plist", "install-windows.ps1", "config.example.toml", "LICENSE",
+         "foreverdb_send.py")
 KEY_LINE = re.compile(r'(?m)^UPDATE_KEY = "([0-9a-f]{64})"$')
 VERSION_LINE = re.compile(r'(?m)^VERSION = "([^"]+)"$')
 # PKCS#8 for an Ed25519 key: this DER prefix, then the 32-byte seed (RFC 8410).

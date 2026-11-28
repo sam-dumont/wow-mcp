@@ -41,6 +41,24 @@
 # asks for. false: never; those items then show by name only.
 # item_facts = false
 
+# Send the ForeverDB addon's data to foreverdb.net, anonymously, the way its
+# page https://foreverdb.net/send does when you pick your _forever_ folder
+# (quests, drops, vendors, boss fights and so on, never a character name).
+# Only what changed, at most every 15 minutes; one log line per send.
+# `python3 foreverdb_send.py --dry-run` shows what would go. Off unless true
+# (or WOW_STATS_FOREVERDB_SEND=1).
+# foreverdb_send = true
+# Credit those uploads to your ForeverDB profile and send ForeverDB_Helper.lua
+# too, as the page does when you are logged in: a file holding the value of
+# your browser's foreverdb.net `fdb_s` cookie (one line, chmod 600, yours).
+# Temporary, until ForeverDB has an official Mac uploader. Steps:
+# docs/shipper.md, "Sending to foreverdb.net". Default:
+# ~/WoWArchive/foreverdb-session if it exists; "" turns it off.
+# foreverdb_session_file = "~/WoWArchive/foreverdb-session"
+# Characters to put in your ForeverDB armory with a session (name, realm, gear,
+# talents, reputations; private until you make them public). None by default.
+# foreverdb_armory = ["Name"]
+
 # Default: ~/Library/Logs/wow-stats.log (macOS),
 # %LOCALAPPDATA%\wow-stats\wow-stats.log (Windows).
 # log_file = "~/wow-stats.log"

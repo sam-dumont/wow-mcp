@@ -5502,6 +5502,12 @@ def check_update(state: dict, now: float | None = None) -> str | None:
         m = re.search(rb'(?m)^VERSION = "([^"]+)"$', new)
         if not m or version_tuple(m.group(1).decode()) != new_v:
             raise UpdateError("the new file's version isn't the one announced")
+        extra = _verified(base, headers, files, "foreverdb_send.py") if "foreverdb_send.py" in files else None
+        if extra is not None:
+            try:
+                compile(extra, "foreverdb_send.py", "exec")
+            except (SyntaxError, ValueError) as e:
+                raise UpdateError(f"foreverdb_send.py doesn't compile ({e})") from None
         agent = agent_changed(files)
         stage = SELF.parent / ".update"
         if agent:
@@ -5510,6 +5516,11 @@ def check_update(state: dict, now: float | None = None) -> str | None:
             for n in agent:
                 (stage / n).write_bytes(_verified(base, headers, files, n))
             (stage / "wow_stats.py").write_bytes(new)
+        if extra is not None:  # beside the script, before it: the new version finds it
+            side = SELF.with_name("foreverdb_send.py")
+            tmp = side.with_name(".foreverdb_send.py.new")
+            tmp.write_bytes(extra)
+            os.replace(tmp, side)
         apply_update(new)
     except (UpdateError, OSError) as e:
         log(f"auto-update: {e}; keeping {VERSION}")
@@ -6182,6 +6193,17 @@ def main() -> int:
             ship_item_facts(state)
         except Exception as e:  # noqa: BLE001 - the item facts never stop the shipping
             log(f"item facts: {type(e).__name__}: {e}")
+        try:  # off unless foreverdb_send = true; a file next to this one (docs/shipper.md)
+            import foreverdb_send  # noqa: PLC0415
+
+            foreverdb_send.maybe_send(sys.modules[__name__])
+        except ImportError:
+            if str(os.environ.get("WOW_STATS_FOREVERDB_SEND", CONFIG.get("foreverdb_send", ""))).strip().lower() in (
+                    "1", "true", "yes", "on"):
+                log("foreverdb send: foreverdb_send = true, but foreverdb_send.py is not next to this script "
+                    "(run the installer again, or update)")
+        except Exception as e:  # noqa: BLE001 - sending to foreverdb.net never stops the shipping
+            log(f"foreverdb send: {type(e).__name__}: {e}")
         try:
             check_update(state)
         except Exception as e:  # noqa: BLE001 - an update bug never stops the shipping
