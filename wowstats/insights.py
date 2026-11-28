@@ -937,6 +937,13 @@ def _upgrade_claim(u: dict, s: dict, text: str, cite: str, level: int | None = N
                  + (1 if s.get("kind") in HELD_WHERE else 0), item=item_ref(u), source=src)
 
 
+# A dungeon is the player's choice, never the headline (owner, 2026-11-28):
+# its text starts with this and it ranks under the upgrades, the professions
+# and riding (whose weights are all above this one).
+OPT_IN_DUNGEON = "If you like dungeons:"
+DUNGEON_WEIGHT = 1.2
+
+
 def _per_clear(pairs: list[tuple[dict, float | None]]) -> float:
     """The gear points one clear is expected to bring: per slot, the
     chance-weighted best of the items that can drop for it (a better one
@@ -996,9 +1003,11 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]], panel: dic
             name = b["name"]
             pairs = by_key.get(dungeonview.key(name), [])
             items = {id(u): item_ref(u) for u, _ in pairs}
-            detail = f"{b['verdict'].capitalize()} with a group. {b['why'][:1].upper()}{b['why'][1:]}."
-            out.append(claim(f"{name}. {detail}", "#dungeons", "dungeon quests, gear sources and whole-trip forecast",
-                             kind="dungeon", title=name, detail=detail, weight=2.5,
+            why = f"{b['verdict']} with a group. {b['why'][:1].upper()}{b['why'][1:]}."
+            detail = f"{OPT_IN_DUNGEON} {why}"
+            out.append(claim(f"{OPT_IN_DUNGEON} {name}. {why[:1].upper()}{why[1:]}",
+                             "#dungeons", "dungeon quests, gear sources and whole-trip forecast",
+                             kind="dungeon", title=name, detail=detail, weight=DUNGEON_WEIGHT,
                              zone=zone_ref(name, [b["min"], b["max"]]), items=list(items.values())))
         return dungeonview.with_gain(out, panel)
     for z, pairs in sorted(by.items(), key=rank)[:2]:
@@ -1008,11 +1017,11 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]], panel: dic
         block = None
         if later(z):
             block = f"it starts at level {lo}" if lo > level else f"Polestar lists it from level {start_of[z]}"
-        out.append(claim(f"{z} (levels {lo}-{hi}) drops {n} upgrade{'s' if n > 1 else ''} for you ("
+        out.append(claim(f"{OPT_IN_DUNGEON} {z} (levels {lo}-{hi}) drops {n} upgrade{'s' if n > 1 else ''} for you ("
                          + ", ".join(f"{u['name']} ({gearmod.gain_words(u)})" for u in us[:3]) + ")"
                          + (f"; {block}" if block else "") + ".",
                          "#advice", "gear advice drop sources", kind="dungeon", title=z,
-                         weight=1.5 if block else 2.5,
+                         weight=DUNGEON_WEIGHT, detail=f"{OPT_IN_DUNGEON} it drops upgrades for you.",
                          zone=zone_ref(z, lv_of[z]), items=[item_ref(u) for u in us], blocker=block))
     return out
 
@@ -1030,9 +1039,9 @@ def next_moves(level: int | None, advice: dict | None, header: dict, track: dict
     moves = [_upgrade_claim(u, s, _pick_text(u, s) + _bis_text(advice, u), "gear advice (ForeverDB.net's weights)",
                             level)
              for u, s in list(best.values())[:3]]
-    moves += dungeon_claims(level, reach, dungeon_panel)
     moves += profession_claims(level, gear_profs, skills, header)
     moves += riding_claims(level, header, skills, done)
+    moves += dungeon_claims(level, reach, dungeon_panel)
     rested = opt_num(header.get("rested_xp"))
     if rested:
         of = f" ({rested / header['xp_max']:.2f} of level {level})" if header.get("xp_max") else ""
@@ -1167,33 +1176,16 @@ def overview_moves(nm: dict, sc: dict) -> list[dict]:
     """The Overview's one list: the next moves and the sanity check's
     findings together, each thing once, heaviest first, and the first of
     each kind ahead of a second of any kind, so the few lines on show
-    differ (an upgrade, a dungeon, a profession) rather than repeat.
+    differ (an upgrade, a profession, riding) rather than repeat. A dungeon
+    is optional (OPT_IN_DUNGEON): it comes after everything else.
 
     One item, one move: an upgrade that a listed dungeon's move already
-    names (its items carry the slot and the gain) goes into that move, which
-    takes the upgrade's weight when it is heavier."""
+    names (its items carry the slot and the gain) goes into that move."""
     allc = [*nm.get("moves", []), *sc.get("findings", [])]
-    in_dungeon: dict = {}
-    for c in allc:
-        if c.get("kind") == "dungeon":
-            for i in c.get("items") or []:
-                in_dungeon.setdefault(i.get("item_id"), (c.get("zone") or {}).get("name"))
-    lift: dict = defaultdict(float)
-    kept = []
-    for c in allc:
-        if (c.get("kind") == "upgrade" and c.get("item_id") in in_dungeon
-                and (c.get("source") or {}).get("kind") == "drop"):
-            z = in_dungeon[c["item_id"]]
-            lift[z] = max(lift[z], c.get("weight", 1))
-            continue
-        kept.append(c)
-    # Item deduplication can lift the dungeon recommendations above other kinds
-    # of move. Keep the highest-ranked trip first even when the runner-up has a named drop.
-    first_dungeon = next((c["zone"]["name"] for c in kept if c.get("kind") == "dungeon" and c.get("zone")), None)
-    if first_dungeon and lift:
-        lift[first_dungeon] = max(lift.values())
-    kept = [{**c, "weight": max(c.get("weight", 1), lift[(c.get("zone") or {}).get("name")])}
-            if c.get("kind") == "dungeon" and lift.get((c.get("zone") or {}).get("name")) else c for c in kept]
+    in_dungeon = {i.get("item_id") for c in allc if c.get("kind") == "dungeon" for i in c.get("items") or []}
+    kept = [c for c in allc
+            if not (c.get("kind") == "upgrade" and c.get("item_id") in in_dungeon
+                    and (c.get("source") or {}).get("kind") == "drop")]
     seen, ranked = set(), []
     for c in sorted(kept, key=lambda c: -c.get("weight", 1)):
         k = c.get("kind")
@@ -1209,7 +1201,8 @@ def overview_moves(nm: dict, sc: dict) -> list[dict]:
     for c in ranked:
         (rest if c["kind"] in kinds else first).append(c)
         kinds.add(c["kind"])
-    return first + rest
+    out = first + rest
+    return [c for c in out if c["kind"] != "dungeon"] + [c for c in out if c["kind"] == "dungeon"]
 
 
 # ----------------------------------------------------------------- timeline

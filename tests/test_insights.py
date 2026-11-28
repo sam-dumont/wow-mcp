@@ -424,15 +424,31 @@ def test_zogzog_moves_keep_the_trainers_and_the_death_counts():
 
 
 def test_one_item_one_move():
-    """An upgrade that a listed dungeon's move names goes into that move,
-    which ranks where the upgrade would have."""
+    """An upgrade that a listed dungeon's move names goes into that move."""
     nm = insights.next_moves(32, ADVICE, {}, {}, {}, [], {})
     assert any(m["kind"] == "upgrade" and m["item_id"] == 1 for m in nm["moves"])  # the MCP's list keeps it
     mv = insights.overview_moves(nm, insights.sanity_check(32, [], {}, {}, ADVICE, [], {}, None, ask=layer()))
     rfk = next(m for m in mv if m["kind"] == "dungeon")
-    assert [i["item_id"] for i in rfk["items"]] == [1] and rfk["weight"] == 3
+    assert [i["item_id"] for i in rfk["items"]] == [1]
     assert not any(m["kind"] == "upgrade" and m["item_id"] == 1 for m in mv)
     assert any(m["kind"] == "upgrade" and m["item_id"] == 5 for m in mv)  # a quest item: no dungeon names it
+
+
+def test_a_dungeon_is_optional_and_comes_last():
+    """Owner, 2026-11-28: a dungeon never leads. Its text says it is optional
+    and it follows the upgrades, the professions and riding, even when it
+    names the best upgrade of the list."""
+    hd = {"faction": "Alliance", "race": "Gnome", "money_copper": 10000}
+    skills = {}
+    nm = insights.next_moves(32, ADVICE, hd, {}, {}, [{"skill_id": 333, "name": "Enchanting", "rank": 150,
+                                                      "max_rank": 150}], skills)
+    kinds = [m["kind"] for m in nm["moves"]]
+    assert kinds.index("dungeon") > max(i for i, k in enumerate(kinds) if k in ("upgrade", "profession", "riding"))
+    dz = next(m for m in nm["moves"] if m["kind"] == "dungeon")
+    assert dz["text"].startswith("If you like dungeons: Razorfen Kraul")
+    mv = insights.overview_moves(nm, insights.sanity_check(32, [], {}, {}, ADVICE, [], {}, None, ask=layer()))
+    assert mv[-1]["kind"] == "dungeon"
+    assert [m["kind"] for m in mv].count("upgrade") >= 1 and mv[0]["kind"] != "dungeon"
 
 
 def test_moves_require_a_reachable_route_for_both_hands():

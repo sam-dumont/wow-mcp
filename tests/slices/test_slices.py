@@ -105,7 +105,7 @@ def test_a_dungeon_trip_reads_the_same_in_the_panel_the_overview_and_the_mcp(ser
     points = [m for m in served.mcp("next_moves")["answer"] if m["page_section"] == "#dungeons"]
     assert len(points) == len(moves)
     for point, name in zip(points, moves, strict=True):
-        assert point["point"].startswith(name + ".")
+        assert point["point"].startswith(f"If you like dungeons: {name}.")
     for name, line in opts.items():
         assert lines.get(name) == line, f"{served.name}: {name}: panel {lines.get(name)} vs MCP {line}"
     for name, line in moves.items():

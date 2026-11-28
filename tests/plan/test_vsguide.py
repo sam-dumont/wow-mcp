@@ -197,11 +197,11 @@ def test_the_overview_move_puts_polestars_list_first():
     rfk = [(up("Shank", 35, "mh"), src("Razorfen Kraul", [29, 38], 31.1, 15))]
     # At 32 the Library (Polestar's from 36) is out of reach: Polestar's own comes.
     out = insights.dungeon_claims(32, [({**u, "sources": [s]}, s) for u, s in [*lib, *rfk]])
-    assert [c["title"] for c in out] == ["Razorfen Kraul"] and out[0]["weight"] == 2.5 and not out[0]["blocker"]
+    assert [c["title"] for c in out] == ["Razorfen Kraul"] and out[0]["weight"] == insights.DUNGEON_WEIGHT and not out[0]["blocker"]
     # At 33 it is in reach but after Polestar's, saying from which level.
     out = insights.dungeon_claims(33, [({**u, "sources": [s]}, s) for u, s in [*lib, *rfk]])
     assert [c["title"] for c in out] == ["Razorfen Kraul", "Scarlet Monastery: Library"]
-    assert out[1]["blocker"] == "Polestar lists it from level 36" and out[1]["weight"] == 1.5
+    assert out[1]["blocker"] == "Polestar lists it from level 36" and out[1]["weight"] == insights.DUNGEON_WEIGHT
     # Three 1% drops do not justify a run. One reachable alternative does.
     sure = [(up("Sure", 20, "a"), src("Gnomeregan", [29, 38], 31.4, 100))]
     rare = [(up(f"Rare {i}", 30, f"r{i}"), src("Razorfen Kraul", [29, 38], 31.1, 1)) for i in range(3)]

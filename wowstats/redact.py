@@ -271,7 +271,7 @@ GAIN = {**_keys("own_runs", "level", "run_s", "time", "xp_kills", "xp_quests", "
                                         "other_wings": [None], "objectives_here": [None]}],
         # The trip's parts, each with its label (measured / route / estimate).
         # `from` says where it starts ("you", "entrance"), never the place.
-        "trip": {**{k: _keys("value", "label") for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "total_s",
+        "trip": {**{k: _keys("value", "label") for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "lfg_s", "total_s",
                                                          "xp_quests", "xp_kills", "xp_total", "xp_per_hour",
                                                          "vs_questing")},
                  "from": None, "stops": _keys("pickup", "handin")}}

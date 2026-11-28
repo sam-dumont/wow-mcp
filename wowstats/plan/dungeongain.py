@@ -50,6 +50,12 @@ from .estimate import expected_best, fdur, seen_mean
 
 SHOWN = 3  # quests the move lists before "N more" (the page's rule)
 
+# Finding a group before the trip starts. An assumption, not a measurement:
+# nothing in the records times it. Every trip counts it, so the pace against
+# questing is the one a player gets with the wait included (owner, 2026-11-28).
+LFG_WAIT_MIN = 20
+LFG_WAIT_S = LFG_WAIT_MIN * 60
+
 
 # ---------------------------------------------------------------- kill XP
 
@@ -272,6 +278,8 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     parts["travel_s"] = (to[0] + back[0], _worst(to[1], back[1])) if to and back else None
     parts = {k: v for k, v in parts.items() if v is not None}
     inside = parts.get("inside_s")
+    if inside:
+        parts["lfg_s"] = (float(LFG_WAIT_S), "estimate")
     # The whole trip or nothing: with a leg unknown the trip's time is
     # unknown, and so its XP an hour and the verdict.
     run_s = sum(v for v, _ in parts.values()) if inside and not missing else None
@@ -290,7 +298,9 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     xph = per_hour(shown, run_s) if run_s and shown else None
     qx = questing_xph or None
     vs = round(xph / qx, 3) if xph and qx and xp_k is not None else None
-    t_label = _worst(*(lbl for _, lbl in parts.values()))
+    # The group's wait is an assumption on its own label; it doesn't make the
+    # measured legs an estimate.
+    t_label = _worst(*(lbl for k, (_, lbl) in parts.items() if k != "lfg_s"))
     xp_label = _worst(k_label, "route" if route else "estimate") if xp_k is not None else None
     out = {
         "basis": basis, "own_runs": len(runs), "level": level, "run_s": round(run_s) if run_s else None, "time": time,
@@ -316,7 +326,7 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
         return {"value": round(v) if v is not None else None, "label": label if v is not None else None}
 
     trip = {k: part(*parts[k]) if k in parts else part(None, None)
-            for k in ("pickup_s", "inside_s", "handin_s", "travel_s")}
+            for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "lfg_s")}
     trip.update({leg: part(*(v or (None, None))) for leg, v in (("travel_to_s", to), ("travel_back_s", back))})
     trip.update({"total_s": part(run_s, t_label if run_s else None),
                  "xp_quests": part(xp_q, "route" if route else "estimate"),
@@ -425,10 +435,11 @@ def _upgrades(g: dict) -> str:
 
 def split(g: dict) -> str:
     """The trip's parts as the line says them: 25 min pickups · 1h15 inside
-    · 20 min hand-ins (a part with nothing in it left out; the travel to the
-    door and back is in the total only)."""
+    · 20 min hand-ins · 20 min to find a group (assumed) (a part with nothing
+    in it left out; the travel to the door and back is in the total only)."""
     t = g.get("trip") or {}
-    words = (("pickup_s", "pickups"), ("inside_s", "inside"), ("handin_s", "hand-ins"))
+    words = (("pickup_s", "pickups"), ("inside_s", "inside"), ("handin_s", "hand-ins"),
+             ("lfg_s", "to find a group (assumed)"))
     return " · ".join(f"{about_s(t[k]['value'])} {w}" for k, w in words if (t.get(k) or {}).get("value"))
 
 

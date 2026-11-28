@@ -24,7 +24,7 @@ ODDS = r"(?:drop chance unknown|>?[\d.]+% a run(?: from known rates)?)"
 DROP = r"\d+ drop upgrades? \(" + ODDS + r"\)"
 UPS = r"(?: \+ (?:\d+ quest upgrades?(?:, " + DROP + r")?|" + DROP + r"))?"
 LINE = re.compile(r"^~(\d+ min|\d+h\d\d) trip for ~[\d.,]+k? (?P<known>known )?XP" + UPS + r", ([\d.]+×|under 0\.1×) your "
-                  r"questing \(((\d+ min|\d+h\d\d) (pickups|inside|hand-ins)( · )?)+\)\.$")
+                  r"questing \(((\d+ min|\d+h\d\d) (pickups|inside|hand-ins|to find a group \(assumed\))( · )?)+\)\.$")
 
 
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])

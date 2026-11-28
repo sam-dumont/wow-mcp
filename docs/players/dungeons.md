@@ -24,8 +24,8 @@ one worth running now is also the Overview's Dungeon move.
 times you ran it ("ran it 1×").
 
 **The verdict**: the short answer, like "2 quests left (18,800 XP), and 12 missing upgrades at
-98% a clear", then the trip in one line: "~1h55 trip for ~58k XP + 4 quest upgrades, 9 drop upgrades (88% a
-run), 2.1× your questing (20 min pickups · 1h15 inside · 15 min hand-ins)". Quest upgrades come
+98% a clear", then the trip in one line: "~2h15 trip for ~58k XP + 4 quest upgrades, 9 drop upgrades (88% a
+run), 1.8× your questing (20 min pickups · 1h15 inside · 15 min hand-ins · 20 min to find a group (assumed))". The last part is a guess: 20 minutes to find a group, counted in every trip because nothing records it. Quest upgrades come
 for sure with the quests; drop upgrades are the ones that can drop, with the chance one does. Above 1×, the run levels you faster than questing.
 The trip starts where you were last seen: the quests to pick up on the way (Polestar's pick-up
 rules, the same ones its "Pick up the quests" guide follows), the walk or flight to the door, the
