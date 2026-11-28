@@ -543,3 +543,32 @@ def test_logged_in_answer_covers_data_armory_and_helper(fs, env):
     write_acct(wow, "ACCT1", HELPER.replace('["dur"] = 90', '["dur"] = 99'), file="ForeverDB_Helper.lua")
     sess_run(fs, env, now=9000.0, armory=["Zorbo"])
     assert any("no helper counts in the answer" in ln for ln in lines)
+
+
+def test_a_refused_send_logs_the_servers_message_without_secrets(fs, env):
+    wow, arch, net, lines, _run = env
+    write_acct(wow, "ACCT1")
+    session(arch)
+    net.me_status = 500
+    net.answer = lambda body: {"error": "boom: bad row", "debug": "fdb_s=THE-SECRET-VALUE", "id": "A" * 40}
+    assert sess_run(fs, env, now=1000.0) == 0
+    line = next(ln for ln in lines if "HTTP 500" in ln)
+    assert "error: " in line and "boom: bad row" in line
+    assert "THE-SECRET" not in "".join(lines) and "A" * 32 not in line
+
+
+def test_error_text_is_short_and_blanked(fs):
+    assert len(fs.error_text({"_text": "x " * 500})) == 300
+    assert fs.error_text(None) == "(no body)"
+    t = fs.error_text({"_text": "Set-Cookie: fdb_s=abc123; Token: zzz tail"}, "fdb_s=abc123")
+    assert "abc123" not in t and "zzz" not in t and "tail" in t
+
+
+def test_dry_run_prints_section_sizes_for_both_paths(fs, env):
+    wow, arch, _net, lines, run = env
+    write_acct(wow, "ACCT1")
+    run(dry=True)
+    session(arch)
+    sess_run(fs, env, dry=True)
+    assert any("section bytes (anon) quests=" in ln for ln in lines)
+    assert any("section bytes (logged in) quests=" in ln and "armory bytes 2" in ln for ln in lines)

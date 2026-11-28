@@ -501,6 +501,10 @@ def plan_file(lua_vars: dict, words_get) -> dict:
             "sections": sections, "snaps": snaps, "guids": [g for g, _ in ordered], "version": version}
 
 
+def section_bytes(sections: dict) -> str:
+    return ", ".join(f"{k}={len(stringify(v))}" for k, v in sections.items())
+
+
 def logged_in_body(plan: dict, data: bool, guids: list[str]) -> tuple[bytes, bytes]:
     """The logged-in page's ut(): data only when shared, the ticked characters' snapshots as the armory."""
     payload = {"kind": "fdb-upload", "v": 1, "addonVersion": plan["version"]}
@@ -744,7 +748,7 @@ def http(url: str, data: bytes | None = None, hdrs: dict | None = None) -> tuple
     try:
         return status, json.loads(text)
     except ValueError:
-        return status, None
+        return status, ({"_text": text[:2000].decode("utf-8", "replace")} if status >= 400 and text else None)
 
 
 def fetch_words() -> set[str] | None:
@@ -786,6 +790,25 @@ def enabled(config: dict) -> bool:
 
 
 HELPER_KEYS = ("runs", "kills", "finds", "wish")
+
+
+_OPAQUE = re.compile(r"(?i)\b(?:fdb_s|cf_clearance|cookie|set-cookie|token|authorization|bearer|session|sid)\b"
+                     r"[\s\"':=]*[^\s;,\"'}]+|[A-Za-z0-9_+/=.-]{32,}")
+
+
+def error_text(resp, cookie: str | None = None) -> str:
+    """The server's message for a non-2xx answer: its text, 300 characters, with anything that looks
+    like a cookie or a token blanked."""
+    if isinstance(resp, dict):
+        text = resp.get("_text") or json.dumps(resp, ensure_ascii=False)
+    else:
+        text = "" if resp is None else str(resp)
+    if cookie:
+        for part in {cookie, cookie.split("=", 1)[-1]}:
+            if len(part) > 3:
+                text = text.replace(part, "[blanked]")
+    text = _OPAQUE.sub("[blanked]", text)
+    return " ".join(text.split())[:300] or "(no body)"
 
 
 def check_response(resp, sent: dict[str, int], *, armory: int = 0,
@@ -938,7 +961,8 @@ def _anon_pass(files, stamps, st, log, dry, force, now, words_get) -> int:
         if dry:
             top = ["kind", "v", "addonVersion", *(["data"] if "data" in plan["payload"] else []), "armory"]
             log(f"foreverdb: {label}: would send {len(plan['raw'])} bytes JSON, {len(plan['body'])} gzipped; "
-                f"top-level {top}; data sections {sorted(plan['payload'].get('data', {}))}; counts {shape}")
+                f"top-level {top}; counts {shape}; section bytes (anon) "
+                f"{section_bytes(plan['payload'].get('data', {}))}; armory bytes 2")
             sent += 1 if plan["counts"] else 0
             continue
         old = known.get(acct, {}).get("hash")
@@ -953,7 +977,7 @@ def _anon_pass(files, stamps, st, log, dry, force, now, words_get) -> int:
             continue
         good, phrase = check_response(resp, plan["counts"]) if 200 <= status < 300 else (False, "")
         log(f"foreverdb: {label}: sent {len(plan['body'])} bytes, anon, HTTP {status}"
-            + (f", {verdict(good, phrase)}" if 200 <= status < 300 else ""))
+            + (f", {verdict(good, phrase)}" if 200 <= status < 300 else f", error: {error_text(resp)}"))
         if good:
             new_files[acct] = {"stamp": stamps[acct], "hash": plan["hash"]}
             st["at"] = now
@@ -997,8 +1021,11 @@ def _session_pass(files, hfiles, stamps, cookie, st, sess, log, dry, force, now,
             continue
         raw, body = logged_in_body(plan, share, picked if chars else [])
         if dry:
+            top = ["kind", "v", "addonVersion", *(["data"] if share else []), "armory"]
             log(f"foreverdb: {label}: would send (logged in) {len(raw)} bytes JSON, {len(body)} gzipped; "
-                f"data {share}, characters {len(picked) if chars else 0}")
+                f"top-level {top}; characters {len(picked) if chars else 0}; section bytes (logged in) "
+                f"{section_bytes(plan['sections']) if share else 'none'}; armory bytes "
+                f"{len(stringify([plan['snaps'][g] for g in picked])) if chars else 2}")
             sent += 1
             continue
         try:
@@ -1012,7 +1039,7 @@ def _session_pass(files, hfiles, stamps, cookie, st, sess, log, dry, force, now,
         good, phrase = (check_response(resp, plan["counts"] if share else {}, armory=len(picked) if chars else 0)
                         if 200 <= status < 300 else (False, ""))
         log(f"foreverdb: {label}: sent (logged in) {len(body)} bytes, me, HTTP {status}"
-            + (f", {verdict(good, phrase)}" if 200 <= status < 300 else ""))
+            + (f", {verdict(good, phrase)}" if 200 <= status < 300 else f", error: {error_text(resp, cookie)}"))
         if good:
             mem[acct] = {"hash": plan["hash"], "armory": ticked}
             st["at"] = now
@@ -1043,7 +1070,8 @@ def _session_pass(files, hfiles, stamps, cookie, st, sess, log, dry, force, now,
             if status:
                 good, phrase = check_response(resp, {}, helper=helper["counts"]) if 200 <= status < 300 else (False, "")
                 log(f"foreverdb: helper: sent (logged in) {len(helper['body'])} bytes, me, HTTP {status}"
-                    + (f", {verdict(good, phrase)}" if 200 <= status < 300 else f", {counts}"))
+                    + (f", {verdict(good, phrase)}" if 200 <= status < 300
+                       else f", {counts}, error: {error_text(resp, cookie)}"))
                 if good or status == 400:  # the page remembers a refused 400 too
                     sess["helper"] = {"hash": helper["hash"], "saved": helper["saved"]}
                 if good:
