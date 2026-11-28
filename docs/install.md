@@ -137,7 +137,7 @@ SQLite files), a few hundred MB. No account or login needed. Then open <http://1
 an empty page until the shipper sends something.
 
 The [local demo](self-host/demo.md) keeps its invented characters in a separate Compose project.
-The v0.13.0 kit has Nibbet. Kits with `compose.demo.yaml` have all nine classes, their models
+Since 0.13.1 the kit has all nine classes from level 10 to 60, their models
 and simulated armory profiles. Both run without a game install or a Battle.net API key.
 
 `Bind for 127.0.0.1:8080 failed: port is already allocated` means

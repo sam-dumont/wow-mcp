@@ -147,8 +147,8 @@ class User:
     public_on: bool = False
     hidden_public: list = field(default_factory=list)
     hidden_zogzog: list = field(default_factory=list)
-    # Older registries wrote bnet_to_model=True even at signup. Only the
-    # Settings endpoint records a choice under this new field.
+    # Older registries wrote bnet_to_model=True even at signup; `_user` keeps
+    # those on. New accounts start off: only Settings records a choice here.
     bnet_to_model_choice: bool | None = None
     # The 3D view's models: "hd" (Updated) or "sd" (Classic), the page's
     # default for everyone who opens it; a visitor's own toggle wins there.
@@ -262,6 +262,9 @@ class Registry:
     @staticmethod
     def _user(d: dict) -> User:
         known = User.__dataclass_fields__
+        if "bnet_to_model_choice" not in d and d.get("bnet_to_model") is True:
+            # Registries up to 0.13.1: an account that had it on keeps it on.
+            d = {**d, "bnet_to_model_choice": True}
         return User(**{k: v for k, v in d.items() if k in known})
 
     def users(self) -> list[User]:

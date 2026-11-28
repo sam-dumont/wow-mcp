@@ -212,7 +212,7 @@ def _rankings(samples: list) -> dict:
         earlier = [first_offer[name] for name in names]
         later = [second_offer[name] for name in names]
         if (any(p["xp"] is None for p in earlier)
-                or any(a["priority"] != b["priority"] for a, b in (earlier, later))):
+                or any(a["priority"] != b["priority"] for a, b in zip(earlier, later, strict=True))):
             continue
         sources = {"personal_runs" if p["basis"] == "runs" else "modeled" for p in earlier}
         basis = sources.pop() if len(sources) == 1 else "mixed"

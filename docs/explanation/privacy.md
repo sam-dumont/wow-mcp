@@ -137,7 +137,7 @@ things, so you tell it:
 Your AI assistant reads your game data, including other players your game showed you and your
 addon's auction scans. On a shared install, each person has to turn on "Battle.net data to my AI"
 in Settings to share their characters' profile data, the WoW Token price and ruleset status.
-Older versions enabled sharing at signup, so existing accounts need a fresh opt-in. Switching
+New accounts start with it off. Accounts made before 0.13.2 keep the setting they had. Switching
 it off takes effect on the next call. The AI provider can keep answers already in the chat.
 On a one-person install, setting `VM_URL` lets the owner's AI read character profiles.
 The `market` tool is available only on shared installs.
