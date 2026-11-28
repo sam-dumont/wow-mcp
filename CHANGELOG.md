@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.13.3 (2026-11-28)
+
+### Knowledge base
+
+- Knowledge base refresh (#369 watch): ForeverDB.net data; data rebuilt: forever-reference, foreverdb-sources, foreverdb-weights.
+
 ## 0.13.2 (2026-11-28)
 
 - Battle.net sharing with your AI starts off for new accounts on shared installs. Existing accounts keep the setting they had.
