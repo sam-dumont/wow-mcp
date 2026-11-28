@@ -318,7 +318,8 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
                     "starts": q.get("starts") or [], **({"wings": q["wings"]} if q.get("wings") else {})}
                    for q in todo],
         "quests_shown": SHOWN,
-        "upgrades": sum(1 for q in todo if any(r.get("state") == "missing" for r in q.get("rewards") or [])),
+        "upgrades": sum(1 for q in todo if any(r.get("state") == "missing" and reward_fits(r)
+                                               for r in q.get("rewards") or [])),
         **_drop_upgrades(drops or [], todo),
     }
 
@@ -391,6 +392,13 @@ def _drop_upgrades(drops: list[dict], todo: list[dict]) -> dict:
 # the item reads as 100%. ForeverDB.net's item sources carry the kills a rate
 # was counted over ("kills"); a source without that count (older data) keeps its rate.
 MIN_DROP_KILLS = 5
+
+
+def reward_fits(r: dict) -> bool:
+    """False for a quest reward made for another class (wowstats.gearfit's
+    "class" fit): the drop list ranks such an item down, and the quests'
+    reward lines never recommend it. Another spec of the class stays, noted."""
+    return (r.get("fit") or {}).get("for_you") != "class"
 
 
 def thin_rate(source: dict) -> bool:

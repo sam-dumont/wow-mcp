@@ -3777,7 +3777,7 @@ function moveRewards(rw) {
   if (!rw || !rw.length) return null;
   return h('div', { class: 'mrewards' }, h('span', { text: 'Quest rewards you could use:' }),
     h('ul', { class: 'ditems' }, rw.slice(0, 3).map((r) => h('li', {}, itemWithLink(r),
-      h('span', { class: 'sub' }, `${upLine(r)}, from `,
+      h('span', { class: 'sub' }, `${upLine(r)}${r.fit && r.fit.for_you === 'spec' ? '; not made for your spec' : ''}, from `,
         whLink(r.quest.url, r.quest.name || `quest ${r.quest.quest_id}`))))),
     rw.length > 3 ? h('span', { class: 'sub', text: `and ${rw.length - 3} more in Dungeons` }) : null);
 }
