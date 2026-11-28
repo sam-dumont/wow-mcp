@@ -488,8 +488,8 @@ def test_the_answer_is_checked_against_what_was_sent(fs):
     sent = {"quests": 2, "loot": 1}
     ok, line = fs.check_response({"shared": {"counts": {"quests": 2, "loot": 1, "fish": 0}}}, sent)
     assert ok and line == "quests 2/2, loot 1/1"
-    ok, line = fs.check_response({"shared": {"counts": {"quests": 1, "loot": 1}}}, sent)  # partial
-    assert not ok and "quests MISMATCH 1/2" in line and "loot 1/1" in line
+    ok, line = fs.check_response({"shared": {"counts": {"quests": 1, "loot": 1}}}, sent)  # partial: a warning
+    assert ok and "quests MISMATCH 1/2" in line and "loot 1/1" in line
     assert not fs.check_response({"shared": {"counts": {}}}, sent)[0]  # empty
     assert not fs.check_response({}, sent)[0] and not fs.check_response(None, sent)[0]
     assert not fs.check_response({"shared": {"error": "no", "counts": {"quests": 2, "loot": 1}}}, sent)[0]
@@ -502,20 +502,30 @@ def test_the_answer_is_checked_against_what_was_sent(fs):
 def test_the_armory_and_helper_answers_are_checked_too(fs):
     good = {"armory": {"characters": [{"name": "A", "stored": False}]}}
     assert fs.check_response(good, {}, armory=1) == (True, "armory 1/1")
-    assert not fs.check_response({"armory": {"characters": [], "rejected": [{"reason": "x"}]}}, {}, armory=1)[0]
-    assert not fs.check_response({"armory": {"error": "no", "characters": [{"stored": True}]}}, {}, armory=1)[0]
+    ok, line = fs.check_response({"armory": {"characters": [], "rejected": [{"reason": "x"}]}}, {}, armory=1)
+    assert ok and "armory MISMATCH" in line  # a warning
+    assert fs.check_response({"armory": {"error": "no", "characters": [{"stored": True}]}}, {}, armory=1)[0]
     hs = {"runs": 1, "kills": 1, "finds": 0, "wish": 1, "tips": 4}
     assert fs.check_response({"helper": {"counts": {"runs": 1, "kills": 1, "wish": 1}}}, {}, helper=hs)[0]
     ok, line = fs.check_response({"helper": {"counts": {"runs": 1, "kills": 0, "wish": 1}}}, {}, helper=hs)
-    assert not ok and "kills MISMATCH 0/1" in line and not fs.check_response({}, {}, helper=hs)[0]
+    assert ok and "kills MISMATCH 0/1" in line and not fs.check_response({}, {}, helper=hs)[0]
 
 
-def test_a_mismatching_answer_is_logged_and_not_recorded(fs, env):
+def test_a_section_mismatch_is_a_warning_and_the_file_is_recorded(fs, env):
     wow, arch, net, lines, _run = env
     write_acct(wow, "ACCT1")
     net.answer = lambda body: {"shared": {"counts": {"quests": 1, "loot": 1, "trails": 2, "obs": 4}}}
+    assert fs.run(wow, arch, lines.append, now=1000.0) == 1
+    assert any("anon, HTTP 200" in ln and "quests MISMATCH 1/2" in ln and "warnings only" in ln for ln in lines)
+    assert fs.run(wow, arch, lines.append, now=1000.0 + 901) == 0 and len(net.posts) == 1  # never resent
+
+
+def test_an_answer_without_counts_is_retried(fs, env):
+    wow, arch, net, lines, _run = env
+    write_acct(wow, "ACCT1")
+    net.answer = lambda body: {"shared": {"counts": {}}}
     assert fs.run(wow, arch, lines.append, now=1000.0) == 0
-    assert any("anon, HTTP 200" in ln and "quests MISMATCH 1/2" in ln and "will retry" in ln for ln in lines)
+    assert any("no shared counts" in ln and "will retry" in ln for ln in lines)
     st = json.loads((arch / "foreverdb-send.json").read_text())
     assert st.get("files", {}).get("ACCT1", {}).get("hash") is None
     net.answer = None  # the site answers in full: the retry sends again and is recorded
@@ -537,8 +547,8 @@ def test_logged_in_answer_covers_data_armory_and_helper(fs, env):
     # an answer without the armory: the data is recorded for what matched, the file is retried for the armory
     net.answer = lambda body: {"shared": {"counts": {"quests": 2, "loot": 1, "trails": 2, "obs": 4}}}
     write_acct(wow, "ACCT1", LUA.replace('["scale"] = 1', '["scale"] = 1, ["fish"] = { [1] = { ["n"] = 1 } }'))
-    assert sess_run(fs, env, now=5000.0, armory=["Zorbo"]) == 0
-    assert any("armory MISMATCH" in ln and "will retry" in ln for ln in lines)
+    assert sess_run(fs, env, now=5000.0, armory=["Zorbo"]) == 1  # warnings only: fish and the armory
+    assert any("armory MISMATCH" in ln and "fish MISMATCH" in ln for ln in lines)
     net.answer = lambda body: {}
     write_acct(wow, "ACCT1", HELPER.replace('["dur"] = 90', '["dur"] = 99'), file="ForeverDB_Helper.lua")
     sess_run(fs, env, now=9000.0, armory=["Zorbo"])

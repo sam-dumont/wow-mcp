@@ -227,11 +227,13 @@ without it, or with the setting off, nothing happens.
 - The log has one line per send: `foreverdb: account 1: sent 481162 bytes,
   anon, HTTP 201, quests 241/241, loot 341/341, ...` (`me` instead of `anon`
   when logged in; counts only, no names, no data). The site's answer is the
-  proof: a send counts as done only when it is 2xx and its `shared.counts`
-  match what was sent per section (a section the site lists as skipped or
-  already known is explained), the stored characters match the armory names
-  sent and the Helper's counts match. Otherwise the line says `MISMATCH` and
-  `will retry`, and the file is not recorded as sent.
+  proof: a send counts as done when it is 2xx and the answer parses and
+  carries the shared counts, and the line shows each section as sent/stored
+  (`quests 241/241`). A section the site stored differently (it dedupes some,
+  e.g. `botCounts MISMATCH 0/5`), or a character it did not store, is a
+  warning on the line only: the file is recorded as sent. No answer, an error
+  or no counts at all: the line says `will retry`, and the file is not
+  recorded.
 - By hand: `python3 foreverdb_send.py --dry-run` prints the size and the
   top-level shape of each request and sends nothing; `--force` sends every
   file now.

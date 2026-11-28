@@ -813,9 +813,11 @@ def error_text(resp, cookie: str | None = None) -> str:
 
 def check_response(resp, sent: dict[str, int], *, armory: int = 0,
                    helper: dict[str, int] | None = None) -> tuple[bool, str]:
-    """Was it taken? The site's answer must show what we sent: the shared counts per section (the page reads
-    `shared.counts`), the characters stored (`armory.characters`), the Helper's counts (`helper.counts`).
-    Returns (all there, one log phrase: counts and numbers only)."""
+    """Was it taken? A 2xx whose answer parses and carries the shared counts (the page reads `shared.counts`;
+    for the Helper `helper.counts`) is taken. A section whose count differs from what was sent, or a character
+    not stored (`armory.characters`), is only a warning on the log line: the site dedupes (botCounts 0/5), and
+    resending ~480 KB every 15 minutes would never change that. Not taken: no JSON, an error in the answer,
+    no counts at all. Returns (taken, one log phrase: counts and numbers only)."""
     if not isinstance(resp, dict):
         return False, "no JSON answer"
     parts: list[str] = []
@@ -840,7 +842,6 @@ def check_response(resp, sent: dict[str, int], *, armory: int = 0,
             elif counts and isinstance(found, (dict, list)) and k in found:
                 parts.append(f"{k} {got if isinstance(got, int) else 0}/{v} (known already)")
             elif counts:
-                ok = False
                 parts.append(f"{k} MISMATCH {got if isinstance(got, int) else 0}/{v}")
     if armory:
         a = resp.get("armory") if isinstance(resp.get("armory"), dict) else {}
@@ -849,7 +850,6 @@ def check_response(resp, sent: dict[str, int], *, armory: int = 0,
         rejected = len(a["rejected"]) if isinstance(a.get("rejected"), list) else 0
         parts.append(f"armory {took}/{armory}")
         if a.get("error") or took < armory or rejected:
-            ok = False
             parts.append("armory MISMATCH")
     if helper:
         h = resp.get("helper") if isinstance(resp.get("helper"), dict) else {}
@@ -862,13 +862,14 @@ def check_response(resp, sent: dict[str, int], *, armory: int = 0,
                 got = hc.get(k)
                 parts.append(f"{k} {got if isinstance(got, int) else 0}/{helper[k]}")
                 if got != helper[k]:
-                    ok = False
                     parts[-1] = parts[-1].replace(k, f"{k} MISMATCH", 1)
     return ok, ", ".join(parts) if parts else "nothing to compare"
 
 
 def verdict(ok: bool, phrase: str) -> str:
-    return phrase if ok else phrase + "; not recorded as sent, will retry"
+    if not ok:
+        return phrase + "; not recorded as sent, will retry"
+    return phrase + "; recorded as sent (differences are warnings only)" if "MISMATCH" in phrase else phrase
 
 
 def _digest(cookie: str) -> str:
