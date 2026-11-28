@@ -935,3 +935,41 @@ def test_a_written_record_takes_its_type_from_its_url():
     item = "https://www.wowhead.com/forever/item=249427"
     assert lane.provenance([item], "high", "2026-11-23", "forever")["source_type"] == "datamined"
     assert lane.provenance([guide], "high", "2026-11-23", "forever")["source_type"] == "guide"
+
+
+def _moved_upstream(state, monkeypatch, **kw):
+    """Upstream published again after the run's sample: main's known value differs from the live one."""
+    known_hash(state, PAGE.encode())
+    monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
+    monkeypatch.setenv("GITHUB_RUN_ID", "42")
+    fetch, gh = recorded(state, page=PAGE.encode(), polestar=later(state["polestar"]["known"]))
+    return watch.run(state, fetch, gh, github=True, **kw), gh
+
+
+def test_landed_then_moved_upstream_is_green_and_says_the_next_run_lands_it(state, monkeypatch):
+    """2026-11-28: ForeverDB.net published again during the run (#370), a false red."""
+    out, gh = _moved_upstream(state, monkeypatch, landed=["polestar"])
+    assert out["did"]["polestar"] == "opened" and out["red"] == []
+    body = next(iter(gh.issues.values()))["body"]
+    assert "after that sample" in body and "next daily run will land it" in body
+    assert "stopped before it could land" not in body
+
+
+def test_a_refused_or_failed_landing_is_red_even_when_the_kind_landed_earlier(state, monkeypatch):
+    why = {"polestar": "The gates refused PR #9: tests failed."}
+    out, gh = _moved_upstream(state, monkeypatch, why=why, landed=["polestar"])
+    assert out["red"] == ["polestar"]
+    assert "The gates refused PR #9" in next(iter(gh.issues.values()))["body"]
+
+
+def test_a_change_never_landed_is_red_and_keeps_the_old_text(state, monkeypatch):
+    """2026-11-22: Polestar v0.4.2.1 sat in an issue nobody read."""
+    out, gh = _moved_upstream(state, monkeypatch)
+    assert out["red"] == ["polestar"]
+    assert "The run stopped before it could land this change" in next(iter(gh.issues.values()))["body"]
+
+
+def test_red_kinds_only_counts_issues_left_open():
+    did = {"polestar": "opened", "addons": "none", "official": "closed", "client-build": "edited"}
+    assert watch.red_kinds(did) == ["polestar", "client-build"]
+    assert watch.red_kinds(did, landed=["polestar"]) == ["client-build"]
