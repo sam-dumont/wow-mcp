@@ -661,9 +661,14 @@ def test_items_carry_the_bis_badge(browser, base, width):
         assert got, f"no badge on a {kind} card"
         for b in got:
             check_badge(b)
-        text = page.locator(card).first.inner_text()
-        assert re.search(r"(empty|\d+%) → \d+% on your ", text) and "of your gear" not in text, text
-        assert not re.search(r"[+−]\d+% on your ", text), text
+        # The cards that show an item; a dungeon card can count its drop
+        # upgrades without naming one ("+ 1 drop upgrade (33% a run)").
+        shown = page.locator(card).filter(has=page.locator(".itm .ifr .ibis"))
+        assert shown.count(), f"no {kind} card shows an item"
+        for i in range(shown.count()):
+            text = shown.nth(i).inner_text()
+            assert re.search(r"(empty|\d+%) → \d+% on your ", text) and "of your gear" not in text, text
+            assert not re.search(r"[+−]\d+% on your ", text), text
     page.click("#tab-overview")
     page.wait_for_selector(".dg .dgdrop")
     settled(page)
