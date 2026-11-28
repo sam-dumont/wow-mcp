@@ -145,16 +145,21 @@ def source_ref(s: dict, level: int | None = None) -> dict:
 
 def blocker(s: dict, level: int | None) -> str | None:
     """What keeps a source from being done right now at `level`: a quest
-    that needs a higher level, or one that is above it; a dungeon whose
-    range starts higher. None when nothing does."""
+    that needs a higher level, or a chain still to do before it; a dungeon
+    whose range starts higher. None when nothing does."""
     if level is None:
         return None
     if s.get("kind") == "quest":
+        # The level that lets you take the quest, never the quest's own level:
+        # a level 40 quest can be taken at 30. Unknown: no level to claim, and
+        # the chain before it is the blocker when it has one.
         need = s.get("req_level")
         if need and need > level:
             return f"the quest needs level {need}"
-        if (s.get("level") or 0) > level:
-            return f"a level {s['level']} quest: {s['level'] - level} above you"
+        chain = (s.get("work") or {}).get("chain") or {}
+        left = (chain.get("before") or 0) - (chain.get("done") or 0)
+        if left > 0:
+            return f"{left} quest{'s' if left != 1 else ''} of its chain to do first"
     if s.get("kind") == "drop":
         lv = s.get("levels") or []
         if lv and lv[0] > level:

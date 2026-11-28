@@ -515,3 +515,19 @@ def test_a_purchase_beyond_the_purse_says_so_without_dividing_by_nothing():
                              {"faction": "Alliance", "race": "Gnome", "money_copper": 0}, {}, {}, [], {})
     m = next(m for m in nm["moves"] if m["kind"] == "upgrade")
     assert "costs more than the gold you have; riding is" in m["text"]
+
+
+def test_a_quest_blocks_by_the_level_that_takes_it_not_its_own_level():
+    """A level 40 quest taken at level 35 (req 30) is no level block; the
+    quest's own level is not the gate. Unknown: say nothing about levels."""
+    q = {"kind": "quest", "name": "Q", "level": 40, "req_level": 30}
+    assert insights.blocker(q, 35) is None
+    assert insights.blocker({**q, "req_level": 38}, 35) == "the quest needs level 38"
+    unknown = {k: v for k, v in q.items() if k != "req_level"}
+    assert insights.blocker(unknown, 39) is None
+    # What is known instead: the chain before it.
+    chained = {**unknown, "work": {"chain": {"before": 3, "done": 1}}}
+    assert insights.blocker(chained, 39) == "2 quests of its chain to do first"
+    assert insights.blocker({**unknown, "work": {"chain": {"before": 1, "done": 0}}}, 39) \
+        == "1 quest of its chain to do first"
+    assert insights.blocker({**unknown, "work": {"chain": {"before": 2, "done": 2}}}, 39) is None
