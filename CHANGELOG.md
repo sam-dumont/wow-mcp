@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.13.2 (2026-11-28)
+
 - Battle.net sharing with your AI starts off for new accounts on shared installs. Existing accounts keep the setting they had.
 - Whether the faster XP forecast held up now compares only dungeons whose priority stayed the same from one plan to the next. Pairs whose verdict changed in between counted too.
 - A dungeon's open-quest XP (`quest_xp_open`) is unknown when the knowledge base has no XP rule for a quest's level. It used to read 0.
