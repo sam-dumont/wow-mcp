@@ -2,7 +2,7 @@
 desktop width) on the demo character: the Overview's dungeon move and the
 Dungeons panel say the same one line, the trip's time bold, then its XP,
 its pace against questing and its parts (owner, 2026-11-23: "~1h55 trip for
-~58k XP + 4 quest upgrades, 9 drop upgrades (88% a run), 2.1× your
+~58k XP + 4 quest upgrades, at least one of 9 drop upgrades drops: 88% a run, 2.1× your
 questing (20 min pickups · 1h15 inside · 15 min hand-ins)").
 
 Needs the `browser` group."""
@@ -21,7 +21,8 @@ from tests.test_dungeon_lines_browser import open_page, pw, site  # noqa: E402, 
 # The upgrades (owner, 2026-11-23): the quests' first, then the drops with
 # the chance one drops in a run, a part with none left out.
 ODDS = r"(?:drop chance unknown|>?[\d.]+% a run(?: from known rates)?)"
-DROP = r"\d+ drop upgrades? \(" + ODDS + r"\)"
+DROP = (r"(?:\d+ drop upgrades? \(" + ODDS + r"\)|at least one of \d+ drop upgrades drops: " + ODDS
+        + r"|\d+ drop upgrades, and at least one of the \d+ with a known rate drops: " + ODDS + ")")
 UPS = r"(?: \+ (?:\d+ quest upgrades?(?:, " + DROP + r")?|" + DROP + r"))?"
 LINE = re.compile(r"^~(\d+ min|\d+h\d\d) trip for ~[\d.,]+k? (?P<known>known )?XP" + UPS + r", ([\d.]+×|under 0\.1×) your "
                   r"questing \(((\d+ min|\d+h\d\d) (pickups|inside|hand-ins|to find a group \(assumed\))( · )?)+\)\.$")

@@ -1611,8 +1611,10 @@ function upLine(u) {
   return `${upText(u)}${u.now === false ? ` at level ${u.level}` : ''}`;
 }
 // One item can have several sources in the same run.
+// A rate counted over fewer kills than this is no rate (wowstats/plan/dungeongain.py MIN_DROP_KILLS).
+const MIN_DROP_KILLS = 5;
 function itemDropRate(sources) {
-  const known = sources.map((s) => s.chance_pct).filter((p) => p != null);
+  const known = sources.filter((s) => s.kills == null || s.kills >= MIN_DROP_KILLS).map((s) => s.chance_pct).filter((p) => p != null);
   const chance = known.length ? Math.max(...known) : null;
   return { chance, unknown_rate: known.length < sources.length && chance !== 100 };
 }
@@ -2887,7 +2889,7 @@ function dungeonTrip(b) {
       odds = { ...odds, ...dropRates(drops.map((d) => itemDropRate(d.drops))) };
     }
     facts.push(fact('Gear a clear', odds.drop_upgrades ? dropChanceText(odds) : 'none',
-      odds.drop_upgrades ? plural(odds.drop_upgrades, 'drop upgrade') : 'no missing drops you can wear now'));
+      odds.drop_upgrades ? (odds.drop_upgrades === 1 ? '1 drop upgrade' : `at least one of ${odds.drop_upgrades} drop upgrades drops`) : 'no missing drops you can wear now'));
     if (odds.upgrades) facts.push(fact('Quest rewards this trip', plural(odds.upgrades, 'upgrade')));
   }
   const kx = killXpFact(b.gain && b.gain.kill_xp);

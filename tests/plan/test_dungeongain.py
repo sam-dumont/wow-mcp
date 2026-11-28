@@ -254,8 +254,8 @@ def test_the_line_says_the_trip_and_its_parts():
     t = {"pickup_s": {"value": 1200}, "inside_s": {"value": 4500}, "handin_s": {"value": 900}}
     g = dict(xp=58000, xp_quests=40000, run_s=6900, level_pct=99, upgrades=4, drop_upgrades=9, drop_chance_pct=88,
              vs_questing=2.1, trip=t)
-    assert G.summary(g) == "~1h55 trip for ~58k XP + 4 quest upgrades, 9 drop upgrades (88% a run), 2.1× your " \
-                           "questing (20 min pickups · 1h15 inside · 15 min hand-ins)"
+    assert G.summary(g) == "~1h55 trip for ~58k XP + 4 quest upgrades, at least one of 9 drop upgrades drops: " \
+                           "88% a run, 2.1× your questing (20 min pickups · 1h15 inside · 15 min hand-ins)"
     assert g["lead"] == "~1h55 trip"
     # One quest upgrade and no drop left, no pickups left: a part with none is left out.
     g = {**g, "upgrades": 1, "drop_upgrades": 0, "drop_chance_pct": None, "trip": {**t, "pickup_s": {"value": None}}}
@@ -632,3 +632,44 @@ def test_the_ratio_is_against_his_measured_pace_not_the_planners(priest):
     assert E.questing_rate({**inp, "xp_per_hour": None}, p) == E.rate(p, "questing")
     # At the cap there is nothing to weigh against.
     assert E.questing_rate({**inp, "level": 60, "xp_per_hour": 18015}, p) == 0
+
+
+def _missing(item_id, *sources, value=10):
+    """A missing drop as dungeonview.drops_for lists it, with its sources."""
+    return {"item_id": item_id, "name": f"Item {item_id}", "slot_name": "Chest", "value": value, "level": 30,
+            "now": True, "state": "missing", "drops": list(sources), "quests": [], "gain": value}
+
+
+def test_a_rate_from_a_few_kills_is_unknown_not_a_sure_thing():
+    """One kill that dropped the item reads as 100%: that is no rate. With
+    MIN_DROP_KILLS kills it is."""
+    one_kill = {"chance_pct": 100, "kills": 1, "boss": "B"}
+    enough = {"chance_pct": 100, "kills": G.MIN_DROP_KILLS, "boss": "B"}
+    other = {"chance_pct": 20, "kills": 80, "boss": "C"}
+    items = V.drop_items([_missing(1, one_kill), _missing(2, other)])
+    assert [i["chance"] for i in items] == [None, 20]
+    roll = G.drop_value(items)
+    assert roll["drop_chance_pct"] is None and roll["known_drop_chance_pct"] == 20
+    assert roll["unknown_drop_rates"] == 1
+    # A thin source next to a counted one: the counted rate stands.
+    items = V.drop_items([_missing(1, one_kill, other)])
+    assert items[0]["chance"] == 20
+    # Enough kills: a real 100%.
+    items = V.drop_items([_missing(1, enough)])
+    assert items[0]["chance"] == 100 and G.drop_value(items)["drop_chance_pct"] == 100
+    # No kill count (a source that carries none) keeps its rate.
+    assert V.drop_items([_missing(1, {"chance_pct": 7, "boss": "B"})])[0]["chance"] == 7
+
+
+def test_the_odds_say_what_they_are():
+    g = G._drop_upgrades([{"item_id": i, "now": True, "slot": "Chest", "gain": 10, "chance": 20}
+                          for i in (1, 2, 3)], [])
+    assert G.drop_words(3, g, "a run") == "at least one of 3 drop upgrades drops: 49% a run"
+    one = G._drop_upgrades([{"item_id": 1, "now": True, "slot": "Chest", "gain": 10, "chance": 20}], [])
+    assert G.drop_words(1, one, "a run") == "1 drop upgrade (20% a run)"
+    part = G._drop_upgrades([{"item_id": 1, "now": True, "slot": "Chest", "gain": 10, "chance": 20},
+                             {"item_id": 2, "now": True, "slot": "Head", "gain": 10, "chance": None}], [])
+    assert G.drop_words(2, part, "a clear") == ("2 drop upgrades, and at least one of the 1 with a known rate "
+                                                 "drops: 20% a clear")
+    assert "drop chance unknown" in G.drop_words(2, G._drop_upgrades([{"item_id": 1, "now": True, "slot": "Chest",
+                                                                       "gain": 1, "chance": None}], []), "a run")

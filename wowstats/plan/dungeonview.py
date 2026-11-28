@@ -717,8 +717,11 @@ def drop_items(drops: list[dict]) -> list[dict]:
     for d in drops:
         if d["state"] != "missing" or not d["drops"]:
             continue
-        known = [s for s in d["drops"] if s.get("chance_pct") is not None]
+        # A rate counted over a handful of kills is no rate (G.MIN_DROP_KILLS).
+        known = [s for s in d["drops"] if s.get("chance_pct") is not None and not G.thin_rate(s)]
         best = max(known, key=lambda s: s["chance_pct"], default=d["drops"][0])
+        if not known:
+            best = {**best, "chance_pct": None}
         chance = best.get("chance_pct")
         items.append({"item_id": d["item_id"], "item": d["name"], "slot": d["slot_name"],
                       "gain": d["value"], "req_level": d["level"], "now": d["now"],
@@ -936,8 +939,7 @@ def judge(inp, state, lo, drops, quests, gain, quest_xph, mount, trip, kb_fit=0)
     quest_xp = gain["xp_quests"]
     q_up = [q for q in left if any(r["state"] == "missing" for r in q["rewards"])]
     later = [d for d in drops if d["state"] == "missing" and not d["now"] and d["drops"]]
-    odds = G.odds_words(gain, "a clear")
-    ups = _n(n_miss, "missing drop upgrade")
+    ups = G.drop_words(n_miss, gain, "a clear", "missing drop upgrade")
     handins = gain["handins"]
     prereqs = [q for q in handins if q["prerequisite"]]
     amount = f"{quest_xp:,} XP"
@@ -979,9 +981,9 @@ def judge(inp, state, lo, drops, quests, gain, quest_xph, mount, trip, kb_fit=0)
     goals = [name for name, met in (("xp", good_xp), ("gear", good_gear or bool(q_up)),
                                     ("quests", worth_quests), ("gold", gold)) if met]
     if good_gear and worth_quests:
-        return ("worth a run", f"{quest_bit}, and {ups} at {odds}", "high", goals)
+        return ("worth a run", f"{quest_bit}, and {ups}", "high", goals)
     if good_gear:
-        return ("worth a loop for gear", f"{ups} at {odds}", "high", goals)
+        return ("worth a loop for gear", ups, "high", goals)
     if worth_quests:
         return ("worth a run for its quests", quest_bit + (", one pays an upgrade" if q_up else ""), "high", goals)
     if good_xp:
@@ -992,7 +994,7 @@ def judge(inp, state, lo, drops, quests, gain, quest_xph, mount, trip, kb_fit=0)
     if kb_fit:
         why = _n(kb_fit, "drop") + " made for you" + (f", and {quest_bit}" if handins else "")
         return ("worth a look for gear", why, "some", [])
-    small = [quest_bit if handins else None, f"{ups} at {odds}" if n_miss else None]
+    small = [quest_bit if handins else None, ups if n_miss else None]
     small = [x for x in small if x]
     if small:
         return ("only if a group is going", " and ".join(small) + ": not worth a trip of its own",

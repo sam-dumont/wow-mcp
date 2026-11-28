@@ -387,6 +387,18 @@ def _drop_upgrades(drops: list[dict], todo: list[dict]) -> dict:
     return drop_value([d for d in drops if d["now"] and d["item_id"] not in given])
 
 
+# A drop rate seen in fewer kills than this is no rate: one kill that dropped
+# the item reads as 100%. ForeverDB.net's item sources carry the kills a rate
+# was counted over ("kills"); a source without that count (older data) keeps its rate.
+MIN_DROP_KILLS = 5
+
+
+def thin_rate(source: dict) -> bool:
+    """True when a drop source's rate rests on too few kills to be one."""
+    kills = source.get("kills")
+    return kills is not None and kills < MIN_DROP_KILLS
+
+
 def drop_value(items: list[dict]) -> dict:
     """Estimate from one (best known) rate per item. A missing rate leaves the
     total unknown, but the subset with published rates is still informative."""
@@ -424,11 +436,28 @@ def odds_words(g: dict, unit: str) -> str:
     return f"{label} {unit}"
 
 
+def drop_words(n: int, g: dict, unit: str, noun: str = "drop upgrade") -> str:
+    """What the drop chance is, said: the chance that at least one of the `n`
+    upgrades drops in a run (or clear), not the rate of any one of them. One
+    upgrade is its own rate; rates missing leave it open or partial."""
+    pct = g.get("known_drop_chance_pct", g.get("drop_chance_pct"))
+    what = f"{n} {noun}{'s' if n != 1 else ''}"
+    if pct is None:
+        return f"{what} (drop chance unknown)"
+    label = odds_words({**g, "drop_chance_pct": pct}, unit)
+    if n == 1:
+        return f"{what} ({label})"
+    if g.get("drop_chance_pct") is None:
+        known = n - (g.get("unknown_drop_rates") or 0)
+        return f"{what}, and at least one of the {known} with a known rate drops: {label}"
+    return f"at least one of {what} drops: {label}"
+
+
 def _upgrades(g: dict) -> str:
     """Quest rewards and random drops available on this trip."""
     q, d = g.get("upgrades") or 0, g.get("drop_upgrades") or 0
     parts = [f"{q} quest upgrade{'s' if q != 1 else ''}" if q else None,
-             f"{d} drop upgrade{'s' if d != 1 else ''} ({odds_words(g, 'a run')})" if d else None]
+             drop_words(d, g, "a run") if d else None]
     parts = [p for p in parts if p]
     return " + " + ", ".join(parts) if parts else ""
 
