@@ -785,12 +785,67 @@ def enabled(config: dict) -> bool:
     return bool(v)
 
 
-def summary(resp) -> str:
-    """Counts only, from the answer's shared section."""
-    sh = resp.get("shared") if isinstance(resp, dict) else None
-    if isinstance(sh, dict) and isinstance(sh.get("counts"), dict):
-        return ", ".join(f"{k}={v}" for k, v in sh["counts"].items() if isinstance(v, int) and v)
-    return "no counts in the answer"
+HELPER_KEYS = ("runs", "kills", "finds", "wish")
+
+
+def check_response(resp, sent: dict[str, int], *, armory: int = 0,
+                   helper: dict[str, int] | None = None) -> tuple[bool, str]:
+    """Was it taken? The site's answer must show what we sent: the shared counts per section (the page reads
+    `shared.counts`), the characters stored (`armory.characters`), the Helper's counts (`helper.counts`).
+    Returns (all there, one log phrase: counts and numbers only)."""
+    if not isinstance(resp, dict):
+        return False, "no JSON answer"
+    parts: list[str] = []
+    ok = True
+    found = resp.get("found")
+    if sent:
+        sh = resp.get("shared") if isinstance(resp.get("shared"), dict) else {}
+        counts = sh.get("counts") if isinstance(sh.get("counts"), dict) else {}
+        skipped = sh.get("skipped") if isinstance(sh.get("skipped"), list) else []
+        if sh.get("error"):
+            ok = False
+            parts.append("shared: the site reports an error")
+        if not counts:
+            ok = False
+            parts.append("no shared counts in the answer")
+        for k, v in sent.items():
+            got = counts.get(k)
+            if got == v:
+                parts.append(f"{k} {got}/{v}")
+            elif k in skipped:
+                parts.append(f"{k} skipped by the site")
+            elif counts and isinstance(found, (dict, list)) and k in found:
+                parts.append(f"{k} {got if isinstance(got, int) else 0}/{v} (known already)")
+            elif counts:
+                ok = False
+                parts.append(f"{k} MISMATCH {got if isinstance(got, int) else 0}/{v}")
+    if armory:
+        a = resp.get("armory") if isinstance(resp.get("armory"), dict) else {}
+        chars = a.get("characters") if isinstance(a.get("characters"), list) else []
+        took = sum(1 for c in chars if isinstance(c, dict) and (c.get("stored") or c.get("stored") is False))
+        rejected = len(a["rejected"]) if isinstance(a.get("rejected"), list) else 0
+        parts.append(f"armory {took}/{armory}")
+        if a.get("error") or took < armory or rejected:
+            ok = False
+            parts.append("armory MISMATCH")
+    if helper:
+        h = resp.get("helper") if isinstance(resp.get("helper"), dict) else {}
+        hc = h.get("counts") if isinstance(h.get("counts"), dict) else {}
+        if not hc:
+            ok = False
+            parts.append("no helper counts in the answer")
+        for k in HELPER_KEYS:
+            if helper.get(k):
+                got = hc.get(k)
+                parts.append(f"{k} {got if isinstance(got, int) else 0}/{helper[k]}")
+                if got != helper[k]:
+                    ok = False
+                    parts[-1] = parts[-1].replace(k, f"{k} MISMATCH", 1)
+    return ok, ", ".join(parts) if parts else "nothing to compare"
+
+
+def verdict(ok: bool, phrase: str) -> str:
+    return phrase if ok else phrase + "; not recorded as sent, will retry"
 
 
 def _digest(cookie: str) -> str:
@@ -896,9 +951,10 @@ def _anon_pass(files, stamps, st, log, dry, force, now, words_get) -> int:
         except OSError as e:
             log(f"foreverdb: {label}: send failed ({e})")
             continue
-        log(f"foreverdb: {label}: sent {len(plan['body'])} bytes, HTTP {status}"
-            + (f", {summary(resp)}" if 200 <= status < 300 else ""))
-        if 200 <= status < 300:
+        good, phrase = check_response(resp, plan["counts"]) if 200 <= status < 300 else (False, "")
+        log(f"foreverdb: {label}: sent {len(plan['body'])} bytes, anon, HTTP {status}"
+            + (f", {verdict(good, phrase)}" if 200 <= status < 300 else ""))
+        if good:
             new_files[acct] = {"stamp": stamps[acct], "hash": plan["hash"]}
             st["at"] = now
             sent += 1
@@ -953,9 +1009,11 @@ def _session_pass(files, hfiles, stamps, cookie, st, sess, log, dry, force, now,
             continue
         if status in (401, 403):
             return "expired"
-        log(f"foreverdb: {label}: sent (logged in) {len(body)} bytes, HTTP {status}"
-            + (f", {summary(resp)}" if 200 <= status < 300 else ""))
-        if 200 <= status < 300:
+        good, phrase = (check_response(resp, plan["counts"] if share else {}, armory=len(picked) if chars else 0)
+                        if 200 <= status < 300 else (False, ""))
+        log(f"foreverdb: {label}: sent (logged in) {len(body)} bytes, me, HTTP {status}"
+            + (f", {verdict(good, phrase)}" if 200 <= status < 300 else ""))
+        if good:
             mem[acct] = {"hash": plan["hash"], "armory": ticked}
             st["at"] = now
             sent += 1
@@ -983,10 +1041,12 @@ def _session_pass(files, hfiles, stamps, cookie, st, sess, log, dry, force, now,
             if status in (401, 403):
                 return "expired"
             if status:
-                log(f"foreverdb: helper: sent (logged in) {len(helper['body'])} bytes, HTTP {status}, {counts}")
-                if 200 <= status < 300 or status == 400:  # the page remembers a refused 400 too
+                good, phrase = check_response(resp, {}, helper=helper["counts"]) if 200 <= status < 300 else (False, "")
+                log(f"foreverdb: helper: sent (logged in) {len(helper['body'])} bytes, me, HTTP {status}"
+                    + (f", {verdict(good, phrase)}" if 200 <= status < 300 else f", {counts}"))
+                if good or status == 400:  # the page remembers a refused 400 too
                     sess["helper"] = {"hash": helper["hash"], "saved": helper["saved"]}
-                if 200 <= status < 300:
+                if good:
                     st["at"] = now
                     sent += 1
                 else:

@@ -225,7 +225,13 @@ without it, or with the setting off, nothing happens.
   talents, professions, reputations; private until you make them public).
   Here none go unless you list them: `foreverdb_armory = ["Name", ...]`.
 - The log has one line per send: `foreverdb: account 1: sent 481162 bytes,
-  HTTP 200, quests=241, ...` (counts only, no names, no data).
+  anon, HTTP 201, quests 241/241, loot 341/341, ...` (`me` instead of `anon`
+  when logged in; counts only, no names, no data). The site's answer is the
+  proof: a send counts as done only when it is 2xx and its `shared.counts`
+  match what was sent per section (a section the site lists as skipped or
+  already known is explained), the stored characters match the armory names
+  sent and the Helper's counts match. Otherwise the line says `MISMATCH` and
+  `will retry`, and the file is not recorded as sent.
 - By hand: `python3 foreverdb_send.py --dry-run` prints the size and the
   top-level shape of each request and sends nothing; `--force` sends every
   file now.

@@ -53,19 +53,37 @@ def write_acct(wow: Path, name: str, text: str = LUA, file: str = "ForeverDB.lua
     return p
 
 
+def echo(body: dict) -> dict:
+    """What the site answers when it took everything: the counts of what was sent (a test-side count)."""
+    out: dict = {"found": {}}
+    if "data" in body:
+        counts = {}
+        for k, v in body["data"].items():
+            counts[k] = (sum(len(x) for x in v.get("c", {}).values()) if k == "trails"
+                         else sum(len(o["b"].split("^")) for o in v) if k == "obs" else len(v))
+        out["shared"] = {"counts": counts}
+    if body.get("armory"):
+        out["armory"] = {"stored": True, "characters": [{"name": c["name"], "stored": True} for c in body["armory"]]}
+    if "share" in body:
+        sh = body["share"]
+        runs = sh.get("runs", [])
+        out["helper"] = {"counts": {"runs": len(runs), "kills": sum(len(r.get("kills", [])) for r in runs),
+                                    "finds": len(sh.get("finds", [])), "wish": len(sh.get("wish", {}))}}
+    return out
+
+
 class Net:
     """The HTTP layer: records every call, answers what the test says."""
 
     def __init__(self, fs, words=("wolves", "bring"), status=200):
-        self.calls, self.words, self.status, self.me_status = [], list(words), status, 200
+        self.calls, self.words, self.status, self.me_status, self.answer = [], list(words), status, 200, None
 
     def __call__(self, url, data=None, hdrs=None):
         self.calls.append((url, data, hdrs))
         if url.endswith("/api/gamewords"):
             return (200, {"words": self.words}) if self.words is not None else (503, None)
-        if url.endswith("/api/me/addon-file"):
-            return self.me_status, {"shared": {"counts": {"quests": 2, "loot": 1}}}
-        return self.status, {"shared": {"counts": {"quests": 2, "loot": 1}}}
+        status = self.me_status if url.endswith("/api/me/addon-file") else self.status
+        return status, (self.answer(json.loads(gzip.decompress(data))) if self.answer else echo(json.loads(gzip.decompress(data))))
 
     @property
     def posts(self):
@@ -200,7 +218,7 @@ def test_sends_once_then_only_what_changed(fs, env):
     assert net.posts[0][2]["X-FDB-Install"] == net.posts[1][2]["X-FDB-Install"]  # the same install code
     assert run(now=8000.0, force=True) == 1 and len(net.posts) == 3  # --force sends whatever
     sent = [ln for ln in lines if "sent " in ln]
-    assert sent and all("bytes, HTTP 200" in ln for ln in sent)
+    assert sent and all(", HTTP 200" in ln for ln in sent)
     assert "Zorbo" not in "".join(lines) and "ACCT1" not in "".join(lines)  # no names in the log
 
 
@@ -461,3 +479,67 @@ def test_a_cloudflare_challenge_stops_everything(fs, env, monkeypatch):
     assert sess_run(fs, env, now=1000.0) == 0
     assert len([c for c in net.calls if c[1] is not None]) == 1  # no retry, no anonymous fallback
     assert "Cloudflare challenge" in "".join(lines) and "THE-SECRET" not in "".join(lines)
+
+
+# ---- the answer is the proof ----------------------------------------------------------------------------------
+
+
+def test_the_answer_is_checked_against_what_was_sent(fs):
+    sent = {"quests": 2, "loot": 1}
+    ok, line = fs.check_response({"shared": {"counts": {"quests": 2, "loot": 1, "fish": 0}}}, sent)
+    assert ok and line == "quests 2/2, loot 1/1"
+    ok, line = fs.check_response({"shared": {"counts": {"quests": 1, "loot": 1}}}, sent)  # partial
+    assert not ok and "quests MISMATCH 1/2" in line and "loot 1/1" in line
+    assert not fs.check_response({"shared": {"counts": {}}}, sent)[0]  # empty
+    assert not fs.check_response({}, sent)[0] and not fs.check_response(None, sent)[0]
+    assert not fs.check_response({"shared": {"error": "no", "counts": {"quests": 2, "loot": 1}}}, sent)[0]
+    # explained by the answer: skipped (anonymous can't have it) or already known (found)
+    assert fs.check_response({"shared": {"counts": {"quests": 2}, "skipped": ["loot"]}}, sent)[0]
+    ok, line = fs.check_response({"found": {"loot": 1}, "shared": {"counts": {"quests": 2}}}, sent)
+    assert ok and "loot 0/1 (known already)" in line
+
+
+def test_the_armory_and_helper_answers_are_checked_too(fs):
+    good = {"armory": {"characters": [{"name": "A", "stored": False}]}}
+    assert fs.check_response(good, {}, armory=1) == (True, "armory 1/1")
+    assert not fs.check_response({"armory": {"characters": [], "rejected": [{"reason": "x"}]}}, {}, armory=1)[0]
+    assert not fs.check_response({"armory": {"error": "no", "characters": [{"stored": True}]}}, {}, armory=1)[0]
+    hs = {"runs": 1, "kills": 1, "finds": 0, "wish": 1, "tips": 4}
+    assert fs.check_response({"helper": {"counts": {"runs": 1, "kills": 1, "wish": 1}}}, {}, helper=hs)[0]
+    ok, line = fs.check_response({"helper": {"counts": {"runs": 1, "kills": 0, "wish": 1}}}, {}, helper=hs)
+    assert not ok and "kills MISMATCH 0/1" in line and not fs.check_response({}, {}, helper=hs)[0]
+
+
+def test_a_mismatching_answer_is_logged_and_not_recorded(fs, env):
+    wow, arch, net, lines, _run = env
+    write_acct(wow, "ACCT1")
+    net.answer = lambda body: {"shared": {"counts": {"quests": 1, "loot": 1, "trails": 2, "obs": 4}}}
+    assert fs.run(wow, arch, lines.append, now=1000.0) == 0
+    assert any("anon, HTTP 200" in ln and "quests MISMATCH 1/2" in ln and "will retry" in ln for ln in lines)
+    st = json.loads((arch / "foreverdb-send.json").read_text())
+    assert st.get("files", {}).get("ACCT1", {}).get("hash") is None
+    net.answer = None  # the site answers in full: the retry sends again and is recorded
+    assert fs.run(wow, arch, lines.append, now=1000.0 + 901) == 1
+    assert any("quests 2/2" in ln and "loot 1/1" in ln for ln in lines)
+    assert len(net.posts) == 2
+
+
+def test_logged_in_answer_covers_data_armory_and_helper(fs, env):
+    wow, arch, net, lines, _run = env
+    write_acct(wow, "ACCT1")
+    write_acct(wow, "ACCT1", HELPER, file="ForeverDB_Helper.lua")
+    session(arch)
+    assert sess_run(fs, env, now=1000.0, armory=["Zorbo"]) == 2
+    me = [ln for ln in lines if "(logged in)" in ln]
+    assert any("me, HTTP 200" in ln and "quests 2/2" in ln and "armory 1/1" in ln for ln in me)
+    assert any(ln.startswith("foreverdb: helper:") and "runs 1/1" in ln and "kills 1/1" in ln for ln in me)
+    assert "Zorbo" not in "".join(lines) and "THE-SECRET" not in "".join(lines)
+    # an answer without the armory: the data is recorded for what matched, the file is retried for the armory
+    net.answer = lambda body: {"shared": {"counts": {"quests": 2, "loot": 1, "trails": 2, "obs": 4}}}
+    write_acct(wow, "ACCT1", LUA.replace('["scale"] = 1', '["scale"] = 1, ["fish"] = { [1] = { ["n"] = 1 } }'))
+    assert sess_run(fs, env, now=5000.0, armory=["Zorbo"]) == 0
+    assert any("armory MISMATCH" in ln and "will retry" in ln for ln in lines)
+    net.answer = lambda body: {}
+    write_acct(wow, "ACCT1", HELPER.replace('["dur"] = 90', '["dur"] = 99'), file="ForeverDB_Helper.lua")
+    sess_run(fs, env, now=9000.0, armory=["Zorbo"])
+    assert any("no helper counts in the answer" in ln for ln in lines)
