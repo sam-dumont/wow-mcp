@@ -698,7 +698,7 @@ def load_session(path: Path) -> tuple[str | None, str | None]:
     # The bare value, `fdb_s=value`, or a whole Cookie header of which only fdb_s is taken.
     mine = next((x.strip() for x in text.split(";") if x.strip().lower().startswith("fdb_s=")), None)
     value = mine[6:] if mine else text
-    if not re.fullmatch(r"[A-Za-z0-9._~%+/:-]+=*", value):
+    if not re.fullmatch(r"[A-Za-z0-9._~%+/:=-]+", value):
         return None, "holds no fdb_s cookie value"
     return "fdb_s=" + value, None
 

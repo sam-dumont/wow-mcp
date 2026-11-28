@@ -428,7 +428,7 @@ def test_session_path_setting(fs, tmp_path):
 
 def test_only_the_fdb_s_value_is_taken_from_whatever_was_pasted(fs, tmp_path):
     p = tmp_path / "s"
-    for text, want in [("abc.DEF-1_2~3%2B+/:=\n", "fdb_s=abc.DEF-1_2~3%2B+/:="), ("fdb_s=V1\n", "fdb_s=V1"),
+    for text, want in [("abc.DEF-1_2~3%2B+/:=\n", "fdb_s=abc.DEF-1_2~3%2B+/:="), ("fdb_s=V1\n", "fdb_s=V1"), ("ab=cd\n", "fdb_s=ab=cd"),
                        ("Cookie: cf_clearance=X; fdb_s=V2; a=b", "fdb_s=V2")]:
         p.write_text(text)
         p.chmod(0o600)
