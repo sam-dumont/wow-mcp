@@ -308,7 +308,10 @@ def build(inp: dict) -> dict:
     owned = inp.get("owned") or {}
     return {"char": who.get("char"), "level": level, "class": who.get("class"), "faction": who.get("faction"),
             "spec": inp.get("gear_spec"), "questing_xp_per_hour": round(quest_xph) if quest_xph else None,
-            "inventory_known": bool(owned.get("inventory_known")), "dungeons": out}
+            "inventory_known": bool(owned.get("inventory_known")),
+            # The planner's rested XP: the last bar reading plus what logging
+            # out added since (the KB's accrual rule). An estimate, always.
+            "rested_estimate_xp": round(inp["rested_xp"]) if inp.get("rested_xp") else None, "dungeons": out}
 
 
 def trip_order(b: dict) -> tuple:

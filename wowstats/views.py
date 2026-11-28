@@ -733,7 +733,7 @@ class Views:
         ov["runs"] = x["runs"]
         ov["roster_note"] = insights.ROSTER_NOTE
         ov["char"] = char
-        ov["header"] = hd
+        ov["header"] = with_rested_estimate(hd, dungeon_panel)
         ov["route_source"] = ref.source if ref and ref.available else None
         return ov
 
@@ -1061,6 +1061,16 @@ def gear_args(gi: dict) -> dict:
             | {"pvp": bool(gi.get("pvp")), "log": gi.get("log"), "route": gi.get("route")})
 
 
+def with_rested_estimate(header: dict, panel: dict | None) -> dict:
+    """The header with the planner's rested XP (`rested_estimate_xp`, an
+    estimate from the last reading and the logged-out time) when no record
+    says what is banked now; the reading itself is never replaced."""
+    est = (panel or {}).get("rested_estimate_xp")
+    if header.get("rested_state") == "unread" and est:
+        return {**header, "rested_estimate_xp": est}
+    return header
+
+
 def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = None,
                  layer: dict | None = None) -> dict:
     """The hero line. `layer`: the semantic layer's numbers for it
@@ -1078,8 +1088,15 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
     gear = gear or {}
     # Rested XP is only in the Recorder's xp records: shown while that record
     # is for the current level (a ding or a newer snapshot makes it stale).
-    rested = opt_num(xp.get("rested_xp")) if xp.get("kind") == "xp" and opt_num(xp.get("level")) in (
-        None, level) else None
+    read_now = xp.get("kind") == "xp" and opt_num(xp.get("level")) in (None, level)
+    rested = opt_num(xp.get("rested_xp")) if read_now else None
+    # What the reading says: "read" (a value), "none" (a current record
+    # without one: the Recorder leaves out a 0), "unread" (no record for this
+    # level: a ding or nothing since, so nobody knows). The level the last
+    # record was for, when the page says "not read since level 40".
+    rested_state = None if not read_now else ("read" if rested else "none")
+    rested_state = rested_state or "unread"
+    rested_seen = opt_num(xp.get("level")) if xp.get("kind") == "xp" else None
     if top is xp and xp.get("kind") == "level":
         cur_xp, xp_max = 0, None
     else:
@@ -1089,7 +1106,7 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
     capped = level >= classguide.MAX_LEVEL if level is not None else None
     if capped:
         # A saved XP-bar denominator at the cap is not an attainable next level.
-        xp_max = rested = None
+        xp_max = rested = rested_state = rested_seen = None
     layer = layer or {}
     xph = layer.get("xp_per_hour")
     avg_s, avg_n = layer.get("avg_level_s"), layer.get("avg_levels") or 0
@@ -1121,6 +1138,8 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
         "sources": [x for x in str(snap.get("source") or "").split(",") if x],
         "polestar": bool(levels) or (bool(snap) and not snap.get("source")),
         "rested_xp": rested,
+        "rested_state": rested_state,
+        "rested_seen_level": rested_seen if rested_state == "unread" else None,
         "resting": truthy(snap.get("resting")) if top is snap and snap.get("resting") is not None else None,
         "level": level,
         "at_level_cap": capped,

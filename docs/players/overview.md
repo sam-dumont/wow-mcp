@@ -18,7 +18,9 @@ you're on Polestar's route (up to 1.5× its time), behind it, or well behind it,
 - **Next level**: hours of play to the next level at your XP per hour.
 - **Guide**: the Polestar guide steps you did in order. Many "passed over" means you left the
   route the advice is built on.
-- **Rested**: your banked rested XP. "none": log out in an inn or a city.
+- **Rested**: your banked rested XP. "none" means the Recorder read your bar and nothing is banked. "unknown" means
+  it has not read your bar since your last level (it says since which), and then the planner's estimate is shown, labelled as one.
+  Logging out in an inn or a city banks it; if you are resting there already, the tile says so.
 
 When a source missed something, the number it feeds says so in a grey line under it: "The
 Recorder missed about 2h 10m of play (level 31): deaths from then aren't counted." or

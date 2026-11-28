@@ -3548,6 +3548,7 @@ function overviewTiles(ov) {
   const g = ov.guide || {};
   const lv = tr.route_levels || [];
   const restLv = hd.rested_xp && hd.xp_max ? hd.rested_xp / hd.xp_max : null;
+  const rt = restedTile(hd, restLv);
   // Each tile says what moves it: a number with nothing to do about it
   // isn't worth a tile.
   const tile = (label, value, sub, hint, title) => h('div', { title: title || null },
@@ -3565,9 +3566,22 @@ function overviewTiles(ov) {
     tile('Guide', g.total ? `${Math.round((100 * g.in_order) / g.total)}%` : 'not yet',
       g.total ? `${fmtNum(g.in_order)} of ${fmtNum(g.total)} step${g.total === 1 ? '' : 's'} in order` : 'no guide steps recorded',
       g.total ? `${fmtNum(g.skipped || 0)} skipped by hand, ${fmtNum(g.jumped || 0)} passed over` : 'Follow a Polestar guide to start it'),
-    !hd.at_level_cap && tile('Rested', restLv ? `${restLv.toFixed(2)} level${restLv.toFixed(2) === '1.00' ? '' : 's'}` : 'none',
-      restLv ? `${fmtNum(hd.rested_xp)} XP banked, double XP from kills` : 'nothing banked',
-      'Grows while logged out in an inn or a city: log out there'));
+    !hd.at_level_cap && tile('Rested', rt.value, rt.sub,
+      hd.resting ? 'You are resting here: logging out here banks rested XP' : 'Grows while logged out in an inn or a city: log out there to bank it'));
+}
+
+// The Rested tile by what the Recorder read (wowstats/views.py rested_state):
+// a value, a real "none", or unread (nobody knows: say so, and the planner's
+// estimate when it has one, as an estimate).
+function restedTile(hd, restLv) {
+  if (hd.rested_state === 'unread') {
+    const est = hd.rested_estimate_xp && hd.xp_max ? hd.rested_estimate_xp : null;
+    const seen = hd.rested_seen_level ? `not read since level ${hd.rested_seen_level}` : 'not read at this level';
+    if (est) return { value: `about ${(est / hd.xp_max).toFixed(2)} levels`, sub: `${fmtNum(est)} XP, an estimate (${seen})` };
+    return { value: 'unknown', sub: seen };
+  }
+  if (restLv) return { value: `${restLv.toFixed(2)} level${restLv.toFixed(2) === '1.00' ? '' : 's'}`, sub: `${fmtNum(hd.rested_xp)} XP banked, double XP from kills` };
+  return { value: 'none', sub: 'nothing banked' };
 }
 
 // Time per level against the route's, the last finished levels: a bar for

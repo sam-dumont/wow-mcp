@@ -300,7 +300,8 @@ MOVE = {**_keys("text", "link", "cite", "kind", "title", "detail", "action", "bl
 HEADER_Z = _keys("char", "name", "full_name", "race", "class", "faction", "guild", "guild_known", "spec", "title",
                  "sex", "level", "at_level_cap",
                  "xp",
-                 "xp_max", "rested_xp", "time_in_level_s", "played_s", "played_total_s", "played_total_from",
+                 "xp_max", "rested_xp", "rested_state", "rested_seen_level", "rested_estimate_xp",
+                 "time_in_level_s", "played_s", "played_total_s", "played_total_from",
                  "played_total_at", "first_partial", "first_level", "avg_level_s", "avg_levels", "xp_per_hour",
                  "eta_s", "polestar", "sources", "money_copper", "money_at") | {
     # The climb's kills and quests in their populations (wowstats.analysis.pages.climb).
