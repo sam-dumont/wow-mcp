@@ -241,6 +241,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--gates-md", help="tools/kb/gates.py --markdown")
     ap.add_argument("--kinds", default="", help="watch: the change kinds in this PR")
     ap.add_argument("--why-out", help="watch: merge {kind: why it isn't merged} into this file")
+    ap.add_argument("--landed-out", help="watch: merge the kinds of a merged PR into this file ([kind]): "
+                    "watch.py --landed tells a kind that moved upstream after the run from one never landed")
     ap.add_argument("--state-out", help="watch: write the watch.json the issues compare with here")
     ap.add_argument("--check-open", action="store_true", help="only say whether the branch has an open PR")
     ap.add_argument("--failed", action="store_true", help="the run failed before landing: keep the mode's issue")
@@ -303,6 +305,10 @@ def main(argv: list[str] | None = None) -> int:
                                  None if landed else f"{reason}\n\nThe next {a.mode} run that merges closes this.",
                                  "The next run merged.")
             print(f"issue: {did}")
+        if a.landed_out and landed:
+            p = Path(a.landed_out)
+            done = json.loads(p.read_text(encoding="utf-8")) if p.exists() else []
+            p.write_text(json.dumps(done + [k for k in kinds if k not in done]) + "\n", encoding="utf-8")
         output(outcome=outcome, pr=n or "", landed=1 if landed else 0)
         if code:  # red: the lab's scheduler waits for this run and reports it
             print(f"::error::{' '.join((detail or reason).split())[:400]}")
