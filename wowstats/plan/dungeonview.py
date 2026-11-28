@@ -461,8 +461,8 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
                     "blocked": bool(required or too_low or no_pickup),
                     **({"pickup_unknown": True} if no_pickup else {}),
                     **({"prerequisite_unavailable": True} if no_prereq else {}),
-                    "rewards": [{k: d[k] for k in ("item_id", "name", "quality", "gain", "value", "fit", "state",
-                                                   "where", "url", *BADGE)}
+                    "rewards": [{**{k: d[k] for k in ("item_id", "name", "quality", "gain", "value", "state",
+                                                      "where", "url", *BADGE)}, "fit": fit_brief(d.get("fit"))}
                                 for d in rw[:1]], "reward_choices": len(rw),
                     **_wings_of(area, q, state, open_ids.get(qid), inp.get("trips") or ())})
     order = {"open": 0, "new": 1, "done": 2}
@@ -517,6 +517,11 @@ def _how(qid: int, pre: dict, who, allowed) -> dict:
     ) if ws}
 
 
+def fit_brief(fit: dict | None) -> dict | None:
+    """Who an item is made for, without the alternative item it may carry."""
+    return {k: fit.get(k) for k in ("for_you", "label", "factor")} if fit else None
+
+
 def quest_rewards(drops: list[dict], quests: list[dict]) -> list[dict]:
     """The best missing reward choice per unfinished quest, including its gates."""
     out = []
@@ -529,7 +534,7 @@ def quest_rewards(drops: list[dict], quests: list[dict]) -> list[dict]:
         source = {k: q[k] for k in ("quest_id", "name", "url", "state", "complete", "min_level", "needs")}
         out.append({**{k: best[k] for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_pct",
                                             "fills_empty", "level", "now", "url", *BADGE)},
-                    "line": gain_words(best), "of": q["reward_choices"], "fit": best.get("fit"),
+                    "line": gain_words(best), "of": q["reward_choices"], "fit": fit_brief(best.get("fit")),
                     "value": best.get("value"),
                     "quest": {**source, "starts": q["starts"][:1],
                               "other_wings": (q.get("wings") or {}).get("other_wings", [])}})
