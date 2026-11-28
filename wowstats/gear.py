@@ -3412,7 +3412,7 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
                     continue
                 d = by_area.setdefault(str(s["zone"]), {"drops": [], "quests": []})
                 drop = {"boss": s.get("npc_name") if s.get("npc") else None, "npc_id": s.get("npc") or None,
-                        "chance_pct": s.get("pct"),
+                        "chance_pct": s.get("pct"), **({"kills": s["kills"]} if s.get("kills") else {}),
                         "wing": (_wing_area(a, s.get("npc")) or {}).get("name") or s.get("zone_name") or a.get("name")}
                 if summon:
                     drop["summon"] = summon["note"]

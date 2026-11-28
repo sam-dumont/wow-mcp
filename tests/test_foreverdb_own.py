@@ -211,3 +211,32 @@ def test_the_mcp_answer_keeps_what_the_page_shows(what):
     blob = json.dumps(redact.DUNGEON) + json.dumps(redact.QREF)
     assert what in blob
 
+
+
+# ---- which rate stands, and the rate the data carries
+
+def test_one_kill_in_the_data_is_no_rate_for_the_obsidian_wand():
+    """ForeverDB.net saw the White Obsidian Wand drop once in one kill: 100%
+    of one. The loot rows keep the kill count, so it is unknown, not a sure thing."""
+    from wowstats import gear
+
+    ref = gear.reference()
+    sheet = {"items": [], "class": "PRIEST", "race": "Gnome", "faction": "Alliance", "spec": "Shadow",
+             "professions": []}
+    rows = [r for items in gear.instance_loot(ref, sheet, level=60).values() for r in items if r["item_id"] == 274425]
+    assert rows and rows[0]["drops"][0]["kills"] == 1 and rows[0]["drops"][0]["chance_pct"] == 100
+    got = V.drop_items([{**missing(*rows[0]["drops"]), "item_id": 274425}])[0]
+    assert got["chance"] is None
+
+
+def test_the_rate_over_more_kills_stands_and_says_whose_it_is():
+    net = {"boss": "B", "npc_id": NPC, "chance_pct": 12.0, "kills": 80}
+    mine = {"boss": "B", "npc_id": NPC, "chance_pct": 40.0, "kills": 6, "source": ownobs.LABEL}
+    got = V.drop_items([missing(net, mine)])[0]
+    assert got["chance"] == 12.0 and got["rate_source"] == "ForeverDB.net"
+    got = V.drop_items([missing(net, {**mine, "kills": 200})])[0]
+    assert got["chance"] == 40.0 and got["rate_source"] == "your kills"
+    # No kill count loses to one with at least 5.
+    nocount = {"boss": "B", "npc_id": NPC, "chance_pct": 90.0}
+    assert V.drop_items([missing(nocount, mine)])[0]["chance"] == 40.0
+    assert V.drop_items([missing(nocount)])[0]["chance"] == 90.0

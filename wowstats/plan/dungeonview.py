@@ -741,14 +741,18 @@ def drop_items(drops: list[dict]) -> list[dict]:
             continue
         # A rate counted over a handful of kills is no rate (G.MIN_DROP_KILLS).
         known = [s for s in d["drops"] if s.get("chance_pct") is not None and not G.thin_rate(s)]
-        best = max(known, key=lambda s: s["chance_pct"], default=d["drops"][0])
+        # The rate counted over more kills; a source with no kill count loses
+        # to one with a count (a thin one is out already), then the higher rate.
+        best = max(known, key=lambda s: (s.get("kills") or 0, s["chance_pct"]), default=d["drops"][0])
         if not known:
             best = {**best, "chance_pct": None}
         chance = best.get("chance_pct")
         items.append({"item_id": d["item_id"], "item": d["name"], "slot": d["slot_name"],
                       "gain": d["value"], "req_level": d["level"], "now": d["now"],
                       **badge_of(d), "line": gain_words(d), "boss": best.get("boss") or "trash",
-                      "chance": chance, "unknown_rate": len(known) != len(d["drops"]) and chance != 100})
+                      "chance": chance,
+                      "rate_source": (best.get("source") or "ForeverDB.net") if chance is not None else None,
+                      "unknown_rate": len(known) != len(d["drops"]) and chance != 100})
     return items
 
 

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A dungeon drop's rate keeps the kills ForeverDB.net counted it over, so one lucky sighting (the Obsidian Sentinel's wand, 1 kill) is no longer "100% a clear". When ForeverDB.net's rate and yours both exist, the one counted over more kills stands, and the row says whose it is.
 - Your own ForeverDB records count: a dungeon item's drop rate from your kills sits beside ForeverDB.net's, labelled "your kills" (under 5 kills it is no rate), and a prerequisite quest whose place the data lacks says where its objective is from your quest map ("the objective is near Badlands 49.6, 66.2"). The shipper sends the kill, looted-corpse and drop counts and the quest spots (optional addon; no names or other players' data); update it from your start page.
 - **View in 3D** turns the character about its own body: a long weapon no longer pulls the turn axis aside. Zoom with the mouse wheel or a two-finger pinch.
 - Dungeons are optional. The Overview's dungeon card starts "If you like dungeons:", sits after upgrades, professions and riding, and its trip counts an assumed 20 minutes to find a group (the text says so).
