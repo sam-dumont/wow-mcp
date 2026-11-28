@@ -298,6 +298,23 @@ def test_an_empty_character_has_no_claims():
     assert ov["now"] == [] and ov["guide"]["claims"] == [] and ov["deaths"] == [] and ov["upgrades"] == []
 
 
+def test_the_overview_lists_no_drop_from_a_dungeon_the_panel_leaves_out():
+    """A drop from a level 15-22 dungeon is no upgrade to list for a level 39
+    character: the Overview limits dungeon drops to the dungeons worth running
+    now (the panel's), as the next moves do."""
+    old = {"kind": "drop", "boss": "Edwin", "zone": "The Deadmines", "dungeon": True, "instance": "dungeon",
+           "levels": [15, 22], "chance_pct": 25}
+    adv = {"upgrades": [up(1, 16, 35, old), up(2, 7, 10, QUEST)]}
+    data = {"header": {"level": 39}, "levels": [], "steps": {}}
+    args = (data, adv, [], None, {}, [], [], layer())
+    # Without the panel (the MCP's overview of an older page): nothing to limit by.
+    assert [c["text"].split(":")[0] for c in insights.overview(*args)["upgrades"]] == ["Item 1", "Item 2"]
+    panel = {"dungeons": [{"name": "Razorfen Kraul", "fits_now": True, "value": "high"}]}
+    got = insights.overview(*args, dungeon_panel=panel)["upgrades"]
+    assert [c["text"].split(":")[0] for c in got] == ["Item 2"]
+    assert [c["text"].split(":")[0] for c in insights.overview(*args, dungeon_panel={})["upgrades"]] == ["Item 2"]
+
+
 def test_guide_picks_are_not_steps():
     from wowstats.views import build_steps
 
@@ -424,15 +441,72 @@ def test_zogzog_moves_keep_the_trainers_and_the_death_counts():
 
 
 def test_one_item_one_move():
-    """An upgrade that a listed dungeon's move names goes into that move,
-    which ranks where the upgrade would have."""
+    """An upgrade that a listed dungeon's move names goes into that move."""
     nm = insights.next_moves(32, ADVICE, {}, {}, {}, [], {})
     assert any(m["kind"] == "upgrade" and m["item_id"] == 1 for m in nm["moves"])  # the MCP's list keeps it
     mv = insights.overview_moves(nm, insights.sanity_check(32, [], {}, {}, ADVICE, [], {}, None, ask=layer()))
     rfk = next(m for m in mv if m["kind"] == "dungeon")
-    assert [i["item_id"] for i in rfk["items"]] == [1] and rfk["weight"] == 3
+    assert [i["item_id"] for i in rfk["items"]] == [1]
     assert not any(m["kind"] == "upgrade" and m["item_id"] == 1 for m in mv)
     assert any(m["kind"] == "upgrade" and m["item_id"] == 5 for m in mv)  # a quest item: no dungeon names it
+
+
+def _riding_cost():
+    from wowstats.analysis import kb
+
+    v = kb.static_rule("riding.apprentice")["value"]
+    return v["level"], v["training_copper"]
+
+
+def _ah(copper):
+    return {"kind": "ah", "price_copper": copper, "seen_day": "2026-11-28", "seen_days_ago": 0}
+
+
+def test_purchases_rank_by_gain_per_gold_and_yield_to_riding():
+    """Gold on hand is 55% of riding's price: a ring that takes 69% of it for
+    the most points comes after the staff and the pants that cost a little,
+    and its text says what it does to riding."""
+    level, cost = _riding_cost()
+    gold = cost * 55 // 100
+    ring, staff, pants = round(cost * 0.38), round(cost * 0.05), round(cost * 0.014)
+    ups = [up(1, 11, 91, _ah(ring)), up(2, 16, 73, _ah(staff)), up(3, 7, 56, _ah(pants))]
+    hd = {"faction": "Alliance", "race": "Gnome", "money_copper": gold}
+    nm = insights.next_moves(level, {"upgrades": ups}, hd, {}, {}, [], {})
+    got = [m["item_id"] for m in nm["moves"] if m["kind"] == "upgrade"]
+    assert got == [3, 2, 1]  # gain per gold: pants, staff; the ring last
+    ring_move = nm["moves"][2]
+    assert "uses 69% of your gold; riding is" in ring_move["text"] and "away" in ring_move["text"]
+    assert "riding" not in nm["moves"][0]["text"] and "riding" not in nm["moves"][1]["text"]
+    riding = next(m for m in nm["moves"] if m["kind"] == "riding")
+    assert ring_move["weight"] < riding["weight"] < 5
+    w = [m["weight"] for m in nm["moves"] if m["kind"] == "upgrade"]
+    assert w == sorted(w, reverse=True) and len(set(w)) == 3
+    # Enough gold for both riding and the ring: nothing to say about riding.
+    rich = {**hd, "money_copper": cost + ring}
+    nm = insights.next_moves(level, {"upgrades": ups}, rich, {}, {}, [], {})
+    assert [m["item_id"] for m in nm["moves"] if m["kind"] == "upgrade"] == [3, 2, 1]
+    assert not any("uses" in m["text"] for m in nm["moves"] if m["kind"] == "upgrade")
+    # Free ones (a quest, the bags) come before any purchase, whatever the points.
+    free = {**up(4, 8, 5, QUEST), "name": "Item 4"}
+    nm = insights.next_moves(level, {"upgrades": [*ups, free]}, hd, {}, {}, [], {})
+    assert [m["item_id"] for m in nm["moves"] if m["kind"] == "upgrade"][0] == 4
+
+
+def test_a_dungeon_is_optional_and_comes_last():
+    """Owner, 2026-11-28: a dungeon never leads. Its text says it is optional
+    and it follows the upgrades, the professions and riding, even when it
+    names the best upgrade of the list."""
+    hd = {"faction": "Alliance", "race": "Gnome", "money_copper": 10000}
+    skills = {}
+    nm = insights.next_moves(32, ADVICE, hd, {}, {}, [{"skill_id": 333, "name": "Enchanting", "rank": 150,
+                                                      "max_rank": 150}], skills)
+    kinds = [m["kind"] for m in nm["moves"]]
+    assert kinds.index("dungeon") > max(i for i, k in enumerate(kinds) if k in ("upgrade", "profession", "riding"))
+    dz = next(m for m in nm["moves"] if m["kind"] == "dungeon")
+    assert dz["text"].startswith("If you like dungeons: Razorfen Kraul")
+    mv = insights.overview_moves(nm, insights.sanity_check(32, [], {}, {}, ADVICE, [], {}, None, ask=layer()))
+    assert mv[-1]["kind"] == "dungeon"
+    assert [m["kind"] for m in mv].count("upgrade") >= 1 and mv[0]["kind"] != "dungeon"
 
 
 def test_moves_require_a_reachable_route_for_both_hands():
@@ -450,3 +524,27 @@ def test_moves_require_a_reachable_route_for_both_hands():
     from wowstats import redact
     kept = redact.zogzog("overview", {"moves": moves})["moves"][0]
     assert kept["source"]["price_copper"] == 245500 and kept["source"]["seen_day"] == "2026-11-26"
+
+
+def test_a_purchase_beyond_the_purse_says_so_without_dividing_by_nothing():
+    level, cost = _riding_cost()
+    nm = insights.next_moves(level, {"upgrades": [up(1, 11, 91, _ah(cost // 2))]},
+                             {"faction": "Alliance", "race": "Gnome", "money_copper": 0}, {}, {}, [], {})
+    m = next(m for m in nm["moves"] if m["kind"] == "upgrade")
+    assert "costs more than the gold you have; riding is" in m["text"]
+
+
+def test_a_quest_blocks_by_the_level_that_takes_it_not_its_own_level():
+    """A level 40 quest taken at level 35 (req 30) is no level block; the
+    quest's own level is not the gate. Unknown: say nothing about levels."""
+    q = {"kind": "quest", "name": "Q", "level": 40, "req_level": 30}
+    assert insights.blocker(q, 35) is None
+    assert insights.blocker({**q, "req_level": 38}, 35) == "the quest needs level 38"
+    unknown = {k: v for k, v in q.items() if k != "req_level"}
+    assert insights.blocker(unknown, 39) is None
+    # What is known instead: the chain before it.
+    chained = {**unknown, "work": {"chain": {"before": 3, "done": 1}}}
+    assert insights.blocker(chained, 39) == "2 quests of its chain to do first"
+    assert insights.blocker({**unknown, "work": {"chain": {"before": 1, "done": 0}}}, 39) \
+        == "1 quest of its chain to do first"
+    assert insights.blocker({**unknown, "work": {"chain": {"before": 2, "done": 2}}}, 39) is None

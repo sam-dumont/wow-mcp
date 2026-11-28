@@ -140,6 +140,19 @@ def _empty():
     return copies.empty()
 
 
+def pace_xp_per_hour(ask, levels: dict | None = None) -> float | None:
+    """The XP an hour over the last three finished levels: the "Next level in"
+    tile's pace. `levels`: the splits' rows when the caller has them."""
+    split = {"dimension": "partial", "op": "is not null"}
+    if levels is None:
+        levels = {r["level"]: r for r in ask(metrics=["xp_per_hour"], group_by=["level", "partial"], where=[split])}
+    done = sorted(lv for lv, r in levels.items() if r["partial"] == 0)[-3:]
+    if not done:
+        return None
+    got = ask(metrics=["xp_per_hour"], where=[{"dimension": "level", "op": "in", "values": done}])
+    return got[0]["xp_per_hour"] if got else None
+
+
 def _compute(ask) -> dict:
     def one(metric: str, levels: list[int]):
         if not levels:
@@ -157,7 +170,7 @@ def _compute(ask) -> dict:
     return {"levels": levels, "totals": totals, "runs": runs, "deaths": deaths(ask), "counts": climb(ask),
             "in_level_s": in_level(ask),
             "avg_level_s": one("avg_level_s", done[-5:]), "avg_levels": len(done[-5:]),
-            "pace_xp_per_hour": one("xp_per_hour", done[-3:])}
+            "pace_xp_per_hour": pace_xp_per_hour(ask, levels)}
 
 
 def in_level(ask) -> int | None:

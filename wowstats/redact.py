@@ -271,9 +271,9 @@ GAIN = {**_keys("own_runs", "level", "run_s", "time", "xp_kills", "xp_quests", "
                                         "other_wings": [None], "objectives_here": [None]}],
         # The trip's parts, each with its label (measured / route / estimate).
         # `from` says where it starts ("you", "entrance"), never the place.
-        "trip": {**{k: _keys("value", "label") for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "total_s",
-                                                         "xp_quests", "xp_kills", "xp_total", "xp_per_hour",
-                                                         "vs_questing")},
+        "trip": {**{k: _keys("value", "label") for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "lfg_s",
+                                                         "total_s", "xp_quests", "xp_kills", "xp_total",
+                                                         "xp_per_hour", "vs_questing")},
                  "from": None, "stops": _keys("pickup", "handin")}}
 # A dungeon's quest rewards he could use (wowstats.plan.dungeonview
 # quest_rewards): the item, its gain, the quest and who gives it.
@@ -300,7 +300,8 @@ MOVE = {**_keys("text", "link", "cite", "kind", "title", "detail", "action", "bl
 HEADER_Z = _keys("char", "name", "full_name", "race", "class", "faction", "guild", "guild_known", "spec", "title",
                  "sex", "level", "at_level_cap",
                  "xp",
-                 "xp_max", "rested_xp", "time_in_level_s", "played_s", "played_total_s", "played_total_from",
+                 "xp_max", "rested_xp", "rested_state", "rested_seen_level", "rested_estimate_xp",
+                 "time_in_level_s", "played_s", "played_total_s", "played_total_from",
                  "played_total_at", "first_partial", "first_level", "avg_level_s", "avg_levels", "xp_per_hour",
                  "eta_s", "polestar", "sources", "money_copper", "money_at") | {
     # The climb's kills and quests in their populations (wowstats.analysis.pages.climb).

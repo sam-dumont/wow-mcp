@@ -1611,8 +1611,10 @@ function upLine(u) {
   return `${upText(u)}${u.now === false ? ` at level ${u.level}` : ''}`;
 }
 // One item can have several sources in the same run.
+// A rate counted over fewer kills than this is no rate (wowstats/plan/dungeongain.py MIN_DROP_KILLS).
+const MIN_DROP_KILLS = 5;
 function itemDropRate(sources) {
-  const known = sources.map((s) => s.chance_pct).filter((p) => p != null);
+  const known = sources.filter((s) => s.kills == null || s.kills >= MIN_DROP_KILLS).map((s) => s.chance_pct).filter((p) => p != null);
   const chance = known.length ? Math.max(...known) : null;
   return { chance, unknown_rate: known.length < sources.length && chance !== 100 };
 }
@@ -2887,7 +2889,7 @@ function dungeonTrip(b) {
       odds = { ...odds, ...dropRates(drops.map((d) => itemDropRate(d.drops))) };
     }
     facts.push(fact('Gear a clear', odds.drop_upgrades ? dropChanceText(odds) : 'none',
-      odds.drop_upgrades ? plural(odds.drop_upgrades, 'drop upgrade') : 'no missing drops you can wear now'));
+      odds.drop_upgrades ? (odds.drop_upgrades === 1 ? '1 drop upgrade' : `at least one of ${odds.drop_upgrades} drop upgrades drops`) : 'no missing drops you can wear now'));
     if (odds.upgrades) facts.push(fact('Quest rewards this trip', plural(odds.upgrades, 'upgrade')));
   }
   const kx = killXpFact(b.gain && b.gain.kill_xp);
@@ -3546,6 +3548,7 @@ function overviewTiles(ov) {
   const g = ov.guide || {};
   const lv = tr.route_levels || [];
   const restLv = hd.rested_xp && hd.xp_max ? hd.rested_xp / hd.xp_max : null;
+  const rt = restedTile(hd, restLv);
   // Each tile says what moves it: a number with nothing to do about it
   // isn't worth a tile.
   const tile = (label, value, sub, hint, title) => h('div', { title: title || null },
@@ -3563,9 +3566,22 @@ function overviewTiles(ov) {
     tile('Guide', g.total ? `${Math.round((100 * g.in_order) / g.total)}%` : 'not yet',
       g.total ? `${fmtNum(g.in_order)} of ${fmtNum(g.total)} step${g.total === 1 ? '' : 's'} in order` : 'no guide steps recorded',
       g.total ? `${fmtNum(g.skipped || 0)} skipped by hand, ${fmtNum(g.jumped || 0)} passed over` : 'Follow a Polestar guide to start it'),
-    !hd.at_level_cap && tile('Rested', restLv ? `${restLv.toFixed(2)} level${restLv.toFixed(2) === '1.00' ? '' : 's'}` : 'none',
-      restLv ? `${fmtNum(hd.rested_xp)} XP banked, double XP from kills` : 'nothing banked',
-      'Grows while logged out in an inn or a city: log out there'));
+    !hd.at_level_cap && tile('Rested', rt.value, rt.sub,
+      hd.resting ? 'You are resting here: logging out here banks rested XP' : 'Grows while logged out in an inn or a city: log out there to bank it'));
+}
+
+// The Rested tile by what the Recorder read (wowstats/views.py rested_state):
+// a value, a real "none", or unread (nobody knows: say so, and the planner's
+// estimate when it has one, as an estimate).
+function restedTile(hd, restLv) {
+  if (hd.rested_state === 'unread') {
+    const est = hd.rested_estimate_xp && hd.xp_max ? hd.rested_estimate_xp : null;
+    const seen = hd.rested_seen_level ? `not read since level ${hd.rested_seen_level}` : 'not read at this level';
+    if (est) return { value: `about ${(est / hd.xp_max).toFixed(2)} levels`, sub: `${fmtNum(est)} XP, an estimate (${seen})` };
+    return { value: 'unknown', sub: seen };
+  }
+  if (restLv) return { value: `${restLv.toFixed(2)} level${restLv.toFixed(2) === '1.00' ? '' : 's'}`, sub: `${fmtNum(hd.rested_xp)} XP banked, double XP from kills` };
+  return { value: 'none', sub: 'nothing banked' };
 }
 
 // Time per level against the route's, the last finished levels: a bar for
@@ -3761,7 +3777,7 @@ function moveRewards(rw) {
   if (!rw || !rw.length) return null;
   return h('div', { class: 'mrewards' }, h('span', { text: 'Quest rewards you could use:' }),
     h('ul', { class: 'ditems' }, rw.slice(0, 3).map((r) => h('li', {}, itemWithLink(r),
-      h('span', { class: 'sub' }, `${upLine(r)}, from `,
+      h('span', { class: 'sub' }, `${upLine(r)}${r.fit && r.fit.for_you === 'spec' ? '; not made for your spec' : ''}, from `,
         whLink(r.quest.url, r.quest.name || `quest ${r.quest.quest_id}`))))),
     rw.length > 3 ? h('span', { class: 'sub', text: `and ${rw.length - 3} more in Dungeons` }) : null);
 }

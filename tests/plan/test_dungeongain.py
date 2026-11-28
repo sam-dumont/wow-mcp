@@ -60,13 +60,13 @@ def test_with_own_runs_at_the_same_level():
     g = est(runs=[trip(20, 6000)], quests=[quest(1, 4000), quest(2, 2000, state="done")])
     assert g["basis"] == "runs" and g["own_runs"] == 1 and not g["kills_unknown"]
     # Travel there and back, inside, and the pickups and hand-ins: a quest is left.
-    assert g["run_s"] == 600 + 2400 + 300 + 900 + 600
+    assert g["run_s"] == 600 + 2400 + 300 + 900 + 600 + G.LFG_WAIT_S  # and the wait for a group
     assert g["xp_kills"] == 6000 and g["xp_quests"] == 4000 and g["xp"] == 10000
     assert g["level_pct"] == 33
-    assert g["xp_per_hour"] == round(10000 / 4800 * 3600)
-    assert g["vs_questing"] == pytest.approx(7500 / 12000, abs=0.001)
-    assert g["summary"] == "~1h20 trip for ~10k XP, 0.6× your questing (15 min pickups · 40 min inside · 10 min hand-ins)"
-    assert g["lead"] == "~1h20 trip"
+    assert g["xp_per_hour"] == round(10000 / (4800 + G.LFG_WAIT_S) * 3600)
+    assert g["vs_questing"] == pytest.approx(6000 / 12000, abs=0.001)
+    assert g["summary"] == "~1h40 trip for ~10k XP, 0.5× your questing (15 min pickups · 40 min inside · 10 min hand-ins · 20 min to find a group (assumed))"
+    assert g["lead"] == "~1h40 trip"
     assert [q["quest_id"] for q in g["quests"]] == [1]
     # His own runs: every part measured.
     assert {k: g["trip"][k]["label"] for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "xp_kills")} == \
@@ -81,13 +81,13 @@ def test_runs_at_another_level_are_carried_by_the_creatures_killed():
     g = est(level=22, runs=[trip(18, 5000, kills)])
     assert g["xp_kills"] == round(5000 * now / then) < 5000
     # No quests left: no pickups or hand-ins in the trip.
-    assert g["run_s"] == 600 + 2400 + 300
+    assert g["run_s"] == 600 + 2400 + 300 + G.LFG_WAIT_S
     # Without the creatures' levels a run at another level can't be carried.
     g = est(level=22, runs=[trip(18, 5000)], quests=[quest(1, 3000)])
     assert g["kills_unknown"] and g["xp"] is None and g["xp_quests"] == 3000
     # Kills unknown: the quests alone can't say faster or slower than questing.
-    assert g["summary"] == "~1h20 + quests worth ~3k XP (10% of a level)"
-    assert g["vs_questing"] is None and g["lead"] == "~1h20 + quests worth ~3k XP"
+    assert g["summary"] == "~1h40 + quests worth ~3k XP (10% of a level)"
+    assert g["vs_questing"] is None and g["lead"] == "~1h40 + quests worth ~3k XP"
 
 
 def test_without_runs_the_kill_estimates_time_and_his_own_travel():
@@ -102,7 +102,7 @@ def test_without_runs_the_kill_estimates_time_and_his_own_travel():
     assert g["xp"] == 28200 + kx and g["vs_questing"] is not None
     assert g["trip"]["xp_kills"]["label"] == "estimate" and g["trip"]["xp_total"]["label"] == "estimate"
     assert g["trip"]["inside_s"]["label"] == "estimate" and g["trip"]["pickup_s"]["label"] == "measured"
-    assert g["run_s"] == inside + 600 + 300 + 900 + 600
+    assert g["run_s"] == inside + 600 + 300 + 900 + 600 + G.LFG_WAIT_S
     assert g["kill_xp"]["inside_s"] == inside
     # Gnomeregan: ~1h15 inside by its kills, where the guide said ~40 min.
     g = est(level=34, xp_max=54500, name="Gnomeregan", quests=qs, questing_xph=15107, others=[other])
@@ -125,7 +125,7 @@ def test_without_runs_or_a_kill_estimate_the_kb_clear_time():
     g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, others=[other], questing_xph=15107,
             clear=clear)
     assert g["basis"] == "rules" and not g["kills_unknown"]
-    assert g["run_s"] == clear + 600 + 300 + 900 + 600
+    assert g["run_s"] == clear + 600 + 300 + 900 + 600 + G.LFG_WAIT_S
     assert g["xp_quests"] == 28200
     # No kill estimate (a dungeon the model has no data for): the quests alone, no verdict.
     g = est(level=30, xp_max=54500, name="Excavation Site: Wetlands", quests=qs, questing_xph=15107, others=[other])
@@ -136,7 +136,7 @@ def test_without_runs_or_a_kill_estimate_the_kb_clear_time():
     # the quest XP floor, but it has no whole-trip XP to score afterwards.
     frozen = forecast.decision({}, {"name": "Excavation Site: Wetlands", "gain": g, "goals": ["gear"]}, "gear", "group")
     assert frozen["xp"] is None and frozen["quest_xp"] == 28200 and g["level_pct"] == 52
-    assert g["time"] == "trip" and g["run_s"] == G.clear_s("Excavation Site: Wetlands") + 600 + 300 + 900 + 600
+    assert g["time"] == "trip" and g["run_s"] == G.clear_s("Excavation Site: Wetlands") + 600 + 300 + 900 + 600 + G.LFG_WAIT_S
     assert g["xp_per_hour"] == per_hour(28200, g["run_s"])
     assert g["summary"] == f"~{G.about_s(g['run_s'])} + quests worth ~28k XP (52% of a level)"
     assert g["lead"] == f"~{G.about_s(g['run_s'])} + quests worth ~28k XP"
@@ -166,7 +166,7 @@ def test_a_dungeon_below_his_level_pays_nothing_for_grey_creatures():
     g = est(level=34, runs=[trip(22, 7000, kills)])
     assert G.grey(34, RULE) == 26
     assert g["xp_kills"] == 0 and g["xp"] == 0
-    assert g["summary"] == "~55 min trip, no XP at your level (40 min inside)"
+    assert g["summary"] == "~1h15 trip, no XP at your level (40 min inside · 20 min to find a group (assumed))"
 
 
 def test_no_quest_data():
@@ -175,7 +175,7 @@ def test_no_quest_data():
     assert g["summary"] is None and g["xp"] is None and g["run_s"] is None and g["quests"] == []
     # His runs alone still give the kills.
     g = est(runs=[trip(20, 6000)])
-    assert g["xp"] == 6000 and g["summary"] == "~55 min trip for ~6k XP, 0.5× your questing (40 min inside)"
+    assert g["xp"] == 6000 and g["summary"] == "~1h15 trip for ~6k XP, 0.4× your questing (40 min inside · 20 min to find a group (assumed))"
 
 
 def test_rounding():
@@ -237,7 +237,7 @@ def test_the_panel_the_move_and_the_mcp_agree(monkeypatch, tmp_path, priest):
 def test_one_estimate_whatever_the_questing_rate_source(priest):
     # The panel and the planner take the questing rate the same way.
     p = E.pace(priest)
-    q = E.rate(p, "questing") or p["xp_per_hour"]["value"]
+    q = E.questing_rate(priest, p) or p["xp_per_hour"]["value"]
     assert V.build(priest)["questing_xp_per_hour"] == round(q)
     for b in V.build(priest)["dungeons"]:
         assert b["gain"]["questing_xp_per_hour"] == round(q)
@@ -254,8 +254,8 @@ def test_the_line_says_the_trip_and_its_parts():
     t = {"pickup_s": {"value": 1200}, "inside_s": {"value": 4500}, "handin_s": {"value": 900}}
     g = dict(xp=58000, xp_quests=40000, run_s=6900, level_pct=99, upgrades=4, drop_upgrades=9, drop_chance_pct=88,
              vs_questing=2.1, trip=t)
-    assert G.summary(g) == "~1h55 trip for ~58k XP + 4 quest upgrades, 9 drop upgrades (88% a run), 2.1× your " \
-                           "questing (20 min pickups · 1h15 inside · 15 min hand-ins)"
+    assert G.summary(g) == "~1h55 trip for ~58k XP + 4 quest upgrades, at least one of 9 drop upgrades drops: " \
+                           "88% a run, 2.1× your questing (20 min pickups · 1h15 inside · 15 min hand-ins)"
     assert g["lead"] == "~1h55 trip"
     # One quest upgrade and no drop left, no pickups left: a part with none is left out.
     g = {**g, "upgrades": 1, "drop_upgrades": 0, "drop_chance_pct": None, "trip": {**t, "pickup_s": {"value": None}}}
@@ -291,7 +291,7 @@ def test_a_route_trip_replaces_the_flat_means():
     g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, others=[other], questing_xph=15107,
             route=route)
     inside = D.estimate("City of Dalaran", 32, RULE)["inside_s"]
-    assert g["run_s"] == inside + 1500 + 240 + 120 + 1200
+    assert g["run_s"] == inside + 1500 + 240 + 120 + 1200 + G.LFG_WAIT_S
     assert g["xp_quests"] == 9000 and [q["quest_id"] for q in g["quests"]] == [1, 2]
     assert {k: g["trip"][k]["label"] for k in ("pickup_s", "travel_s", "handin_s", "inside_s")} == \
         {"pickup_s": "route", "travel_s": "route", "handin_s": "route", "inside_s": "estimate"}
@@ -348,7 +348,7 @@ def test_his_pace_scales_the_routes_legs_and_not_the_time_inside():
     assert g["run_s"] == straight["run_s"] + 1500 + 240 + 120 + 1200
     assert t["pace"] == p and s["pace"] == {"factor": 1.0, "trips": 0, "label": "straight run"}
     # The line's split says the scaled minutes, nothing more.
-    assert "(50 min pickups · " in g["summary"] and " · 40 min hand-ins)" in g["summary"]
+    assert "(50 min pickups · " in g["summary"] and " · 40 min hand-ins · 20 min to find a group (assumed))" in g["summary"]
     assert "pace" not in g["summary"]
     # Before his first trip: the straight run, labelled the rules'.
     one = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, route=ROUTE,
@@ -386,11 +386,11 @@ def test_a_run_seen_inside_only_takes_every_leg_outside_from_the_route():
         assert g["trip"]["inside_s"] == {"value": 1922, "label": "measured"}
         assert g["trip"]["pickup_s"]["label"] == "route" and g["trip"]["handin_s"]["label"] == "route"
         assert g["trip"]["unknown_legs"] == []
-    assert totals == {0: 1922, 35: 4022, 120: 9122}
-    # 14,940 XP over 9,122 s: 5,896 XP an hour, not 14,940 over 1,922 s (27,983).
+    assert totals == {0: 1922 + G.LFG_WAIT_S, 35: 4022 + G.LFG_WAIT_S, 120: 9122 + G.LFG_WAIT_S}
+    # 14,940 XP over 9,122 s and 20 min for a group: 5,211 XP an hour, not 14,940 over 1,922 s (27,983).
     g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, runs=[DOOR],
             quests=[quest(1, 9682)], route=route_of(2400, 1200, 1200, 2400))
-    assert g["xp_per_hour"] == 5896
+    assert g["xp_per_hour"] == 5211
 
 
 def test_quest_xp_comes_with_the_time_to_earn_it():
@@ -405,14 +405,14 @@ def test_quest_xp_comes_with_the_time_to_earn_it():
     # Another trip that saw its legs fills them: 1,922 + 600 + 300 + 900 + 600 = 4,322 s.
     g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, runs=[DOOR],
             quests=[quest(1, 9682)], others=[trip(30, 3000, dungeon="Blackfathom Deeps")])
-    assert g["run_s"] == 4322 and g["trip"]["pickup_s"] == {"value": 900, "label": "measured"}
+    assert g["run_s"] == 4322 + G.LFG_WAIT_S and g["trip"]["pickup_s"] == {"value": 900, "label": "measured"}
 
 
 def test_a_fully_seen_run_is_his_time_whatever_the_route_says():
     own = trip(32, 3000, dungeon="City of Dalaran")  # 900 + 600 + 2,400 + 300 + 600 seen
     g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, route=ROUTE, runs=[own],
             quests=[quest(1, 5000)], pace={"factor": 2.0, "trips": 3, "label": "your pace"})
-    assert g["run_s"] == 4800
+    assert g["run_s"] == 4800 + G.LFG_WAIT_S
     assert {k: g["trip"][k] for k in ("pickup_s", "travel_s", "handin_s")} == {
         "pickup_s": {"value": 900, "label": "measured"}, "travel_s": {"value": 900, "label": "measured"},
         "handin_s": {"value": 600, "label": "measured"}}
@@ -427,7 +427,7 @@ def test_a_partly_seen_run_mixes_his_legs_and_the_routes():
     p = {"factor": 2.0, "trips": 3, "label": "your pace"}
     g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, route=ROUTE, runs=[own],
             quests=[quest(1, 5000)], pace=p)
-    assert g["run_s"] == 6540
+    assert g["run_s"] == 6540 + G.LFG_WAIT_S
     assert g["trip"]["pickup_s"] == {"value": 900, "label": "measured"}
     assert g["trip"]["handin_s"] == {"value": 2400, "label": "your pace"}
     assert g["trip"]["travel_s"] == {"value": 840, "label": "your pace"}  # 600 seen + 120 x 2
@@ -508,7 +508,7 @@ def test_the_route_costs_only_what_his_quest_state_leaves(monkeypatch):
     # A run there seen inside only (1,922 s): every leg outside from this
     # route. 1,922 + 106 + 900 + 800 + 112 = 3,840 s for 3,000 quest XP + its kills.
     g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, runs=[DOOR], quests=rows, route=r)
-    assert g["run_s"] == 3840 and g["xp_quests"] == 3000
+    assert g["run_s"] == 3840 + G.LFG_WAIT_S and g["xp_quests"] == 3000
     assert [q["quest_id"] for q in g["quests"]] == [1, 2]
     # Everything in the log: no pickup at all, whatever an old trip measured.
     t2 = tc.trip(w, 9001, side="Alliance", level=30, done={3}, log={1, 2}, at=(0, 0.0, 0.0))
@@ -518,7 +518,7 @@ def test_the_route_costs_only_what_his_quest_state_leaves(monkeypatch):
             route={**t2, "xp_quests": 3000})
     assert g["trip"]["pickup_s"] == {"value": None, "label": None}
     # 1,922 inside + 300 there (seen) + 800 back + 112 hand-ins (the route's).
-    assert g["run_s"] == 1922 + 300 + 800 + 112
+    assert g["run_s"] == 1922 + 300 + 800 + 112 + G.LFG_WAIT_S
 
 
 def test_repeatable_variants_share_one_handin_but_distinct_chain_steps_pay(monkeypatch):
@@ -604,3 +604,72 @@ def test_only_the_reward_chosen_is_removed_from_random_drops():
     q = {"quest_id": 1, "rewards": [{"item_id": 2, "state": "missing"}]}
     rollup = G._drop_upgrades(items, [q])
     assert rollup["drop_upgrades"] == 1 and rollup["drop_chance_pct"] == 20
+
+
+def test_finding_a_group_is_in_the_trip_and_the_ratio_and_said_so():
+    """An assumption, not a measurement: 20 minutes for a group counts in the
+    trip's time, its XP an hour and so "N x your questing", labelled."""
+    assert G.LFG_WAIT_MIN == 20
+    g = est(runs=[trip(20, 6000)], quests=[])
+    t = g["trip"]
+    assert t["lfg_s"] == {"value": 1200, "label": "estimate"}
+    # The measured legs stay measured.
+    assert t["total_s"]["label"] == "measured"
+    assert g["run_s"] == 600 + 2400 + 300 + 1200
+    assert g["xp_per_hour"] == round(6000 / g["run_s"] * 3600)
+    assert g["vs_questing"] == pytest.approx(g["xp_per_hour"] / 12000, abs=0.001)
+    assert "20 min to find a group (assumed)" in g["summary"]
+
+
+def test_the_ratio_is_against_his_measured_pace_not_the_planners(priest):
+    """The page's "Next level in" tile and "N x your questing" use one rate:
+    the XP an hour over his last finished levels (inp["xp_per_hour"])."""
+    inp = copy.deepcopy(priest)
+    p = E.pace(inp)
+    assert E.questing_rate({**inp, "xp_per_hour": 18015}, p) == 18015
+    assert V.build({**inp, "xp_per_hour": 18015})["questing_xp_per_hour"] == 18015
+    # No finished level of his: the planner's rate, as before.
+    assert E.questing_rate({**inp, "xp_per_hour": None}, p) == E.rate(p, "questing")
+    # At the cap there is nothing to weigh against.
+    assert E.questing_rate({**inp, "level": 60, "xp_per_hour": 18015}, p) == 0
+
+
+def _missing(item_id, *sources, value=10):
+    """A missing drop as dungeonview.drops_for lists it, with its sources."""
+    return {"item_id": item_id, "name": f"Item {item_id}", "slot_name": "Chest", "value": value, "level": 30,
+            "now": True, "state": "missing", "drops": list(sources), "quests": [], "gain": value}
+
+
+def test_a_rate_from_a_few_kills_is_unknown_not_a_sure_thing():
+    """One kill that dropped the item reads as 100%: that is no rate. With
+    MIN_DROP_KILLS kills it is."""
+    one_kill = {"chance_pct": 100, "kills": 1, "boss": "B"}
+    enough = {"chance_pct": 100, "kills": G.MIN_DROP_KILLS, "boss": "B"}
+    other = {"chance_pct": 20, "kills": 80, "boss": "C"}
+    items = V.drop_items([_missing(1, one_kill), _missing(2, other)])
+    assert [i["chance"] for i in items] == [None, 20]
+    roll = G.drop_value(items)
+    assert roll["drop_chance_pct"] is None and roll["known_drop_chance_pct"] == 20
+    assert roll["unknown_drop_rates"] == 1
+    # A thin source next to a counted one: the counted rate stands.
+    items = V.drop_items([_missing(1, one_kill, other)])
+    assert items[0]["chance"] == 20
+    # Enough kills: a real 100%.
+    items = V.drop_items([_missing(1, enough)])
+    assert items[0]["chance"] == 100 and G.drop_value(items)["drop_chance_pct"] == 100
+    # No kill count (a source that carries none) keeps its rate.
+    assert V.drop_items([_missing(1, {"chance_pct": 7, "boss": "B"})])[0]["chance"] == 7
+
+
+def test_the_odds_say_what_they_are():
+    g = G._drop_upgrades([{"item_id": i, "now": True, "slot": "Chest", "gain": 10, "chance": 20}
+                          for i in (1, 2, 3)], [])
+    assert G.drop_words(3, g, "a run") == "at least one of 3 drop upgrades drops: 49% a run"
+    one = G._drop_upgrades([{"item_id": 1, "now": True, "slot": "Chest", "gain": 10, "chance": 20}], [])
+    assert G.drop_words(1, one, "a run") == "1 drop upgrade (20% a run)"
+    part = G._drop_upgrades([{"item_id": 1, "now": True, "slot": "Chest", "gain": 10, "chance": 20},
+                             {"item_id": 2, "now": True, "slot": "Head", "gain": 10, "chance": None}], [])
+    assert G.drop_words(2, part, "a clear") == ("2 drop upgrades, and at least one of the 1 with a known rate "
+                                                 "drops: 20% a clear")
+    assert "drop chance unknown" in G.drop_words(2, G._drop_upgrades([{"item_id": 1, "now": True, "slot": "Chest",
+                                                                       "gain": 1, "chance": None}], []), "a run")

@@ -655,6 +655,16 @@ def played_between(levels: list[dict], a: tuple, b: tuple) -> float | None:
     return journal.played_between(rows, a, b)
 
 
+def measured_xp_per_hour(db, sem=None) -> int | None:
+    """His XP an hour as the Overview's "Next level in" tile has it, whole
+    (wowstats.analysis.pages.pace_xp_per_hour); None when no level of his is
+    finished."""
+    from wowstats.analysis import pages
+
+    v = pages.pace_xp_per_hour(ask_on(db, sem))
+    return pages.whole(v)
+
+
 def ask_on(db, sem=None):
     """query_metric's compiler and runner on a DuckDB copy of the prep build
     `db` (wowstats.analysis.semantic.local), or the copy `sem` already made:
@@ -1200,6 +1210,9 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
                    for n in standing(st)["nudges"]],
         "analysis_updated": st.get("updated"),
         "calibration": reviews or {"factor": 1.0, "n": 0},
+        # The pace the "Next level in" tile shows (the layer's xp_per_hour over
+        # his last three finished levels): what "N x your questing" compares to.
+        "xp_per_hour": measured_xp_per_hour(db, sem),
         "progress": progress(db, sem, levels),
         "instance_limit": instance_limit(),
     }

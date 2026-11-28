@@ -241,3 +241,38 @@ def test_a_sheet_worn_again_keeps_its_first_occurrence(ids):
     data = {"levels": [{"level": 12, "seconds": 3600, "partial": False}]}
     snap = insights.snapshot(12, data, (t0, t0 + timedelta(hours=4)), gh, lambda q: [], "", None, {}, [])
     assert snap["gear_partial"] is False and snap["gear"]["items"][0]["item_id"] == 1317
+
+
+def _rested_header(xp_rows, snap=None, levels=()):
+    snap = snap or {"_time": "2026-11-25T15:00:00Z", "level": "41", "xp": "100", "xp_max": "1000"}
+    return views.build_header("A-B", list(levels), {"snap": [snap], "xp": xp_rows})
+
+
+def test_rested_xp_is_read_none_or_unread_never_a_guess():
+    """The Recorder leaves rested_xp out when it is 0: a current XP record
+    without it is a real "none". Without a record for this level (a ding, or
+    nothing since) nothing says, and the header says so."""
+    now = {"_time": "2026-11-25T16:00:00Z", "kind": "xp", "level": "41", "xp": "200", "xp_max": "1000"}
+    h = _rested_header([{**now, "rested_xp": "300"}])
+    assert (h["rested_state"], h["rested_xp"]) == ("read", 300)
+    h = _rested_header([now])
+    assert (h["rested_state"], h["rested_xp"]) == ("none", None)
+    # The newest record is for level 40: not read since then.
+    h = _rested_header([{**now, "_time": "2026-11-25T10:00:00Z", "level": "40", "rested_xp": "50"}])
+    assert (h["rested_state"], h["rested_xp"], h["rested_seen_level"]) == ("unread", None, 40)
+    # Newest is a ding: the new level's bar was never read.
+    ding = {"_time": "2026-11-25T10:00:00Z", "kind": "level", "level": "40"}
+    h = _rested_header([ding])
+    assert h["rested_state"] == "unread"
+    # No record at all.
+    assert _rested_header([])["rested_state"] == "unread"
+    # At the cap there is nothing to bank.
+    cap = {"_time": "2026-11-25T15:00:00Z", "level": "60", "xp": "0", "xp_max": "1000"}
+    assert _rested_header([], cap)["rested_state"] is None
+
+
+def test_the_planners_rested_estimate_only_fills_an_unread_header():
+    est = {"rested_estimate_xp": 4200}
+    assert views.with_rested_estimate({"rested_state": "unread"}, est)["rested_estimate_xp"] == 4200
+    assert "rested_estimate_xp" not in views.with_rested_estimate({"rested_state": "read", "rested_xp": 10}, est)
+    assert "rested_estimate_xp" not in views.with_rested_estimate({"rested_state": "unread"}, {})

@@ -234,6 +234,15 @@ def rate(p: dict, kind: str) -> float:
     return (p["xp_per_hour"]["value"] or p.get("route_xp_per_hour") or 0) / cal
 
 
+def questing_rate(inp: dict, p: dict) -> float:
+    """The XP an hour a dungeon trip is weighed against: his measured pace,
+    the one the "Next level in" tile uses (inp["xp_per_hour"]), else the
+    planner's rate (`rate`) when no level of his is finished."""
+    if inp["level"] >= classguide.MAX_LEVEL:
+        return 0
+    return inp.get("xp_per_hour") or rate(p, "questing")
+
+
 # ---------------------------------------------------------------- levels and XP
 
 
@@ -379,7 +388,7 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
     blocks = {pkey(b["name"]): b for b in panel(inp)["dungeons"]}
     by_inst = dungeon_items(inp)
     ts = trip_stats(inp.get("trips") or [])
-    quest_xph = rate(p, "questing") if level < classguide.MAX_LEVEL else 0
+    quest_xph = questing_rate(inp, p)
     open_ids = {o["quest_id"]: o for o in inp.get("open_quests") or []}
     kb_runs = {dkey(k): v for k, v in (inp.get("dungeon_runs_kb") or {}).items()}
     names = {}

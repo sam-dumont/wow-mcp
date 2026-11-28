@@ -272,7 +272,7 @@ def build(inp: dict) -> dict:
     who = inp.get("who") or {}
     p = E.pace(inp)
     m = E.mounts(inp, p)
-    quest_xph = E.rate(p, "questing") if level < classguide.MAX_LEVEL else 0
+    quest_xph = E.questing_rate(inp, p)
     known = known_areas()
     by_key = {key(a["name"]): aid for aid, a in known.items()}
     trips_by: dict[str, list[dict]] = {}
@@ -308,7 +308,10 @@ def build(inp: dict) -> dict:
     owned = inp.get("owned") or {}
     return {"char": who.get("char"), "level": level, "class": who.get("class"), "faction": who.get("faction"),
             "spec": inp.get("gear_spec"), "questing_xp_per_hour": round(quest_xph) if quest_xph else None,
-            "inventory_known": bool(owned.get("inventory_known")), "dungeons": out}
+            "inventory_known": bool(owned.get("inventory_known")),
+            # The planner's rested XP: the last bar reading plus what logging
+            # out added since (the KB's accrual rule). An estimate, always.
+            "rested_estimate_xp": round(inp["rested_xp"]) if inp.get("rested_xp") else None, "dungeons": out}
 
 
 def trip_order(b: dict) -> tuple:
@@ -458,8 +461,8 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
                     "blocked": bool(required or too_low or no_pickup),
                     **({"pickup_unknown": True} if no_pickup else {}),
                     **({"prerequisite_unavailable": True} if no_prereq else {}),
-                    "rewards": [{k: d[k] for k in ("item_id", "name", "quality", "gain", "state", "where", "url",
-                                                   *BADGE)}
+                    "rewards": [{**{k: d[k] for k in ("item_id", "name", "quality", "gain", "value", "state",
+                                                      "where", "url", *BADGE)}, "fit": fit_brief(d.get("fit"))}
                                 for d in rw[:1]], "reward_choices": len(rw),
                     **_wings_of(area, q, state, open_ids.get(qid), inp.get("trips") or ())})
     order = {"open": 0, "new": 1, "done": 2}
@@ -514,22 +517,29 @@ def _how(qid: int, pre: dict, who, allowed) -> dict:
     ) if ws}
 
 
+def fit_brief(fit: dict | None) -> dict | None:
+    """Who an item is made for, without the alternative item it may carry."""
+    return {k: fit.get(k) for k in ("for_you", "label", "factor")} if fit else None
+
+
 def quest_rewards(drops: list[dict], quests: list[dict]) -> list[dict]:
     """The best missing reward choice per unfinished quest, including its gates."""
     out = []
     by_item = {d["item_id"]: d for d in drops}
     for q in quests:
-        reward = next((r for r in q["rewards"] if r["state"] == "missing"), None)
+        reward = next((r for r in q["rewards"] if r["state"] == "missing" and G.reward_fits(r)), None)
         if q["state"] == "done" or not reward:
             continue
         best = by_item[reward["item_id"]]
         source = {k: q[k] for k in ("quest_id", "name", "url", "state", "complete", "min_level", "needs")}
         out.append({**{k: best[k] for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_pct",
                                             "fills_empty", "level", "now", "url", *BADGE)},
-                    "line": gain_words(best), "of": q["reward_choices"],
+                    "line": gain_words(best), "of": q["reward_choices"], "fit": fit_brief(best.get("fit")),
+                    "value": best.get("value"),
                     "quest": {**source, "starts": q["starts"][:1],
                               "other_wings": (q.get("wings") or {}).get("other_wings", [])}})
-    out.sort(key=lambda r: (not r["now"], -(r["gain"] or 0), r["item_id"]))
+    out.sort(key=lambda r: (not r["now"], -((r["value"] if r["value"] is not None else r["gain"]) or 0),
+                            r["item_id"]))
     return out
 
 
@@ -717,8 +727,11 @@ def drop_items(drops: list[dict]) -> list[dict]:
     for d in drops:
         if d["state"] != "missing" or not d["drops"]:
             continue
-        known = [s for s in d["drops"] if s.get("chance_pct") is not None]
+        # A rate counted over a handful of kills is no rate (G.MIN_DROP_KILLS).
+        known = [s for s in d["drops"] if s.get("chance_pct") is not None and not G.thin_rate(s)]
         best = max(known, key=lambda s: s["chance_pct"], default=d["drops"][0])
+        if not known:
+            best = {**best, "chance_pct": None}
         chance = best.get("chance_pct")
         items.append({"item_id": d["item_id"], "item": d["name"], "slot": d["slot_name"],
                       "gain": d["value"], "req_level": d["level"], "now": d["now"],
@@ -801,6 +814,12 @@ def gain_named(inp: dict, name: str, quest_xph: float | None) -> dict | None:
     return gain
 
 
+def reward_note(r: dict) -> str:
+    """"; not made for your spec" on a reward built for another spec of his
+    class (the drop list says it too, wowstats.gearfit)."""
+    return "; not made for your spec" if (r.get("fit") or {}).get("for_you") == "spec" else ""
+
+
 def with_gain(moves: list[dict], panel: dict | None) -> list[dict]:
     """The Overview's dungeon moves with the panel's estimate for the same
     dungeon (one estimate, so the move and the panel never disagree), its
@@ -825,7 +844,7 @@ def with_gain(moves: list[dict], panel: dict | None) -> list[dict]:
         rw = rewards.get(k)
         if rw:
             m = {**m, "quest_rewards": rw, "text": m["text"].rstrip(".") + ". Its quests pay " + ", ".join(
-                f"{r['name']} ({gain_words(r)}) from {r['quest']['name']}" for r in rw[:3]) + "."}
+                f"{r['name']} ({gain_words(r)}{reward_note(r)}) from {r['quest']['name']}" for r in rw[:3]) + "."}
         out.append(m)
     return out
 
@@ -934,10 +953,9 @@ def judge(inp, state, lo, drops, quests, gain, quest_xph, mount, trip, kb_fit=0)
     todo = {q["quest_id"] for q in gain["quests"]}
     left = [q for q in quests if q["quest_id"] in todo]
     quest_xp = gain["xp_quests"]
-    q_up = [q for q in left if any(r["state"] == "missing" for r in q["rewards"])]
+    q_up = [q for q in left if any(r["state"] == "missing" and G.reward_fits(r) for r in q["rewards"])]
     later = [d for d in drops if d["state"] == "missing" and not d["now"] and d["drops"]]
-    odds = G.odds_words(gain, "a clear")
-    ups = _n(n_miss, "missing drop upgrade")
+    ups = G.drop_words(n_miss, gain, "a clear", "missing drop upgrade")
     handins = gain["handins"]
     prereqs = [q for q in handins if q["prerequisite"]]
     amount = f"{quest_xp:,} XP"
@@ -979,9 +997,9 @@ def judge(inp, state, lo, drops, quests, gain, quest_xph, mount, trip, kb_fit=0)
     goals = [name for name, met in (("xp", good_xp), ("gear", good_gear or bool(q_up)),
                                     ("quests", worth_quests), ("gold", gold)) if met]
     if good_gear and worth_quests:
-        return ("worth a run", f"{quest_bit}, and {ups} at {odds}", "high", goals)
+        return ("worth a run", f"{quest_bit}, and {ups}", "high", goals)
     if good_gear:
-        return ("worth a loop for gear", f"{ups} at {odds}", "high", goals)
+        return ("worth a loop for gear", ups, "high", goals)
     if worth_quests:
         return ("worth a run for its quests", quest_bit + (", one pays an upgrade" if q_up else ""), "high", goals)
     if good_xp:
@@ -992,7 +1010,7 @@ def judge(inp, state, lo, drops, quests, gain, quest_xph, mount, trip, kb_fit=0)
     if kb_fit:
         why = _n(kb_fit, "drop") + " made for you" + (f", and {quest_bit}" if handins else "")
         return ("worth a look for gear", why, "some", [])
-    small = [quest_bit if handins else None, f"{ups} at {odds}" if n_miss else None]
+    small = [quest_bit if handins else None, ups if n_miss else None]
     small = [x for x in small if x]
     if small:
         return ("only if a group is going", " and ".join(small) + ": not worth a trip of its own",

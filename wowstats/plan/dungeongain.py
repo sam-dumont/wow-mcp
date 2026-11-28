@@ -50,6 +50,12 @@ from .estimate import expected_best, fdur, seen_mean
 
 SHOWN = 3  # quests the move lists before "N more" (the page's rule)
 
+# Finding a group before the trip starts. An assumption, not a measurement:
+# nothing in the records times it. Every trip counts it, so the pace against
+# questing is the one a player gets with the wait included (owner, 2026-11-28).
+LFG_WAIT_MIN = 20
+LFG_WAIT_S = LFG_WAIT_MIN * 60
+
 
 # ---------------------------------------------------------------- kill XP
 
@@ -272,6 +278,8 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     parts["travel_s"] = (to[0] + back[0], _worst(to[1], back[1])) if to and back else None
     parts = {k: v for k, v in parts.items() if v is not None}
     inside = parts.get("inside_s")
+    if inside:
+        parts["lfg_s"] = (float(LFG_WAIT_S), "estimate")
     # The whole trip or nothing: with a leg unknown the trip's time is
     # unknown, and so its XP an hour and the verdict.
     run_s = sum(v for v, _ in parts.values()) if inside and not missing else None
@@ -290,7 +298,9 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     xph = per_hour(shown, run_s) if run_s and shown else None
     qx = questing_xph or None
     vs = round(xph / qx, 3) if xph and qx and xp_k is not None else None
-    t_label = _worst(*(lbl for _, lbl in parts.values()))
+    # The group's wait is an assumption on its own label; it doesn't make the
+    # measured legs an estimate.
+    t_label = _worst(*(lbl for k, (_, lbl) in parts.items() if k != "lfg_s"))
     xp_label = _worst(k_label, "route" if route else "estimate") if xp_k is not None else None
     out = {
         "basis": basis, "own_runs": len(runs), "level": level, "run_s": round(run_s) if run_s else None, "time": time,
@@ -308,7 +318,8 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
                     "starts": q.get("starts") or [], **({"wings": q["wings"]} if q.get("wings") else {})}
                    for q in todo],
         "quests_shown": SHOWN,
-        "upgrades": sum(1 for q in todo if any(r.get("state") == "missing" for r in q.get("rewards") or [])),
+        "upgrades": sum(1 for q in todo if any(r.get("state") == "missing" and reward_fits(r)
+                                               for r in q.get("rewards") or [])),
         **_drop_upgrades(drops or [], todo),
     }
 
@@ -316,7 +327,7 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
         return {"value": round(v) if v is not None else None, "label": label if v is not None else None}
 
     trip = {k: part(*parts[k]) if k in parts else part(None, None)
-            for k in ("pickup_s", "inside_s", "handin_s", "travel_s")}
+            for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "lfg_s")}
     trip.update({leg: part(*(v or (None, None))) for leg, v in (("travel_to_s", to), ("travel_back_s", back))})
     trip.update({"total_s": part(run_s, t_label if run_s else None),
                  "xp_quests": part(xp_q, "route" if route else "estimate"),
@@ -377,6 +388,25 @@ def _drop_upgrades(drops: list[dict], todo: list[dict]) -> dict:
     return drop_value([d for d in drops if d["now"] and d["item_id"] not in given])
 
 
+# A drop rate seen in fewer kills than this is no rate: one kill that dropped
+# the item reads as 100%. ForeverDB.net's item sources carry the kills a rate
+# was counted over ("kills"); a source without that count (older data) keeps its rate.
+MIN_DROP_KILLS = 5
+
+
+def reward_fits(r: dict) -> bool:
+    """False for a quest reward made for another class (wowstats.gearfit's
+    "class" fit): the drop list ranks such an item down, and the quests'
+    reward lines never recommend it. Another spec of the class stays, noted."""
+    return (r.get("fit") or {}).get("for_you") != "class"
+
+
+def thin_rate(source: dict) -> bool:
+    """True when a drop source's rate rests on too few kills to be one."""
+    kills = source.get("kills")
+    return kills is not None and kills < MIN_DROP_KILLS
+
+
 def drop_value(items: list[dict]) -> dict:
     """Estimate from one (best known) rate per item. A missing rate leaves the
     total unknown, but the subset with published rates is still informative."""
@@ -414,21 +444,39 @@ def odds_words(g: dict, unit: str) -> str:
     return f"{label} {unit}"
 
 
+def drop_words(n: int, g: dict, unit: str, noun: str = "drop upgrade") -> str:
+    """What the drop chance is, said: the chance that at least one of the `n`
+    upgrades drops in a run (or clear), not the rate of any one of them. One
+    upgrade is its own rate; rates missing leave it open or partial."""
+    pct = g.get("known_drop_chance_pct", g.get("drop_chance_pct"))
+    what = f"{n} {noun}{'s' if n != 1 else ''}"
+    if pct is None:
+        return f"{what} (drop chance unknown)"
+    label = odds_words({**g, "drop_chance_pct": pct}, unit)
+    if n == 1:
+        return f"{what} ({label})"
+    if g.get("drop_chance_pct") is None:
+        known = n - (g.get("unknown_drop_rates") or 0)
+        return f"{what}, and at least one of the {known} with a known rate drops: {label}"
+    return f"at least one of {what} drops: {label}"
+
+
 def _upgrades(g: dict) -> str:
     """Quest rewards and random drops available on this trip."""
     q, d = g.get("upgrades") or 0, g.get("drop_upgrades") or 0
     parts = [f"{q} quest upgrade{'s' if q != 1 else ''}" if q else None,
-             f"{d} drop upgrade{'s' if d != 1 else ''} ({odds_words(g, 'a run')})" if d else None]
+             drop_words(d, g, "a run") if d else None]
     parts = [p for p in parts if p]
     return " + " + ", ".join(parts) if parts else ""
 
 
 def split(g: dict) -> str:
     """The trip's parts as the line says them: 25 min pickups · 1h15 inside
-    · 20 min hand-ins (a part with nothing in it left out; the travel to the
-    door and back is in the total only)."""
+    · 20 min hand-ins · 20 min to find a group (assumed) (a part with nothing
+    in it left out; the travel to the door and back is in the total only)."""
     t = g.get("trip") or {}
-    words = (("pickup_s", "pickups"), ("inside_s", "inside"), ("handin_s", "hand-ins"))
+    words = (("pickup_s", "pickups"), ("inside_s", "inside"), ("handin_s", "hand-ins"),
+             ("lfg_s", "to find a group (assumed)"))
     return " · ".join(f"{about_s(t[k]['value'])} {w}" for k, w in words if (t.get(k) or {}).get("value"))
 
 

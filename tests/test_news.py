@@ -210,6 +210,38 @@ def test_a_filter_keeps_what_concerns_it_and_what_concerns_everyone(weeks):
     assert news.digest(week="2026-11-12", today=TODAY)["items"][0]["title"] in ("Launch patch", "Raid opening")
 
 
+def test_the_page_shows_what_concerns_its_character_and_nothing_another_class_is_told(weeks):
+    """The Overview's card is for the open character: a mage's change is not
+    a warrior's news, even with a mage on the same account."""
+    mage = {"class": "Mage", "level": 30, "spec": "Frost", "faction": "Alliance"}
+    got = news.digest(chars=[TANK60, mage], today=TODAY, only_mine=True)["items"]
+    titles = {i["title"] for i in got}
+    assert "Frost Nova" not in titles and "Shield Slam hits harder" in titles and "AH deposits" in titles
+    assert "Early bags" not in titles  # levels 1-25: not for a level 60
+    # Without the flag nothing is hidden (the MCP's list).
+    assert "Frost Nova" in {i["title"] for i in news.digest(chars=[TANK60, mage], today=TODAY)["items"]}
+
+
+def test_a_later_item_that_supersedes_one_takes_its_place(monkeypatch, weeks):
+    """A KB item can name the earlier item it replaces (`supersedes`): it
+    is not news any more, in this week or the next."""
+    older = {"digest": {"week": "2026-11-12", "from": "2026-11-05", "items": [
+        {**SRC, "id": "o:9", "category": "hotfix", "title": "Loot removed", "text": "Boss drops no blue.",
+         "date": "2026-11-11", "levels": [35, 50]}]}}
+    newer = {"digest": {"week": "2026-11-19", "from": "2026-11-12", "items": [
+        {**SRC, "id": "n:1", "category": "hotfix", "title": "Loot restored", "text": "Boss drops blue again.",
+         "date": "2026-11-18", "supersedes": "o:9"}]}}
+    monkeypatch.setattr(cm, "lanes", lambda: {"meta": {"statements": [], "builds": []}, "weekly": [older, newer]})
+    mid = {"class": "Priest", "level": 39, "spec": "Shadow", "faction": "Alliance"}
+    assert {i["title"] for i in news.digest(chars=[mid], today=TODAY)["items"]} == {"Loot restored"}
+    # The old week alone, asked for by day, no longer lists it either.
+    since = news.digest(chars=[mid], since="2026-11-01", today=TODAY)["items"]
+    assert "Loot removed" not in {i["title"] for i in since}
+    # Nothing superseding: it stays.
+    monkeypatch.setattr(cm, "lanes", lambda: {"meta": {"statements": [], "builds": []}, "weekly": [older]})
+    assert [i["title"] for i in news.digest(chars=[mid], week="2026-11-12", today=TODAY)["items"]] == ["Loot removed"]
+
+
 @pytest.mark.parametrize("filters", [{"cls": "warrior"}, {"role": "tank"}, {"cls": "warrior", "role": "tank"}])
 def test_unset_news_filters_leave_other_dimensions_open(weeks, filters):
     rows = news.digest(today=TODAY, **filters)["items"]
@@ -427,3 +459,14 @@ def test_the_shipped_digest_is_sourced_and_its_events_resolve():
             for p in (i.get("event") or {}).get("prep") or []:
                 assert all(news.statement(s) for s in p.get("statements") or []), p
     assert any(e["starts"] for e in news.events(date(2026, 11, 20)))
+
+
+def test_the_shipped_digest_retires_the_sentinel_loot_removal():
+    """The 22 Nov "loot removed" card is superseded by the 23 Nov "loot
+    restored" one: its link is in the data, and every link points at an item."""
+    ws = news.weeks()
+    items = {it["id"]: it for w in ws for it in w["items"]}
+    links = {it["supersedes"]: it for it in items.values() if it.get("supersedes")}
+    assert links and set(links) <= set(items)
+    assert all(str(items[i]["date"]) <= str(links[i]["date"]) for i in links)
+    assert "Uldaman Sentinel loot removed" in {items[i]["title"] for i in links}

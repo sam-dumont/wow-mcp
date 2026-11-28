@@ -3,6 +3,15 @@
 ## Unreleased
 
 - **View in 3D** turns the character about its own body: a long weapon no longer pulls the turn axis aside. Zoom with the mouse wheel or a two-finger pinch.
+- Dungeons are optional. The Overview's dungeon card starts "If you like dungeons:", sits after upgrades, professions and riding, and its trip counts an assumed 20 minutes to find a group (the text says so).
+- "N× your questing" compares a dungeon trip with your measured XP an hour, the same number as the "Next level in" tile.
+- Upgrades you can buy rank by points per gold. One that would push riding further away goes after the cheaper ones and says what it does to riding.
+- A drop rate counted over fewer than 5 kills is unknown, so one lucky kill no longer makes a dungeon "100% a clear". The line reads "at least one of N drop upgrades drops: X%".
+- The Rested tile says "unknown" (since which level) when the Recorder has not read your XP bar, shows the planner's estimate labelled as one, and no longer tells you to log out in an inn when you are resting in one.
+- The news card shows only what concerns the open character, and an item a later one supersedes is dropped: "Loot restored to the Obsidian Sentinel" replaces the "loot removed" card.
+- A dungeon's quest rewards skip items made for another class and mark ones for another spec of yours.
+- A quest with no known required level no longer shows as "1 above you" from its own level. The Overview's upgrades list leaves out drops from dungeons you have outgrown.
+
 ## 0.13.3 (2026-11-28)
 
 ### Knowledge base

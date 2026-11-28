@@ -323,6 +323,38 @@ def test_dalaran_quest_rewards_for_a_caster_at_30(priest):
     assert m["quest_rewards"] == rw and "Vine Pruner's Cloak" in m["text"]
 
 
+def test_quest_rewards_respect_the_class_and_spec_the_drop_list_does(priest):
+    """A reward made for another class is no recommendation (a melee sword
+    for a mage); one for another spec of his class stays, saying so."""
+    inp = _caster_at_30(priest)
+    base = {r["name"]: r for r in by_name(V.build(inp))["City of Dalaran"]["quest_rewards"]}
+    cloak = base["Vine Pruner's Cloak"]
+    fit = {"for_you": "class", "factor": 0.75, "label": "Made for warriors, not for a priest"}
+
+    def with_fit(f):
+        i = copy.deepcopy(inp)
+        for it in i["dungeon_loot"]["16544"]:
+            if it["item_id"] == cloak["item_id"]:
+                it["fit"] = f
+        for u in i["upgrades"]:
+            if u["item_id"] == cloak["item_id"]:
+                u["fit"] = f
+        return i
+
+    b = by_name(V.build(with_fit(fit)))["City of Dalaran"]
+    assert "Vine Pruner's Cloak" not in {r["name"] for r in b["quest_rewards"]}
+    move = {"kind": "dungeon", "zone": {"name": "City of Dalaran"}, "text": "City of Dalaran drops 2 upgrades."}
+    assert "Vine Pruner's Cloak" not in V.with_gain([move], V.build(with_fit(fit)))[0]["text"]
+    # The quest no longer counts as paying an upgrade.
+    assert b["gain"]["upgrades"] < by_name(V.build(inp))["City of Dalaran"]["gain"]["upgrades"]
+    # Another spec of his class: listed, with the note.
+    spec = {"for_you": "spec", "factor": 0.9, "label": "Not made for your spec"}
+    b = by_name(V.build(with_fit(spec)))["City of Dalaran"]
+    assert "Vine Pruner's Cloak" in {r["name"] for r in b["quest_rewards"]}
+    text = V.with_gain([move], V.build(with_fit(spec)))[0]["text"]
+    assert "Vine Pruner's Cloak" in text and "; not made for your spec)" in text
+
+
 def test_classic_dungeon_quests_given_outside_pay_too(priest):
     """The same for a Classic dungeon whose quests are given in town: the
     Stockade's (Redridge, Duskwood, Wetlands givers). Testpriest wears all

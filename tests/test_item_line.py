@@ -233,22 +233,32 @@ def test_nibbet_dungeon_handins_and_unfinished_armory_agree_across_tools(ctx):
     blocks = app.dungeons(D.CHAR)["dungeons"]
     overview = app.overview(D.CHAR)["next_moves"]["moves"]
     moves = T.call(c, "next_moves", {"char": D.CHAR})["answer"]
+    shown = 0
     for name, count, pre, pre_xp, xp in (("Zul'Farrak", 12, 5, 11200, 91031),
                                          ("Razorfen Downs", 14, 9, 24020, 47160)):
         b = next(b for b in blocks if b["name"] == name)
         option = next(d for d in options if d["name"] == name)
-        move = next(m for m in moves if m["point"].startswith(name))
-        card = next(m for m in overview if m.get("kind") == "dungeon" and m["title"] == name)
+        # Only the dungeons worth running now have a move: with the pace of his own
+        # levels as the yardstick Zul'Farrak (from level 47) has none at his level.
+        move = next((m for m in moves if m["point"].startswith(f"If you like dungeons: {name}")), None)
+        card = next((m for m in overview if m.get("kind") == "dungeon" and m["title"] == name), None)
+        assert (move is None) == (card is None)
         handins = b["gain"]["handins"]
         saved = redact.zogzog("dungeons", {"dungeons": [b]})["dungeons"][0]["gain"]["handins"]
-        assert saved == handins == card["gain"]["handins"] == option["gain"]["handins"] == move["handins"]
+        assert saved == handins == option["gain"]["handins"]
+        if card:
+            assert handins == card["gain"]["handins"] == move["handins"]
+            assert b["gain"]["xp_quests"] == move["xp_quests"]
         assert len(handins) == len({q["quest_id"] for q in handins}) == count
         assert sum(q["prerequisite"] for q in handins) == pre
-        assert sum(q["xp"] for q in handins) == b["gain"]["xp_quests"] == move["xp_quests"] == xp
+        assert sum(q["xp"] for q in handins) == b["gain"]["xp_quests"] == xp
         assert all(q["name"] and q["url"] for q in handins)
         assert b["trip"]["quest_xp_left"] == xp
         why = f"{count} hand-ins ({xp:,} XP), including {pre} prerequisites worth {pre_xp:,} XP"
-        assert why in b["why"] == option["why"] and why in card["detail"] and why in move["point"]
+        if card:
+            assert why in b["why"] == option["why"] and why in card["detail"] and why in move["point"]
+        shown += bool(card)
+    assert shown, "no pinned dungeon has a move"
     for rows in (blocks, options):
         armory = next(b for b in rows if b["name"] == "Scarlet Monastery: Armory")
         assert (armory["verdict"], armory["why"]) == (
