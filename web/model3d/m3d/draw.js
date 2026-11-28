@@ -24,6 +24,8 @@
 (() => {
 	const M3D = globalThis.M3D = globalThis.M3D || {};
 	const { Reader, MissingFile, M2RendererGL, CharMaterial, GLContext, PerspectiveCamera, TurntableControls } = M3D;
+	// The wheel or a pinch moves the camera between half and 1.5 times its fitted distance.
+	const ZOOM_MIN = 0.5, ZOOM_MAX = 1.5;
 	const { mat4_multiply, mat4_from_scale } = M3D.math;
 
 	// The character faces the camera (wow.export turns it 90 degrees too).
@@ -730,10 +732,14 @@
 			this.last = null;
 			this.box = null;
 			this.fitted = '';
+			this.zoom = 1;
 			this.controls = new TurntableControls(canvas, (rot) => {
 				this.rotation = rot;
 				this.turn();
-			}, FACING);
+			}, FACING, (f) => {
+				this.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, this.zoom * f));
+				this.fitted = '';
+			});
 			this.attack = 16;
 			this.idle = opts.idle ? new Idle(this) : null;
 
@@ -816,6 +822,7 @@
 				// turntable. The rider keeps its own size on a scaled mount.
 				const saddle = mount.model.getAttachmentTransform(SADDLE, true);
 				for (let i = 12; i < 15; ++i) saddle[i] *= mount.scale;
+				mount.body = scene_box([{ box: frame_box(mount.model), scale: mount.scale }]);
 				mount.box = scene_box([{ box: frame_box(mount.model), scale: mount.scale },
 					{ box: dressed_box(scene), matrix: saddle }]);
 			} else {
@@ -844,11 +851,12 @@
 			scene.petVisible = !!scene.pet;
 			const rider = frame_box(scene.char);
 			const char = scene.mount?.box || (scene.standingBox ??= dressed_box(scene));
-			// Turn about the middle of the model's own outline, not its origin:
-			// a mount's origin sits off its body, so it swung around a point
-			// beside it. The camera looks straight down that axis.
+			// Turn about the middle of the body (the mount's when riding), not
+			// its origin and not its gear: a mount's origin sits off its body,
+			// and a long weapon pulled the turn axis toward it.
+			const body = scene.mount?.body || rider;
 			const pivot = scene.pivot = scene.pet ? [0, 0] :
-				[(char.min[0] + char.max[0]) / 2, (char.min[2] + char.max[2]) / 2];
+				[(body.min[0] + body.max[0]) / 2, (body.min[2] + body.max[2]) / 2];
 			this.box = scene_box([{ box: char, offset: [-pivot[0], 0, -pivot[1]] }]);
 			if (scene.petVisible) {
 				const pet = frame_box(scene.pet);
@@ -880,6 +888,7 @@
 			dispose_scene(this.scene);
 			this.scene = scene;
 			this.files = files;
+			this.zoom = 1;
 			this.box = null;
 			this.frameScene();
 			this.attack = Number(obj(recipe).attack) || 16;
@@ -918,10 +927,11 @@
 			// Fit at the pose on screen when the model or the canvas changes,
 			// never while it turns: a refit per drag angle followed a long
 			// mount's bounds, so the camera slid and zoomed during a turn.
-			const key = c.width + 'x' + c.height + ':' + css_w;
+			const key = c.width + 'x' + c.height + ':' + css_w + ':' + this.zoom;
 			if (this.box && key !== this.fitted) {
 				this.camera.aspect = c.width / Math.max(1, c.height);
-				M3D.fit_turntable(this.camera, this.box, css_w, this.rotation + (this.scene?.mount?.angleOffset || 0));
+				M3D.fit_turntable(this.camera, this.box, css_w, this.rotation + (this.scene?.mount?.angleOffset || 0),
+					this.zoom);
 				this.fitted = key;
 			}
 

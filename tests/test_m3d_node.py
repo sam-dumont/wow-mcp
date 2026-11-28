@@ -464,3 +464,32 @@ def test_ribbon_keeps_its_lifetime_of_edges(sim):
     for e in edges:
         # identity bones: the ribbon sits at WoW (0, 0, 1.6), 0.08 above and below
         assert e["top"][1] == pytest.approx(1.68) and e["bot"][1] == pytest.approx(1.52)
+
+
+@needs_node
+def test_turntable_wheel_and_pinch_zoom_without_turning():
+    """The wheel and a two-finger pinch zoom (a factor below 1 is closer);
+    one finger turns, and a pinch turns nothing."""
+    script = """
+    globalThis.M3D = {};
+    for (const name of ['core','camera']) require(process.argv[1]+'/'+name+'.js');
+    const h = {}, el = {style: {}, addEventListener: (t, f) => h[t] = f, removeEventListener() {},
+                        setPointerCapture() {}, releasePointerCapture() {}};
+    const turns = [], zooms = [];
+    const c = new M3D.TurntableControls(el, r => turns.push(r), 0, f => zooms.push(f));
+    const ev = (id, x, y, extra = {}) => ({pointerId: id, pointerType: 'touch', clientX: x, clientY: y,
+                                           button: 0, preventDefault() {}, ...extra});
+    let prevented = false;
+    h.wheel({deltaY: 100, preventDefault() { prevented = true; }});
+    h.wheel({deltaY: -100, preventDefault() {}});
+    h.pointerdown(ev(1, 100, 100)); h.pointermove(ev(1, 110, 100));
+    const afterTurn = turns.length;
+    h.pointerdown(ev(2, 200, 100)); h.pointermove(ev(2, 300, 100));
+    const pinchTurns = turns.length - afterTurn;
+    h.pointerup(ev(2, 300, 100)); h.pointermove(ev(1, 120, 100));
+    console.log(JSON.stringify({prevented, out: zooms[0] > 1, in: zooms[1] < 1, apart: zooms[2] < 1,
+                                afterTurn, pinchTurns, resumed: turns.length === afterTurn + 1}));
+    """
+    out = subprocess.run([NODE, "-e", script, str(M3D)], check=True, capture_output=True, timeout=10)
+    assert json.loads(out.stdout) == {"prevented": True, "out": True, "in": True, "apart": True,
+                                      "afterTurn": 1, "pinchTurns": 0, "resumed": True}

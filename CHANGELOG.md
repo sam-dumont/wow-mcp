@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **View in 3D** turns the character about its own body: a long weapon no longer pulls the turn axis aside. Zoom with the mouse wheel or a two-finger pinch.
 ## 0.13.3 (2026-11-28)
 
 ### Knowledge base
