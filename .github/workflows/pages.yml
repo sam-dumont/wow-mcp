@@ -145,6 +145,9 @@ jobs:
       - run: uv sync --frozen --extra publish --extra mcp --extra render
       # The renderer draws the demo's pictures in Chromium (wowstats.renderer),
       # and the demo's guard test opens its pages in it.
+      # The runner image's Microsoft apt source answers 403 at times, and apt
+      # then refuses every install. The browsers need nothing from it.
+      - run: sudo grep -l packages.microsoft.com /etc/apt/sources.list.d/* | xargs -r sudo rm -f
       - run: uv run --frozen --extra render playwright install --with-deps chromium webkit
       # The project site's address: https://<owner>.github.io/<repo>/.
       - name: Site address
