@@ -283,3 +283,9 @@ def test_shipper_hook_survives_a_missing_module(shipper):
     """wow_stats.py runs without the file next to it (an older install)."""
     src = (ROOT / "shipper" / "wow_stats.py").read_text()
     assert "import foreverdb_send" in src and "except ImportError" in src
+
+
+def test_enabled_but_module_missing_says_so():
+    """The hook logs one clear line when the setting is on and the file isn't beside the script."""
+    src = (ROOT / "shipper" / "wow_stats.py").read_text()
+    assert "foreverdb_send.py is not next to this script" in src

@@ -224,3 +224,24 @@ def test_the_server_serves_a_matching_signature_only(monkeypatch):
             assert man["version"] and set(man["files"]) == set(account.SHIPPER_FILES)  # what 0.6 shippers read
     finally:
         account.shipper_manifest.cache_clear()
+
+
+def test_the_foreverdb_module_is_signed_served_and_updated(shipper, installed, fake):  # noqa: F811
+    """enabling foreverdb_send must not silently do nothing after an auto-update."""
+    assert "foreverdb_send.py" in signer.FILES and "foreverdb_send.py" in account.SHIPPER_FILES
+    assert set(json.loads(account.shipper_manifest())["files"]) >= {"foreverdb_send.py"}
+    mod = b"# a new foreverdb_send\n"
+    fake.offer("0.6.0", with_version(REAL, "0.6.0"), extra={"foreverdb_send.py": mod})
+    installed.ship(fake.base + "/ingest")
+    assert shipper.check_update({}, now=1) == "updated"
+    assert installed.path.with_name("foreverdb_send.py").read_bytes() == mod
+
+
+def test_a_foreverdb_module_outside_the_signature_is_refused(shipper, installed, fake):  # noqa: F811
+    fake.offer("0.6.0", with_version(REAL, "0.6.0"), extra={"foreverdb_send.py": b"# real\n"})
+    fake.routes["/install/update/shipper/foreverdb_send.py"] = (200, b"# evil\n")
+    installed.ship(fake.base + "/ingest")
+    state: dict = {}
+    assert shipper.check_update(state, now=1) == "kept"
+    assert refused(shipper, installed, state) == "foreverdb_send.py: sha256 mismatch"
+    assert not installed.path.with_name("foreverdb_send.py").exists()

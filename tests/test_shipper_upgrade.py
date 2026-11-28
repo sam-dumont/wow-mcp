@@ -149,7 +149,9 @@ def lab(run_app, fake_vl, monkeypatch, tmp_path):  # noqa: F811
 
 def test_a_061_shipper_updates_itself_to_070(lab):
     served, srv, tmp = lab
-    files = served.set("0.7.0", extra={"channel": "stable", "notes": {"any": ["thing"]}})
+    # The installer changed since 0.6.1 (it copies foreverdb_send.py); this test is about the unchanged case.
+    files = served.set("0.7.0", changed={"install-mac.sh": at_tag("shipper/install-mac.sh")},
+                       extra={"channel": "stable", "notes": {"any": ["thing"]}})
     friend = Friend(tmp, srv.base)
 
     # 0.6.1's run: it ships, then takes 0.7.0 from the server (sha256 checked,
