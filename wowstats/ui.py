@@ -684,7 +684,7 @@ class App:
                 hd = (self.char(name) or {}).get("header") or {}
                 mine.append(hd)
             mine += [{"level": c.get("level")} for c in self.chars()["chars"] if c.get("char") != name]
-            return news.digest(chars=mine, week=week)
+            return news.digest(chars=mine, week=week, only_mine=bool(name))
 
         return self.cached(f"news:{name or ''}:{week or ''}", build)
 

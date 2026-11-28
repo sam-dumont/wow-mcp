@@ -160,7 +160,7 @@ def _public(it: dict, cite: bool) -> dict:
 
 def digest(chars: list[dict] | None = None, since: str | None = None, week: str | None = None,
            cls=None, level: int | None = None, role: str | None = None, cite: bool = False,
-           today: date | None = None, category: str | None = None) -> dict:
+           today: date | None = None, category: str | None = None, only_mine: bool = False) -> dict:
     """One week's news (the newest, or `week`), or every item said since a
     day: the items concerning the given characters first (class, level, role),
     then the rest, each newest first; and the earlier weeks there are.
@@ -168,7 +168,11 @@ def digest(chars: list[dict] | None = None, since: str | None = None, week: str 
 
     chars: header-like dicts (class, level, spec, faction); cls/level/role
     filter instead, keeping only what concerns them. category: only that
-    category ("community": only what players said)."""
+    category ("community": only what players said). only_mine: keep only what
+    concerns the first of `chars` (the one the page is for; the others rank
+    what is left); an item another class or level range is the subject of goes.
+    An item another one `supersedes` (names by its id) is never
+    shown: the later item is the news now."""
     if category and category not in (*CATEGORIES, "community"):
         raise ValueError(f"unknown category {category!r}")
     ws = weeks()
@@ -193,10 +197,14 @@ def digest(chars: list[dict] | None = None, since: str | None = None, week: str 
             raise ValueError(f"unknown class {cls!r}")
         items = [it for it in items if _filter(it, f)]
         whos = whos or [f]
+    # `supersedes`: the id of the item replaced (the key the KB's statements use).
+    replaced = {it["supersedes"] for w in ws for it in w["items"] if it.get("supersedes")}
+    if only_mine and whos:
+        items = [it for it in items if relevance(it, whos[0]) > 0]
     seen, uniq = set(), []
     for it in items:
         k = it.get("id") or it.get("text")
-        if k not in seen:
+        if k not in seen and k not in replaced:
             seen.add(k)
             uniq.append(it)
     ranked = sorted(uniq, key=lambda it: str(it.get("date") or ""), reverse=True)
