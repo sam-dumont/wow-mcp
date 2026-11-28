@@ -694,8 +694,13 @@ def load_session(path: Path) -> tuple[str | None, str | None]:
         return None, "cannot be read as text"
     text = re.sub(r"^\s*cookie:\s*", "", text.strip(), flags=re.I)
     if not text or not text.isascii() or any(c in text for c in "\r\n\x00"):
-        return None, "must hold one line: the Cookie header value"
-    return text, None
+        return None, "must hold one line: the fdb_s cookie's value"
+    # The bare value, `fdb_s=value`, or a whole Cookie header of which only fdb_s is taken.
+    mine = next((x.strip() for x in text.split(";") if x.strip().lower().startswith("fdb_s=")), None)
+    value = mine[6:] if mine else text
+    if not re.fullmatch(r"[A-Za-z0-9._~%+/:-]+=*", value):
+        return None, "holds no fdb_s cookie value"
+    return "fdb_s=" + value, None
 
 
 def session_headers(cookie: str) -> dict[str, str]:
@@ -715,6 +720,10 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+class Challenge(Exception):
+    """Cloudflare answered with a bot challenge instead of the API: never worked around."""
+
+
 def http(url: str, data: bytes | None = None, hdrs: dict | None = None) -> tuple[int, dict | None]:
     """(status, JSON body or None). Network errors raise OSError. A Cookie goes to foreverdb.net only."""
     if any(k.lower() == "cookie" for k in (hdrs or {})) and not url.startswith(SITE + "/"):
@@ -723,8 +732,12 @@ def http(url: str, data: bytes | None = None, hdrs: dict | None = None) -> tuple
                                  method="POST" if data is not None else "GET")
     try:
         with urllib.request.build_opener(_NoRedirect).open(req, timeout=60) as r:
+            if r.headers.get("cf-mitigated"):
+                raise Challenge
             status, text = r.status, r.read(4 * 1024 * 1024)
     except urllib.error.HTTPError as e:
+        if e.headers.get("cf-mitigated"):
+            raise Challenge from None
         status, text = e.code, e.read(65536)
     except urllib.error.URLError as e:
         raise OSError(str(getattr(e, "reason", e))) from None
@@ -785,7 +798,7 @@ def _digest(cookie: str) -> str:
 
 
 def run(wow: Path, archive: Path, log, *, dry: bool = False, force: bool = False, now: float | None = None,
-        words_get=None, session_file: Path | None = None) -> int:
+        words_get=None, session_file: Path | None = None, armory: list[str] | None = None) -> int:
     """Send what changed. Returns how many requests were sent (dry: planned).
     With a session file: as the logged-in page (ForeverDB.lua with the characters, and the Helper's share);
     without, or when the session has expired: anonymously."""
@@ -823,8 +836,21 @@ def run(wow: Path, archive: Path, log, *, dry: bool = False, force: bool = False
     if not dry:
         st["tried"] = now
     sent = 0
+    try:
+        sent = _passes(files, hfiles, stamps, cookie, st, sess, log, dry, force, now, words_get,
+                       session_file, armory or [])
+    except Challenge:
+        log("foreverdb.net answered with a Cloudflare challenge: not sending (nothing is done about it)")
+        sess["challenged"] = now
+    if not dry:
+        save_state(sp, st)
+    return sent
+
+
+def _passes(files, hfiles, stamps, cookie, st, sess, log, dry, force, now, words_get, session_file, armory) -> int:
+    sent = 0
     if cookie:
-        result = _session_pass(wow, files, hfiles, stamps, cookie, st, sess, log, dry, force, now, words_get)
+        result = _session_pass(files, hfiles, stamps, cookie, st, sess, log, dry, force, now, words_get, armory)
         if result == "expired":
             log(f"foreverdb.net session expired: paste a new one into {session_file}")
             sess["expired"] = _digest(cookie)
@@ -834,8 +860,6 @@ def run(wow: Path, archive: Path, log, *, dry: bool = False, force: bool = False
     if not cookie:
         stamps = {a: [f.stat().st_mtime_ns, f.stat().st_size] for a, f in files}
         sent += _anon_pass(files, stamps, st, log, dry, force, now, words_get)
-    if not dry:
-        save_state(sp, st)
     return sent
 
 
@@ -886,7 +910,7 @@ def _anon_pass(files, stamps, st, log, dry, force, now, words_get) -> int:
     return sent
 
 
-def _session_pass(wow, files, hfiles, stamps, cookie, st, sess, log, dry, force, now, words_get):
+def _session_pass(files, hfiles, stamps, cookie, st, sess, log, dry, force, now, words_get, armory):
     """The logged-in page's send. Returns the number of requests sent, or "expired" on a 401/403."""
     mem = sess.setdefault("files", {})
     hdrs = session_headers(cookie)
@@ -908,16 +932,17 @@ def _session_pass(wow, files, hfiles, stamps, cookie, st, sess, log, dry, force,
             clean = False
             continue
         entry = mem.get(acct, {})
-        armory = "all" if plan["guids"] else "none"
+        picked = [g for g in plan["guids"] if plan["snaps"].get(g, {}).get("name") in armory]
+        ticked = ",".join(picked) or "none"  # the page's wt(): the ticked characters
         changed = entry.get("hash") != plan["hash"]
         share = bool(plan["counts"]) and (force or changed)
-        chars = armory != "none" and (force or changed or entry.get("armory") != armory)
+        chars = ticked != "none" and (force or changed or entry.get("armory") != ticked)
         if not share and not chars:
             continue
-        raw, body = logged_in_body(plan, share, plan["guids"] if chars else [])
+        raw, body = logged_in_body(plan, share, picked if chars else [])
         if dry:
             log(f"foreverdb: {label}: would send (logged in) {len(raw)} bytes JSON, {len(body)} gzipped; "
-                f"data {share}, characters {len(plan['guids']) if chars else 0}")
+                f"data {share}, characters {len(picked) if chars else 0}")
             sent += 1
             continue
         try:
@@ -931,7 +956,7 @@ def _session_pass(wow, files, hfiles, stamps, cookie, st, sess, log, dry, force,
         log(f"foreverdb: {label}: sent (logged in) {len(body)} bytes, HTTP {status}"
             + (f", {summary(resp)}" if 200 <= status < 300 else ""))
         if 200 <= status < 300:
-            mem[acct] = {"hash": plan["hash"], "armory": armory}
+            mem[acct] = {"hash": plan["hash"], "armory": ticked}
             st["at"] = now
             sent += 1
         else:
@@ -979,11 +1004,18 @@ def session_path(config: dict, archive: Path) -> Path | None:
     return Path(os.path.expandvars(str(v))).expanduser() if v else None
 
 
+def armory_names(config: dict) -> list[str]:
+    """The characters to put in your armory (logged-in sends only); none by default."""
+    v = config.get("foreverdb_armory", [])
+    return [x for x in v if isinstance(x, str)] if isinstance(v, list) else []
+
+
 def maybe_send(shipper) -> int:
     """The hook in wow_stats.main(): `shipper` is the wow_stats module."""
     if not enabled(shipper.CONFIG):
         return 0
-    return run(shipper.WOW, shipper.ARCHIVE, shipper.log, session_file=session_path(shipper.CONFIG, shipper.ARCHIVE))
+    return run(shipper.WOW, shipper.ARCHIVE, shipper.log, session_file=session_path(shipper.CONFIG, shipper.ARCHIVE),
+               armory=armory_names(shipper.CONFIG))
 
 
 def main() -> int:
@@ -1000,7 +1032,7 @@ def main() -> int:
         print("foreverdb_send is off: set foreverdb_send = true in config.toml", file=sys.stderr)
         return 2
     n = run(wow_stats.WOW, wow_stats.ARCHIVE, wow_stats.log, dry=a.dry_run, force=a.force,
-            session_file=session_path(wow_stats.CONFIG, wow_stats.ARCHIVE))
+            session_file=session_path(wow_stats.CONFIG, wow_stats.ARCHIVE), armory=armory_names(wow_stats.CONFIG))
     print(f"foreverdb: {n} file(s) {'planned' if a.dry_run else 'sent'}")
     return 0
 

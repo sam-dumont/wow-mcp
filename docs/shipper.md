@@ -192,33 +192,38 @@ without it, or with the setting off, nothing happens.
   that. Resending is harmless on the site's side.
 - **Your own profile (optional, temporary).** The page credits an upload to
   your ForeverDB profile, and sends the Helper's data too, when you are logged
-  in. Its only credential is your browser's session cookie, so until ForeverDB
-  ships an official Mac uploader (then this goes away: use that), you can put
-  that cookie in a file and the shipper sends what the logged-in page sends:
-  `POST https://foreverdb.net/api/me/addon-file`, `ForeverDB.lua` with the
-  data and your characters' snapshots (names included: they go to your private
-  armory), and `ForeverDB_Helper.lua`'s share section (`{"share": ...}`: runs,
-  kills, finds, wishlist ids, tips; numbers and ids, never a name or a goal's
-  title, filtered as the page does). The steps, in Chrome:
-  1. Log in at <https://foreverdb.net> with Battle.net, then open
-     <https://foreverdb.net/send>.
-  2. Press F12 (Developer tools), open the Network tab, reload the page.
-  3. Click the request named `me` (`/api/me`), Headers, Request Headers: right-click
-     the value of `cookie` and choose Copy value. (The page's code names no
-     cookie; the browser sends its whole foreverdb.net cookie jar, so copy the
-     whole header. Application, Cookies shows the same cookies one by one.)
-  4. Paste it as one line into `~/WoWArchive/foreverdb-session` (or the file
-     `foreverdb_session_file` names), then `chmod 600 ~/WoWArchive/foreverdb-session`.
+  in. Its credential is your browser's session cookie `fdb_s`, so until
+  ForeverDB ships an official Mac uploader (then this goes away: use that),
+  you can put that one cookie in a file and the shipper sends what the
+  logged-in page sends: `POST https://foreverdb.net/api/me/addon-file` (no
+  `X-FDB-Install`), `ForeverDB.lua` with the data, and `ForeverDB_Helper.lua`'s
+  share section (`{"share": ...}`: runs, kills, finds, wishlist ids, tips;
+  numbers and ids, never a name or a goal's title, filtered as the page
+  does; nothing is sent while it holds no run, kill, find, tip, wish or goal).
+  The steps, in Chrome:
+  1. Log in at <https://foreverdb.net> with Battle.net.
+  2. Press F12 (Developer tools), open Application, Cookies,
+     `https://foreverdb.net`, and click the cookie named `fdb_s`.
+  3. Copy its Value. Never copy `cf_clearance` or the others: they are
+     Cloudflare's and not needed, and the shipper ignores them if pasted.
+  4. Paste the value as one line into `~/WoWArchive/foreverdb-session` (or
+     the file `foreverdb_session_file` names), then
+     `chmod 600 ~/WoWArchive/foreverdb-session`.
 
   The file is used only if it is a plain file, mode 600 and yours (the log
-  says why once when not). The cookie goes to `https://foreverdb.net` and
-  nowhere else, no redirect is followed with it, and it is never logged, put
-  on a command line or kept in the state file. Change detection is kept
-  separately for logged-in sends. When the site answers 401 or 403 the session
-  has expired: the log says `foreverdb.net session expired: paste a new one
-  into <file>` once, ForeverDB.lua goes anonymously as before (the Helper's
-  data is not sent) and the same expired cookie isn't tried again. No file, no
+  says why once when not). Only `fdb_s` is sent, to `https://foreverdb.net`
+  and nowhere else, no redirect is followed with it, and it is never logged,
+  put on a command line or kept in the state file. The shipper does not
+  imitate a browser: if Cloudflare ever answers with a challenge it logs that
+  and stops, and does nothing about it. Change detection is kept separately
+  for logged-in sends. When the site answers 401 or 403 the session has
+  expired: the log says `foreverdb.net session expired: paste a new one into
+  <file>` once, ForeverDB.lua goes anonymously as before (the Helper's data is
+  not sent) and the same expired value isn't tried again. No file, no
   logged-in sends. `foreverdb_session_file = ""` turns it off.
+  **Your armory:** the page sends the characters you tick (name, realm, gear,
+  talents, professions, reputations; private until you make them public).
+  Here none go unless you list them: `foreverdb_armory = ["Name", ...]`.
 - The log has one line per send: `foreverdb: account 1: sent 481162 bytes,
   HTTP 200, quests=241, ...` (counts only, no names, no data).
 - By hand: `python3 foreverdb_send.py --dry-run` prints the size and the

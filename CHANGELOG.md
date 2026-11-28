@@ -3,7 +3,7 @@
 ## Unreleased
 
 - KB refresh run: goes red only for a change it refused or never landed. A kind it landed whose upstream moved again during the run gets an issue saying the next daily run lands it, and the run stays green.
-- The shipper can send your ForeverDB addon data to foreverdb.net by itself, as the site's "Send my latest data" page does (anonymous, only what changed, no Mac uploader needed). Off until you set `foreverdb_send = true` in the shipper's config; a file with your foreverdb.net session cookie makes it upload as you (profile credit, Helper data too) until an official Mac uploader exists; `foreverdb_send.py --dry-run` shows what would go. [Details](docs/shipper.md#sending-to-foreverdbnet)
+- The shipper can send your ForeverDB addon data to foreverdb.net by itself, as the site's "Send my latest data" page does (anonymous, only what changed, no Mac uploader needed). Off until you set `foreverdb_send = true` in the shipper's config; a file with the value of your foreverdb.net `fdb_s` cookie makes it upload as you (profile credit, Helper data too) until an official Mac uploader exists; `foreverdb_send.py --dry-run` shows what would go. [Details](docs/shipper.md#sending-to-foreverdbnet)
 - **View in 3D** turns the character about its own body: a long weapon no longer pulls the turn axis aside. Zoom with the mouse wheel or a two-finger pinch.
 - Dungeons are optional. The Overview's dungeon card starts "If you like dungeons:", sits after upgrades, professions and riding, and its trip counts an assumed 20 minutes to find a group (the text says so).
 - "N× your questing" compares a dungeon trip with your measured XP an hour, the same number as the "Next level in" tile.

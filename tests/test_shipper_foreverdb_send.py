@@ -295,7 +295,8 @@ def test_enabled_but_module_missing_says_so():
 
 # ---- the owner's own session: as the logged-in page --------------------------------------------------------------
 
-SECRET = "sid=THE-SECRET-VALUE; other=thing"
+SECRET = "fdb_s=THE-SECRET-VALUE; cf_clearance=NOT-FOR-US; other=thing"
+SENT = "fdb_s=THE-SECRET-VALUE"
 HELPER = """ForeverDBHelperDB = {
     ["gen"] = 1,
     ["share"] = { ["updated"] = 5, ["schema"] = 2,
@@ -332,10 +333,10 @@ def test_session_sends_like_the_logged_in_page(fs, env):
     assert sess_run(fs, env, now=1000.0) == 2
     comp, helper = net.posts
     assert comp[0] == helper[0] == "https://foreverdb.net/api/me/addon-file"
-    assert comp[2]["Cookie"] == SECRET and comp[2]["X-FDB"] == "1" and "X-FDB-Install" not in comp[2]
+    assert comp[2]["Cookie"] == SENT and "cf_clearance" not in json.dumps(comp[2]) and comp[2]["X-FDB"] == "1" and "X-FDB-Install" not in comp[2]
     body = json.loads(gzip.decompress(comp[1]))
     assert list(body) == ["kind", "v", "addonVersion", "data", "armory"]
-    assert [c["name"] for c in body["armory"]] == ["Zorbo"] and "secret" not in body["armory"][0]
+    assert body["armory"] == []  # no character is ticked unless the owner lists it
     assert body["data"]["quests"]["101"]["t"].startswith("$N,")
     share = json.loads(gzip.decompress(helper[1]))
     assert list(share) == ["share"]
@@ -360,11 +361,11 @@ def test_nothing_secret_in_the_log_or_the_state(fs, env):
     write_acct(wow, "ACCT1")
     session(arch)
     sess_run(fs, env, now=1000.0)
-    assert "THE-SECRET" not in "".join(lines) and "sid=" not in "".join(lines)
+    assert "THE-SECRET" not in "".join(lines) and "fdb_s=" not in "".join(lines)
     assert "THE-SECRET" not in (arch / "foreverdb-send.json").read_text()
 
 
-@pytest.mark.parametrize(("mode", "text"), [(0o644, SECRET), (0o600, "a=b\nc=d"), (0o600, "   ")])
+@pytest.mark.parametrize(("mode", "text"), [(0o644, SECRET), (0o600, "a=b\nc=d"), (0o600, "   "), (0o600, "other=1; cf_clearance=2")])
 def test_a_loose_or_odd_session_file_is_refused_once_and_anonymous_is_used(fs, env, mode, text):
     wow, arch, net, lines, _run = env
     write_acct(wow, "ACCT1")
@@ -406,9 +407,9 @@ def test_an_expired_session_says_so_and_falls_back_to_anonymous(fs, env):
     assert len(net.posts) == 3 and net.posts[2][0].endswith("/anon/addon-file")
     assert len([ln for ln in lines if "session expired" in ln]) == 1
     net.me_status = 200
-    p.write_text("sid=NEW\n")
+    p.write_text("fdb_s=NEW\n")
     sess_run(fs, env, now=9000.0, force=True)
-    assert net.posts[-1][2]["Cookie"] == "sid=NEW"
+    assert net.posts[-1][2]["Cookie"] == "fdb_s=NEW"
 
 
 def test_the_session_goes_to_foreverdb_only(fs):
@@ -423,3 +424,40 @@ def test_session_path_setting(fs, tmp_path):
     assert fs.session_path({}, tmp_path) == tmp_path / "foreverdb-session"
     assert fs.session_path({"foreverdb_session_file": ""}, tmp_path) is None
     assert fs.session_path({"foreverdb_session_file": str(tmp_path / "x")}, tmp_path) == tmp_path / "x"
+
+
+def test_only_the_fdb_s_value_is_taken_from_whatever_was_pasted(fs, tmp_path):
+    p = tmp_path / "s"
+    for text, want in [("abc.DEF-1_2~3%2B+/:=\n", "fdb_s=abc.DEF-1_2~3%2B+/:="), ("fdb_s=V1\n", "fdb_s=V1"),
+                       ("Cookie: cf_clearance=X; fdb_s=V2; a=b", "fdb_s=V2")]:
+        p.write_text(text)
+        p.chmod(0o600)
+        assert fs.load_session(p) == (want, None)
+    assert fs.load_session(tmp_path / "missing") == (None, None)
+
+
+def test_armory_is_opt_in_by_character_name(fs, env):
+    wow, arch, net, _lines, _run = env
+    write_acct(wow, "ACCT1")
+    session(arch)
+    assert sess_run(fs, env, now=1000.0, armory=["Zorbo"]) == 1
+    body = json.loads(gzip.decompress(net.posts[0][1]))
+    assert [c["name"] for c in body["armory"]] == ["Zorbo"] and "secret" not in body["armory"][0]
+    assert fs.armory_names({"foreverdb_armory": ["A", 5]}) == ["A"] and fs.armory_names({}) == []
+
+
+def test_a_cloudflare_challenge_stops_everything(fs, env, monkeypatch):
+    wow, arch, net, lines, _run = env
+    write_acct(wow, "ACCT1")
+    session(arch)
+
+    def challenged(url, data=None, hdrs=None):
+        net.calls.append((url, data, hdrs))
+        if data is not None:
+            raise fs.Challenge
+        return net(url, data, hdrs)
+
+    monkeypatch.setattr(fs, "http", challenged)
+    assert sess_run(fs, env, now=1000.0) == 0
+    assert len([c for c in net.calls if c[1] is not None]) == 1  # no retry, no anonymous fallback
+    assert "Cloudflare challenge" in "".join(lines) and "THE-SECRET" not in "".join(lines)
