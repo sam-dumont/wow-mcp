@@ -711,7 +711,7 @@ jobs:
           uv run --frozen python tools/kb/land.py --mode "$MODE" --branch "$BRANCH" ${REGEN:+"--regen"}
           --base "$BASE" --gates "$HANDOFF/gates.json" --gates-md "$HANDOFF/gates.md"
           --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
-          --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
+          --kinds "$KINDS" --why-out "$WHY" --landed-out "$RUNNER_TEMP/kb-landed.json" --state-out "$RUNNER_TEMP/watch-state.json"
           --prepared "$RUNNER_TEMP/land-prep.json"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.land.outputs.outcome == 'moved'
@@ -754,7 +754,7 @@ jobs:
           uv run --frozen python tools/kb/land.py --mode "$MODE" --branch "$BRANCH" --regen
           --base "$BASE" --gates "$RUNNER_TEMP/gates-regen.json" --gates-md "$RUNNER_TEMP/gates-regen.md"
           --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
-          --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
+          --kinds "$KINDS" --why-out "$WHY" --landed-out "$RUNNER_TEMP/kb-landed.json" --state-out "$RUNNER_TEMP/watch-state.json"
           --prepared "$RUNNER_TEMP/land-prep1.json"
       - name: Made again on the current main (2)
         id: regen2
@@ -793,7 +793,7 @@ jobs:
           uv run --frozen python tools/kb/land.py --mode "$MODE" --branch "$BRANCH" --regen --last
           --base "$BASE" --gates "$RUNNER_TEMP/gates-regen.json" --gates-md "$RUNNER_TEMP/gates-regen.md"
           --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
-          --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
+          --kinds "$KINDS" --why-out "$WHY" --landed-out "$RUNNER_TEMP/kb-landed.json" --state-out "$RUNNER_TEMP/watch-state.json"
           --prepared "$RUNNER_TEMP/land-prep2.json"
 
       # Last, whatever happened: a kind main still doesn't know keeps one
@@ -822,6 +822,7 @@ jobs:
           state="$RUNNER_TEMP/watch-state.json"
           [ -s "$state" ] || git show "${BASE:-HEAD}:data/kb/watch.json" > "$state"
           uv run --frozen python tools/kb/watch.py --github --kinds "$WATCH" --state "$state" --why "$WHY" \
+            --landed "$RUNNER_TEMP/kb-landed.json" \
             | tee "$RUNNER_TEMP/issues.json"
       # Green only when everything the watch saw landed: a kind left with an
       # open issue (a refused Polestar bump, an addon whose contract moved)
@@ -834,8 +835,10 @@ jobs:
           && steps.land1.outcome != 'failure' && steps.land2.outcome != 'failure'
         run: |
           set -eu
-          left=$(jq -r '[.did | to_entries[] | select(.value == "opened" or .value == "edited") | .key] | join(" ")' \
-            "$RUNNER_TEMP/issues.json")
+          # tools/kb/watch.py `red_kinds`: a kind this run landed that only
+          # moved upstream after its sample waits for the next run, green
+          # (2026-11-28: ForeverDB.net published again mid-run, #370).
+          left=$(jq -r '.red | join(" ")' "$RUNNER_TEMP/issues.json")
           if [ -n "$left" ]; then
             echo "::error::Not landed, an issue (label kb-watch) says why: $left"
             exit 1
