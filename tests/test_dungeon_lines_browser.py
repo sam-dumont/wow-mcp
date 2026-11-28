@@ -51,6 +51,15 @@ def pw():
         yield p
 
 
+def open_moves(pg):
+    """What a reader does: dungeons are an opt-in suggestion listed after the
+    other moves (owner, 2026-11-28), so the card sits behind "N more"."""
+    btn = pg.locator("#home .ovmoves > div > .morebtn").first
+    btn.wait_for(timeout=30000)
+    if btn.get_attribute("aria-expanded") == "false":
+        btn.click()
+
+
 def open_page(pw, engine, url, width):
     try:
         b = getattr(pw, engine).launch()
@@ -71,9 +80,14 @@ def test_dungeon_item_lines_are_the_overviews(site, pw, engine, width):
     url = site
     b, pg, errors = open_page(pw, engine, url, width)
     try:
+        open_moves(pg)
         pg.wait_for_selector("#home .move.k-dungeon", timeout=30000)
         # The Overview's dungeon card says the line the panel says.
-        card = pg.locator("#home .move.k-dungeon").first.text_content()
+        # A card that names an item says the line; one that only counts its
+        # drop upgrades ("+ 1 drop upgrade (33% a run)") has none to say.
+        cards = pg.locator("#home .move.k-dungeon").filter(has=pg.locator(".itm .ifr .ibis"))
+        assert cards.count(), "no dungeon card shows an item"
+        card = cards.first.text_content()
         assert re.search(r"(empty|\d+%) → \d+% on your ", card), card
         pg.click("#tab-overview")
         pg.wait_for_selector("#gear .slot .ifr .ibis", timeout=30000)
@@ -99,25 +113,30 @@ def test_dungeon_item_lines_are_the_overviews(site, pw, engine, width):
 def test_phone_shows_the_handins_wing_progress_and_both_mask_bosses(site, pw, demo_clock):
     browser, page, errors = open_page(pw, "chromium", site, 390)
     try:
-        def inspect_handins(parent):
-            summary = parent.get_by_text("12 hand-ins this trip (91,031 XP)", exact=True)
+        def inspect_handins(parent, total, n, pre, dq):
+            summary = parent.get_by_text(total, exact=True)
             summary.click(timeout=30000)
             details = summary.locator("..")
-            assert details.locator("li").count() == 12
-            assert "Prerequisites (5), 11,200 XP" in details.inner_text()
-            assert "Dungeon quests (7), 79,831 XP" in details.inner_text()
-            assert details.locator("li a").count() == 12
+            assert details.locator("li").count() == n
+            assert pre in details.inner_text()
+            assert dq in details.inner_text()
+            assert details.locator("li a").count() == n
             assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1")
 
         home = page.locator("#home")
-        inspect_handins(home)
-        pickup = home.locator(".mquests li").filter(has_text="Tabetha's Task")
+        open_moves(page)
+        # The Overview suggests the dungeons worth a run now (Razorfen Downs
+        # and Uldaman for this character); Zul'Farrak is in the panel.
+        inspect_handins(home, "14 hand-ins this trip (47,160 XP)", 14,
+                        "Prerequisites (9), 24,020 XP", "Dungeon quests (5), 23,140 XP")
+        pickup = home.locator(".mquests li").filter(has_text="A Host of Evil")
         if not pickup.is_visible():
             pickup.locator("xpath=ancestor::details").locator("summary").click()
-        assert re.search(r"Tabetha's Task from Jennea Cannon.*410 XP", pickup.inner_text())
+        assert re.search(r"A Host of Evil from Myriam Moonsinger.*4,100 XP", pickup.inner_text())
         page.get_by_role("tab", name="Character", exact=True).click()
         zf = page.locator(".dg").filter(has=page.get_by_role("heading", name="Zul'Farrak", exact=True))
-        inspect_handins(zf)
+        inspect_handins(zf, "12 hand-ins this trip (91,031 XP)", 12,
+                        "Prerequisites (5), 11,200 XP", "Dungeon quests (7), 79,831 XP")
         pickup = zf.locator(".dgq").filter(has=page.get_by_role("link", name="Tabetha's Task", exact=True))
         assert "from Jennea Cannon" in pickup.text_content()
         assert "Anastasia Hartwell" not in pickup.text_content()

@@ -15,7 +15,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 
-from tests.test_dungeon_lines_browser import open_page, pw, site  # noqa: E402,F401
+from tests.test_dungeon_lines_browser import open_moves, open_page, pw, site  # noqa: E402,F401
 
 SOURCES = re.compile(r"cMaNGOS|EG Link|Efficient Games|advocaite|TrinityCore|Everlake|spawn table", re.I)
 
@@ -25,6 +25,7 @@ SOURCES = re.compile(r"cMaNGOS|EG Link|Efficient Games|advocaite|TrinityCore|Eve
 def test_kill_xp_row_after_quests_and_gear(site, pw, engine, width):  # noqa: F811
     b, pg, errors = open_page(pw, engine, site, width)
     try:
+        open_moves(pg)
         pg.wait_for_selector("#home .move.k-dungeon", timeout=30000)
         move_gain = pg.locator("#home .move.k-dungeon .mgain").first.text_content()
         pg.click("#tab-overview")
