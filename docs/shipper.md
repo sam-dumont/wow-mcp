@@ -33,7 +33,8 @@ run), then:
    asked for ([The 3D view's files](#the-3d-views-files)).
 5. **item facts**: when the game's hotfix cache changed, sends the facts of
    the items the server lacks ([Item facts](#item-facts)).
-6. **update**: at most every 2 hours, asks the same server for a newer
+6. **foreverdb.net** (off unless you turn it on): [Sending to foreverdb.net](#sending-to-foreverdbnet).
+7. **update**: at most every 2 hours, asks the same server for a newer
    shipper and takes it ([Auto-update](#auto-update)).
 
 ## Auto-update
@@ -158,6 +159,43 @@ password and daily budget as `/ingest`; with several people, your facts
 stay in your own folder there and go with your account.
 `item_facts = false` in the config turns it off.
 
+## Sending to foreverdb.net
+
+Off by default. `foreverdb_send = true` in the config (or the environment
+variable `WOW_STATS_FOREVERDB_SEND=1`) makes each run, after the rest of its
+work, do what <https://foreverdb.net/send> does in a browser when you pick your
+`_forever_` folder and press "Send my latest data", without a login. There is
+no Mac build of ForeverDB's own uploader. The file doing it,
+`foreverdb_send.py`, sits next to `wow_stats.py` (the installer copies it);
+without it, or with the setting off, nothing happens.
+
+- It reads each account's `WTF/Account/<account>/SavedVariables/ForeverDB.lua`
+  (never the `.bak`), keeps the sections the page keeps (quests, drops,
+  vendors, trainers, beasts, gathering spots, fish, skins, talent builds,
+  boss fights, spam counts, auction prices, rares, flights, trails, route
+  reports, anonymous game facts), and turns your characters' names in the
+  quests' text into `$N`, as the page does (it asks
+  `https://foreverdb.net/api/gamewords` for the game's own words first; if
+  that fails nothing is sent).
+- `POST https://foreverdb.net/api/anon/addon-file`, one request per account:
+  the JSON `{"kind":"fdb-upload","v":1,"addonVersion":...,"data":{...},"armory":[]}`
+  gzipped, with the headers `Content-Type: application/gzip`, `X-FDB: 1` and
+  `X-FDB-Install` (a random code made on the first send and kept in the state
+  file, which is how the page tells uploads apart). The anonymous page never
+  sends a character snapshot (`armory` is empty), and the Helper's
+  `ForeverDB_Helper.lua` needs a Battle.net login there, so it is not read.
+  There is no upload key: the page sends none.
+- Only what changed: the page's own rule, a SHA-256 of what would be sent,
+  per account, remembered in `<archive_dir>/foreverdb-send.json` once the
+  site answered 2xx. A file whose size and time did not change isn't even
+  read. At most one attempt every 15 minutes; a failed one tries again after
+  that. Resending is harmless on the site's side.
+- The log has one line per send: `foreverdb: account 1: sent 481162 bytes,
+  HTTP 200, quests=241, ...` (counts only, no names, no data).
+- By hand: `python3 foreverdb_send.py --dry-run` prints the size and the
+  top-level shape of each request and sends nothing; `--force` sends every
+  file now.
+
 ## Stats only (no WTF archive)
 
 By default, when git is installed, every run commits your whole `WTF`
@@ -252,7 +290,8 @@ Lines that aren't valid events never leave the PC: they go to
 `WOW_STATS_CONFIG` points it at another config file. `config.example.toml`
 lists every setting: `wow_dir` (the `_forever_` folder, found by itself in the
 usual install places), `archive_dir`, `wtf_archive` (default `true`),
-`log_file`, `polestar_client_dir`, `auto_update` (default `true`), and
+`log_file`, `polestar_client_dir`, `auto_update` (default `true`), `foreverdb_send` (default
+`false`), and
 `[ship]` with `url`, `user`, `password` or `password_file`, and
 `retention_days`.
 

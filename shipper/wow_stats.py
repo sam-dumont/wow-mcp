@@ -6048,6 +6048,14 @@ def main() -> int:
             ship_item_facts(state)
         except Exception as e:  # noqa: BLE001 - the item facts never stop the shipping
             log(f"item facts: {type(e).__name__}: {e}")
+        try:  # off unless foreverdb_send = true; a file next to this one (docs/shipper.md)
+            import foreverdb_send  # noqa: PLC0415
+
+            foreverdb_send.maybe_send(sys.modules[__name__])
+        except ImportError:
+            pass
+        except Exception as e:  # noqa: BLE001 - sending to foreverdb.net never stops the shipping
+            log(f"foreverdb send: {type(e).__name__}: {e}")
         try:
             check_update(state)
         except Exception as e:  # noqa: BLE001 - an update bug never stops the shipping

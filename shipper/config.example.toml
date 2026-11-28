@@ -41,6 +41,14 @@
 # asks for. false: never; those items then show by name only.
 # item_facts = false
 
+# Send the ForeverDB addon's data to foreverdb.net, anonymously, the way its
+# page https://foreverdb.net/send does when you pick your _forever_ folder
+# (quests, drops, vendors, boss fights and so on, never a character name).
+# Only what changed, at most every 15 minutes; one log line per send.
+# `python3 foreverdb_send.py --dry-run` shows what would go. Off unless true
+# (or WOW_STATS_FOREVERDB_SEND=1).
+# foreverdb_send = true
+
 # Default: ~/Library/Logs/wow-stats.log (macOS),
 # %LOCALAPPDATA%\wow-stats\wow-stats.log (Windows).
 # log_file = "~/wow-stats.log"

@@ -47,6 +47,8 @@ fi
 # A copy, so moving or updating the download doesn't break the agent.
 mkdir -p "$DEST_DIR" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
 install -m 755 "$HERE/wow_stats.py" "$SCRIPT"
+# Sending to foreverdb.net (config: foreverdb_send = true) lives in a file of its own, beside the script.
+if [ -f "$HERE/foreverdb_send.py" ]; then install -m 644 "$HERE/foreverdb_send.py" "$DEST_DIR/foreverdb_send.py"; fi
 # The GPL's text (the one-line installer carries it): the program's license, next to it.
 if [ -f "$HERE/LICENSE" ]; then install -m 644 "$HERE/LICENSE" "$DEST_DIR/LICENSE"; fi
 say "script: $SCRIPT (runs with: ${prog[*]})"
